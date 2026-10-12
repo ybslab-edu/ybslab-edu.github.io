@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}.lbl{font-size:13px;color:var(--muted);min-width:2.5em}
+.tabs a{color:inherit}
+nav a{color:var(--accent)}
+</style>
+<title>資訊科技成績彙整</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+
+<style>
+/* Layout: 上方貼成績碼 → 班級切換 → 該班成績表；工具型頁面，安靜、好掃描 */
+:root{
+  --bg:#F1F3F5; --surface:#FFFFFF; --ink:#1F2328; --muted:#5D6670; --line:#D5DBE1;
+  --accent:#2C67AE; --accent-soft:#E2ECF8; --ok:#2B7A4C; --ok-soft:#DFF1E6; --warn:#B3261E; --warn-soft:#FBE4E2;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#15181C; --surface:#1E2228; --ink:#ECEFF2; --muted:#9AA3AD; --line:#333A42;
+  --accent:#82B2EC; --accent-soft:#1C2A3A; --ok:#6FC995; --ok-soft:#1A3325; --warn:#F2897F; --warn-soft:#3A1F1D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15181C; --surface:#1E2228; --ink:#ECEFF2; --muted:#9AA3AD; --line:#333A42;
+  --accent:#82B2EC; --accent-soft:#1C2A3A; --ok:#6FC995; --ok-soft:#1A3325; --warn:#F2897F; --warn-soft:#3A1F1D; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:26px}
+.sub{margin:2px 0 0;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+textarea{font-family:var(--f-mono);font-size:14px;width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink);resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:700;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.danger{color:var(--warn);border-color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.msg{font-size:14px} .msg.ok{color:var(--ok)} .msg.no{color:var(--warn)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:inherit;font-family:var(--f-mono);font-weight:700;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 14px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.tabs small{font-family:var(--f-body);font-weight:400;color:var(--muted)}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.stats b{color:var(--ink);font-size:18px;font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--surface)}
+td{font-variant-numeric:tabular-nums}
+td.code{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+.y{color:var(--ok);font-weight:700} .n{color:var(--muted)}
+tr.miss td{color:var(--muted);background:var(--warn-soft)}
+.size{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.size input{width:4.5em;font:inherit;font-family:var(--f-mono);padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.confirm{background:var(--warn-soft);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.empty{color:var(--muted);text-align:center;padding:24px}
+.lbl{font-size:13px;color:var(--muted);min-width:2.5em}
+.tabs a{color:inherit}
+nav a{color:var(--accent)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="../assets/codec.js"></script>
+<script src="../assets/weeks.js"></script>
+
+<div class="wrap">
+  <nav><a href="../">← 課程首頁</a></nav>
+  <div>
+    <h1>資訊科技成績彙整</h1>
+    <p class="sub">把學生交來的成績碼貼進來，依週次、班級整理，匯出 Excel。資料只存在這台電腦的這個瀏覽器，別人打開這頁看不到你的資料。</p>
+  </div>
+
+  <section class="panel">
+    <label for="paste"><strong>貼上成績碼</strong>　不同週、不同班混在一起也可以，夾雜其他文字也沒關係</label>
+    <textarea id="paste" placeholder="E2K5-H7W2-FZFX-3M1A&#10;…"></textarea>
+    <div class="row"><button class="btn primary" id="b-add">加入</button><span class="msg" id="msg" role="status"></span></div>
+  </section>
+
+  <section class="panel">
+    <div class="row"><span class="lbl">週次</span><div class="tabs" id="wtabs"></div></div>
+    <div class="row"><span class="lbl">班級</span><div class="tabs" id="tabs"></div></div>
+    <div class="row" style="justify-content:space-between">
+      <div class="stats" id="stats"></div>
+      <label class="size" for="size">本班人數 <input id="size" inputmode="numeric" maxlength="2" placeholder="—"> <span>填了會列出未交的座號</span></label>
+    </div>
+    <div class="tbl" id="tbl"></div>
+    <div class="row">
+      <button class="btn" id="b-x1">下載本班本週</button>
+      <button class="btn" id="b-x2">下載本週全部班級</button>
+      <button class="btn" id="b-x3">下載本班學期總表</button>
+    </div>
+    <p class="msg" id="dlmsg" role="status"></p>
+  </section>
+
+  <section class="panel">
+    <div class="row" id="clr-row"></div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const W=Object.fromEntries(WEEKS.map(w=>[w.week,w]));
+const roundsOf=w=>(W[w]&&W[w].rounds)||['第1關','第2關','第3關','第4關'];
+let recs={}, sizes={}, curW=null, curC=null;
+try{recs=JSON.parse(localStorage.getItem('it9:grades')||'{}');sizes=JSON.parse(localStorage.getItem('it9:sizes')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('it9:grades',JSON.stringify(recs));localStorage.setItem('it9:sizes',JSON.stringify(sizes))}catch(e){}};
+const n1=m=>{let c=0;while(m){c+=m&1;m>>=1}return c};
+const p2=n=>String(n).padStart(2,'0');
+const fmtTime=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+p2(d.getHours())+':'+p2(d.getMinutes())};
+const all=()=>Object.values(recs);
+const weeks=()=>[...new Set(all().map(r=>r.week))].sort((a,b)=>a-b);
+const classes=w=>[...new Set(all().filter(r=>w==null||r.week===w).map(r=>r.cls))].sort((a,b)=>a-b);
+const wname=w=>'第 '+w+' 週'+(W[w]?'・'+W[w].title:'');
+
+$('b-add').onclick=()=>{
+  const found=CODEC.extract($('paste').value);
+  let add=0,upd=0,old=0;const bad=[];let last=null;
+  for(const f of found){
+    const r=CODEC.decode(f); if(!r){bad.push(f);continue}
+    const k=r.week+'-'+r.cls+'-'+r.seat, ex=recs[k];
+    if(!ex){recs[k]=r;add++;last=r}
+    else if(r.time>ex.time||(r.time===ex.time&&n1(r.mask)>n1(ex.mask))){recs[k]=r;upd++;last=r}
+    else old++;
+  }
+  save();
+  const m=$('msg');
+  if(!found.length){m.className='msg no';m.textContent='沒有找到成績碼。';return}
+  m.className='msg '+(bad.length?'no':'ok');
+  m.textContent='新增 '+add+' 人、更新 '+upd+' 人'+(old?'、'+old+' 筆比現有的舊所以略過':'')+(bad.length?'；'+bad.length+' 筆驗證不過（打錯或被改過）：'+bad.join('、'):'')+'。';
+  if(!bad.length)$('paste').value='';
+  if(last){curW=last.week;curC=last.cls}
+  render();
+};
+
+function rowsFor(w,c){
+  const list=all().filter(r=>r.week===w&&r.cls===c);
+  const by=Object.fromEntries(list.map(r=>[r.seat,r]));
+  const n=+sizes[c]||0, max=Math.max(n,...list.map(r=>r.seat),0), out=[];
+  for(let s=1;s<=max;s++){if(by[s])out.push(by[s]);else if(n&&s<=n)out.push({week:w,cls:c,seat:s,missing:true})}
+  return out;
+}
+
+function tabs(el,items,cur,label,on){
+  el.innerHTML=items.length?items.map(x=>'<button type="button" data-v="'+x+'" aria-pressed="'+(x===cur)+'">'+label(x)+'</button>').join(''):'<span class="sub">還沒有資料</span>';
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>on(+b.dataset.v));
+}
+
+function render(){
+  const ws=weeks(); if(!ws.includes(curW))curW=ws[ws.length-1]??null;
+  const cs=classes(curW); if(!cs.includes(curC))curC=cs[0]??null;
+  tabs($('wtabs'),ws,curW,wname,v=>{curW=v;render()});
+  tabs($('tabs'),cs,curC,c=>c+' <small>'+all().filter(r=>r.week===curW&&r.cls===c).length+' 人</small>',v=>{curC=v;render()});
+  const none=curW==null||curC==null;
+  ['b-x1','b-x2','b-x3','size'].forEach(id=>$(id).disabled=none);
+  $('size').value=!none&&sizes[curC]?sizes[curC]:'';
+  renderClear();
+  if(none){$('tbl').innerHTML='<p class="empty">貼上成績碼後，這裡會出現各班成績表。</p>';$('stats').innerHTML='';return}
+  const R=roundsOf(curW), rows=rowsFor(curW,curC), got=rows.filter(r=>!r.missing), full=(1<<R.length)-1;
+  $('stats').innerHTML='<span>已交 <b>'+got.length+'</b>'+(sizes[curC]?' / '+sizes[curC]:'')+'</span><span>全部過關 <b>'+got.filter(r=>(r.mask&full)===full).length+'</b></span>';
+  let h='<table><thead><tr><th>座號</th>'+R.map(x=>'<th>'+x+'</th>').join('')+'<th>過關數</th><th>總嘗試次數</th><th>最後更新</th><th>成績碼</th></tr></thead><tbody>';
+  for(const r of rows){
+    if(r.missing){h+='<tr class="miss"><td>'+r.seat+'</td><td colspan="'+(R.length+4)+'">未交</td></tr>';continue}
+    h+='<tr><td>'+r.seat+'</td>'+R.map((_,i)=>r.mask&(1<<i)?'<td class="y">✓ <small>'+r.tries[i]+' 次</small></td>':'<td class="n">'+(r.tries[i]?'未過（'+r.tries[i]+' 次）':'—')+'</td>').join('')+
+       '<td><b>'+n1(r.mask&full)+'</b></td><td>'+r.tries.slice(0,R.length).reduce((a,b)=>a+b,0)+'</td><td>'+fmtTime(r.time)+'</td><td class="code">'+r.code+'</td></tr>';
+  }
+  $('tbl').innerHTML=h+'</tbody></table>';
+}
+
+$('size').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');e.target.value=v;if(curC!=null){if(v&&+v>=1&&+v<=60)sizes[curC]=+v;else delete sizes[curC];save();render();$('size').focus()}});
+
+// ===== Excel =====
+function weekSheet(w,c){
+  const R=roundsOf(w);
+  const head=['班級','座號',...R.map(x=>x+'（1=過）'),'過關數',...R.map(x=>x+' 嘗試次數'),'總嘗試次數','最後更新','成績碼','備註'];
+  const aoa=[head], full=(1<<R.length)-1;
+  for(const r of rowsFor(w,c)){
+    if(r.missing){const row=Array(head.length).fill('');row[0]=c;row[1]=r.seat;row[head.length-1]='未交';aoa.push(row);continue}
+    const t=r.tries.slice(0,R.length);
+    aoa.push([c,r.seat,...R.map((_,i)=>r.mask&(1<<i)?1:0),n1(r.mask&full),...t,t.reduce((a,b)=>a+b,0),new Date(r.time),r.code,'']);
+  }
+  const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:'yyyy/mm/dd hh:mm'});
+  ws['!cols']=head.map(h=>({wch:Math.max(8,Math.min(20,h.length*2))}));
+  return ws;
+}
+function termSheet(c){
+  const ws_=weeks().filter(w=>all().some(r=>r.week===w&&r.cls===c));
+  const head=['班級','座號',...ws_.map(w=>'第'+w+'週 過關數（共'+roundsOf(w).length+'關）'),'合計過關數','合計關卡數'];
+  const seats=new Set(all().filter(r=>r.cls===c).map(r=>r.seat));
+  const n=+sizes[c]||0; for(let s=1;s<=n;s++)seats.add(s);
+  const total=ws_.reduce((a,w)=>a+roundsOf(w).length,0);
+  const aoa=[head];
+  for(const s of [...seats].sort((a,b)=>a-b)){
+    const per=ws_.map(w=>{const r=recs[w+'-'+c+'-'+s];return r?n1(r.mask&((1<<roundsOf(w).length)-1)):''});
+    aoa.push([c,s,...per,per.reduce((a,b)=>a+(+b||0),0),total]);
+  }
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=head.map(h=>({wch:Math.max(8,Math.min(24,h.length*2))}));
+  return {ws,ws_};
+}
+function saveBook(name,sheets){
+  const m=$('dlmsg');
+  if(typeof XLSX==='undefined'){m.className='msg no';m.textContent='Excel 元件沒有載入成功，請確認網路後重新整理。';return}
+  const wb=XLSX.utils.book_new();
+  for(const [n,ws] of sheets) XLSX.utils.book_append_sheet(wb,ws,n.slice(0,31));
+  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  m.className='msg ok';m.textContent='已下載 '+name;
+}
+const today=()=>{const d=new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
+$('b-x1').onclick=()=>saveBook('資訊科技_第'+curW+'週_'+curC+'班_'+today()+'.xlsx',[[curC+'班',weekSheet(curW,curC)]]);
+$('b-x2').onclick=()=>saveBook('資訊科技_第'+curW+'週_全部班級_'+today()+'.xlsx',classes(curW).map(c=>[c+'班',weekSheet(curW,c)]));
+$('b-x3').onclick=()=>{const {ws,ws_}=termSheet(curC);saveBook('資訊科技_'+curC+'班_學期總表_'+today()+'.xlsx',[['總表',ws],...ws_.map(w=>['第'+w+'週',weekSheet(w,curC)])])};
+
+// ===== 清除 =====
+function renderClear(){
+  const row=$('clr-row');
+  row.innerHTML='<button class="btn danger" id="b-clear" '+(curC==null?'disabled':'')+'>清除這班這週的資料</button><span class="sub">只清除目前選的週次和班級</span>';
+  $('b-clear').onclick=()=>{
+    row.innerHTML='<div class="confirm"><span>確定刪除'+wname(curW)+' '+curC+' 班的所有成績？刪了不能復原。</span><button class="btn danger" id="c-yes">刪除</button><button class="btn" id="c-no">取消</button></div>';
+    $('c-no').onclick=renderClear;
+    $('c-yes').onclick=()=>{for(const k of Object.keys(recs))if(recs[k].week===curW&&recs[k].cls===curC)delete recs[k];save();render()};
+  };
+}
+render();
+</script>

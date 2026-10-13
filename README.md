@@ -18,9 +18,9 @@
 
 ## 第一次上線（GitHub Pages）
 
-1. 把這個資料夾推到組織 `ybs-lab` 底下、名為 `ybs-lab.github.io` 的公開儲存庫，`main` 分支。
+1. 把這個資料夾推到組織 `ybslab-edu`（YBS Lab for Education）底下、名為 `ybslab-edu.github.io` 的公開儲存庫，`main` 分支。
 2. 到儲存庫的 Settings → Pages，Source 選「Deploy from a branch」，分支選 `main`、資料夾選 `/ (root)`，按 Save。
-3. 約一分鐘後，網址會出現在同一頁，網址為 `https://ybs-lab.github.io/`。
+3. 約一分鐘後，網址會出現在同一頁，網址為 `https://ybslab-edu.github.io/`。
 
 ## 每週新增一課
 

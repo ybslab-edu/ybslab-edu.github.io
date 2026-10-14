@@ -17,11 +17,12 @@
 :root{
   --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
   --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C;
+  --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
   --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
-  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; color-scheme:dark}}
+  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
 a{color:inherit}
@@ -31,9 +32,16 @@ a{color:inherit}
 /* 頁首 */
 .bar{background:var(--surface);border-bottom:1px solid var(--rule)}
 .bar .in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
-.logo{display:flex;align-items:baseline;gap:10px;text-decoration:none}
-.logo b{font-weight:900;font-size:20px;letter-spacing:.01em}
-.logo span{color:var(--muted);font-size:14px}
+.logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
+.logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
+.logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
+.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
+.motto.lit .k{transform:translateY(-.05em) scale(1.25)}
+.motto.lit .k.y{color:var(--why);transition-delay:.15s}
+.motto.lit .k.b{color:var(--because);transition-delay:.45s}
+.motto.lit .k.s{color:var(--so);transition-delay:.75s}
+@media (max-width:420px){.motto{font-size:15px}}
 .bar nav{display:flex;gap:20px;font-size:15px}
 .bar nav a{text-decoration:none;color:var(--muted)}
 .bar nav a:hover{color:var(--ink)}
@@ -161,10 +169,6 @@ h2{margin:0 0 6px;font-size:26px;font-weight:900}
 .course:hover b{text-decoration:underline;text-underline-offset:4px}
 @media (max-width:560px){.course{grid-template-columns:minmax(0,1fr) auto}.course .yr{grid-column:1 / -1}}
 
-.about{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
-@media (max-width:760px){.about{grid-template-columns:minmax(0,1fr)}}
-.about h3{margin:0 0 4px;font-size:18px}
-.about p{margin:0;color:var(--muted)}
 
 footer{margin-top:72px;border-top:1px solid var(--rule);background:var(--surface);color:var(--muted);font-size:14px}
 footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px}
@@ -175,8 +179,8 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 
 <header class="bar">
   <div class="in">
-    <a class="logo" href="./"><b>YBS Lab</b><span>Why, because, so.</span></a>
-    <nav aria-label="主選單"><a href="#map">學習地圖</a><a href="#timeline">時間軸</a><a href="#classes">進教室</a><a href="#about">關於</a></nav>
+    <a class="logo" href="./" aria-label="YBS Lab：Why, because, so."><b aria-hidden="true"><span class="y">Y</span><span class="bb">B</span><span class="s">S</span> Lab</b><span class="motto" id="motto" aria-hidden="true"><span>wh<span class="k y">Y</span></span><span><span class="k b">B</span>ecause</span><span><span class="k s">S</span>o.</span></span></a>
+    <nav aria-label="主選單"><a href="#map">學習地圖</a><a href="#timeline">時間軸</a><a href="#classes">進教室</a></nav>
   </div>
 </header>
 
@@ -219,17 +223,6 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
     </div>
   </section>
 
-  <section id="about">
-    <div class="in">
-      <h2>每個活動都照三步走</h2>
-      <p class="sub">YBS 是「Why, because, so」的縮寫，也是這裡的上課方式。</p>
-      <div class="about">
-        <div><h3>Why</h3><p>先看到一個奇怪的現象，自己想問「怎麼會這樣」。</p></div>
-        <div><h3>Because</h3><p>用故事和動手做的活動，把原因一塊塊拼起來。</p></div>
-        <div><h3>So</h3><p>最後揭曉答案，連回手上的手機和身邊的科技。</p></div>
-      </div>
-    </div>
-  </section>
 </main>
 
 <footer><div class="in"><span>YBS Lab for Education</span><span>課綱條目依十二年國教科技領域課程綱要（資訊科技）</span></div></footer>
@@ -238,6 +231,8 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 <script src="assets/activities.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+/* 頁首動畫：whY Because So 依序亮起 */
+requestAnimationFrame(()=>setTimeout(()=>$('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const courseOf=id=>COURSES.find(c=>c.id===id)||{name:id,path:'#'};
 const byCode={};

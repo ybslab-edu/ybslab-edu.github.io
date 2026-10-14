@@ -42,7 +42,14 @@ const CURRICULUM = {
   ]
 };
 
-// 開設中的課程（學生入口）
+// 開設中的課程（學生入口）。year 要和 TERMS 的 year 對上，學期進度才會列出這一列。
 const COURSES = [
-  { id: '115-g9', name: '九年級資訊科技', year: '115 學年', path: '115-g9/' }
+  { id: '115-g9', name: '九年級資訊科技', short: '九年級', year: 115, path: '115-g9/' }
+];
+
+// 學期：start 填開學那週的星期一，weeks 是這學期的週數。
+// 下學期的開學日等學校行事曆公布後再改。
+const TERMS = [
+  { id: '115-1', year: 115, name: '115 學年上學期', start: '2026-08-31', weeks: 21 },
+  { id: '115-2', year: 115, name: '115 學年下學期', start: '2027-02-15', weeks: 20 }
 ];

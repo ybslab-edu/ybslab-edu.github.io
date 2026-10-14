@@ -12,7 +12,7 @@
 /*
   Concept: 捷運路線圖。課綱六大類＝六條路線，學習內容＝車站。
   有活動的車站是實心大站，還沒有的是一般小站；點車站在該路線下方展開站牌。
-  回訪的學生看最上方的「本週任務」直接進教室，不用滑地圖。
+  最上方是學期進度：依今天日期捲到本週，回訪的人不用找。
 */
 :root{
   --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
@@ -46,16 +46,10 @@ a{color:inherit}
 .bar nav a{text-decoration:none;color:var(--muted)}
 .bar nav a:hover{color:var(--ink)}
 
-/* 開頭：標題＋本週任務 */
-.head{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px 40px;align-items:end;padding-block:40px 28px}
-@media (max-width:820px){.head{grid-template-columns:minmax(0,1fr)}}
-h1{margin:0;font-weight:900;font-size:clamp(30px,4.6vw,46px);line-height:1.2;text-wrap:balance}
-.lede{margin:10px 0 0;color:var(--muted);max-width:34em}
-.now{display:flex;flex-direction:column;gap:10px}
-.now a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;align-items:center;background:var(--ink);color:var(--bg);text-decoration:none;border-radius:14px;padding:14px 18px}
-.now a small{color:color-mix(in srgb,var(--bg) 70%,transparent);font-size:14px}
-.now a strong{font-size:20px;font-weight:700;grid-column:1}
-.now a .go{grid-column:2;grid-row:1 / span 2;font-weight:700;background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 16px;font-size:15px}
+/* 區塊標題 */
+.head{padding-block:48px 18px}
+.head h2{margin:0;font-weight:900;font-size:clamp(26px,3.6vw,34px);line-height:1.2}
+.lede{margin:8px 0 0;color:var(--muted);max-width:40em}
 
 /* 圖例 */
 .legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:13.5px}
@@ -125,49 +119,53 @@ h1{margin:0;font-weight:900;font-size:clamp(30px,4.6vw,46px);line-height:1.2;tex
   .act .play{justify-self:start}
 }
 
-/* 時間軸 */
-.tl{background:var(--surface);border:1px solid var(--rule);border-radius:18px;padding:20px 24px 18px}
-.tl-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
-.tl-head b{font-size:17px}
-.tl-head span{color:var(--muted);font-size:14px}
-.axis{position:relative;height:180px;margin:0 6px}
-.axis .base{position:absolute;left:0;right:0;top:116px;height:4px;border-radius:2px;background:var(--rule)}
-.axis .past{position:absolute;left:0;top:116px;height:4px;border-radius:2px;background:var(--muted)}
-.sem{position:absolute;top:150px;font-size:13px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
-.mo{position:absolute;top:112px;width:1px;height:12px;background:var(--muted);opacity:.6}
-.mo span{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:12.5px;color:var(--muted);white-space:nowrap}
-.brk{position:absolute;top:106px;height:24px;border-left:2px dashed var(--rule)}
-.today{position:absolute;top:110px;height:16px;width:2px;background:var(--ink)}
-.today span{position:absolute;top:42px;left:50%;transform:translateX(-50%);font-size:12.5px;font-weight:700;white-space:nowrap}
-.pin{position:absolute;bottom:55px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;text-decoration:none;max-width:9em}
-.pin .card{background:var(--c);color:var(--surface);border-radius:8px;padding:3px 10px;font-size:13.5px;font-weight:700;white-space:nowrap}
-.pin .wk{font-size:12px;color:var(--muted);margin-top:2px}
-.pin .stem{display:block;flex:none;width:2px;height:22px;background:var(--c)}
-.pin .ph-dot{display:block;flex:none;width:14px;height:14px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px var(--surface)}
-.pin:hover .card{text-decoration:underline}
-.tl-list{display:none;list-style:none;margin:0;padding:0}
-@media (max-width:760px){
-  .axis{display:none}
-  .tl-list{display:flex;flex-direction:column;gap:0;border-left:4px solid var(--rule);margin-left:6px}
-  .tl-list li{position:relative;padding:8px 0 8px 18px}
-  .tl-list li::before{content:"";position:absolute;left:-9px;top:15px;width:14px;height:14px;border-radius:50%;background:var(--c,var(--muted));box-shadow:0 0 0 3px var(--surface)}
-  .tl-list .d{font-size:13px;color:var(--muted)}
-  .tl-list a{font-weight:700}
-  .tl-list li.now-mark::before{background:var(--ink);width:10px;height:10px;left:-7px;top:17px}
-}
+/* 學期進度 */
+.prog{padding-block:32px 8px}
+.prog-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 24px;flex-wrap:wrap}
+.prog h1{margin:0;font-weight:900;font-size:clamp(30px,4.4vw,42px);line-height:1.15}
+.prog-top p{margin:6px 0 0;color:var(--muted)}
+.terms{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.terms button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+.terms button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+.terms .jump{border-style:dashed}
 
-/* 進教室 */
+.thisweek{margin-top:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:10px}
+.thisweek:empty{display:none}
+.tw{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 16px;align-items:center;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 18px;text-decoration:none}
+.tw .who{font-size:14px;opacity:.75;white-space:nowrap}
+.tw strong{font-size:19px;min-width:0}
+.tw .go{font-weight:700;background:var(--bg);color:var(--ink);border-radius:999px;padding:5px 16px;font-size:15px;white-space:nowrap}
+.tw.none{display:block;background:var(--surface);color:var(--muted);border:1px dashed var(--rule);font-size:15px}
+.tw.none b{color:var(--ink)}
+@media (max-width:560px){.tw{grid-template-columns:minmax(0,1fr) auto}.tw .who{grid-column:1 / -1}}
+
+.sched{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:16px;overflow:hidden}
+.sched-scroll{position:relative;overflow-x:auto;scroll-behavior:smooth;overscroll-behavior-x:contain}
+.grid{display:grid;grid-template-columns:7.5em repeat(var(--w),8.6em);min-width:max-content}
+.grid>*{border-right:1px solid var(--faint);border-bottom:1px solid var(--faint);min-width:0}
+.gh{padding:8px 10px;font-size:13px;color:var(--muted);line-height:1.35;background:var(--surface)}
+.gh b{display:block;font-size:14px;color:var(--ink)}
+.gh.past b{color:var(--muted);font-weight:500}
+.gh.cur{background:var(--ink);color:var(--bg)}
+.gh.cur b{color:var(--bg)}
+.rowname{position:sticky;left:0;z-index:2;background:var(--surface);padding:12px 10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;justify-content:center;box-shadow:2px 0 0 var(--faint)}
+.rowname small{font-weight:400;color:var(--muted);font-size:12.5px}
+.corner{position:sticky;left:0;z-index:3;background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted);box-shadow:2px 0 0 var(--faint)}
+.cell{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:76px}
+.cell.cur{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.cell.past{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--faint) 60%,transparent) 6px 7px)}
+.chip{display:flex;flex-direction:column;gap:1px;text-decoration:none;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 13%,var(--surface));border-radius:6px;padding:6px 8px;font-size:14px;line-height:1.3}
+.chip b{font-weight:700}
+.chip span{font-size:12px;color:var(--muted)}
+.chip:hover b{text-decoration:underline}
+.sched-foot{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;padding:10px 14px;font-size:13px;color:var(--muted);background:var(--faint)}
+.sched-foot .keys{display:flex;gap:14px;flex-wrap:wrap}
+.sched-foot i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+/* 共用 */
 section{padding-block:56px 0}
 h2{margin:0 0 6px;font-size:26px;font-weight:900}
 .sub{margin:0 0 20px;color:var(--muted)}
-.courses{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--rule);border-radius:14px}
-.course{display:grid;grid-template-columns:7em minmax(0,1fr) auto;gap:4px 20px;align-items:center;padding:16px 20px;border-top:1px solid var(--faint);text-decoration:none}
-.course:first-child{border-top:0}
-.course .yr{color:var(--muted);font-size:14px}
-.course b{font-size:18px}
-.course .go{font-weight:700;color:var(--P)}
-.course:hover b{text-decoration:underline;text-underline-offset:4px}
-@media (max-width:560px){.course{grid-template-columns:minmax(0,1fr) auto}.course .yr{grid-column:1 / -1}}
 
 
 footer{margin-top:72px;border-top:1px solid var(--rule);background:var(--surface);color:var(--muted);font-size:14px}
@@ -180,17 +178,26 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 <header class="bar">
   <div class="in">
     <a class="logo" href="./" aria-label="YBS Lab：Why, because, so."><b aria-hidden="true"><span class="y">Y</span><span class="bb">B</span><span class="s">S</span> Lab</b><span class="motto" id="motto" aria-hidden="true"><span>wh<span class="k y">Y</span></span><span><span class="k b">B</span>ecause</span><span><span class="k s">S</span>o.</span></span></a>
-    <nav aria-label="主選單"><a href="#map">學習地圖</a><a href="#timeline">時間軸</a><a href="#classes">進教室</a></nav>
+    <nav aria-label="主選單"><a href="#progress">學期進度</a><a href="#map-head">學習地圖</a></nav>
   </div>
 </header>
 
 <main>
-  <div class="in head">
-    <div>
-      <h1>國中資訊科技學習地圖</h1>
-      <p class="lede">六條路線是課綱的六大類，每一站是一項學習內容。實心的大站已經有課堂活動，點一下就能看內容、直接開始。</p>
+  <section class="in prog" id="progress" aria-labelledby="prog-h">
+    <div class="prog-top">
+      <div><h1 id="prog-h">學期進度</h1><p id="prog-sub"></p></div>
+      <div class="terms" id="terms" role="group" aria-label="切換學期"></div>
     </div>
-    <div class="now" id="now"></div>
+    <div class="thisweek" id="thisweek"></div>
+    <div class="sched">
+      <div class="sched-scroll" id="sched-scroll"><div class="grid" id="grid"></div></div>
+      <div class="sched-foot"><span class="keys" id="keys"></span><span>左右滑動可看整學期</span></div>
+    </div>
+  </section>
+
+  <div class="in head" id="map-head">
+    <h2>學習地圖</h2>
+    <p class="lede">六條路線是課綱的六大類，每一站是一項學習內容。實心的大站已經有課堂活動，點一下就能看內容、直接開始。</p>
   </div>
 
   <div class="in" id="map">
@@ -207,21 +214,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
     </div>
   </div>
 
-  <section id="timeline">
-    <div class="in">
-      <h2>學年時間軸</h2>
-      <p class="sub">每個活動依上課日期排在這一學年裡，顏色是它在學習地圖上的路線。</p>
-      <div id="tl"></div>
-    </div>
-  </section>
 
-  <section id="classes">
-    <div class="in">
-      <h2>進教室</h2>
-      <p class="sub">上課時從這裡進入自己的課程，進去後先填班級和座號。</p>
-      <nav class="courses" id="courses" aria-label="課程"></nav>
-    </div>
-  </section>
 
 </main>
 
@@ -238,12 +231,6 @@ const courseOf=id=>COURSES.find(c=>c.id===id)||{name:id,path:'#'};
 const byCode={};
 ACTIVITIES.forEach(a=>a.codes.forEach(c=>(byCode[c]=byCode[c]||[]).push(a)));
 const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網址 #S-IV-2
-
-/* 本週任務：每門課最新的一個活動 */
-$('now').innerHTML=COURSES.map(c=>{
-  const a=ACTIVITIES.filter(x=>x.course===c.id).sort((x,y)=>y.date.localeCompare(x.date))[0];
-  return a?'<a href="'+esc(a.href)+'"><small>'+esc(c.name)+'｜本週任務</small><strong>'+esc(a.title)+'</strong><span class="go">開始</span></a>':'';
-}).join('');
 
 /* 地圖 */
 let total=0,done=0;
@@ -319,35 +306,79 @@ if(/^[APSDTH]-IV-\d$/.test(h))open('資'+h,true);
   if(d){const [y,m,dd]=d.split('-');$('updated').textContent=y+' 年 '+(+m)+' 月 '+(+dd)+' 日'}
 })();
 
-/* 學年時間軸：9 月到隔年 6 月，寒假用虛線隔開 */
+/* 學期進度：課程一列、每週一欄，開頁就捲到本週 */
 (function(){
+  const DAY=864e5;
+  const ymd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+  const md=d=>(d.getMonth()+1)+'/'+d.getDate();
   const strandOf=code=>{for(const s of CURRICULUM.strands)for(const it of s.items)if(it.code===code)return s.id;return 'P'};
-  const html=COURSES.map(c=>{
-    const y0=1911+parseInt(c.year,10);               // 115 學年 → 2026
-    const start=new Date(y0,8,1), end=new Date(y0+1,6,1); // 9/1 ~ 隔年 7/1
-    const span=end-start, pos=d=>Math.max(0,Math.min(100,(d-start)/span*100));
-    const acts=ACTIVITIES.filter(a=>a.course===c.id).sort((a,b)=>a.date.localeCompare(b.date));
-    const months=[];for(let i=0;i<10;i++){const d=new Date(y0,8+i,1);months.push('<i class="mo" style="left:'+pos(d)+'%"><span>'+(d.getMonth()+1)+' 月</span></i>')}
-    const now=new Date(), inYear=now>=start&&now<end;
-    const brk=pos(new Date(y0+1,1,1));
-    const pins=acts.map(a=>{const [Y,M,D]=a.date.split('-').map(Number);
-      return '<a class="pin" style="left:'+pos(new Date(Y,M-1,D))+'%;--c:var(--'+strandOf(a.codes[0])+')" href="'+esc(a.href)+'"><span class="card">'+esc(a.title)+'</span><span class="wk">第 '+a.week+' 週</span><span class="stem"></span><span class="ph-dot"></span></a>'}).join('');
-    const list=acts.map(a=>{const [,M,D]=a.date.split('-').map(Number);
-      return '<li style="--c:var(--'+strandOf(a.codes[0])+')"><div class="d">'+M+' 月 '+D+' 日，第 '+a.week+' 週</div><a href="'+esc(a.href)+'">'+esc(a.title)+'</a></li>'}).join('');
-    const nowLi=inYear?'<li class="now-mark"><div class="d">今天 '+(now.getMonth()+1)+' 月 '+now.getDate()+' 日</div></li>':'';
-    return '<div class="tl"><div class="tl-head"><b>'+esc(c.year)+' '+esc(c.name)+'</b><span>'+acts.length+' 個活動</span></div>'+
-      '<div class="axis" aria-hidden="true"><i class="base"></i>'+(inYear?'<i class="past" style="width:'+pos(now)+'%"></i>':'')+months.join('')+
-      '<i class="brk" style="left:'+brk+'%"></i><span class="sem" style="left:'+(brk/2)+'%">上學期</span><span class="sem" style="left:'+((brk+100)/2)+'%">下學期</span>'+
-      (inYear?'<i class="today" style="left:'+pos(now)+'%"><span>今天</span></i>':'')+pins+'</div>'+
-      '<ol class="tl-list">'+list+nowLi+'</ol></div>';
-  }).join('');
-  $('tl').innerHTML=html;
-  // 電腦版的時間軸釘子本身就是連結，螢幕報讀器改讀清單
-  document.querySelectorAll('.axis').forEach(a=>a.removeAttribute('aria-hidden'));
+  const today=new Date();today.setHours(0,0,0,0);
+  const weekOf=(t,d)=>Math.floor((d-ymd(t.start))/DAY/7);           // 0 起算
+  const termEnd=t=>new Date(ymd(t.start).getTime()+t.weeks*7*DAY);
+  const curTerm=TERMS.find(t=>today>=ymd(t.start)&&today<termEnd(t))||TERMS.find(t=>today<ymd(t.start))||TERMS[TERMS.length-1];
+  let term=curTerm;
+
+  // 圖例：只列出有用到的路線
+  const used=[...new Set(ACTIVITIES.map(a=>strandOf(a.codes[0])))];
+  $('keys').innerHTML=used.map(id=>{const s=CURRICULUM.strands.find(x=>x.id===id);return '<span><i style="background:var(--'+id+')"></i>'+esc(s.name)+'</span>'}).join('');
+
+  function render(scroll){
+    $('terms').innerHTML=TERMS.map(t=>'<button type="button" data-t="'+t.id+'" aria-pressed="'+(t===term)+'">'+esc(t.name)+'</button>').join('')+
+      (term!==curTerm||scroll===false?'<button type="button" class="jump" id="jump">回到本週</button>':'');
+    $('terms').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{term=TERMS.find(t=>t.id===b.dataset.t);render(true)});
+    if($('jump'))$('jump').onclick=()=>{term=curTerm;render(true)};
+
+    const inTerm=today>=ymd(term.start)&&today<termEnd(term);
+    const cw=inTerm?weekOf(term,today):(today<ymd(term.start)?-1:term.weeks);
+    const courses=COURSES.filter(c=>c.year===term.year);
+    const acts=ACTIVITIES.filter(a=>courses.some(c=>c.id===a.course)).map(a=>({...a,w:weekOf(term,ymd(a.date))})).filter(a=>a.w>=0&&a.w<term.weeks);
+
+    // 副標與本週
+    const ws=new Date(ymd(term.start).getTime()+Math.max(0,cw)*7*DAY), we=new Date(ws.getTime()+4*DAY);
+    $('prog-sub').textContent=inTerm?'今天是 '+term.name+'第 '+(cw+1)+' 週（'+md(ws)+'–'+md(we)+'）':(cw<0?term.name+'還沒開始，'+md(ymd(term.start))+' 開學':term.name+'已結束');
+    if(term===curTerm&&inTerm){
+      const now=acts.filter(a=>a.w===cw);
+      const nowHtml=courses.map(c=>{
+        const list=now.filter(a=>a.course===c.id);
+        if(!list.length){
+          const last=acts.filter(a=>a.course===c.id&&a.w<cw).sort((a,b)=>b.date.localeCompare(a.date))[0];
+          return '<div class="tw none"><b>'+esc(c.short)+'</b>本週沒有新活動'+(last?'，上次是第 '+(last.w+1)+' 週的<a href="'+esc(last.href)+'">'+esc(last.title)+'</a>':'')+'。</div>';
+        }
+        return list.map(a=>'<a class="tw" href="'+esc(a.href)+'"><span class="who">'+esc(c.short)+'｜本週</span><strong>'+esc(a.title)+'</strong><span class="go">開始</span></a>').join('');
+      }).join('');
+      $('thisweek').innerHTML=nowHtml;
+    } else $('thisweek').innerHTML='';
+
+    // 表格
+    let h='<div class="corner">週次</div>';
+    for(let i=0;i<term.weeks;i++){
+      const d=new Date(ymd(term.start).getTime()+i*7*DAY), e=new Date(d.getTime()+4*DAY);
+      h+='<div class="gh'+(i===cw?' cur':i<cw?' past':'')+'" id="wk-'+i+'"'+(i===cw?' aria-current="date"':'')+'><b>'+(i===cw?'本週・':'')+'第 '+(i+1)+' 週</b>'+md(d)+'–'+md(e)+'</div>';
+    }
+    for(const c of courses){
+      h+='<div class="rowname">'+esc(c.short)+'<small>'+esc(c.name)+'</small></div>';
+      for(let i=0;i<term.weeks;i++){
+        const list=acts.filter(a=>a.course===c.id&&a.w===i);
+        h+='<div class="cell'+(i===cw?' cur':i<cw&&!list.length?' past':'')+'">'+list.map(a=>
+          '<a class="chip" style="--c:var(--'+strandOf(a.codes[0])+')" href="'+esc(a.href)+'"><b>'+esc(a.title)+'</b><span>'+esc(a.codes.join('、'))+'</span></a>').join('')+'</div>';
+      }
+    }
+    if(!courses.length)h+='<div class="rowname">—</div><div class="cell" style="grid-column:span '+term.weeks+'">這學期還沒有開設課程。</div>';
+    $('grid').style.setProperty('--w',term.weeks);
+    $('grid').innerHTML=h;
+
+    // 捲到本週（本週放在第二欄的位置，前一週還看得到）
+    if(scroll!==false){
+      const box=$('sched-scroll'), target=$('wk-'+Math.max(0,Math.min(term.weeks-1,cw-1)));
+      const first=box.querySelector('.corner').offsetWidth;
+      box.style.scrollBehavior='auto';
+      box.scrollLeft=cw<0?0:Math.max(0,target.offsetLeft-first);
+      box.style.scrollBehavior='';
+    }
+  }
+  render(true);
 })();
 
-/* 進教室 */
-$('courses').innerHTML=COURSES.map(c=>'<a class="course" href="'+esc(c.path)+'"><span class="yr">'+esc(c.year)+'</span><b>'+esc(c.name)+'</b><span class="go">進入</span></a>').join('');
 </script>
 </body>
 </html>

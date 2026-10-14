@@ -6,9 +6,9 @@
 
 | 路徑 | 內容 |
 | --- | --- |
-| `index.html` | 首頁：依課綱的學習地圖、學年時間軸、課程入口 |
-| `assets/curriculum.js` | 課綱學習內容條目（地圖的路線與車站）與開設中的課程 |
-| `assets/activities.js` | 所有課堂活動，用 `codes` 掛到地圖車站、用 `date` 排上時間軸 |
+| `index.html` | 首頁：學期進度（依日期捲到本週）、課綱學習地圖 |
+| `assets/curriculum.js` | 課綱學習內容條目（地圖的路線與車站）、開設中的課程 `COURSES`、學期 `TERMS`（開學日與週數） |
+| `assets/activities.js` | 所有課堂活動，用 `codes` 掛到地圖車站、用 `date` 排進學期進度 |
 | `assets/codec.js` | 成績碼編碼與解碼，所有課程共用 |
 | `115-g9/` | 115 學年九年級資訊科技（學生入口） |
 | `115-g9/weeks.js` | 該課程的週次清單：標題、主題、關卡名稱 |
@@ -27,7 +27,7 @@
 
 1. 在課程資料夾新增 `w02/`，放入 `index.html`，頁面開頭設定 `const WEEK=2;`，並載入 `../../assets/codec.js`。
 2. 在課程的 `weeks.js` 最後加一筆，`rounds` 的順序要和活動頁的關卡順序一致（最多 6 關）。
-3. 在 `assets/activities.js` 最前面加一筆，填上對應的課綱代碼 `codes` 與上課日期 `date`，地圖和時間軸會自動更新。
+3. 在 `assets/activities.js` 最前面加一筆，填上對應的課綱代碼 `codes` 與上課日期 `date`，地圖和學期進度會自動更新。
 4. 推上 `main`，網站自動更新。
 
 ## 成績碼

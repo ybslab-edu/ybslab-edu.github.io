@@ -46,6 +46,8 @@ main.in{max-width:760px;padding-block:48px 24px}
 h1{margin:0;font-weight:900;font-size:clamp(30px,4.6vw,42px);line-height:1.2}
 .lead{margin:12px 0 0;font-size:18px;color:var(--muted)}
 section{margin-top:44px}
+section:first-of-type{margin-top:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 h2{margin:0 0 10px;font-size:22px;font-weight:900}
 p{margin:0 0 12px}
 .beats{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
@@ -72,8 +74,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 </header>
 
 <main class="in">
-  <h1>關於 YBS Lab</h1>
-  <p class="lead">一位國中資訊科技老師的教學實驗室。每週一堂課、一個活動，慢慢長成一張學習地圖。</p>
+  <h1 class="sr">關於 YBS Lab</h1>
 
   <section aria-labelledby="h-origin">
     <h2 id="h-origin">緣起</h2>
@@ -95,7 +96,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
   <section aria-labelledby="h-src">
     <h2 id="h-src">資料來源與製作</h2>
     <ul class="src">
-      <li><span class="k">課綱</span><span>十二年國民基本教育課程綱要 國民中學暨普通型高級中等學校 科技領域</span></li>
+      <li><span class="k">課綱</span><span>十二年國民基本教育課程綱要 國民中學暨普通型高級中等學校 科技領域。</span></li>
       <li><span class="k">AI 協作</span><span>網站與課堂活動由作者與 AI 工具協作設計與開發。</span></li>
     </ul>
   </section>

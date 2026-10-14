@@ -63,10 +63,10 @@ nav a{color:var(--accent)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="../../assets/codec.js"></script>
-<script src="../weeks.js"></script>
+<script src="../../assets/activities.js"></script>
 
 <div class="wrap">
-  <nav><a href="../">← 課程首頁</a></nav>
+  <nav><a href="../../">← YBS Lab</a></nav>
   <div>
     <h1>資訊科技成績彙整</h1>
     <p class="sub">把學生交來的成績碼貼進來，依週次、班級整理，匯出 Excel。資料只存在這台電腦的這個瀏覽器，別人打開這頁看不到你的資料。</p>
@@ -101,7 +101,8 @@ nav a{color:var(--accent)}
 
 <script>
 const $=id=>document.getElementById(id);
-const W=Object.fromEntries(WEEKS.map(w=>[w.week,w]));
+const COURSE='115-g9';   // 這個教師專區對應的課程
+const W=Object.fromEntries(ACTIVITIES.filter(a=>a.course===COURSE).map(a=>[a.week,a]));
 const roundsOf=w=>(W[w]&&W[w].rounds)||['第1關','第2關','第3關','第4關'];
 let recs={}, sizes={}, curW=null, curC=null;
 try{recs=JSON.parse(localStorage.getItem('it9:grades')||'{}');sizes=JSON.parse(localStorage.getItem('it9:sizes')||'{}')}catch(e){}

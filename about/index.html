@@ -60,6 +60,8 @@ p{margin:0 0 12px}
 .src dt,.src .k{font-weight:700;color:var(--muted)}
 @media (max-width:480px){.src li{grid-template-columns:minmax(0,1fr)}}
 footer{margin-top:72px;border-top:1px solid var(--rule);background:var(--surface);color:var(--muted);font-size:14px}
+footer .tlink{color:var(--muted);text-decoration:none}
+footer .tlink:hover{text-decoration:underline}
 footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -100,7 +102,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
   </section>
 </main>
 
-<footer><div class="in"><span>YBS Lab for Education</span></div></footer>
+<footer><div class="in"><span>YBS Lab for Education</span><a class="tlink" href="../115-g9/teacher/">教師專區</a></div></footer>
 
 <script>
 requestAnimationFrame(()=>setTimeout(()=>document.getElementById('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));

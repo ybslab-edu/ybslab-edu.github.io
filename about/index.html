@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>關於｜YBS Lab</title>
+<meta name="description" content="YBS Lab 的來歷：一位國中資訊科技老師的教學實驗室。">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
+  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C; --L:#5C940D; --Da:#9C36B5; --I:#364FC7;
+  --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
+  --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
+  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:6px}
+.in{max-width:1180px;margin:0 auto;padding-inline:20px}
+
+/* 頁首 */
+.bar{background:var(--surface);border-bottom:1px solid var(--rule)}
+.bar .in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
+.logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
+.logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
+.logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
+.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
+.motto.lit .k{transform:translateY(-.05em) scale(1.25)}
+.motto.lit .k.y{color:var(--why);transition-delay:.15s}
+.motto.lit .k.b{color:var(--because);transition-delay:.45s}
+.motto.lit .k.s{color:var(--so);transition-delay:.75s}
+@media (max-width:420px){.motto{font-size:15px}}
+.bar nav{display:flex;gap:20px;font-size:15px}
+.bar nav a{text-decoration:none;color:var(--muted)}
+.bar nav a:hover{color:var(--ink)}
+
+
+/* 關於頁：單欄閱讀，三個節拍用品牌三色 */
+.bar nav a[aria-current="page"]{color:var(--ink);font-weight:700}
+main.in{max-width:760px;padding-block:48px 24px}
+h1{margin:0;font-weight:900;font-size:clamp(30px,4.6vw,42px);line-height:1.2}
+.lead{margin:12px 0 0;font-size:18px;color:var(--muted)}
+section{margin-top:44px}
+h2{margin:0 0 10px;font-size:22px;font-weight:900}
+p{margin:0 0 12px}
+.beats{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.beats li{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:4px 16px;align-items:baseline;padding:12px 16px;background:var(--surface);border:1px solid var(--rule);border-left:5px solid var(--c);border-radius:10px}
+.beats b{font-size:18px;font-weight:900;color:var(--c)}
+.beats b span{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+@media (max-width:480px){.beats li{grid-template-columns:minmax(0,1fr)}}
+.src{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px}
+.src li{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:4px 16px}
+.src dt,.src .k{font-weight:700;color:var(--muted)}
+@media (max-width:480px){.src li{grid-template-columns:minmax(0,1fr)}}
+footer{margin-top:72px;border-top:1px solid var(--rule);background:var(--surface);color:var(--muted);font-size:14px}
+footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="in">
+    <a class="logo" href="../" aria-label="YBS Lab：Why, because, so."><b aria-hidden="true"><span class="y">Y</span><span class="bb">B</span><span class="s">S</span> Lab</b><span class="motto" id="motto" aria-hidden="true"><span>wh<span class="k y">Y</span></span><span><span class="k b">B</span>ecause</span><span><span class="k s">S</span>o.</span></span></a>
+    <nav aria-label="主選單"><a href="../#progress">學期進度</a><a href="../#map-head">學習地圖</a><a href="./" aria-current="page">關於</a></nav>
+  </div>
+</header>
+
+<main class="in">
+  <h1>關於 YBS Lab</h1>
+  <p class="lead">一位國中資訊科技老師的教學實驗室。每週一堂課、一個活動，慢慢長成一張學習地圖。</p>
+
+  <section aria-labelledby="h-origin">
+    <h2 id="h-origin">網站的來歷</h2>
+    <p>YBS Lab 從 115 學年的一次備課開始：想讓學生在一節 45 分鐘的課裡，先被一個奇怪的現象勾起好奇，再自己動手找到答案。</p>
+    <p>之後每週累積一個課堂活動，依課綱的學習內容排上學習地圖，也記錄在學期進度裡。</p>
+  </section>
+
+  <section aria-labelledby="h-author">
+    <h2 id="h-author">關於作者</h2>
+    <p>國中資訊科技教育工作者。</p>
+    <p>YBS 是作者本名的縮寫，也是作者的教學理念：</p>
+    <ul class="beats">
+      <li style="--c:var(--why)"><b>wh<span>Y</span></b><span>先丟出一個奇怪的現象，讓人自己想問「怎麼會這樣」。</span></li>
+      <li style="--c:var(--because)"><b><span>B</span>ecause</b><span>用故事鋪陳、動手操作，把原因一塊塊拼起來。</span></li>
+      <li style="--c:var(--so)"><b><span>S</span>o.</b><span>最後揭曉答案，連回手上的手機和身邊的科技。</span></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-src">
+    <h2 id="h-src">資料來源與製作</h2>
+    <ul class="src">
+      <li><span class="k">課綱</span><span>十二年國民基本教育課程綱要 國民中學暨普通型高級中等學校 科技領域（中華民國 107 年 9 月）。學習地圖使用其中資訊科技的學習內容與附錄三學習內容說明。</span></li>
+      <li><span class="k">AI 協作</span><span>網站與課堂活動由作者與 AI（Anthropic 的 Claude）協作設計與開發，教學方向與內容取捨由作者決定。</span></li>
+    </ul>
+  </section>
+</main>
+
+<footer><div class="in"><span>YBS Lab for Education</span><span>課堂活動不收集姓名等個人資料</span></div></footer>
+
+<script>
+requestAnimationFrame(()=>setTimeout(()=>document.getElementById('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));
+</script>
+</body>
+</html>

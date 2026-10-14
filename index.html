@@ -16,13 +16,13 @@
 */
 :root{
   --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
-  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C;
+  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C; --L:#5C940D; --Da:#9C36B5; --I:#364FC7;
   --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
   --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
-  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
+  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
 a{color:inherit}
@@ -118,6 +118,26 @@ a{color:inherit}
 .panel.map-panel{margin:0 24px 20px}
 .lg-gr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--muted);font-size:11px;font-weight:900;font-style:normal;color:var(--muted)}
 
+/* 學習階段分頁 */
+.curtabs{display:flex;gap:0;margin:12px 0 4px;border-bottom:2px solid var(--rule);flex-wrap:wrap}
+.curtabs button{font:inherit;font-size:16px;font-weight:700;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--muted);padding:6px 16px;cursor:pointer}
+.curtabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.curtabs button:hover{color:var(--ink)}
+
+/* 課綱說明 */
+.lvtag{display:inline-block;margin-left:10px;font-size:13px;font-weight:700;color:var(--c);border:1.5px solid var(--c);border-radius:999px;padding:0 9px;vertical-align:3px}
+.spec{display:grid;grid-template-columns:minmax(0,1fr);gap:12px 32px;background:color-mix(in srgb,var(--c) 6%,var(--surface));border-radius:10px;padding:14px 16px}
+.spec.two{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr)}
+@media (max-width:760px){.spec.two{grid-template-columns:minmax(0,1fr)}}
+.spec .theme{grid-column:1 / -1;margin:0;font-size:14px;color:var(--muted)}
+.spec .theme b{color:var(--ink)}
+.spec h4,.acts-h{margin:0 0 4px;font-size:14px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.nl{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:3px;font-size:15px;line-height:1.55}
+.nl li.sub{list-style:circle;margin-left:1.1em;color:var(--muted)}
+.optag{display:inline-block;margin-left:6px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px dashed var(--muted);border-radius:4px;padding:0 5px;vertical-align:1px}
+.optnote{grid-column:1 / -1;margin:0;font-size:13px;color:var(--muted)}
+.acts-h{margin-top:2px}
+
 /* 站牌（展開面板） */
 .panel{margin:0 24px 20px;border:2px solid var(--c);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
 .panel[hidden]{display:none}
@@ -143,7 +163,7 @@ a{color:inherit}
   .st{flex-direction:row;align-items:center;text-align:left;gap:12px;padding:8px 0}
   .dot{margin-top:0;margin-left:6px;flex:none}
   .st.has .dot{margin-left:0}
-  .st .txt{display:flex;flex-direction:column}
+  .st .txt{display:flex;flex-direction:column;align-items:flex-start}
   .panel{margin:0 16px 16px}
   .act{grid-template-columns:minmax(0,1fr)}
   .act .play{justify-self:start}
@@ -228,7 +248,8 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
   <div class="in head" id="map-head">
     <div>
       <h2>學習地圖</h2>
-      <p class="lede">從中心的「資訊科技」出發，分成課綱的六大類，再分出 24 項學習內容。越往外圈年級越高，節點上的字是課綱標示的學習年級。實心節點已經有課堂活動，點一下就能看內容、直接開始。</p>
+      <div class="curtabs" id="curtabs" role="tablist" aria-label="學習階段"></div>
+      <p class="lede" id="map-lede"></p>
     </div>
     <div class="views" role="group" aria-label="地圖顯示方式"><button type="button" data-v="radial">放射地圖</button><button type="button" data-v="lines">路線清單</button></div>
   </div>
@@ -241,10 +262,10 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
         <div class="legend"><b style="color:var(--ink)">圖例</b>
           <span><i class="lg-dot on"></i>有課堂活動</span>
           <span><i class="lg-dot"></i>準備中</span>
-          <span><i class="lg-gr">七</i>課綱學習年級</span>
+          <span><i class="lg-gr" id="lg-mark">七</i><span id="lg-mark-label">課綱學習年級</span></span>
           <span id="tally"></span>
         </div>
-        <dl><div><dt>資料來源</dt><dd>十二年國教課綱科技領域（107 年 9 月），資訊科技國民中學學習內容</dd></div><div><dt>更新</dt><dd id="updated"></dd></div></dl>
+        <dl><div><dt>資料來源</dt><dd id="src"></dd></div><div><dt>更新</dt><dd id="updated"></dd></div></dl>
       </div>
     </div>
   </div>
@@ -267,93 +288,118 @@ const byCode={};
 ACTIVITIES.forEach(a=>a.codes.forEach(c=>(byCode[c]=byCode[c]||[]).push(a)));
 const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網址 #S-IV-2
 
-/* 地圖 */
-const GR={7:'七',8:'八',9:'九'};
-let total=0,done=0;
-$('lines').innerHTML=CURRICULUM.strands.map(s=>{
-  const n=s.items.length; total+=n;
-  const has=s.items.filter(it=>byCode[it.code]).length; done+=has;
-  const stations=s.items.map(it=>{
-    const on=!!byCode[it.code];
-    return '<button type="button" class="st'+(on?' has':'')+'" id="st-'+slug(it.code)+'" data-code="'+it.code+'" aria-expanded="false" aria-controls="pn-'+s.id+'">'+
-      '<i class="dot" aria-hidden="true"></i><span class="txt"><span class="lb">'+esc(it.short)+'</span><span class="cd">'+esc(it.code)+(on?'，'+byCode[it.code].length+' 個活動':'')+'</span></span></button>';
-  }).join('');
-  return '<div class="line" style="--c:var(--'+s.id+')">'+
-    '<div class="row"><div class="name"><b>'+esc(s.name)+'</b><span>'+has+' / '+n+' 站有活動</span></div>'+
-    '<div class="track" style="--n:'+n+'">'+stations+'</div></div>'+
-    '<div class="panel" id="pn-'+s.id+'" hidden></div></div>';
-}).join('');
-$('tally').textContent='目前 '+done+' / '+total+' 站有活動';
+/* 地圖：國中／高中必修／高中選修 三個分頁共用同一套畫法 */
+const pref=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const keep=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+let cur=CURRICULA.find(c=>c.id===pref('ybs:cur'))||CURRICULA[0];
+let view=pref('ybs:view')||(innerWidth>=760?'radial':'lines');
+const lvOf=(c,g)=>c.levels.find(l=>l.g===g)||{mark:'',label:''};
+const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(const it of s.items)if(it.code===code)return {c,s,it};return null};
 
-/* 放射地圖：中心 → 六大類 → 學習內容；半徑代表年級 */
-(function(){
-  const NS='http://www.w3.org/2000/svg', svg=$('radial');
-  const CX=550, CY=530, R_CORE=66, R_HUB=140, RING={7:222,8:306,9:390};
-  const strands=CURRICULUM.strands, total=strands.reduce((a,s)=>a+s.items.length,0);
+function buildLines(c){
+  let total=0,done=0;
+  $('lines').innerHTML=c.strands.map(s=>{
+    const n=s.items.length; total+=n;
+    const has=s.items.filter(it=>byCode[it.code]).length; done+=has;
+    const stations=s.items.map(it=>{
+      const on=!!byCode[it.code];
+      return '<button type="button" class="st'+(on?' has':'')+'" id="st-'+slug(it.code)+'" data-code="'+it.code+'" aria-expanded="false" aria-controls="pn-'+s.id+'">'+
+        '<i class="dot" aria-hidden="true"></i><span class="txt"><span class="lb">'+esc(it.short)+'</span><span class="cd">'+esc(it.code)+'・'+esc(lvOf(c,it.grade).label)+(on?'，'+byCode[it.code].length+' 個活動':'')+'</span></span></button>';
+    }).join('');
+    return '<div class="line" style="--c:var(--'+s.id+')">'+
+      '<div class="row"><div class="name"><b>'+esc(s.name)+'</b><span>'+has+' / '+n+' 項有活動</span></div>'+
+      '<div class="track" style="--n:'+n+'">'+stations+'</div></div>'+
+      '<div class="panel" id="pn-'+s.id+'" hidden></div></div>';
+  }).join('');
+  $('lines').querySelectorAll('.st').forEach(b=>b.onclick=()=>open(b.dataset.code,true));
+  $('tally').textContent='目前 '+done+' / '+total+' 項有活動';
+}
+
+/* 放射地圖：中心 → 主題 → 學習內容；國中的半徑代表年級 */
+function buildRadial(c){
+  const svg=$('radial');
+  const CX=550, CY=530, R_CORE=66, R_HUB=140;
+  const RING=c.levels.length===3?{[c.levels[0].g]:222,[c.levels[1].g]:306,[c.levels[2].g]:390}:{[c.levels[0].g]:330};
+  const total=c.strands.reduce((a,s)=>a+s.items.length,0);
   const step=360/(total+1);                       // 留一格放年級刻度
   const pt=(r,deg)=>{const t=(deg-90)*Math.PI/180;return [CX+r*Math.cos(t),CY+r*Math.sin(t)]};
   const f=n=>n.toFixed(1);
   let out='';
-  // 年級圈
-  for(const g of [7,8,9]) out+='<circle class="ring" cx="'+CX+'" cy="'+CY+'" r="'+RING[g]+'"/>';
-  // 年級刻度（在正上方的空格）
-  for(const g of [7,8,9]){const [x,y]=pt(RING[g],0);out+='<rect class="ring-bg" x="'+f(x-24)+'" y="'+f(y-11)+'" width="48" height="22" rx="4"/><text class="ring-lb" x="'+f(x)+'" y="'+f(y+5)+'" text-anchor="middle">'+GR[g]+'年級</text>'}
+  for(const l of c.levels) out+='<circle class="ring" cx="'+CX+'" cy="'+CY+'" r="'+RING[l.g]+'"/>';
+  for(const l of c.levels){const [x,y]=pt(RING[l.g],0),w=l.label.length*13+14;out+='<rect class="ring-bg" x="'+f(x-w/2)+'" y="'+f(y-11)+'" width="'+w+'" height="22" rx="4"/><text class="ring-lb" x="'+f(x)+'" y="'+f(y+5)+'" text-anchor="middle">'+esc(l.label)+'</text>'}
   let slot=1, trunks='', twigs='', hubs='', nodes='';
-  for(const s of strands){
+  for(const s of c.strands){
     const items=[...s.items].sort((a,b)=>a.grade-b.grade||a.code.localeCompare(b.code));
-    const a0=slot*step, a1=(slot+items.length)*step, mid=(a0+a1)/2-step/2;
-    const c='var(--'+s.id+')';
+    const mid=(slot+(items.length-1)/2)*step;
+    const col='var(--'+s.id+')';
     const [hx,hy]=pt(R_HUB,mid), [tx,ty]=pt(R_CORE,mid);
-    trunks+='<line class="trunk" style="--c:'+c+'" x1="'+f(tx)+'" y1="'+f(ty)+'" x2="'+f(hx)+'" y2="'+f(hy)+'"/>';
+    trunks+='<line class="trunk" style="--c:'+col+'" x1="'+f(tx)+'" y1="'+f(ty)+'" x2="'+f(hx)+'" y2="'+f(hy)+'"/>';
     const w=s.tag.length*16+22;
-    hubs+='<g class="hub" style="--c:'+c+'"><rect x="'+f(hx-w/2)+'" y="'+f(hy-15)+'" width="'+w+'" height="30" rx="15"/><text x="'+f(hx)+'" y="'+f(hy+5)+'" text-anchor="middle">'+esc(s.tag)+'</text><title>'+esc(s.name)+'</title></g>';
+    hubs+='<g class="hub" style="--c:'+col+'"><rect x="'+f(hx-w/2)+'" y="'+f(hy-15)+'" width="'+w+'" height="30" rx="15"/><text x="'+f(hx)+'" y="'+f(hy+5)+'" text-anchor="middle">'+esc(s.tag)+'</text><title>'+esc(s.name+(s.desc?'：'+s.desc:''))+'</title></g>';
     items.forEach((it,i)=>{
-      const ang=(slot+i)*step, r=RING[it.grade], [x,y]=pt(r,ang), on=!!byCode[it.code];
+      const ang=(slot+i)*step, r=RING[it.grade], [x,y]=pt(r,ang), on=!!byCode[it.code], lv=lvOf(c,it.grade);
       const [c1x,c1y]=pt(R_HUB+50,mid), [c2x,c2y]=pt(r-70,ang);
-      twigs+='<path class="twig" style="--c:'+c+'" d="M'+f(hx)+' '+f(hy)+'C'+f(c1x)+' '+f(c1y)+' '+f(c2x)+' '+f(c2y)+' '+f(x)+' '+f(y)+'"/>';
+      twigs+='<path class="twig" style="--c:'+col+'" d="M'+f(hx)+' '+f(hy)+'C'+f(c1x)+' '+f(c1y)+' '+f(c2x)+' '+f(c2y)+' '+f(x)+' '+f(y)+'"/>';
       const rad=(ang-90)*Math.PI/180, cs=Math.cos(rad), sn=Math.sin(rad), rr=on?17:14;
       let lab;
       if(Math.abs(cs)>=0.5){                                   // 左右兩側：橫寫
         const lx=x+cs*(rr+10), anchor=cs>0?'start':'end';
         lab='<text class="lb" x="'+f(lx)+'" y="'+f(y-1)+'" text-anchor="'+anchor+'">'+esc(it.short)+'</text><text class="cd" x="'+f(lx)+'" y="'+f(y+15)+'" text-anchor="'+anchor+'">'+esc(it.code)+'</text>';
-      } else {                                                 // 上下兩側：直寫
-        const ch=[...it.short], LH=16.5;                      // 一字一行，確保各瀏覽器一致
+      } else {                                                 // 上下兩側：直寫，一字一行
+        const ch=[...it.short], LH=16.5;
         const y0=sn<0? y-rr-8-(ch.length-1)*LH : y+rr+20;
-        lab='<text class="lb" text-anchor="middle">'+ch.map((c,k)=>'<tspan x="'+f(x)+'" y="'+f(y0+k*LH)+'">'+esc(c)+'</tspan>').join('')+'</text>';
+        lab='<text class="lb" text-anchor="middle">'+ch.map((t,k)=>'<tspan x="'+f(x)+'" y="'+f(y0+k*LH)+'">'+esc(t)+'</tspan>').join('')+'</text>';
       }
-      nodes+='<g class="nd'+(on?' has':'')+'" style="--c:'+c+'" id="nd-'+slug(it.code)+'" data-code="'+it.code+'" role="button" tabindex="0" aria-pressed="false" aria-label="'+esc(it.code+' '+it.short+'，'+GR[it.grade]+'年級'+(on?'，有 '+byCode[it.code].length+' 個活動':'，準備中'))+'">'+
-        '<title>'+esc(it.code+' '+it.text+'（'+GR[it.grade]+'年級）')+'</title>'+
-        '<circle cx="'+f(x)+'" cy="'+f(y)+'" r="'+rr+'"/><text class="gr" x="'+f(x)+'" y="'+f(y+4.5)+'" text-anchor="middle">'+GR[it.grade]+'</text>'+lab+'</g>';
+      nodes+='<g class="nd'+(on?' has':'')+'" style="--c:'+col+'" id="nd-'+slug(it.code)+'" data-code="'+it.code+'" role="button" tabindex="0" aria-pressed="false" aria-label="'+esc(it.code+' '+it.short+'，'+lv.label+(on?'，有 '+byCode[it.code].length+' 個活動':''))+'">'+
+        '<title>'+esc(it.code+' '+it.text+'（'+lv.label+'）')+'</title>'+
+        '<circle cx="'+f(x)+'" cy="'+f(y)+'" r="'+rr+'"/><text class="gr" x="'+f(x)+'" y="'+f(y+4.5)+'" text-anchor="middle">'+esc(lv.mark)+'</text>'+lab+'</g>';
     });
     slot+=items.length;
   }
-  const core='<g class="core"><circle cx="'+CX+'" cy="'+CY+'" r="'+R_CORE+'"/><text x="'+CX+'" y="'+(CY+2)+'" text-anchor="middle" font-size="21" font-weight="900">'+esc(CURRICULUM.core)+'</text><text x="'+CX+'" y="'+(CY+24)+'" text-anchor="middle" font-size="12" opacity=".75">國中</text></g>';
+  const big=c.core.length>4?17:21;
+  const core='<g class="core"><circle cx="'+CX+'" cy="'+CY+'" r="'+R_CORE+'"/><text x="'+CX+'" y="'+(CY+2)+'" text-anchor="middle" font-size="'+big+'" font-weight="900">'+esc(c.core)+'</text><text x="'+CX+'" y="'+(CY+24)+'" text-anchor="middle" font-size="12" opacity=".75">'+esc(c.coreSub)+'</text></g>';
+  svg.setAttribute('aria-label',c.title+'學習地圖');
   svg.innerHTML=out+trunks+twigs+core+hubs+nodes;
   svg.querySelectorAll('.nd').forEach(g=>{
     g.addEventListener('click',()=>open(g.dataset.code,true));
     g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(g.dataset.code,true)}});
   });
-})();
+}
 
-/* 顯示方式：放射地圖／路線清單 */
-let view=(()=>{try{return localStorage.getItem('ybs:view')}catch(e){return null}})()||(innerWidth>=760?'radial':'lines');
+function buildMap(){
+  const c=cur, n=c.strands.reduce((a,s)=>a+s.items.length,0);
+  $('map-lede').textContent=c.id==='jh'
+    ? '從中心的「資訊科技」出發，分成課綱的六大主題，再分出 '+n+' 項學習內容。越往外圈年級越高，節點上的字是課綱標示的學習年級。點節點可看課綱說明；實心節點已經有課堂活動，可以直接開始。'
+    : '從中心的「'+c.core+'」出發，分成 '+c.strands.length+' 個主題、'+n+' 項學習內容（'+c.stage+'）。點節點可看課綱說明；實心節點已經有課堂活動。';
+  $('lg-mark').textContent=c.levels[0].mark;
+  $('lg-mark-label').textContent=c.levels.length>1?'課綱學習年級':c.levels[0].label;
+  $('src').textContent='十二年國教課綱科技領域（107 年 9 月），資訊科技'+(c.id==='jh'?'國民中學學習內容與附錄三學習內容說明':c.id==='sh'?'普通型高級中等學校必修學習內容與附錄三學習內容說明':'加深加廣選修「進階程式設計」學習內容');
+  document.querySelectorAll('.curtabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.c===c.id));
+  buildLines(c); buildRadial(c);
+}
+
 function setView(v){
-  view=v; try{localStorage.setItem('ybs:view',v)}catch(e){}
+  view=v; keep('ybs:view',v);
   $('radial-box').hidden=v!=='radial'; $('lines').hidden=v!=='lines';
   document.querySelectorAll('.views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
-  const cur=document.querySelector('[aria-expanded="true"],.nd[aria-pressed="true"]');
-  if(cur){const c=cur.dataset.code;close();open(c,false)}
+  const sel=document.querySelector('.st[aria-expanded="true"],.nd[aria-pressed="true"]');
+  if(sel){const code=sel.dataset.code;close();open(code,false)}
 }
+function setCur(id){cur=CURRICULA.find(c=>c.id===id)||CURRICULA[0];keep('ybs:cur',cur.id);close();buildMap();setView(view)}
+$('curtabs').innerHTML=CURRICULA.map(c=>'<button type="button" role="tab" data-c="'+c.id+'" aria-selected="false">'+esc(c.tab)+'</button>').join('');
+$('curtabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{setCur(b.dataset.c);history.replaceState(null,'',location.pathname)});
 document.querySelectorAll('.views button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
 
-function itemOf(code){for(const s of CURRICULUM.strands)for(const it of s.items)if(it.code===code)return {s,it};return null}
 function close(){
   document.querySelectorAll('.st[aria-expanded="true"]').forEach(b=>b.setAttribute('aria-expanded','false'));
   document.querySelectorAll('.nd[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
   document.querySelectorAll('.panel').forEach(p=>{p.hidden=true;p.innerHTML=''});
 }
+const li=t=>{const o=typeof t==='object',s=o?t.t:t,child=s.startsWith('・');
+  return '<li class="'+(child?'sub':'')+(o?' opt':'')+'">'+esc(child?s.slice(1):s)+(o?'<span class="optag">選教</span>':'')+'</li>'};
 function open(code,scroll){
-  const f=itemOf(code); if(!f)return;
+  const f=findCode(code); if(!f)return;
+  if(f.c!==cur){cur=f.c;keep('ybs:cur',cur.id);close();buildMap();setView(view)}
   const radial=view==='radial';
   const btn=radial?$('nd-'+slug(code)):$('st-'+slug(code)), pn=radial?$('pn-radial'):$('pn-'+f.s.id);
   const attr=radial?'aria-pressed':'aria-expanded';
@@ -361,23 +407,30 @@ function open(code,scroll){
   close(); if(wasOpen){history.replaceState(null,'',location.pathname);return}
   btn.setAttribute(attr,'true');
   pn.style.setProperty('--c','var(--'+f.s.id+')');
-  const acts=byCode[code]||[];
-  pn.innerHTML='<div class="ph"><h3><span class="code">'+esc(code)+'</span>'+esc(f.it.text)+'</h3><button type="button" class="close">收起</button></div>'+
+  const acts=byCode[code]||[], it=f.it, lv=lvOf(f.c,it.grade);
+  const hasOpt=[...(it.sub||[]),...(it.notes||[])].some(x=>typeof x==='object');
+  pn.innerHTML='<div class="ph"><h3><span class="code">'+esc(code)+'</span>'+esc(it.text)+'<span class="lvtag">'+esc(lv.label)+'</span></h3><button type="button" class="close">收起</button></div>'+
+    '<div class="spec'+(it.sub&&it.notes?' two':'')+'">'+
+      '<p class="theme"><b>'+esc(f.s.name)+'</b>'+(f.s.desc?'　'+esc(f.s.desc):'')+'</p>'+
+      (it.sub?'<div><h4>學習內容細項</h4><ul class="nl">'+it.sub.map(li).join('')+'</ul></div>':'')+
+      (it.notes?'<div><h4>課綱說明</h4><ul class="nl">'+it.notes.map(li).join('')+'</ul></div>':'')+
+      (hasOpt?'<p class="optnote">標「選教」的項目，課綱說明各校或教師可依學生學習需求自行決定是否教授。</p>':'')+
+    '</div>'+
+    '<h4 class="acts-h">課堂活動</h4>'+
     (acts.length?'<div class="acts">'+acts.map(a=>{
       const c=courseOf(a.course);
       return '<article class="act"><div><h4>'+esc(a.title)+'</h4><p class="meta">'+esc(c.name)+' 第 '+a.week+' 週｜'+esc(a.topic)+'</p></div>'+
         '<a class="play" href="'+esc(a.href)+'">開始活動</a>'+
         '<dl class="wbs"><dt>Why</dt><dd>'+esc(a.why)+'</dd><dt>Because</dt><dd>'+esc(a.because)+'</dd><dt>So</dt><dd>'+esc(a.so)+'</dd></dl></article>';
-    }).join('')+'</div>':'<p class="empty">這一站的課堂活動還在準備中。</p>');
+    }).join('')+'</div>':'<p class="empty">這一項的課堂活動還在準備中。</p>');
   pn.hidden=false;
   pn.querySelector('.close').onclick=()=>{close();history.replaceState(null,'',location.pathname);btn.focus()};
   history.replaceState(null,'','#'+slug(code));
   if(scroll)pn.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
 }
-document.querySelectorAll('.st').forEach(b=>b.onclick=()=>open(b.dataset.code,true));
-setView(view);
+buildMap(); setView(view);
 const h=decodeURIComponent(location.hash.slice(1));
-if(/^[APSDTH]-IV-\d$/.test(h))open('資'+h,true);
+if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
 
 /* 等高線底圖：用固定亂數畫幾組不規則同心線，跟深淺色主題都搭 */
 (function(){
@@ -413,7 +466,8 @@ if(/^[APSDTH]-IV-\d$/.test(h))open('資'+h,true);
   const DAY=864e5;
   const ymd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
   const md=d=>(d.getMonth()+1)+'/'+d.getDate();
-  const strandOf=code=>{for(const s of CURRICULUM.strands)for(const it of s.items)if(it.code===code)return s.id;return 'P'};
+  const strandOf=code=>{const r=findCode(code);return r?r.s.id:'P'};
+  const strandName=id=>{for(const c of CURRICULA){const s=c.strands.find(x=>x.id===id);if(s)return s.name}return id};
   const today=new Date();today.setHours(0,0,0,0);
   const weekOf=(t,d)=>Math.floor((d-ymd(t.start))/DAY/7);           // 0 起算
   const termEnd=t=>new Date(ymd(t.start).getTime()+t.weeks*7*DAY);
@@ -422,7 +476,7 @@ if(/^[APSDTH]-IV-\d$/.test(h))open('資'+h,true);
 
   // 圖例：只列出有用到的路線
   const used=[...new Set(ACTIVITIES.map(a=>strandOf(a.codes[0])))];
-  $('keys').innerHTML=used.map(id=>{const s=CURRICULUM.strands.find(x=>x.id===id);return '<span><i style="background:var(--'+id+')"></i>'+esc(s.name)+'</span>'}).join('');
+  $('keys').innerHTML=used.map(id=>'<span><i style="background:var(--'+id+')"></i>'+esc(strandName(id))+'</span>').join('');
 
   function render(scroll){
     $('terms').innerHTML=TERMS.map(t=>'<button type="button" data-t="'+t.id+'" aria-pressed="'+(t===term)+'">'+esc(t.name)+'</button>').join('')+

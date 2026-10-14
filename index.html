@@ -88,6 +88,36 @@ a{color:inherit}
 .st[aria-expanded="true"] .dot{transform:scale(1.2)}
 .st[aria-expanded="true"] .lb{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--c);text-underline-offset:4px}
 
+/* 放射地圖 */
+.views{display:flex;gap:6px;flex-wrap:wrap}
+.views button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+.views button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 24px;flex-wrap:wrap}
+.radial-wrap{overflow-x:auto}
+#radial{display:block;width:100%;max-width:1000px;min-width:640px;height:auto;margin:0 auto}
+#radial text{font-family:var(--f)}
+.ring{fill:none;stroke:var(--rule);stroke-width:1.5;stroke-dasharray:4 6}
+.ring-lb{font-size:13px;fill:var(--muted);font-weight:700}
+.ring-bg{fill:var(--surface)}
+.trunk{stroke:var(--c);stroke-width:7;stroke-linecap:round}
+.twig{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;opacity:.75}
+.hub rect{fill:var(--c)}
+.hub text{fill:var(--surface);font-size:15px;font-weight:700}
+.core circle{fill:var(--ink)}
+.core text{fill:var(--bg)}
+.nd{cursor:pointer;outline:none}
+.nd circle{fill:var(--surface);stroke:var(--c);stroke-width:3.5;transition:r .15s}
+.nd .gr{fill:var(--c);font-size:13px;font-weight:900}
+.nd.has circle{fill:var(--c)}
+.nd.has .gr{fill:var(--surface)}
+.nd .lb{fill:var(--muted);font-size:14.5px}
+.nd.has .lb{fill:var(--ink);font-weight:700}
+.nd .cd{fill:var(--muted);font-size:11.5px}
+.nd:hover .lb,.nd:focus-visible .lb{fill:var(--ink);text-decoration:underline}
+.nd:focus-visible circle,.nd[aria-pressed="true"] circle{stroke:var(--ink);stroke-width:5}
+.panel.map-panel{margin:0 24px 20px}
+.lg-gr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--muted);font-size:11px;font-weight:900;font-style:normal;color:var(--muted)}
+
 /* 站牌（展開面板） */
 .panel{margin:0 24px 20px;border:2px solid var(--c);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
 .panel[hidden]{display:none}
@@ -196,17 +226,22 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
   </section>
 
   <div class="in head" id="map-head">
-    <h2>學習地圖</h2>
-    <p class="lede">六條路線是課綱的六大類，每一站是一項學習內容。實心的大站已經有課堂活動，點一下就能看內容、直接開始。</p>
+    <div>
+      <h2>學習地圖</h2>
+      <p class="lede">從中心的「資訊科技」出發，分成課綱的六大類，再分出 24 項學習內容。越往外圈年級越高，節點上的字就是建議學習的年級。實心節點已經有課堂活動，點一下就能看內容、直接開始。</p>
+    </div>
+    <div class="views" role="group" aria-label="地圖顯示方式"><button type="button" data-v="radial">放射地圖</button><button type="button" data-v="lines">路線清單</button></div>
   </div>
 
   <div class="in" id="map">
     <div class="map" id="mapbox">
+      <div id="radial-box"><div class="radial-wrap"><svg id="radial" viewBox="0 0 1100 1060" role="group" aria-label="資訊科技學習地圖"></svg></div><div class="panel map-panel" id="pn-radial" hidden></div></div>
       <div id="lines"></div>
       <div class="sheet">
         <div class="legend"><b style="color:var(--ink)">圖例</b>
           <span><i class="lg-dot on"></i>有課堂活動</span>
           <span><i class="lg-dot"></i>準備中</span>
+          <span><i class="lg-gr">七</i>建議學習年級</span>
           <span id="tally"></span>
         </div>
         <dl><div><dt>資料來源</dt><dd>十二年國教科技領域課綱，資訊科技學習內容</dd></div><div><dt>更新</dt><dd id="updated"></dd></div></dl>
@@ -233,6 +268,7 @@ ACTIVITIES.forEach(a=>a.codes.forEach(c=>(byCode[c]=byCode[c]||[]).push(a)));
 const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網址 #S-IV-2
 
 /* 地圖 */
+const GR={7:'七',8:'八',9:'九'};
 let total=0,done=0;
 $('lines').innerHTML=CURRICULUM.strands.map(s=>{
   const n=s.items.length; total+=n;
@@ -249,17 +285,82 @@ $('lines').innerHTML=CURRICULUM.strands.map(s=>{
 }).join('');
 $('tally').textContent='目前 '+done+' / '+total+' 站有活動';
 
+/* 放射地圖：中心 → 六大類 → 學習內容；半徑代表年級 */
+(function(){
+  const NS='http://www.w3.org/2000/svg', svg=$('radial');
+  const CX=550, CY=530, R_CORE=66, R_HUB=140, RING={7:222,8:306,9:390};
+  const strands=CURRICULUM.strands, total=strands.reduce((a,s)=>a+s.items.length,0);
+  const step=360/(total+1);                       // 留一格放年級刻度
+  const pt=(r,deg)=>{const t=(deg-90)*Math.PI/180;return [CX+r*Math.cos(t),CY+r*Math.sin(t)]};
+  const f=n=>n.toFixed(1);
+  let out='';
+  // 年級圈
+  for(const g of [7,8,9]) out+='<circle class="ring" cx="'+CX+'" cy="'+CY+'" r="'+RING[g]+'"/>';
+  // 年級刻度（在正上方的空格）
+  for(const g of [7,8,9]){const [x,y]=pt(RING[g],0);out+='<rect class="ring-bg" x="'+f(x-24)+'" y="'+f(y-11)+'" width="48" height="22" rx="4"/><text class="ring-lb" x="'+f(x)+'" y="'+f(y+5)+'" text-anchor="middle">'+GR[g]+'年級</text>'}
+  let slot=1, trunks='', twigs='', hubs='', nodes='';
+  for(const s of strands){
+    const items=[...s.items].sort((a,b)=>a.grade-b.grade||a.code.localeCompare(b.code));
+    const a0=slot*step, a1=(slot+items.length)*step, mid=(a0+a1)/2-step/2;
+    const c='var(--'+s.id+')';
+    const [hx,hy]=pt(R_HUB,mid), [tx,ty]=pt(R_CORE,mid);
+    trunks+='<line class="trunk" style="--c:'+c+'" x1="'+f(tx)+'" y1="'+f(ty)+'" x2="'+f(hx)+'" y2="'+f(hy)+'"/>';
+    const w=s.tag.length*16+22;
+    hubs+='<g class="hub" style="--c:'+c+'"><rect x="'+f(hx-w/2)+'" y="'+f(hy-15)+'" width="'+w+'" height="30" rx="15"/><text x="'+f(hx)+'" y="'+f(hy+5)+'" text-anchor="middle">'+esc(s.tag)+'</text><title>'+esc(s.name)+'</title></g>';
+    items.forEach((it,i)=>{
+      const ang=(slot+i)*step, r=RING[it.grade], [x,y]=pt(r,ang), on=!!byCode[it.code];
+      const [c1x,c1y]=pt(R_HUB+50,mid), [c2x,c2y]=pt(r-70,ang);
+      twigs+='<path class="twig" style="--c:'+c+'" d="M'+f(hx)+' '+f(hy)+'C'+f(c1x)+' '+f(c1y)+' '+f(c2x)+' '+f(c2y)+' '+f(x)+' '+f(y)+'"/>';
+      const rad=(ang-90)*Math.PI/180, cs=Math.cos(rad), sn=Math.sin(rad), rr=on?17:14;
+      let lab;
+      if(Math.abs(cs)>=0.5){                                   // 左右兩側：橫寫
+        const lx=x+cs*(rr+10), anchor=cs>0?'start':'end';
+        lab='<text class="lb" x="'+f(lx)+'" y="'+f(y-1)+'" text-anchor="'+anchor+'">'+esc(it.short)+'</text><text class="cd" x="'+f(lx)+'" y="'+f(y+15)+'" text-anchor="'+anchor+'">'+esc(it.code)+'</text>';
+      } else {                                                 // 上下兩側：直寫
+        const ch=[...it.short], LH=16.5;                      // 一字一行，確保各瀏覽器一致
+        const y0=sn<0? y-rr-8-(ch.length-1)*LH : y+rr+20;
+        lab='<text class="lb" text-anchor="middle">'+ch.map((c,k)=>'<tspan x="'+f(x)+'" y="'+f(y0+k*LH)+'">'+esc(c)+'</tspan>').join('')+'</text>';
+      }
+      nodes+='<g class="nd'+(on?' has':'')+'" style="--c:'+c+'" id="nd-'+slug(it.code)+'" data-code="'+it.code+'" role="button" tabindex="0" aria-pressed="false" aria-label="'+esc(it.code+' '+it.short+'，'+GR[it.grade]+'年級'+(on?'，有 '+byCode[it.code].length+' 個活動':'，準備中'))+'">'+
+        '<title>'+esc(it.code+' '+it.text+'（'+GR[it.grade]+'年級）')+'</title>'+
+        '<circle cx="'+f(x)+'" cy="'+f(y)+'" r="'+rr+'"/><text class="gr" x="'+f(x)+'" y="'+f(y+4.5)+'" text-anchor="middle">'+GR[it.grade]+'</text>'+lab+'</g>';
+    });
+    slot+=items.length;
+  }
+  const core='<g class="core"><circle cx="'+CX+'" cy="'+CY+'" r="'+R_CORE+'"/><text x="'+CX+'" y="'+(CY+2)+'" text-anchor="middle" font-size="21" font-weight="900">'+esc(CURRICULUM.core)+'</text><text x="'+CX+'" y="'+(CY+24)+'" text-anchor="middle" font-size="12" opacity=".75">國中</text></g>';
+  svg.innerHTML=out+trunks+twigs+core+hubs+nodes;
+  svg.querySelectorAll('.nd').forEach(g=>{
+    g.addEventListener('click',()=>open(g.dataset.code,true));
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(g.dataset.code,true)}});
+  });
+})();
+
+/* 顯示方式：放射地圖／路線清單 */
+let view=(()=>{try{return localStorage.getItem('ybs:view')}catch(e){return null}})()||(innerWidth>=760?'radial':'lines');
+function setView(v){
+  view=v; try{localStorage.setItem('ybs:view',v)}catch(e){}
+  $('radial-box').hidden=v!=='radial'; $('lines').hidden=v!=='lines';
+  document.querySelectorAll('.views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
+  const cur=document.querySelector('[aria-expanded="true"],.nd[aria-pressed="true"]');
+  if(cur){const c=cur.dataset.code;close();open(c,false)}
+}
+document.querySelectorAll('.views button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+
 function itemOf(code){for(const s of CURRICULUM.strands)for(const it of s.items)if(it.code===code)return {s,it};return null}
 function close(){
   document.querySelectorAll('.st[aria-expanded="true"]').forEach(b=>b.setAttribute('aria-expanded','false'));
+  document.querySelectorAll('.nd[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
   document.querySelectorAll('.panel').forEach(p=>{p.hidden=true;p.innerHTML=''});
 }
 function open(code,scroll){
   const f=itemOf(code); if(!f)return;
-  const btn=$('st-'+slug(code)), pn=$('pn-'+f.s.id);
-  const wasOpen=btn.getAttribute('aria-expanded')==='true';
+  const radial=view==='radial';
+  const btn=radial?$('nd-'+slug(code)):$('st-'+slug(code)), pn=radial?$('pn-radial'):$('pn-'+f.s.id);
+  const attr=radial?'aria-pressed':'aria-expanded';
+  const wasOpen=btn.getAttribute(attr)==='true';
   close(); if(wasOpen){history.replaceState(null,'',location.pathname);return}
-  btn.setAttribute('aria-expanded','true');
+  btn.setAttribute(attr,'true');
+  pn.style.setProperty('--c','var(--'+f.s.id+')');
   const acts=byCode[code]||[];
   pn.innerHTML='<div class="ph"><h3><span class="code">'+esc(code)+'</span>'+esc(f.it.text)+'</h3><button type="button" class="close">收起</button></div>'+
     (acts.length?'<div class="acts">'+acts.map(a=>{
@@ -274,6 +375,7 @@ function open(code,scroll){
   if(scroll)pn.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
 }
 document.querySelectorAll('.st').forEach(b=>b.onclick=()=>open(b.dataset.code,true));
+setView(view);
 const h=decodeURIComponent(location.hash.slice(1));
 if(/^[APSDTH]-IV-\d$/.test(h))open('資'+h,true);
 

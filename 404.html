@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>找不到這一頁｜YBS Lab</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
+  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C; --L:#5C940D; --Da:#9C36B5; --I:#364FC7;
+  --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
+  --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
+  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:6px}
+.in{max-width:1180px;margin:0 auto;padding-inline:20px}
+
+/* 頁首 */
+.bar{background:var(--surface);border-bottom:1px solid var(--rule)}
+.bar .in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
+.logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
+.logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
+.logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
+.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
+.motto.lit .k{transform:translateY(-.05em) scale(1.25)}
+.motto.lit .k.y{color:var(--why);transition-delay:.15s}
+.motto.lit .k.b{color:var(--because);transition-delay:.45s}
+.motto.lit .k.s{color:var(--so);transition-delay:.75s}
+@media (max-width:420px){.motto{font-size:15px}}
+.bar nav{display:flex;gap:20px;font-size:15px}
+.bar nav a{text-decoration:none;color:var(--muted)}
+.bar nav a:hover{color:var(--ink)}
+
+
+main.in{max-width:640px;padding-block:72px 48px}
+h1{margin:0;font-size:clamp(28px,4.4vw,38px);font-weight:900;line-height:1.25}
+p{margin:12px 0 0;color:var(--muted)}
+.go{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.go a{text-decoration:none;font-weight:700;border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:8px 18px}
+.go a.main{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="in">
+    <a class="logo" href="/" aria-label="YBS Lab：Why, because, so."><b aria-hidden="true"><span class="y">Y</span><span class="bb">B</span><span class="s">S</span> Lab</b><span class="motto lit" aria-hidden="true"><span>wh<span class="k y">Y</span></span><span><span class="k b">B</span>ecause</span><span><span class="k s">S</span>o.</span></span></a>
+    <nav aria-label="主選單"><a href="/#progress">學期進度</a><a href="/#map-head">學習地圖</a><a href="/about/">關於</a></nav>
+  </div>
+</header>
+<main class="in">
+  <h1>找不到這一頁</h1>
+  <p>網址可能打錯了，或這一頁已經搬家。從首頁的學期進度或學習地圖，可以找到所有課堂活動。</p>
+  <div class="go"><a class="main" href="/">回到首頁</a><a href="/#map-head">看學習地圖</a></div>
+</main>
+</body>
+</html>

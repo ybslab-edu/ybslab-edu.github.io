@@ -168,9 +168,17 @@ const COURSES = [
   { id: '115-g9', name: '九年級資訊科技', short: '九年級', year: 115, path: '115-g9/' }
 ];
 
-// 學期：start 填開學那週的星期一，weeks 是這學期的週數。
-// 下學期的開學日等學校行事曆公布後再改。
+// 學期：依學校行事曆填開學日（begin）與休業式（end）。週次從開學那週的星期一算起，週數自動計算。
 const TERMS = [
-  { id: '115-1', year: 115, name: '115 學年上學期', start: '2026-08-31', weeks: 21 },
-  { id: '115-2', year: 115, name: '115 學年下學期', start: '2027-02-15', weeks: 20 }
+  { id: '115-1', year: 115, name: '115 學年上學期', begin: '2026-08-31', end: '2027-01-20' },
+  { id: '115-2', year: 115, name: '115 學年下學期', begin: '2027-02-11', end: '2027-06-30' }
 ];
+(function () {   // 補上 start（開學那週的星期一）與 weeks
+  const DAY = 864e5, ymd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  for (const t of TERMS) {
+    const b = ymd(t.begin), mon = new Date(b.getTime() - ((b.getDay() + 6) % 7) * DAY);
+    t.start = iso(mon);
+    t.weeks = Math.floor((ymd(t.end) - mon) / DAY / 7) + 1;
+  }
+})();

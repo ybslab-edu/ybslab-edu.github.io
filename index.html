@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>YBS Lab</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="YBS Lab">
+<meta property="og:image" content="https://ybslab-edu.github.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:url" content="https://ybslab-edu.github.io/">
 <meta name="description" content="國中資訊科技學習地圖：依課綱學習內容排列的課堂活動。">
 <meta property="og:title" content="YBS Lab｜資訊科技學習地圖">
 <meta property="og:description" content="依課綱學習內容排列的課堂活動，一張圖看懂國中資訊科技。">
@@ -470,8 +478,9 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
   const strandName=id=>{for(const c of CURRICULA){const s=c.strands.find(x=>x.id===id);if(s)return s.name}return id};
   const today=new Date();today.setHours(0,0,0,0);
   const weekOf=(t,d)=>Math.floor((d-ymd(t.start))/DAY/7);           // 0 起算
-  const termEnd=t=>new Date(ymd(t.start).getTime()+t.weeks*7*DAY);
-  const curTerm=TERMS.find(t=>today>=ymd(t.start)&&today<termEnd(t))||TERMS.find(t=>today<ymd(t.start))||TERMS[TERMS.length-1];
+  const termEnd=t=>new Date(ymd(t.end).getTime()+DAY);               // 休業式隔天
+  const clip=(t,d,e)=>[d<ymd(t.begin)?ymd(t.begin):d, e>ymd(t.end)?ymd(t.end):e];  // 開學週、最後一週只顯示上課日
+  const curTerm=TERMS.find(t=>today>=ymd(t.begin)&&today<termEnd(t))||TERMS.find(t=>today<ymd(t.begin))||TERMS[TERMS.length-1];
   let term=curTerm;
 
   // 圖例：只列出有用到的路線
@@ -484,14 +493,14 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
     $('terms').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{term=TERMS.find(t=>t.id===b.dataset.t);render(true)});
     if($('jump'))$('jump').onclick=()=>{term=curTerm;render(true)};
 
-    const inTerm=today>=ymd(term.start)&&today<termEnd(term);
-    const cw=inTerm?weekOf(term,today):(today<ymd(term.start)?-1:term.weeks);
+    const inTerm=today>=ymd(term.begin)&&today<termEnd(term);
+    const cw=inTerm?weekOf(term,today):(today<ymd(term.begin)?-1:term.weeks);
     const courses=COURSES.filter(c=>c.year===term.year);
     const acts=ACTIVITIES.filter(a=>courses.some(c=>c.id===a.course)).map(a=>({...a,w:weekOf(term,ymd(a.date))})).filter(a=>a.w>=0&&a.w<term.weeks);
 
     // 副標與本週
-    const ws=new Date(ymd(term.start).getTime()+Math.max(0,cw)*7*DAY), we=new Date(ws.getTime()+4*DAY);
-    $('prog-sub').textContent=inTerm?'今天是 '+term.name+'第 '+(cw+1)+' 週（'+md(ws)+'–'+md(we)+'）':(cw<0?term.name+'還沒開始，'+md(ymd(term.start))+' 開學':term.name+'已結束');
+    const [ws,we]=clip(term,new Date(ymd(term.start).getTime()+Math.max(0,cw)*7*DAY),new Date(ymd(term.start).getTime()+(Math.max(0,cw)*7+4)*DAY));
+    $('prog-sub').textContent=inTerm?'今天是 '+term.name+'第 '+(cw+1)+' 週（'+md(ws)+'–'+md(we)+'）':(cw<0?term.name+'還沒開始，'+md(ymd(term.begin))+' 開學':term.name+'已結束');
     if(term===curTerm&&inTerm){
       const now=acts.filter(a=>a.w===cw);
       const nowHtml=courses.map(c=>{
@@ -508,7 +517,7 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
     // 表格
     let h='<div class="corner">週次</div>';
     for(let i=0;i<term.weeks;i++){
-      const d=new Date(ymd(term.start).getTime()+i*7*DAY), e=new Date(d.getTime()+4*DAY);
+      const [d,e]=clip(term,new Date(ymd(term.start).getTime()+i*7*DAY),new Date(ymd(term.start).getTime()+(i*7+4)*DAY));
       h+='<div class="gh'+(i===cw?' cur':i<cw?' past':'')+'" id="wk-'+i+'"'+(i===cw?' aria-current="date"':'')+'><b>'+(i===cw?'本週・':'')+'第 '+(i+1)+' 週</b>'+md(d)+'–'+md(e)+'</div>';
     }
     for(const c of courses){

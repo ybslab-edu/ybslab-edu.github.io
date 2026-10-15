@@ -314,7 +314,7 @@ function run(seq,t,R=ROUNDS[ri]){
       if(st.opened===cd.f){st.opened=null;st.outs.push(cd.f+' 被關掉');x.out=cd.f+' 被關掉';x.cu+='才剛打開就被收走了！'}
     }else if(cd.op==='input'){
       if(!needPower())break;
-      if(!has(st.wall,GAME)){fail(k,'RAM 裡沒有遊戲，點了螢幕也沒反應！');break}
+      if(!has(st.wall,GAME)){fail(k,'RAM 裡沒有遊戲，點了螢幕也沒反應！'+(st.wasOff?'剛剛沒電時 RAM 全部清空，遊戲也跟著不見了。想想看：打王應該排在沒電之前還是之後？':''));break}
       const i=put(st.wall,CMD,t.order);
       if(i<0){fail(k,'小安點了螢幕，可是'+full);break}
       x.cu='小安點了螢幕，指令放進 RAM 的 '+pad(i)+' 號格。';x.cell=i;x.inp='攻擊：'+fmtv(t.order);
@@ -345,7 +345,7 @@ function run(seq,t,R=ROUNDS[ri]){
       x.cu=cd.op==='save'?'把 '+v+' 寫進儲存空間的「'+cd.dst+'」。存檔中……等了 3 秒。':'把 '+v+' 加進儲存空間的「'+cd.dst+'」，變成 '+st.disk[cd.dst]+'。存檔中……等了 3 秒。';
       x.cell=find(st.wall,cd.src);x.file=cd.dst;
     }else if(cd.op==='off'){
-      st.power=false;st.booted=false;st.wall=st.wall.map(()=>null);st.acc=null;st.opened=null;
+      st.power=false;st.booted=false;st.wall=st.wall.map(()=>null);st.acc=null;st.opened=null;st.wasOff=true;
       x.cu='手機沒電，關機了。RAM 全部清空，儲存空間的東西還在。';
     }else if(cd.op==='boot'){
       st.power=true;st.booted=true;

@@ -64,6 +64,7 @@ nav a{color:var(--accent)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="../../assets/codec.js"></script>
+<script src="../../assets/curriculum.js"></script>
 <script src="../../assets/activities.js"></script>
 
 <div class="wrap">
@@ -114,7 +115,8 @@ const fmtTime=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' 
 const all=()=>Object.values(recs);
 const weeks=()=>[...new Set(all().map(r=>r.week))].sort((a,b)=>a-b);
 const classes=w=>[...new Set(all().filter(r=>w==null||r.week===w).map(r=>r.cls))].sort((a,b)=>a-b);
-const wname=w=>'第 '+w+' 週'+(W[w]?'・'+W[w].title:'');
+const tw=w=>(W[w]&&termWeekOf(W[w]))||w;   // 學期第幾週（w 是第幾個活動）
+const wname=w=>'第 '+tw(w)+' 週'+(W[w]?'・'+W[w].title:'');
 
 $('b-add').onclick=()=>{
   const found=CODEC.extract($('paste').value);
@@ -188,7 +190,7 @@ function weekSheet(w,c){
 }
 function termSheet(c){
   const ws_=weeks().filter(w=>all().some(r=>r.week===w&&r.cls===c));
-  const head=['班級','座號',...ws_.map(w=>'第'+w+'週 過關數（共'+roundsOf(w).length+'關）'),'合計過關數','合計關卡數'];
+  const head=['班級','座號',...ws_.map(w=>'第'+tw(w)+'週 過關數（共'+roundsOf(w).length+'關）'),'合計過關數','合計關卡數'];
   const seats=new Set(all().filter(r=>r.cls===c).map(r=>r.seat));
   const n=+sizes[c]||0; for(let s=1;s<=n;s++)seats.add(s);
   const total=ws_.reduce((a,w)=>a+roundsOf(w).length,0);
@@ -212,9 +214,9 @@ function saveBook(name,sheets){
   m.className='msg ok';m.textContent='已下載 '+name;
 }
 const today=()=>{const d=new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
-$('b-x1').onclick=()=>saveBook('資訊科技_第'+curW+'週_'+curC+'班_'+today()+'.xlsx',[[curC+'班',weekSheet(curW,curC)]]);
-$('b-x2').onclick=()=>saveBook('資訊科技_第'+curW+'週_全部班級_'+today()+'.xlsx',classes(curW).map(c=>[c+'班',weekSheet(curW,c)]));
-$('b-x3').onclick=()=>{const {ws,ws_}=termSheet(curC);saveBook('資訊科技_'+curC+'班_學期總表_'+today()+'.xlsx',[['總表',ws],...ws_.map(w=>['第'+w+'週',weekSheet(w,curC)])])};
+$('b-x1').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_'+curC+'班_'+today()+'.xlsx',[[curC+'班',weekSheet(curW,curC)]]);
+$('b-x2').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_全部班級_'+today()+'.xlsx',classes(curW).map(c=>[c+'班',weekSheet(curW,c)]));
+$('b-x3').onclick=()=>{const {ws,ws_}=termSheet(curC);saveBook('資訊科技_'+curC+'班_學期總表_'+today()+'.xlsx',[['總表',ws],...ws_.map(w=>['第'+tw(w)+'週',weekSheet(w,curC)])])};
 
 // ===== 清除 =====
 function renderClear(){

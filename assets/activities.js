@@ -1,6 +1,6 @@
 // 所有課堂活動，全站只在這裡登記一次。新活動加在最前面。
 // codes：對應的課綱代碼（學習地圖）　date：上課日期（學期進度）
-// week：該課程第幾個活動，要和活動頁的 WEEK 一致　rounds：關卡名稱，順序同活動頁（最多 6 關，教師專區用）
+// week：該課程第幾個活動（成績碼用），要和活動頁的 WEEK 一致；畫面上的「第幾週」用 termWeekOf() 依 date 算學期週次　rounds：關卡名稱，順序同活動頁（最多 6 關，教師專區用）
 // track：必修 或 選修。選修是延伸實作或課綱選教項目，進度落後的班級可以跳過，改補看因材網影片。
 // why / because / so：這個活動的引起動機、發展活動、綜合活動，各一句。
 const ACTIVITIES = [
@@ -35,3 +35,14 @@ const ACTIVITIES = [
     so: '這間每秒處理三十億張單的店，就開在你手上的手機裡。'
   }
 ];
+
+// 學期第幾週：由活動的 date 和 curriculum.js 的 TERMS 算出（week 欄位只是第幾個活動）
+function termWeekOf(a) {
+  if (typeof TERMS === 'undefined' || !a || !a.date) return null;
+  const DAY = 864e5, d = new Date(a.date + 'T00:00:00');
+  for (const t of TERMS) {
+    const w = Math.floor((d - new Date(t.start + 'T00:00:00')) / DAY / 7) + 1;
+    if (w >= 1 && w <= t.weeks) return w;
+  }
+  return null;
+}

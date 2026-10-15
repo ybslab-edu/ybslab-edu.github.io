@@ -434,7 +434,7 @@ function open(code,scroll){
     '<h4 class="acts-h">課堂活動</h4>'+
     (acts.length?'<div class="acts">'+acts.map(a=>{
       const c=courseOf(a.course);
-      return '<article class="act"><div><h4>'+esc(a.title)+trk(a)+'</h4><p class="meta">'+esc(c.name)+' 第 '+a.week+' 週｜'+esc(a.topic)+'</p></div>'+
+      return '<article class="act"><div><h4>'+esc(a.title)+trk(a)+'</h4><p class="meta">'+esc(c.name)+(termWeekOf(a)?' 第 '+termWeekOf(a)+' 週':'')+'｜'+esc(a.topic)+'</p></div>'+
         '<a class="play" href="'+esc(a.href)+'">開始活動</a>'+
         '<dl class="wbs"><dt>Why</dt><dd>'+esc(a.why)+'</dd><dt>Because</dt><dd>'+esc(a.because)+'</dd><dt>So</dt><dd>'+esc(a.so)+'</dd></dl></article>';
     }).join('')+'</div>':'<p class="empty">這一項的課堂活動還在準備中。</p>');

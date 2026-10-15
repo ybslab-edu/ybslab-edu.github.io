@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: 任務說明 → 左「RAM＋儲存空間」、右「卡片盒＋慢動作重播」→ 下方「觸控螢幕／CPU／螢幕畫面」五大單元即時演出；顏色與簡報一致 */
+/* Layout: 由上而下三段：① 任務說明 → ② 排出運作流程（可用的步驟／你的順序）→ ③ 播放（RAM、儲存空間、小安看到、觸控螢幕／CPU／螢幕畫面）；顏色與簡報一致 */
 :root{
   --bg:#EDF0F3; --surface:#FFFFFF; --ink:#211B17; --muted:#5D6670; --line:#D3D9E0;
   --mem:#2C67AE; --mem-soft:#E2ECF8;
@@ -59,7 +59,13 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 .col{display:flex;flex-direction:column;gap:14px;min-width:0}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .ptitle{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.ptitle h2{margin:0;font-family:var(--f-display);font-size:19px}
+.ptitle h2,.ptitle h3{margin:0;font-family:var(--f-display);font-size:19px}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec-h{display:flex;align-items:center;gap:10px;margin:8px 0 0;font-family:var(--f-display);font-size:24px}
+.sec-h .num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-family:var(--f-mono);font-size:18px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:820px){.two{grid-template-columns:minmax(0,1fr)}}
+.pool-done{color:var(--muted);font-size:15px;margin:0}
 .tag{font-size:12px;letter-spacing:.05em;font-weight:700;padding:2px 8px;border-radius:999px}
 .t-mem{color:var(--mem);background:var(--mem-soft)} .t-disk{color:var(--disk);background:var(--disk-soft)}
 .t-cu{color:var(--cu);background:var(--cu-soft)} .t-in{color:var(--in);background:var(--in-soft)}
@@ -86,7 +92,7 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 .small{font-size:13.5px;color:var(--muted);margin:0}
 
 .pool,.slots{display:flex;flex-direction:column;gap:8px}
-.pool{flex-direction:row;flex-wrap:wrap}
+.pool{flex-direction:column}
 .card{font:inherit;font-size:16px;text-align:left;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:9px 12px;cursor:pointer;line-height:1.35}
 .card:hover{border-color:var(--ink)}
 .card.used{display:none}
@@ -175,58 +181,69 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
   </header>
   <div class="rounds" id="rounds"></div>
 
-  <section class="order" aria-live="polite">
-    <span class="who">任務：</span><span class="says" id="says"></span>
-    <span class="tip">每張卡上面是小安看到的，下面是電腦其實在做的。點卡片依序放進「慢動作重播」，排好按「播放」；點順序格裡的卡片可以拿回來。</span>
+  <section class="sec">
+    <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
+    <div class="order" aria-live="polite">
+      <span class="who">任務：</span><span class="says" id="says"></span>
+      <span class="tip">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。點「你的順序」裡的步驟可以拿回來。</span>
+    </div>
   </section>
 
-  <div class="grid">
-    <div class="col">
+  <section class="sec">
+    <h2 class="sec-h"><span class="num">2</span>排出運作流程</h2>
+    <div class="two">
       <section class="panel">
-        <div class="ptitle"><h2>RAM：正在玩的地方</h2><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">開機中</span><span class="tag t-mem">主記憶體</span></span></div>
+        <div class="ptitle"><h3>可用的步驟</h3><span class="small">點一下就排進「你的順序」</span></div>
+        <div class="pool" id="pool"></div>
+      </section>
+      <section class="panel">
+        <div class="ptitle"><h3>你的順序</h3></div>
+        <div class="slots" id="slots"></div>
+        <div class="btns">
+          <button class="btn primary" id="b-run">播放</button>
+          <button class="btn" id="b-clear">全部拿回來</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="sec" id="sec3">
+    <h2 class="sec-h"><span class="num">3</span>播放：看電腦怎麼跑</h2>
+    <div class="two">
+      <section class="panel">
+        <div class="ptitle"><h3>RAM：正在玩的地方</h3><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">開機中</span><span class="tag t-mem">主記憶體</span></span></div>
         <div class="sign" id="sign" hidden>ROM 裡的開機程式：<b>「先從儲存空間載入作業系統。」</b></div>
         <div class="wall" id="wall"></div>
         <p class="small">CPU 拿 RAM 裡的東西很快，但一沒電就全部清空。</p>
       </section>
       <section class="panel">
-        <div class="ptitle"><h2>儲存空間：遊戲住的地方</h2><span class="tag t-disk">輔助記憶體</span></div>
+        <div class="ptitle"><h3>儲存空間：遊戲住的地方</h3><span class="tag t-disk">輔助記憶體</span></div>
         <div class="disk" id="disk"></div>
         <p class="small">沒電也不會忘記，但每次載入或存檔都要等 3 秒。</p>
       </section>
     </div>
 
-    <section class="panel">
-      <div class="ptitle"><h2>卡片盒</h2><span class="small">點一張放進下面</span></div>
-      <div class="pool" id="pool"></div>
-      <div class="ptitle"><h2>慢動作重播</h2></div>
-      <div class="slots" id="slots"></div>
-      <div class="btns">
-        <button class="btn primary" id="b-run">播放</button>
-        <button class="btn" id="b-clear">全部拿回來</button>
-      </div>
-    </section>
-  </div>
+    <div class="pov" id="pov" aria-live="polite"><span class="lbl">小安看到：</span><span id="povt">—</span></div>
 
-  <section class="pov" id="pov" aria-live="polite"><span class="lbl">小安看到：</span><span id="povt">—</span></section>
+    <div class="stage">
+      <section class="panel unit inp" id="u-in">
+        <div class="ptitle"><h3>觸控螢幕</h3><span class="tag t-in">輸入</span></div>
+        <div class="inv" id="inv">—</div>
+      </section>
+      <section class="panel unit cpu" id="u-cpu">
+        <div class="ptitle"><h3>CPU：電腦在做的</h3><span class="tag t-cu">中央處理器</span></div>
+        <div class="say" id="cu-say">等你排好順序。</div>
+        <div class="hand" id="hand"><small>正在算：</small>—</div>
+        <div class="clock" id="clock">已等 0 秒</div>
+      </section>
+      <section class="panel unit outp" id="u-out">
+        <div class="ptitle"><h3>螢幕畫面</h3><span class="tag t-out">輸出</span></div>
+        <div class="outv" id="outv">—</div>
+      </section>
+    </div>
 
-  <div class="stage">
-    <section class="panel unit inp" id="u-in">
-      <div class="ptitle"><h2>觸控螢幕</h2><span class="tag t-in">輸入</span></div>
-      <div class="inv" id="inv">—</div>
-    </section>
-    <section class="panel unit cpu" id="u-cpu">
-      <div class="ptitle"><h2>CPU：電腦在做的</h2><span class="tag t-cu">中央處理器</span></div>
-      <div class="say" id="cu-say">等你排好順序。</div>
-      <div class="hand" id="hand"><small>正在算：</small>—</div>
-      <div class="clock" id="clock">已等 0 秒</div>
-    </section>
-    <section class="panel unit outp" id="u-out">
-      <div class="ptitle"><h2>螢幕畫面</h2><span class="tag t-out">輸出</span></div>
-      <div class="outv" id="outv">—</div>
-    </section>
-  </div>
-
-  <section class="verdict" id="verdict" hidden></section>
+    <section class="verdict" id="verdict" hidden></section>
+  </section>
 
   <section class="report" aria-live="polite">
     <h2>我的成績碼</h2>
@@ -252,12 +269,12 @@ const ROUNDS=[
   tests:[{order:atk('史萊姆',3,20)},{order:atk('哥布林',4,35)}],
   cards:[{u:'點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'怪物被打倒',t:'CPU 算出這次拿到幾分',op:'calc'},{u:'看到分數跳出來',t:'把分數顯示在螢幕上',op:'outacc'}],
   sol:[0,1,2,3]},
- {lv:1,name:'打王前存檔',says:'只差打倒 2 隻火龍（每隻 150 分）就破關，可是手機只剩 1% 電，打完一定會沒電。明天開機，要看到最新的進度。',tip:'沒電之後，RAM 會怎樣？',
+ {lv:1,name:'打王前存檔',says:'手機跳出「電量 1%」！小安決定先存檔，果然沒多久就沒電關機了。隔天充好電，他要接著打 2 隻火龍（每隻 150 分），看到最新的進度。',tip:'沒電的時候，RAM 裡還沒存的東西會怎樣？',
   cap:4,power:true,
   setup:t=>({ram:{[GAME]:PROG,'目前進度':t.sales},disk:{[GAME]:PROG,'存檔':t.ledger}}),
   tests:[{order:atk('火龍',2,150),sales:1200,ledger:980},{order:atk('寶箱怪',4,25),sales:860,ledger:1010}],
-  cards:[{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'看到分數往上加',t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{u:'按「存檔」',t:'把 RAM 的「目前進度」寫進儲存空間的「存檔」',op:'save',src:'目前進度',dst:'存檔'},{u:'手機沒電，螢幕黑掉',t:'斷電，RAM 全部清空',op:'off'},{u:'隔天開機，選「繼續遊戲」',t:'從儲存空間把「存檔」載入 RAM',op:'load',f:'存檔',on:true},{u:'看到昨天的進度',t:'把「存檔」的進度顯示在螢幕上',op:'outcell',c:'存檔'}],
-  sol:[0,1,2,3,4,5]},
+  cards:[{u:'按「存檔」',t:'把 RAM 的「目前進度」寫進儲存空間的「存檔」',op:'save',src:'目前進度',dst:'存檔'},{u:'手機沒電，螢幕黑掉',t:'斷電，RAM 全部清空',op:'off'},{u:'隔天開機，點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,on:true},{u:'選「繼續遊戲」',t:'從儲存空間把「存檔」載入 RAM，當作「目前進度」',op:'load',f:'存檔',as:'目前進度',needGame:true,needReboot:true},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input',needs:'目前進度'},{u:'看到分數往上加',t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{u:'看到最新進度',t:'把 RAM 的「目前進度」顯示在螢幕上',op:'outcell',c:'目前進度',needReboot:true}],
+  sol:[0,1,2,3,4,5,6],only:'outs',risky:0},
  {lv:2,name:'RAM 滿了',says:'RAM 只有 3 格，已經放滿遊戲、目前進度和 LINE。小安要再打 2 隻骷髏兵（每隻 60 分），打完馬上要回 LINE。',tip:'盒子裡有一張用不到的卡。回完 LINE，小安還要繼續玩。',ramHint:'遊戲被收回儲存空間了，等一下切回來就得重新載入——這就是切回遊戲要等的原因。',
   cap:3,power:true,
   setup:t=>({ram:{[GAME]:PROG,'目前進度':t.sales,'LINE':PROG},disk:{[GAME]:PROG,'LINE':PROG}}),
@@ -307,15 +324,18 @@ function run(seq,t,R=ROUNDS[ri]){
     const cd=R.cards[k]; let x={k};
     const needPower=()=>{if(!st.power){fail(k,'手機沒電，什麼都做不了！');return false}return true};
     if(cd.op==='load'){
-      if(cd.on&&!st.power){st.power=true;st.booted=true;x.lightOn=true}
+      if(cd.on&&st.power){fail(k,'手機還有電，還沒到「隔天開機」！');break}
+      if(cd.on){st.power=true;st.booted=true;st.rebooted=true;x.lightOn=true}
       if(!needPower())break;
+      if(cd.needReboot&&!st.rebooted){fail(k,'還沒到隔天開機，遊戲正在玩，不用按「繼續遊戲」！');break}
       if(cd.needBoot&&!st.booted){fail(k,'還沒執行開機程式，CPU 不知道要先載入什麼！');break}
       if(cd.needOS&&!has(st.wall,'作業系統')){fail(k,'RAM 裡還沒有作業系統，沒有人幫你打開遊戲！');break}
+      if(cd.needGame&&!has(st.wall,GAME)){fail(k,'RAM 裡還沒有遊戲，沒有「繼續遊戲」可以按！');break}
       if(!(cd.f in st.disk)){fail(k,'儲存空間裡找不到「'+cd.f+'」！');break}
-      const i=put(st.wall,cd.f,st.disk[cd.f]);
+      const i=put(st.wall,cd.as||cd.f,st.disk[cd.f]);
       if(i<0){fail(k,full);break}
       wait();
-      x.cu=(cd.on?'隔天開機。':'')+'從儲存空間把「'+cd.f+'」載入 RAM 的 '+pad(i)+' 號格。載入中……等了 3 秒。';x.cell=i;x.file=cd.f;
+      x.cu=(cd.on?'隔天開機。':'')+'從儲存空間把「'+cd.f+'」載入 RAM 的 '+pad(i)+' 號格'+(cd.as?'，當作「'+cd.as+'」':'')+'。載入中……等了 3 秒。';x.cell=i;x.file=cd.f;
     }else if(cd.op==='unload'){
       if(!needPower())break;
       if(!has(st.wall,cd.f)){fail(k,'RAM 裡沒有「'+cd.f+'」可以收！');break}
@@ -325,7 +345,8 @@ function run(seq,t,R=ROUNDS[ri]){
       if(st.opened===cd.f){st.opened=null;st.outs.push(cd.f+' 被關掉');x.out=cd.f+' 被關掉';x.cu+='才剛打開就被收走了！'}
     }else if(cd.op==='input'){
       if(!needPower())break;
-      if(!has(st.wall,GAME)){fail(k,'RAM 裡沒有遊戲，點了螢幕也沒反應！'+(st.wasOff?'剛剛沒電時 RAM 全部清空，遊戲也跟著不見了。想想看：打王應該排在沒電之前還是之後？':''));break}
+      if(!has(st.wall,GAME)){fail(k,'RAM 裡沒有遊戲，點了螢幕也沒反應！'+(st.wasOff?'剛剛沒電時 RAM 全部清空，遊戲也跟著不見了，要先把遊戲重新載入 RAM。':''));break}
+      if(cd.needs&&!has(st.wall,cd.needs)){fail(k,'還沒選「繼續遊戲」，遊戲停在開始畫面，沒有怪可以打！');break}
       const i=put(st.wall,CMD,t.order);
       if(i<0){fail(k,'小安點了螢幕，可是'+full);break}
       x.cu='小安點了螢幕，指令放進 RAM 的 '+pad(i)+' 號格。';x.cell=i;x.inp='攻擊：'+fmtv(t.order);
@@ -367,6 +388,7 @@ function run(seq,t,R=ROUNDS[ri]){
       st.outs.push(st.acc);x.cu='把分數送到螢幕。';x.out=st.acc+' 分';
     }else if(cd.op==='outcell'){
       if(!needPower())break;
+      if(cd.needReboot&&!st.rebooted){fail(k,'故事裡小安是隔天開機後才看進度，還沒到那一步！');break}
       if(!has(st.wall,cd.c)){fail(k,'RAM 裡沒有「'+cd.c+'」，沒東西可以顯示！');break}
       const v=get(st.wall,cd.c);st.outs.push(v);x.cu='把「'+cd.c+'」送到螢幕。';x.out=v+' 分';x.cell=find(st.wall,cd.c);
     }else if(cd.op==='open'){
@@ -399,11 +421,12 @@ function cardHTML(cd){return '<span class="c-u'+(cd.u?'':' none')+'"><b>小安</
 function renderCards(now,bad){
   const R=ROUNDS[ri];
   $('pool').innerHTML=order.map(k=>'<button type="button" class="card'+(slots.includes(k)?' used':'')+'" data-k="'+k+'"'+(slots.includes(k)?' tabindex="-1" aria-hidden="true"':'')+'>'+cardHTML(R.cards[k])+'</button>').join('');
+  if(order.every(k=>slots.includes(k))||slots.length>=R.sol.length)$('pool').insertAdjacentHTML('beforeend','<p class="pool-done">'+(slots.length>=R.sol.length?'都排好了，按「播放」看看。':'')+'</p>');
   $('pool').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;const k=+b.dataset.k;if(!slots.includes(k)&&slots.length<R.sol.length){slots.push(k);resetStage();renderCards()}});
   const n=R.sol.length;let h='';
   for(let i=0;i<n;i++){
     const k=slots[i];
-    h+='<div class="slot'+(i===now?(bad?' now bad':' now'):'')+'"><span class="n">'+(i+1)+'</span>'+(k==null?'<span class="empty">放第 '+(i+1)+' 張</span>':'<button type="button" class="card" data-s="'+i+'">'+cardHTML(R.cards[k])+'</button>')+'</div>';
+    h+='<div class="slot'+(i===now?(bad?' now bad':' now'):'')+'"><span class="n">'+(i+1)+'</span>'+(k==null?'<span class="empty">第 '+(i+1)+' 步</span>':'<button type="button" class="card" data-s="'+i+'">'+cardHTML(R.cards[k])+'</button>')+'</div>';
   }
   $('slots').innerHTML=h;
   $('slots').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;slots.splice(+b.dataset.s,1);resetStage();renderCards()});
@@ -431,6 +454,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function play(){
   if(running)return; running=true; resetStage(); renderCards();
   const R=ROUNDS[ri];
+  $('sec3').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
   if(!done.has(ri)){prog.tries[ri]=Math.min(15,prog.tries[ri]+1);saveProg()}
   const res=run(slots,R.tests[0]);
   const T=matchMedia('(prefers-reduced-motion: reduce)').matches?450:1100;
@@ -453,11 +477,12 @@ async function play(){
 }
 
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
-const sortObj=o=>Object.fromEntries(Object.entries(o).sort(([a],[b])=>a<b?-1:1));
+const sortObj=o=>Object.fromEntries(Object.entries(o).filter(([k])=>k!==CMD).sort(([a],[b])=>a<b?-1:1));
 const fmtOuts=o=>o.length?o.map(x=>typeof x==='number'?x+' 分':x).join('、'):'什麼都沒有';
 const fmtWall=o=>Object.keys(o).length?Object.entries(o).map(([k,v])=>k+(v===PROG?'':'（'+fmtv(v)+'）')).join('、'):'空的';
 function diff(got,exp){
   if(!same(got.outs,exp.outs))return '螢幕應該出現 '+fmtOuts(exp.outs)+'，你的順序出現 '+fmtOuts(got.outs)+'。';
+  if(ROUNDS[ri].only==='outs')return null;
   if(!same(sortObj(got.disk),sortObj(exp.disk))){
     const k=Object.keys(exp.disk).find(k=>got.disk[k]!==exp.disk[k]);
     return '儲存空間的「'+k+'」最後應該是 '+fmtv(exp.disk[k])+'，你的是 '+fmtv(got.disk[k])+'。';
@@ -481,6 +506,7 @@ function verdict(res){
       done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg();
       h='<h3>過關！</h3><p>螢幕：'+fmtOuts(res.outs)+'。換一個情況（'+fmtv(t2.order)+'）也對：'+fmtOuts(g2.outs)+'。</p>'+
         '<p>這一輪一共等了 '+res.time+' 秒，全部花在儲存空間的載入和存檔；RAM 和 CPU 裡的動作幾乎不用等。</p>'+
+        (R.risky!=null&&slots[0]!==R.risky?'<p>這樣也過關，不過剩 1% 時先打再存很冒險：萬一打到一半就沒電，剛剛的進度全沒了。先存檔比較保險。</p>':'')+
         (R.hdd?'<p>如果儲存空間是舊式硬碟（HDD），同樣的載入要慢好幾倍——這就是換一顆新硬碟（SSD），開機就快很多的原因。</p>':'');
       const next=ROUNDS.findIndex((r,i)=>i>ri&&r.lv===level);
       h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成！從開機、載入、計算到存檔，你都慢動作看過一遍了。</strong></p>'))+'</div>';

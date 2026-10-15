@@ -27,7 +27,7 @@
 ## 每週新增一課
 
 1. 在課程資料夾新增 `w02/`，放入 `index.html`，頁面開頭設定 `const WEEK=2;`，並載入 `../../assets/codec.js`。
-2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處）：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`。學習地圖、學期進度、教師專區都會自動更新。
+2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處）：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
 3. 推上 `main`，網站自動更新。
 
 ## 成績碼

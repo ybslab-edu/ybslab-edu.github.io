@@ -178,11 +178,21 @@ body.dragging-now{user-select:none;cursor:grabbing}
 .tbar .thint{width:100%;font-size:13px;color:var(--muted)}
 .tbar .btn{padding:7px 12px}
 body.teacher .slot .card{cursor:pointer}
+.g-me{margin:0;text-align:center;color:var(--ink)!important;font-size:15px}
+.sync{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.sync.ok{color:var(--out);border-color:var(--out)} .sync.warn{color:var(--warn);border-color:var(--warn)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <section class="gate" id="gate">
   <h1>打王前記得存檔</h1>
+  <div id="g-login" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
+    <p>先用學校 Google 帳號登入，每過一關，紀錄會自動交給老師。</p>
+    <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
+    <div class="gerr" id="g-lerr" role="alert"></div>
+  </div>
+  <div id="g-form" style="display:flex;flex-direction:column;gap:14px">
+  <p id="g-me" class="g-me" hidden></p>
   <p>開始前先填班級和座號，只能填數字。</p>
   <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
   <div class="field"><label for="in-seat">座號</label><input id="in-seat" inputmode="numeric" autocomplete="off" maxlength="2" placeholder="例如 12"><span class="hint">1～60</span></div>
@@ -191,6 +201,7 @@ body.teacher .slot .card{cursor:pointer}
   <div id="g-step2" hidden style="display:flex;flex-direction:column;gap:10px">
     <p style="color:var(--ink);font-size:20px" id="g-confirm"></p>
     <div class="btns" style="justify-content:center"><button class="btn" id="g-back">我填錯了</button><button class="btn primary" id="g-go">對，開始</button></div>
+  </div>
   </div>
   <div class="tlogin">
     <button class="linkbtn" id="t-open" type="button">教師登入</button>
@@ -207,7 +218,7 @@ body.teacher .slot .card{cursor:pointer}
   <header>
     <div style="display:flex;flex-direction:column;gap:4px">
       <h1>打王前記得存檔</h1>
-      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button></div>
+      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
     </div>
     <div class="tabs" role="tablist" aria-label="等級">
       <button id="tab-1" role="tab" aria-selected="true">基礎關</button>
@@ -298,15 +309,16 @@ body.teacher .slot .card{cursor:pointer}
     <span class="code" id="code"></span>
     <button class="btn" id="b-copy" type="button">複製成績碼</button>
     <span class="copied" id="copied"></span>
-    <p class="small" style="width:100%">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
+    <p class="small" style="width:100%" id="rep-note">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
   </section>
   <p class="small" style="text-align:center">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
 </div>
 
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
 <script>
-const WEEK=2;
+const WEEK=2, TERM_WEEK=8, TITLE='打王前記得存檔', COURSE='115-g9';
 const GAME='遊戲', PROG='（程式）', CMD='這次指令';
 const atk=(drink,qty,price)=>({drink,qty,price});   // 打怪指令：怪物、隻數、每隻分數
 
@@ -656,7 +668,7 @@ function verdict(res){
     else if(d2) h='<h3>差一點！</h3><p>這次剛好對了，但換一個情況（'+fmtv(t2.order)+'）就錯：'+d2+'</p>';
     else ok=true;
     if(ok){
-      if(!teacher){done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg();}
+      if(!teacher){done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg(); upload(ri);}
       h='<h3>過關！</h3><p>螢幕：'+fmtOuts(res.outs)+'。換一個情況（'+fmtv(t2.order)+'）也對：'+fmtOuts(g2.outs)+'。</p>'+
         '<p>這一輪一共等了 '+res.time+' 秒，全部花在儲存空間的載入和存檔；RAM 和 CPU 裡的動作幾乎不用等。</p>'+
         (R.risky!=null&&slots[0]!==R.risky?'<p>這樣也過關，不過剩 1% 時先打再存很冒險：萬一打到一半就沒電，剛剛的進度全沒了。先存檔比較保險。</p>':'')+
@@ -715,10 +727,11 @@ function start(id){
   try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
   done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
   $('who').textContent=id.cls+' 班 '+id.seat+' 號';
+  if(YBS.enabled()&&YBS.profile()){try{localStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify(id))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
   $('gate').hidden=true;$('main').hidden=false;
   setLevel(1);renderReport();
 }
-$('b-swap').onclick=()=>{if(teacher){stopPlayback();teacher=false;TEACHER.remember(false);document.body.classList.remove('teacher');$('tbar').hidden=true;$('report').hidden=false;$('b-swap').textContent='不是我？換人';$('who').textContent=''}else if(running)return;ident=null;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
+$('b-swap').onclick=()=>{if(teacher){stopPlayback();teacher=false;TEACHER.remember(false);document.body.classList.remove('teacher');$('tbar').hidden=true;$('report').hidden=false;$('b-swap').textContent='不是我？換人';$('who').textContent=''}else if(running)return;ident=null;if(YBS.enabled()){YBS.logout();showLogin()}$('sync').hidden=true;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
 // ===== 教師模式 =====
 function enterTeacher(){
   teacher=true;TEACHER.remember(true);ident=null;done.clear();
@@ -753,5 +766,30 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='ArrowLeft')$('tb-prev').click();
   else if(e.key==='ArrowRight')$('tb-next').click();
 });
-if(TEACHER.remembered())enterTeacher();else $('in-cls').focus();
+// ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
+function showLogin(){
+  $('g-login').hidden=false;$('g-form').hidden=true;$('g-lerr').textContent='';
+  YBS.button($('g-gbtn'),me=>{
+    $('g-login').hidden=true;$('g-form').hidden=false;
+    $('g-me').hidden=false;$('g-me').textContent='已登入：'+me.email;
+    try{const s=JSON.parse(localStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
+    $('in-cls').focus();
+  },msg=>{$('g-lerr').textContent=msg});
+}
+function upload(r){
+  if(!YBS.enabled()||!ident)return;
+  YBS.submit({course:COURSE,activity:WEEK,termWeek:TERM_WEEK,title:TITLE,round:r,roundName:ROUNDS[r].name,level:ROUNDS[r].lv===1?'基礎':'進階',rounds:ROUNDS.map(x=>x.name),
+    tries:prog.tries[r],mask:prog.mask,cls:ident.cls,seat:ident.seat,code:$('code').textContent,at:new Date().toISOString()});
+}
+YBS.status(st=>{
+  const el=$('sync');if(!ident)return;
+  el.className='sync'+(st==='ok'?' ok':st==='sending'?'':' warn');
+  if(st==='relogin'){
+    el.innerHTML='登入過期，重新登入才能上傳 <span id="sync-btn"></span>';
+    YBS.button($('sync-btn'),()=>{},msg=>{el.textContent=msg});
+  }else el.textContent=st==='ok'?'✓ 紀錄已上傳給老師':st==='sending'?'上傳中…':'還沒上傳成功，會自動重試';
+});
+if(TEACHER.remembered())enterTeacher();
+else if(YBS.enabled())showLogin();
+else $('in-cls').focus();
 </script>

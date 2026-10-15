@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>數位鑑識調查站｜老師儀表板</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: grading desk. Summary strip on top, class roster table as the main surface, detail drawer slides over on the right. */
+:root{
+  --paper:#E9EDF0; --sheet:#FFFFFF; --sheet-2:#F5F7F9; --ink:#17222D; --muted:#56636F; --line:#C9D2DA;
+  --tag:#F2C230; --tag-ink:#1C1A10; --accent:#1E5B86; --accent-soft:#DCE9F3; --ok:#2C7A4B; --ok-soft:#DFF1E6; --warn:#B0432C; --warn-soft:#F8E3DD;
+  --f-body:"Noto Sans TC","Microsoft JhengHei",sans-serif; --f-mono:"IBM Plex Mono",Consolas,monospace; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#10161C;--sheet:#18212A;--sheet-2:#1E2933;--ink:#E5EBF0;--muted:#9AA7B3;--line:#2E3A46;--tag:#E6B726;--tag-ink:#17150C;--accent:#72B4E2;--accent-soft:#1D3447;--ok:#5CC08A;--ok-soft:#173326;--warn:#EE8A72;--warn-soft:#3A2019;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#10161C;--sheet:#18212A;--sheet-2:#1E2933;--ink:#E5EBF0;--muted:#9AA7B3;--line:#2E3A46;--tag:#E6B726;--tag-ink:#17150C;--accent:#72B4E2;--accent-soft:#1D3447;--ok:#5CC08A;--ok-soft:#173326;--warn:#EE8A72;--warn-soft:#3A2019;color-scheme:dark}
+*{box-sizing:border-box} html,body{margin:0} [hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+h1,h2,h3{margin:0;line-height:1.3;text-wrap:balance} p{margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1300px;margin:0 auto;padding-inline:20px;padding-block:24px 60px;display:grid;gap:20px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px}
+header.top h1{font-size:1.7em;font-weight:900}
+header.top .sub{color:var(--muted)}
+.grow{flex:1}
+.btn{display:inline-flex;align-items:center;gap:.4em;border:1px solid var(--line);background:var(--sheet);border-radius:7px;padding:.45em 1em;cursor:pointer;font:inherit;color:inherit;font-weight:500}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--sheet);font-weight:700}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.drop{border:2px dashed var(--line);border-radius:12px;background:var(--sheet);padding:22px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop p{color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5em,1fr));gap:12px}
+.tile{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile .v{font-family:var(--f-mono);font-size:1.9em;font-weight:600;line-height:1.1}
+.tile .k{font-size:.82em;color:var(--muted)}
+.tbl{overflow-x:auto;background:var(--sheet);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:.5em .7em;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:.92em}
+th{background:var(--sheet-2);white-space:nowrap;font-size:.82em;color:var(--muted);letter-spacing:.04em}
+tbody tr{cursor:pointer} tbody tr:hover{background:var(--sheet-2)}
+td.t{font-family:var(--f-mono);white-space:nowrap}
+.pill{display:inline-block;padding:.05em .6em;border-radius:999px;font-size:.82em;font-weight:700;white-space:nowrap}
+.p0{background:var(--sheet-2);color:var(--muted)} .p1{background:var(--accent-soft);color:var(--accent)} .p2{background:var(--ok-soft);color:var(--ok)}
+.flag{display:block;color:var(--warn);font-size:.85em;white-space:nowrap}
+.flag::before{content:"▲ ";font-size:.8em}
+.tag{display:inline-block;padding:0 .45em;background:var(--tag);color:var(--tag-ink);font-family:var(--f-mono);font-weight:600;font-size:.82em;clip-path:polygon(10% 0,90% 0,100% 100%,0 100%)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(46em,100%);background:var(--sheet);border-left:1px solid var(--line);box-shadow:-12px 0 30px color-mix(in srgb,#000 18%,transparent);overflow-y:auto;z-index:30;padding:20px 24px 60px}
+.drawer h2{font-size:1.4em;font-weight:900}
+.drawer h3{font-size:1em;margin-top:1.4em;padding-bottom:.3em;border-bottom:2px solid var(--ink)}
+.drawer dl{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:.35em 1em;margin:.6em 0 0}
+.drawer dt{color:var(--muted);font-size:.88em} .drawer dd{margin:0}
+.na{color:var(--muted)}
+.note{color:var(--muted);font-size:.88em;max-width:60em}
+.live{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:12px}
+.live h2{font-size:1.05em;font-weight:900;display:flex;gap:.8em;align-items:center;flex-wrap:wrap}
+.row{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.btn.go{background:var(--ok);border-color:var(--ok);color:var(--sheet);font-weight:700}
+.btn.on{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);font-weight:700}
+.btn.sm{padding:.2em .7em;font-size:.88em}
+.dot{display:inline-block;width:.7em;height:.7em;border-radius:50%;margin-right:.4em;background:var(--muted)}
+.dot.on{background:var(--ok)} .dot.idle{background:var(--tag)} .dot.off{background:var(--line)}
+.steps{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.steps div{background:var(--sheet-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:.8em;color:var(--muted);min-width:0}
+.steps b{display:block;font-family:var(--f-mono);font-size:1.6em;color:var(--ink);line-height:1.1}
+.url{font-family:var(--f-mono);background:var(--sheet-2);border:1px solid var(--line);border-radius:6px;padding:.1em .6em;user-select:all}
+.gate{position:fixed;inset:0;background:var(--paper);z-index:50;display:grid;place-items:center}
+.gate form{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:28px;display:grid;gap:12px;width:min(22em,92vw)}
+.gate input{font:inherit;font-size:1.3em;padding:.4em .6em;border:1px solid var(--line);border-radius:7px;background:var(--sheet-2);color:var(--ink);letter-spacing:.2em}
+.empty{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:28px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><h1>老師彙整台</h1><p class="sub">消失的原始資料｜把學生上傳的報告檔一次拖進來</p></div>
+    <span class="grow"></span>
+    <button class="btn" id="csv" type="button" disabled>下載成績彙整表（CSV）</button>
+    <button class="btn" id="clear" type="button" disabled>清空</button>
+  </header>
+  <section class="live" id="live" hidden>
+    <h2>即時教室 <span id="conn" class="note"></span><span class="grow"></span><button class="btn sm" id="rst" type="button">重設全部資料</button><button class="btn sm" id="out" type="button">登出</button></h2>
+    <div class="row">學生網址 <span id="urls"></span></div>
+    <div class="steps" id="steps"></div>
+    <div class="row" id="ctl"></div>
+    <div class="row" id="flt"></div>
+  </section>
+  <label class="drop" id="drop">
+    <input type="file" id="files" multiple accept=".html,.htm" hidden>
+    <span class="btn pri">選擇報告檔</span>
+    <p>或把整批 <b>…_數位鑑識報告_A.html</b> 拖到這裡。檔案只在這台電腦讀取，不會上傳。</p>
+  </label>
+  <section class="tiles" id="tiles"></section>
+  <section id="tablebox"><div class="empty">還沒有載入任何報告檔。學生在第 6 步完成後，或按上方「下載報告檔」，就會產生報告檔。</div></section>
+  <p class="note">警示說明：「答案相近」比對 H1、H2、最終結論的文字（兩字片段重疊率 ≥ 55%），只提示要找學生談，不代表抄襲。「引用未打開證據」正常情況不會出現，出現代表報告檔可能被手動修改。畫廊「留言數」是這位學生到別人卡片留下的則數。</p>
+</div>
+<aside class="drawer" id="drawer" hidden></aside>
+<div class="gate" id="gate" hidden><form id="gf"><h2>老師登入</h2><p class="note">輸入啟動伺服器時顯示的 6 位數 PIN。</p><input id="pin" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="PIN"><button class="btn pri" type="submit">登入</button><p id="gmsg" class="note"></p></form></div>
+<script>
+"use strict";
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hm=iso=>iso?new Date(iso).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
+const mins=(a,b)=>a&&b?Math.round((new Date(b)-new Date(a))/60000):null;
+const B1=['E01','E02','E03','E04','E06','E07'], B2=['E05','E07F','E08','SUP'];
+let R=new Map(), LIVE=false, L=new Map(), REL={b2:{all:false,cls:{}},rv:{all:false,cls:{}}}, SKEW=0, CLS='', TOKEN='';
+const STEPN=['任務簡報','EXIF 練習','第一批','提出 H1','第二批','H2 與結論','證據畫廊','揭露反思'];
+function presence(k){ const l=L.get(k); if(!l) return null; const age=Date.now()+SKEW-l.lastSeen;
+  if(age>15000) return ['off','離線',age]; if(l.idleMs>120000) return ['idle','閒置 '+Math.round(l.idleMs/60000)+' 分',age]; return ['on','線上',age]; }
+
+async function load(files){
+  let bad=0;
+  for(const f of files){
+    const t=await f.text(); const m=t.match(/<script id="df-report" type="application\/json">([\s\S]*?)<\/script>/);
+    if(!m){bad++;continue;}
+    try{ const d=JSON.parse(m[1]); if(d.app!=='DF-investigation'){bad++;continue;}
+      const key=`${d.version}-${d.cls}-${d.seat}`; const prev=R.get(key);
+      const last=d.exports?.at(-1)||d.started;
+      if(!prev || (prev.exports?.at(-1)||'')<last) R.set(key,{...d,_file:f.name});
+    }catch(e){bad++;}
+  }
+  if(bad) alertBox(`${bad} 個檔案不是調查站報告檔，已略過。`);
+  render();
+}
+function alertBox(msg){ const n=document.createElement('div'); n.className='empty'; n.style.color='var(--warn)'; n.textContent=msg; $('#tablebox').before(n); setTimeout(()=>n.remove(),5000); }
+
+function opened(d,id){ return d.log.some(l=>l.e==='open'&&l.d===id); }
+function progress(d){
+  if(d.reveal?.unlockedAt && d.reveal.r1 && d.reveal.r2) return [2,'完成揭露反思'];
+  if(d.concl?.doneAt) return [2,'完成第一堂'];
+  if(d.b2?.unlockedAt && d.h1?.submittedAt) return [1,'第二批進行中'];
+  if(d.h1?.submittedAt) return [1,'已送出 H1'];
+  return [0,'第一批進行中'];
+}
+function bigrams(s){ s=String(s).replace(/[\s，。、；：「」（）,.;:()!?！？]/g,''); const g=new Set(); for(let i=0;i<s.length-1;i++) g.add(s.slice(i,i+2)); return g; }
+function textOf(d){ return [d.problem,...(d.susp||[]).map(s=>s.text),d.h1?.cause,d.h1?.effect,d.h1?.unsure,d.h2?.now,d.concl?.best,d.concl?.can,d.concl?.cannot,d.concl?.cbecause].join(' '); }
+function similar(list){
+  const out=new Map(); const g=list.map(d=>({d,g:bigrams(textOf(d))}));
+  for(let i=0;i<g.length;i++) for(let j=i+1;j<g.length;j++){
+    const a=g[i].g,b=g[j].g; if(a.size<12||b.size<12) continue;
+    let inter=0; a.forEach(x=>{if(b.has(x))inter++;}); const jac=inter/(a.size+b.size-inter);
+    if(jac>=0.55){ for(const [x,y] of [[g[i].d,g[j].d],[g[j].d,g[i].d]]){ const k=key(x); if(!out.has(k)) out.set(k,[]); out.get(k).push(`與 ${y.seat} 號答案相近 ${Math.round(jac*100)}%`); } }
+  }
+  return out;
+}
+const key=d=>`${d.version}-${d.cls}-${d.seat}`;
+function flags(d, sim, given){
+  const f=[...(sim.get(key(d))||[])];
+  const cited=[...(d.h1?.ev||[]),...(d.h2?.ev||[]),...(d.concl?.ev||[])];
+  const un=[...new Set(cited.filter(id=>!opened(d,id)))]; if(un.length) f.push(`引用未打開證據 ${un.join('、')}`);
+  if(!d.l01?.ok) f.push('EXIF 練習未通過');
+  if(LIVE){ const l=L.get(key(d)), pr=presence(key(d)); if(l&&pr&&pr[0]!=='off'&&l.idleMs>180000) f.push(`已 ${Math.round(l.idleMs/60000)} 分鐘沒有動作`); if(l&&pr&&pr[0]!=='off'&&l.cur===1&&Date.now()+SKEW-d.started>600000) f.push('開始 10 分鐘仍停在第 1 步'); }
+  const fails=d.log.filter(l=>/fail$/.test(l.e)).length; if(fails>=3) f.push(`密碼錯誤 ${fails} 次`);
+  const m=mins(d.started,d.h1?.submittedAt); if(m!==null && m<8) f.push(`開始後 ${m} 分鐘就送出 H1`);
+  if(d.concl?.doneAt && d.gallery && given===0 && d.reveal?.unlockedAt) f.push('畫廊沒有留言給別人');
+  return f;
+}
+function render(){
+  const list=[...R.values()].filter(d=>!CLS||String(d.cls)===CLS).sort((a,b)=>(a.cls+'').localeCompare(b.cls+'')||(+a.seat)-(+b.seat));
+  $('#csv').disabled=$('#clear').disabled=!list.length;
+  const given=new Map(); list.forEach(d=>(d.gallery?.comments||[]).forEach(c=>{ const k=`${d.cls}-${c.seat}`; given.set(k,(given.get(k)||0)+1); }));
+  const sim=similar(list);
+  const n=list.length, cnt=fn=>list.filter(fn).length;
+  $('#tiles').innerHTML = n ? [
+    [n,'份報告'],[cnt(d=>d.h1?.submittedAt),'已送出 H1'],[cnt(d=>d.concl?.doneAt),'完成第一堂'],
+    [cnt(d=>d.reveal?.unlockedAt),'已看揭露'],[cnt(d=>d.b2?.hints?.length),'用過提示'],[list.filter(d=>flags(d,sim,given.get(`${d.cls}-${d.seat}`)||0).length).length,'有警示']
+  ].map(([v,k])=>`<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('') : '';
+  if(!n){ $('#tablebox').innerHTML='<div class="empty">還沒有載入任何報告檔。</div>'; return; }
+  $('#tablebox').innerHTML=`<div class="tbl"><table><thead><tr>${LIVE?'<th>狀態</th><th>目前步驟</th>':''}<th>班級座號</th><th>進度</th><th>打開證據</th><th>H1 送出</th><th>第二批解鎖</th><th>提示</th><th>H1 → H2</th><th>完成</th><th>畫廊</th><th>警示</th></tr></thead><tbody>
+  ${list.map(d=>{ const [lv,lab]=progress(d); const g=given.get(`${d.cls}-${d.seat}`)||0; const fl=flags(d,sim,g);
+    const hints=d.b2?.hints||[]; const maxH=hints.length?Math.max(...hints.map(h=>h.level)):0;
+    return `<tr data-k="${esc(key(d))}" tabindex="0">
+      ${LIVE?(()=>{ const pr=presence(key(d)); const l=L.get(key(d)); return pr?`<td><span class="dot ${pr[0]}"></span>${pr[1]}</td><td class="t">${l.cur}. ${STEPN[l.cur-1]||''}</td>`:'<td class="na">—</td><td></td>'; })():''}
+      <td class="t">${esc(d.cls)}-${esc(d.seat)}</td>
+      <td><span class="pill p${lv}">${lab}</span></td>
+      <td class="t">${B1.filter(id=>opened(d,id)).length}/6 · ${B2.filter(id=>opened(d,id)).length}/4</td>
+      <td class="t">${hm(d.h1?.submittedAt)}${d.h1?.submittedAt?` <span class="na">(${mins(d.started,d.h1.submittedAt)} 分)</span>`:''}</td>
+      <td class="t">${hm(d.b2?.unlockedAt)}</td>
+      <td>${maxH?`到第 ${maxH} 級`:'<span class="na">沒用</span>'}</td>
+      <td>${esc(d.h2?.decision||'')}</td>
+      <td class="t">${hm(d.concl?.doneAt)}</td>
+      <td class="t">收 ${(d.gallery?.comments||[]).length} · 給 ${g}</td>
+      <td>${fl.map(x=>`<span class="flag">${esc(x)}</span>`).join('')}</td></tr>`; }).join('')}
+  </tbody></table></div>`;
+  $$('tbody tr').forEach(tr=>{ const open=()=>detail(R.get(tr.dataset.k)); tr.onclick=open; tr.onkeydown=e=>{if(e.key==='Enter')open();}; });
+}
+let OPEN=null;
+function detail(d){
+  const v=x=>x?esc(x):'<span class="na">（未填）</span>';
+  const tags=a=>(a||[]).map(i=>`<span class="tag">${esc(i)}</span>`).join(' ')||'<span class="na">（無）</span>';
+  const ev1=B1.map(id=>{const x=d.ev?.[id]||{}; return `<dt><span class="tag">${id}</span></dt><dd>${x.exif&&(x.exif.time||x.exif.make)?`<span class="mono">${esc(x.exif.time)} ｜ ${esc(x.exif.make)} ｜ ${esc(x.exif.model)}</span><br>`:''}觀察：${v(x.fact)}${x.interp?`<br>解釋（舊版）：${esc(x.interp)}`:''}</dd>`;}).join('');
+  const susp=(d.susp||[]).map((s,i)=>`<dt>疑點 ${i+1}</dt><dd>${v(s.text)}<br>證物 ${tags(s.ev)}　信心 ${v(s.conf)}<br>想查：${v(s.want)}</dd>`).join('')||'<dt>疑點</dt><dd class="na">（沒有）</dd>';
+  const ev2=B2.map(id=>{const x=d.b2?.ev?.[id]||{}; return `<dt><span class="tag">${id==='E07F'?'E07完整':id==='SUP'?'補充':id}</span></dt><dd><b>${v(x.rel)}</b>　${v(x.key)}<br>${v(x.why)}</dd>`;}).join('');
+  const dr=$('#drawer'); dr.hidden=false;
+  dr.innerHTML=`<div style="display:flex;gap:1em;align-items:center"><h2>${esc(d.cls)} 班 ${esc(d.seat)} 號</h2><span class="grow"></span><button class="btn" type="button" id="dx">關閉</button></div>
+  <p class="note">檔案 ${esc(d._file)}</p>
+  <h3>研究問題</h3><p>${v(d.problem)}</p>
+  <h3>H1（${hm(d.h1?.submittedAt)||'未送出'}）</h3><p>我目前推測：<b>${v(d.h1?.cause)}</b> 可能造成 <b>${v(d.h1?.effect)}</b>，因為證據 ${tags(d.h1?.ev)}</p><p>還不能確定：${v(d.h1?.unsure)}</p>
+  <h3>第一批：觀察</h3><dl>${ev1}</dl>
+  <h3>疑點清單</h3><dl>${susp}</dl>
+  <h3>第二批</h3><dl>${ev2}</dl>
+  <h3>H2 與結論</h3><dl><dt>決定</dt><dd>${v(d.h2?.decision)}　${v(d.h2?.reason)}</dd><dt>H2</dt><dd>看到 ${tags(d.h2?.ev)} 後改為 <b>${v(d.h2?.now)}</b></dd><dt>最支持解釋</dt><dd>${v(d.concl?.best)}</dd><dt>三項證據</dt><dd>${tags(d.concl?.ev)}</dd><dt>最易誤判</dt><dd>${v(d.concl?.misled)}</dd><dt>我能證明</dt><dd>${v(d.concl?.can)}</dd><dt>不能證明</dt><dd>${v(d.concl?.cannot)}　因為 ${v(d.concl?.cbecause)}</dd><dt>第二批前的預測</dt><dd>H1 對：${v(d.pred?.t)}／H1 錯：${v(d.pred?.f)}</dd><dt>揭露後時間線自評</dt><dd>${v(d.reveal?.tlnote)}</dd><dt>想新增</dt><dd>${v(d.concl?.want)}；${v(d.concl?.wantWhy)}</dd></dl>
+  <h3>畫廊</h3><dl>${(d.gallery?.comments||[]).map(c=>`<dt>${esc(c.seat)} 號 ${esc(c.stance)}</dt><dd>${esc(c.ev)}｜${esc(c.text)}</dd>`).join('')||'<dt>留言</dt><dd class="na">（沒有）</dd>'}<dt>讀完後補強</dt><dd>${v(d.gallery?.after)}</dd></dl>
+  <h3>反思</h3><dl>${[1,2,3,4].map(i=>`<dt>反思 ${i}</dt><dd>${v(d.reveal?.['r'+i])}</dd>`).join('')}<dt>數資挑戰</dt><dd>${d.reveal?.calc?.ok?'三組全對':'<span class="na">未全對／未作答</span>'}</dd></dl>
+  <h3>過程紀錄</h3><dl>${d.log.map(l=>`<dt class="mono">${hm(l.t)}</dt><dd>${esc(l.e)} ${esc(l.d??'')}</dd>`).join('')}</dl>`;
+  if(LIVE&&L.has(key(d))){ const a=document.createElement('p'); a.className='row'; a.innerHTML='<button class="btn sm" id="sf" type="button">釋放這個座位（學生換電腦時）</button><button class="btn sm" id="sd" type="button">刪除這位學生的資料</button>'; dr.appendChild(a);
+    $('#sf').onclick=async()=>{ await tapi('seat',{k:key(d),action:'free'}); toast2('已釋放，學生可以重新登入'); };
+    $('#sd').onclick=async()=>{ if(confirm(`確定刪除 ${d.cls}-${d.seat} 的全部資料？`)){ await tapi('seat',{k:key(d),action:'delete'}); dr.hidden=true; } }; }
+  $('#dx').onclick=()=>{dr.hidden=true; OPEN=null;}; $('#dx').focus(); OPEN=key(d);
+}
+function csv(){
+  const list=[...R.values()].sort((a,b)=>(a.cls+'').localeCompare(b.cls+'')||(+a.seat)-(+b.seat));
+  const head=['班級','座號','進度','研究問題','疑點數','第一批打開數','第二批打開數','H1送出','H1耗時分鐘','最高提示級','H1→H2決定','H1','H2','最支持解釋','不能證明','畫廊收到留言','數資挑戰','證據擷取(20)','事實與推論(20)','交叉驗證(20)','反證與修正(20)','結論邊界(20)','總分'];
+  const q=s=>`"${String(s??'').replace(/"/g,'""')}"`;
+  const rows=list.map(d=>{ const h=d.b2?.hints||[]; return [d.cls,d.seat,progress(d)[1],d.problem||'',(d.susp||[]).filter(s=>(s.text||'').trim()).length,B1.filter(i=>opened(d,i)).length,B2.filter(i=>opened(d,i)).length,hm(d.h1?.submittedAt),mins(d.started,d.h1?.submittedAt)??'',h.length?Math.max(...h.map(x=>x.level)):0,d.h2?.decision||'',`${d.h1?.cause||''} 可能造成 ${d.h1?.effect||''}`,d.h2?.now||'',d.concl?.best||'',[d.concl?.can,d.concl?.cannot,d.concl?.cbecause].filter(Boolean).join('｜'),(d.gallery?.comments||[]).length,d.reveal?.calc?.ok?'全對':'','','','','','',''].map(q).join(','); });
+  const blob=new Blob(['﻿'+[head.map(q).join(','),...rows].join('\r\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`數位鑑識_成績彙整_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+
+/* ---------------- live mode ---------------- */
+function toast2(m){ const n=document.createElement('div'); n.className='empty'; n.textContent=m; n.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:60;padding:10px 18px'; document.body.append(n); setTimeout(()=>n.remove(),2500); }
+async function tapi(name,obj){ const r=await fetch('/api/t/'+name,{method:'POST',headers:{'Content-Type':'application/json','x-token':TOKEN},body:JSON.stringify(obj)}); return r.json().catch(()=>({})); }
+function stub(s){ return {app:'DF-investigation',version:'A',cls:s.cls,seat:s.seat,started:s.lastSeen,log:[],h1:{},h2:{},concl:{},b2:{},reveal:{},gallery:{comments:[]},ev:{},l01:{}}; }
+function onSnap(snap){
+  SKEW=snap.now-Date.now(); REL=snap.release; L=new Map();
+  for(const s of snap.seats){ const d=s.state?{...s.state,_file:'即時資料'}:stub(s); d.cls=s.cls; d.seat=s.seat; d.version=d.version||'A';
+    L.set(key(d),{cur:s.cur,lastSeen:s.lastSeen,idleMs:s.idleMs,k:s.k}); R.set(key(d),d); }
+  for(const k of [...R.keys()]) if(!L.has(k)&&R.get(k)._file==='即時資料') R.delete(k);
+  liveUI(); render(); if(OPEN&&R.has(OPEN)&&!$('#drawer').hidden){ const y=$('#drawer').scrollTop; detail(R.get(OPEN)); $('#drawer').scrollTop=y; }
+}
+function liveUI(){
+  const seats=[...L.entries()]; const on=seats.filter(([k])=>presence(k)?.[0]!=='off').length;
+  const dist=STEPN.map((n,i)=>[n,seats.filter(([k,l])=>presence(k)?.[0]!=='off'&&l.cur===i+1).length]);
+  $('#steps').innerHTML=dist.map(([n,c],i)=>`<div><b>${c}</b>${i+1}. ${n}</div>`).join('');
+  const classes=[...new Set(seats.map(([k])=>k.split('-')[0]))].sort();
+  const btn=(st,label)=>{ const r=REL[st]; const all=r.all; return `<button class="btn ${all?'on':'go'}" data-st="${st}" data-on="${all?0:1}">${all?'✓ 已公布'+label+'（按此收回）':'公布'+label+'（全部班級）'}</button>`+classes.map(c=>`<button class="btn sm ${r.all||r.cls[c]?'on':''}" data-st="${st}" data-cls="${c}" data-on="${r.cls[c]?0:1}" ${r.all?'disabled':''}>${c} 班${r.cls[c]?' ✓':''}</button>`).join(''); };
+  $('#ctl').innerHTML=`<span><b>第二批證據</b></span>${btn('b2','第二批')}`+`<span style="flex-basis:100%"></span><span><b>案件揭露</b></span>${btn('rv','揭露')}`;
+  $$('#ctl button').forEach(b=>b.onclick=async()=>{ const st=b.dataset.st, on=b.dataset.on==='1';
+    if(on&&!b.dataset.cls){ const wait=seats.filter(([k,l])=>presence(k)?.[0]!=='off'&&l.cur<(st==='b2'?4:7)).length; if(wait&&!confirm(`還有 ${wait} 位線上學生尚未完成前面的步驟，仍要公布嗎？`)) return; }
+    await tapi('release',{stage:st,on,cls:b.dataset.cls||undefined}); });
+  $('#flt').innerHTML=`<span>顯示班級</span><select id="cls" style="font:inherit;padding:.2em .5em"><option value="">全部（${seats.length} 人，線上 ${on}）</option>${classes.map(c=>`<option ${c===CLS?'selected':''}>${c}</option>`).join('')}</select>`;
+  $('#cls').onchange=e=>{CLS=e.target.value;render();};
+}
+async function goLive(tok){
+  TOKEN=tok; const r=await fetch('/api/t/info',{headers:{'x-token':tok}}); if(r.status!==200) return false;
+  const info=await r.json(); LIVE=true; $('#live').hidden=false; $('#gate').hidden=true;
+  $('#urls').innerHTML=info.urls.map(u=>`<span class="url">${esc(u)}</span>`).join(' ');
+  $('.sub').textContent='消失的原始資料｜即時連線中，學生作答會自動出現';
+  const es=new EventSource('/api/t/stream?token='+tok);
+  es.addEventListener('snap',e=>{ $('#conn').textContent='● 連線中'; onSnap(JSON.parse(e.data)); });
+  es.onerror=()=>{ $('#conn').textContent='● 連線中斷，自動重連…'; };
+  setInterval(()=>{ if(L.size){ liveUI(); render(); } },10000);
+  $('#out').onclick=()=>{ try{sessionStorage.removeItem('dft');}catch(e){} location.href='/'; };
+  $('#rst').onclick=async()=>{ if(prompt('這會清空所有學生的即時資料（會先自動備份）。輸入 RESET 確認')==='RESET'){ await tapi('reset',{confirm:'RESET'}); R.clear(); L.clear(); render(); } };
+  return true;
+}
+(async function(){
+  if(!/^https?:$/.test(location.protocol)||/\.github\.io$/.test(location.hostname)) return;
+  try{ const j=await (await fetch('/api/ping')).json(); if(!j.ok||j.app!=='DF-server') return; }catch(e){ return; }
+  let tok=''; try{ tok=sessionStorage.getItem('dft')||''; }catch(e){}
+  if(tok&&await goLive(tok)) return;
+  $('#gate').hidden=false; $('#pin').focus();
+  $('#gf').onsubmit=async e=>{ e.preventDefault(); const r=await fetch('/api/t/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:$('#pin').value.trim()})});
+    if(r.status===200){ const j=await r.json(); try{sessionStorage.setItem('dft',j.token);}catch(e){} goLive(j.token); }
+    else $('#gmsg').textContent=r.status===429?'錯誤太多次，請等一分鐘':'PIN 不對，再試一次'; };
+})();
+$('#files').addEventListener('change',e=>load(e.target.files));
+const dz=$('#drop');
+['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over');}));
+['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over');}));
+dz.addEventListener('drop',e=>load(e.dataTransfer.files));
+$('#csv').onclick=csv;
+$('#clear').onclick=()=>{ if(LIVE){ toast2('即時模式的資料由伺服器保存，請用「重設全部資料」'); return; } R.clear();$('#drawer').hidden=true;render();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#drawer').hidden=true;});
+</script>
+</body>
+</html>

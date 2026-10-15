@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=2">
 <style>
-/* 第 15 週：資料壓縮與轉換。燈牌沿用第 11 週，16 顆燈排兩排，從左上往右、再換下一排讀 */
+/* 第 15 週：資料壓縮與轉換。燈牌沿用第 11 週，24 顆燈排三排，從左上往右、再換下一排讀 */
 .board{background:#15131c;border-radius:16px;padding:16px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:clamp(6px,1.6vw,14px);max-width:620px}
 .board button{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #4a4658;background:#2a2735;cursor:pointer;position:relative;padding:0}
 .board button[aria-pressed="true"]{background:#FFD447;border-color:#FFE58A;box-shadow:0 0 14px 3px rgba(255,212,71,.5)}
@@ -21,6 +21,7 @@
 .rle .on{background:#FFD447;color:#3a3000} .rle .off{background:#2a2735;color:#e8e4f2}
 .cmp{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:16px;align-items:center}
 .cmp b{font-family:var(--f-mono);font-size:18px;overflow-wrap:anywhere}
+.cmp small{font-size:15px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -28,38 +29,40 @@
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
-const NB=16;   // 燈的數量（curriculum.js 已經有全域的 N）
+const NB=24;   // 燈的數量（curriculum.js 已經有全域的 N）
+const CB=5;    // 暗號裡每個數字固定用 5 個位元存（0～31），壓縮前後都用「位元」比
 // 燈牌圖案：一段一段連續的亮或暗，比較長的段才有壓縮的效果
-function pattern(rnd){let b;do{b=[];let on=rnd()<.7?1:0;while(b.length<NB){const k=Math.min(NB-b.length,RINT(rnd,2,6));for(let i=0;i<k;i++)b.push(on);on^=1}}while(runs(b).length<4||runs(b).length>7);return b}
+function pattern(rnd){let b;do{b=[];let on=rnd()<.7?1:0;while(b.length<NB){const k=Math.min(NB-b.length,RINT(rnd,2,10));for(let i=0;i<k;i++)b.push(on);on^=1}}while(runs(b).length<3||runs(b).length>6);return b}
 function runs(b){const r=[];let cur=1,k=0;for(const x of b){if(x===cur)k++;else{r.push(k);cur=x;k=1}}r.push(k);return r}   // 從「亮」開始數，第一顆是暗的話第一個數字是 0
 function unruns(r){const b=[];let on=1;for(const k of r){for(let i=0;i<k;i++)b.push(on);on^=1}return b}
 function BOARD(el,{locked=false,init=null},api){
   const b=init?[...init]:Array(NB).fill(0);
-  el.insertAdjacentHTML('beforeend','<div class="board" role="group" aria-label="燈牌 16 顆燈，兩排">'+b.map((x,i)=>'<button type="button" data-k="'+i+'" aria-pressed="'+!!x+'" aria-label="第 '+(i+1)+' 顆燈"'+(locked?' disabled':'')+'><span>'+(i+1)+'</span></button>').join('')+'</div>');
+  el.insertAdjacentHTML('beforeend','<div class="board" role="group" aria-label="燈牌 '+NB+' 顆燈，三排">'+b.map((x,i)=>'<button type="button" data-k="'+i+'" aria-pressed="'+!!x+'" aria-label="第 '+(i+1)+' 顆燈"'+(locked?' disabled':'')+'><span>'+(i+1)+'</span></button>').join('')+'</div>');
   const sync=()=>el.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',!!b[+x.dataset.k]));
   if(!locked)el.querySelectorAll('[data-k]').forEach(x=>x.onclick=()=>{b[+x.dataset.k]^=1;sync();api&&api.changed()});
   return {get:()=>[...b],set:a=>{a.forEach((v,i)=>b[i]=v);sync()}};
 }
 const rleHTML=r=>'<div class="rle">'+r.map((k,i)=>'<span class="'+(i%2?'off':'on')+'">'+(i%2?'暗':'亮')+' '+k+'</span>').join('')+'</div>';
 const parseNums=s=>String(s).trim().split(/[^0-9]+/).filter(Boolean).map(Number);
-const cmpHTML=(b,r)=>'<section class="panel"><div class="ptitle"><h3>壓縮前後比一比</h3><span class="tag">無失真</span></div><div class="cmp"><span>原本</span><b>'+b.join('')+'</b><span>（'+b.length+' 個位元）</span><span></span><span>壓縮後</span><b>'+(r.length?r.join(' '):'—')+'</b><span>（'+r.length+' 個數字）</span><span></span></div><p class="small">每個數字最大 16，用 4～5 個位元就能存。連續一樣的越長，省得越多；亮暗一直交錯的話，反而會變大。</p></section>';
+const cmpHTML=(b,r)=>{const before=b.length,after=r.length*CB,v=after<before?'變小了，省下 '+(before-after)+' 個位元':after>before?'反而變大了，多了 '+(after-before)+' 個位元':'一樣大，沒有省到';
+  return '<section class="panel"><div class="ptitle"><h3>壓縮前後比一比（都用位元算）</h3><span class="tag">無失真</span></div><div class="cmp"><span>原本</span><span><b>'+b.join('')+'</b><br><small>每顆燈 1 位元，共 '+before+' 位元</small></span><span>壓縮後</span><span><b>'+(r.length?r.join(' '):'—')+'</b><br><small>'+r.length+' 個數字 × 每個 '+CB+' 位元＝'+after+' 位元</small></span></div><p><b>'+v+'</b></p><p class="small">暗號裡每個數字固定用 '+CB+' 個位元存（最大到 31）。一段連續一樣的越長，一個數字就能代替越多顆燈；段數太多的話，壓縮後反而比原本大。</p></section>'};
 
 const LOSS=[
  ['跨年影片要傳到群組給大家看',0],['演唱會照片要發限時動態',0],['手機上用串流聽六連星的歌',0],['跟在家的朋友視訊，讓他看現場',0],['燈牌的宣傳海報縮圖，放在社群貼文',0],
  ['後援會的帳目試算表',1],['燈牌控制程式的安裝檔',1],['問卷的原始回覆資料',1],['報名表上大家填的電話號碼',1],['跨年活動的合約文字檔',1]];
 const FMTS=['JPG','PNG','MP3','MP4','ZIP','PDF'];
 const USE=[
- ['把跨年演唱會的影片傳到群組',3],['演唱會照片要發限動，檔案小一點沒關係',0],['燈牌圖案要放大印出來，邊緣不能糊、背景要透明',1],
+ ['把跨年演唱會的影片傳到群組',3],['演唱會照片要發限動，檔案小一點沒關係',0],['燈牌圖案照原尺寸做成貼圖，邊緣要清楚、背景要透明',1],
  ['把偶像清唱的錄音轉成小檔案，大家手機都能播',2],['把 30 張照片一次打包傳給幹部',4],['跨年公告排好版，不管誰打開都長一樣',5],
  ['截圖群組的重要訊息，文字要清楚不能有雜點',1],['把三份問卷結果和照片包成一個檔寄出',4]];
 const ROUNDS=[
  {lv:1,name:'燈牌解壓縮',
   now:'跨年夜，後援會用簡訊把燈牌圖案傳給每個人。為了省字數，只傳「亮幾顆、暗幾顆」。',
-  goal:'照著收到的暗號，把 16 顆燈點出來。',
-  tip:'從第 1 顆（左上）往右數，第一排數完接第二排。',
+  goal:'照著收到的暗號，把 24 顆燈點出來。',
+  tip:'從第 1 顆（左上）往右數，一排數完接下一排。',
   learn:'把「連續一樣的」記成「幾個」，叫做連續長度編碼（RLE）。照著數字一定能還原得一模一樣，所以是無失真壓縮。',
   gen(rnd){const b=pattern(rnd);return {b,r:runs(b)}},
   view(inst,el,api){el.innerHTML='<div class="ptitle"><h3>收到的暗號</h3></div>'+rleHTML(inst.r)+'<div style="height:12px"></div>';const h=BOARD(el,{},api);return {get:h.get,fill:()=>h.set(inst.b)}},
@@ -70,7 +73,7 @@ const ROUNDS=[
   now:'輪到小安把新設計的燈牌圖案傳出去。',
   goal:'寫出壓縮後的暗號：從「亮」開始，依序寫每一段有幾顆，數字之間空一格。',
   tip:'如果第 1 顆是暗的，第一個數字寫 0（代表一開始亮了 0 顆）。',
-  learn:'壓縮前 16 個位元，壓縮後只剩幾個數字。圖案越整齊、連續的越長，壓縮得越小；像雜訊一樣亮暗交錯的，就壓不太下去。',
+  learn:'比大小要用同一個單位：原本每顆燈 1 位元，壓縮後每個數字 5 位元。連續的段越長、段數越少，壓縮後越小；段數一多，反而比原本大。真正的壓縮程式也一樣：重複多的資料才壓得下去。',
   gen(rnd){const b=pattern(rnd);return {b,r:runs(b)}},
   view(inst,el,api){
     BOARD(el,{locked:true,init:inst.b});
@@ -80,7 +83,7 @@ const ROUNDS=[
   },
   check(inst,a){
     const s=a.reduce((x,y)=>x+y,0);
-    if(s!==NB)return '數字加起來是 '+s+'，應該剛好是 16 顆。';
+    if(s!==NB)return '數字加起來是 '+s+'，應該剛好是 '+NB+' 顆。';
     if(inst.b[0]===0&&a[0]!==0)return '第 1 顆是暗的，暗號要從「亮 0 顆」開始。';
     const i=a.findIndex((k,j)=>k!==inst.r[j]);return i<0&&a.length===inst.r.length?true:'第 '+(i+1)+' 段數錯了，再數一次。';
   },
@@ -98,13 +101,13 @@ const ROUNDS=[
  {lv:2,name:'轉成哪一種檔',
   now:'跨年結束，後援會要把各種東西分享出去。',
   goal:'每一件事，選最適合的檔案格式。',
-  tip:'JPG 照片（失真、小）、PNG 圖（無失真、可透明）、MP3 聲音（失真、小）、MP4 影片、ZIP 打包壓縮（無失真）、PDF 排版固定的文件。',
+  tip:'JPG 照片（失真、小）、PNG 圖（無失真、可透明）、MP3 聲音（失真、小）、MP4 影片（裡面的影像通常是失真壓縮）、ZIP 打包壓縮（無失真）、PDF 排版固定的文件。',
   learn:'檔案格式決定資料怎麼存：照片用 JPG、要清楚或透明用 PNG、聲音用 MP3、影片用 MP4、要打包用 ZIP、要排版不跑掉用 PDF。轉檔，就是換一種存法。',
   gen(rnd){let p;do{p=SAMPLE(rnd,USE,4)}while(new Set(p.map(x=>x[1])).size<4);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FMTS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項的格式不太適合。':true}}
 ];
-const APP=SHELL({week:9,termWeek:15,title:'影片傳到群組變糊',course:'115-g9',unit:2,rounds:ROUNDS,finale:'第 2 單元全部完成！從看台最後一排的一張照片，到存成數字、整理成資訊、再壓縮傳出去，你走完了整條流程線。'});
+const APP=SHELL({week:9,termWeek:15,title:'影片傳到群組變糊',course:'115-g9',unit:2,rounds:ROUNDS,finale:'四關都完成了！這是第 2 單元的最後一站：從看台最後一排的一張照片，到存成數字、整理成資訊、再壓縮傳出去，整條流程線就是這樣串起來的。'});
 </script>
 </body>
 </html>

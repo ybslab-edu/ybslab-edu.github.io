@@ -25,8 +25,8 @@
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
 const WHERE=[
  ['把跨年影片備份到雲端相簿',1],['和幹部一起線上編輯同一份企劃書',1],['用網頁版信箱收信',1],['用線上表單收後援會問卷',1],['問聊天機器人一個問題，它要到很遠的機房去算',1],['在不同電腦上，打開同一個雲端硬碟資料夾',1],
@@ -48,9 +48,9 @@ const MLABEL=['自己架（不用雲端）','IaaS','PaaS','SaaS'];
 
 const ROUNDS=[
  {lv:1,name:'在手機上還是雲端',
-  now:'小安把跨年影片備份到雲端相簿，手機裡就刪掉了。那影片現在在哪裡？',
+  now:'小安先確認跨年影片已經完整備份到雲端相簿，才把手機裡的那一份刪掉。（有些相簿是「同步」，在手機刪了雲端也會跟著刪，一定要先搞清楚。）那影片現在在哪裡？',
   goal:'每一件事，主要是在你自己的手機（電腦）上做的，還是在雲端做的？',
-  tip:'想一想：拔掉網路還做得到嗎？換一台電腦還找得到嗎？做得到、找不到的，多半是在自己的裝置上。',
+  tip:'想一想：拔掉網路還做得到嗎？換一台電腦還找得到嗎？這只是線索（有些雲端服務會先存一份在手機裡），但大多數情況可以這樣判斷。',
   learn:'雲端運算就是「用網路租別人的電腦」：資料存在、程式跑在雲端公司的資料中心，你只要連得上網，換哪一台裝置都能用。代價是沒有網路就不能用，資料也放在別人家。',
   gen(rnd){let p;do{p=SAMPLE(rnd,WHERE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['自己的裝置','雲端'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},

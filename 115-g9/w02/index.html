@@ -269,7 +269,7 @@ body.teacher .slot .card{cursor:pointer}
       <section class="panel">
         <div class="ptitle"><h3>儲存空間：遊戲住的地方</h3><span class="tag t-disk">輔助記憶體</span></div>
         <div class="disk" id="disk"></div>
-        <p class="small">沒電也不會忘記，但每次載入或存檔都要等 3 秒。</p>
+        <p class="small">沒電也不會忘記，但每次載入或存檔都要等一下（本模擬固定算 3 秒，動畫故意放慢讓你看清楚）。</p>
       </section>
     </div>
 
@@ -357,6 +357,9 @@ const ROUNDS=[
 const DISK_T=3, WALL_T=0;
 let level=1, ri=0, slots=[], order=[], running=false;
 const done=new Set();
+// 只過了最後一關，不代表整個活動完成：依實際過了幾關顯示
+function endMsg(txt){const got=ROUNDS.filter((_,i)=>done.has(i)).length,t=(typeof teacher!=='undefined'&&teacher);return t||got===ROUNDS.length?'<p><strong>'+txt+'</strong></p>':'<p>這一關完成了！這個活動目前完成 '+got+'／'+ROUNDS.length+' 關，還沒過的：'+ROUNDS.filter((_,i)=>!done.has(i)).map(r=>r.name).join('、')+'。</p>'}
+
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,'0');
 const fmtv=v=>v===PROG?'程式':(v&&typeof v==='object')?v.drink+' ×'+v.qty:String(v);
@@ -678,7 +681,7 @@ function verdict(res){
         (R.risky!=null&&slots[0]!==R.risky?'<p>這樣也過關，不過剩 1% 時先打再存很冒險：萬一打到一半就沒電，剛剛的進度全沒了。先存檔比較保險。</p>':'')+
         (R.hdd?'<p>如果儲存空間是舊式硬碟（HDD），同樣的載入要慢好幾倍——這就是換一顆新硬碟（SSD），開機就快很多的原因。</p>':'');
       const next=ROUNDS.findIndex((r,i)=>i>ri&&r.lv===level);
-      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成！從開機、載入、計算到存檔，你都慢動作看過一遍了。</strong></p>'))+'</div>';
+      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':endMsg('全部完成！從開機、載入、計算到存檔，你都慢動作看過一遍了。')))+'</div>';
       renderRounds();
       v.className='verdict ok';v.innerHTML=h;v.hidden=false;
       if($('b-next'))$('b-next').onclick=()=>load(next);

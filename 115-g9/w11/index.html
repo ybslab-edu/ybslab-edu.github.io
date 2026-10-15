@@ -29,8 +29,8 @@
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
 // 「星票網 tixstar.com.tw」是虛構的購票網站，題目裡的網址都不能點
 const OFFICIAL='tixstar.com.tw';
@@ -64,7 +64,7 @@ function pickOne(el,labels,api,ans,mono){
 // 網址：官方（主機名稱的結尾是 tixstar.com.tw）或冒充
 const PATHS=['/event/1231','/login','/ticket?id=88','/zh-tw/news','/member/order','/event/1231/seat'];
 const REAL=['tixstar.com.tw','www.tixstar.com.tw','m.tixstar.com.tw','event.tixstar.com.tw','www.tixstar.com.tw'];
-const FAKE=[['tixstar.com.tw.paygo.cc','真正的網域是最後面的 paygo.cc，前面的 tixstar.com.tw 只是裝飾'],['tixstars.com.tw','多了一個 s'],['tlxstar.com.tw','把 i 換成很像的 l'],['tixstar.co','少了 .tw，是不同的網域'],['tixstar-com.tw','點換成了 -，變成另一個網域'],['tix-star.com.tw','多了一個 -'],['tixstar.com.tw-login.net','真正的網域是 login.net'],['login-tixstar.com','結尾是 .com，不是 .com.tw'],['www.tixstar.com.tw.verify.cc','真正的網域是 verify.cc'],['tixstarr.com.tw','多了一個 r'],['paygo.cc/tixstar.com.tw','斜線後面是路徑，主機其實是 paygo.cc']];
+const FAKE=[['tixstar.com.tw.paygo.cc','真正的網域是最後面的 paygo.cc，前面的 tixstar.com.tw 只是裝飾'],['tixstars.com.tw','多了一個 s'],['tlxstar.com.tw','把 i 換成很像的 l'],['tixstar.co','少了 .tw，是不同的網域'],['tixstar-com.tw','點換成了 -，變成另一個網域'],['tix-star.com.tw','多了一個 -'],['tixstar.com.tw-login.net','真正的網域是 tw-login.net（「tw-login」是一整段，連字號不是點）'],['login-tixstar.com','結尾是 .com，不是 .com.tw'],['www.tixstar.com.tw.verify.cc','真正的網域是 verify.cc'],['tixstarr.com.tw','多了一個 r'],['paygo.cc/tixstar.com.tw','斜線後面是路徑，主機其實是 paygo.cc']];
 const mkUrl=(rnd,host)=>'https://'+host+(host.includes('/')?'/login':PICK(rnd,PATHS));
 
 const ROUNDS=[
@@ -81,8 +81,8 @@ const ROUNDS=[
  {lv:1,name:'網址的真名',
   now:'六連星宣布加場！群組裡一下子貼了好多購票網址。官方購票網站是 tixstar.com.tw。',
   goal:'判斷每一個網址，是不是真的官方網站。',
-  tip:'只看第一個「/」前面那一段（主機名稱），從右邊讀回來：結尾一定要剛好是「.tixstar.com.tw」或就是「tixstar.com.tw」。',
-  learn:'網址裡第一個「/」前面那段是主機名稱，從右往左讀：tw 是台灣、com 是公司、tixstar 才是網站自己的名字。冒充的網站會多一個字母、換一個很像的字，或把官方名字放在前面當裝飾。',
+  tip:'先去掉開頭的 https://，再看第一個「/」前面那一段（主機名稱），從右邊讀回來：結尾一定要剛好是「.tixstar.com.tw」或就是「tixstar.com.tw」。',
+  learn:'去掉 https:// 之後，第一個「/」前面那段是主機名稱，從右往左讀：tw 是台灣、com 是公司、tixstar 才是網站自己的名字。冒充的網站會多一個字母、換一個很像的字，或把官方名字放在前面當裝飾。網址列的鎖頭（HTTPS）只代表傳輸有加密，不代表對方就是官方。',
   gen(rnd){let it;do{it=[];for(let k=0;k<5;k++){if(rnd()<.45)it.push({u:mkUrl(rnd,PICK(rnd,REAL)),ok:0});else{const f=PICK(rnd,FAKE);it.push({u:mkUrl(rnd,f[0]),ok:1,why:f[1]})}}}while(new Set(it.map(x=>x.ok)).size<2||new Set(it.map(x=>x.u)).size<5);return {items:it}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<span class="url">'+x.u+'</span>'})),['官方','冒充'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x.ok))}},
   check(inst,a){const w=inst.items.map((x,i)=>a[i]===x.ok?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 個再看一次：只看第一個「/」前面那段，從右邊讀。':true},

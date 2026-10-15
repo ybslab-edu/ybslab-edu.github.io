@@ -28,8 +28,8 @@
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
 const TECH=['Wi-Fi','藍牙','NFC','行動網路（4G／5G）'];
 const USE=[
@@ -81,14 +81,14 @@ const ROUNDS=[
  {lv:1,name:'收得到嗎',
   now:'小安拿著手機在活動中心裡走來走去，藍牙喇叭走遠就斷了。',
   goal:'在一般情況下，這個距離收得到嗎？',
-  tip:'一般參考距離：NFC 約 4 公分內、藍牙約 10 公尺、Wi-Fi 約 40 公尺（室內、穿牆會變差）、行動網路離基地台幾公里都可以。',
+  tip:'本題假設的參考距離：NFC 約 4 公分內、藍牙約 10 公尺、Wi-Fi 約 40 公尺（室內、穿牆會變差）、行動網路離基地台幾公里都可以。真實距離會因設備、牆和干擾而不同。',
   learn:'電波離得越遠越弱，穿過牆也會變弱。NFC 故意設計得很短，碰一下才會動作，比較安全；藍牙省電、範圍小；Wi-Fi 範圍大一點、速度快；行動網路靠一座座基地台接力。',
   gen(rnd){let p;do{p=SAMPLE(rnd,DIST,5)}while(new Set(p.map(x=>x[2])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b>　距離 '+x[1]})),['收得到','收不到'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>1-x[2]))}},
   check(inst,a){const w=inst.items.map((x,i)=>a[i]===1-x[2]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項：對照提示裡的參考距離。':true}},
 
  {lv:2,name:'找出 Wi-Fi 死角',
-  now:'小安用手機的訊號測量 App，在活動中心每一格（約 3 公尺）量了一次 Wi-Fi 訊號。📶 是路由器，粗線是牆。',
+  now:'小安用手機的訊號測量 App，在活動中心每一格（約 3 公尺）量了一次 Wi-Fi 訊號（數字是本題的模擬值）。📶 是路由器，粗線是牆。',
   goal:'點出所有「死角」：訊號比 -70 還弱的格子。',
   tip:'單位是 dBm，都是負數：越接近 0 越強。-75 比 -70 弱，-65 比 -70 強；剛好 -70 不算死角。',
   learn:'Wi-Fi 訊號離路由器越遠越弱，每穿過一道牆又會掉一截。測出整間的訊號，就能畫出「訊號地圖」，找出死角，再決定路由器要搬到哪裡、或多加一台。',
@@ -98,7 +98,7 @@ const ROUNDS=[
     el.insertAdjacentHTML('beforeend','<p class="small">點一下標成死角（紅色），再點一下取消。</p>');
     return {get:()=>[...m].sort((a,b)=>a-b),fill:()=>{m.clear();inst.dead.forEach(i=>m.add(i));draw()}}},
   check(inst,a){const d=new Set(inst.dead),wrong=a.filter(i=>!d.has(i)),miss=inst.dead.filter(i=>!a.includes(i));
-    if(wrong.length)return '有 '+wrong.length+' 格不是死角，例如 '+inst.g[wrong[0]]+' 比 -70 強（比較接近 0）。';
+    if(wrong.length){const v=inst.g[wrong[0]];return '有 '+wrong.length+' 格不是死角，例如 '+v+(v===-70?' 剛好達到門檻（-70 不算死角）。':' 比 -70 強（比較接近 0）。')}
     if(miss.length)return '還漏了 '+miss.length+' 格死角。';return true},
   peek(inst,a){if(!a.length)return '';const box=document.createElement('div');FLOOR(box,{w:inst.w,cls:i=>heat(inst.g[i])+(i===inst.ap[1]*W+inst.ap[0]?' ap':''),txt:i=>inst.g[i]});return '<section class="panel"><div class="ptitle"><h3>訊號地圖</h3><span class="small">標了一格以後才會出現</span></div>'+scaleHTML+'<div class="floor" style="grid-template-columns:repeat('+W+',minmax(0,1fr))">'+box.querySelector('.floor').innerHTML+'</div><p class="small">看看死角都在哪裡：離路由器很遠，或隔著牆。</p></section>'}},
 

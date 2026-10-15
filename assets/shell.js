@@ -139,16 +139,22 @@ const SHELL = (cfg) => {
     const next = R.findIndex((x, i) => i > ri && x.lv === level);
     v.className = 'verdict ok';
     v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + r.learn + '</p>' : '') + '<div class="btns">' +
-      (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : level === 1 ? '<button class="btn primary" id="b-lv2">挑戰進階關</button>' : '<p><strong>' + esc(cfg.finale || '全部完成！') + '</strong></p>') + '</div>';
+      (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : level === 1 ? '<button class="btn primary" id="b-lv2">挑戰進階關</button>' : endMsg()) + '</div>';
     v.hidden = false; renderRounds();
     if ($('b-next')) $('b-next').onclick = () => load(next);
     if ($('b-lv2')) $('b-lv2').onclick = () => setLevel(2);
   };
 
+  // 最後一關過了，不代表整個活動完成：照實際過了幾關說（教師模式示範時直接顯示結語）
+  function endMsg() {
+    const got = R.filter((_, i) => done.has(i)).length;
+    if (teacher || got === R.length) return '<p><strong>' + esc(cfg.finale || '全部完成！') + '</strong></p>';
+    return '<p>這一關完成了！這個活動目前完成 ' + got + '／' + R.length + ' 關，還沒過的：' + R.filter((_, i) => !done.has(i)).map(r => esc(r.name)).join('、') + '。</p>';
+  }
   // ===== 班級座號與進度 =====
   let ident = null, prog = { mask: 0, tries: [0, 0, 0, 0, 0, 0], time: Date.now() };
   const KEY = () => 'it9:w' + cfg.week + ':' + ident.cls + '-' + ident.seat;
-  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(prog)); localStorage.setItem('it9:last', JSON.stringify({ cls: ident.cls, seat: ident.seat })) } catch (e) { } renderReport(); }
+  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(prog)); localStorage.setItem('it9:last', JSON.stringify({ cls: ident.cls, seat: ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄會不見，請現在就把最新的成績碼抄下來交給老師。' } renderReport(); }
   function renderReport() {
     if (!ident) return;
     $('prog').innerHTML = R.map((r, i) => '<span class="' + (prog.mask & (1 << i) ? 'ok' : '') + '">' + (r.lv === 1 ? '基礎' : '進階') + '・' + esc(r.name) + (prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');

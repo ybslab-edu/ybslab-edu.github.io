@@ -127,7 +127,7 @@ function alertBox(msg){ const n=document.createElement('div'); n.className='empt
 function opened(d,id){ return d.log.some(l=>l.e==='open'&&l.d===id); }
 function progress(d){
   if(d.reveal?.unlockedAt && d.reveal.r1 && d.reveal.r2) return [2,'完成揭露反思'];
-  if(d.concl?.doneAt) return [2,'完成第一堂'];
+  if(d.concl?.doneAt) return [2,'完成第二堂'];
   if(d.b2?.unlockedAt && d.h1?.submittedAt) return [1,'第二批進行中'];
   if(d.h1?.submittedAt) return [1,'已送出 H1'];
   return [0,'第一批進行中'];
@@ -162,7 +162,7 @@ function render(){
   const sim=similar(list);
   const n=list.length, cnt=fn=>list.filter(fn).length;
   $('#tiles').innerHTML = n ? [
-    [n,'份報告'],[cnt(d=>d.h1?.submittedAt),'已送出 H1'],[cnt(d=>d.concl?.doneAt),'完成第一堂'],
+    [n,'份報告'],[cnt(d=>d.h1?.submittedAt),'已送出 H1'],[cnt(d=>d.concl?.doneAt),'完成第二堂'],
     [cnt(d=>d.reveal?.unlockedAt),'已看揭露'],[cnt(d=>d.b2?.hints?.length),'用過提示'],[list.filter(d=>flags(d,sim,given.get(`${d.cls}-${d.seat}`)||0).length).length,'有警示']
   ].map(([v,k])=>`<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('') : '';
   if(!n){ $('#tablebox').innerHTML='<div class="empty">還沒有載入任何報告檔。</div>'; return; }

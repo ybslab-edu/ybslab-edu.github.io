@@ -288,7 +288,7 @@ body.showorig .frame .orig{opacity:1}
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
 <script>
 const WEEK=3, TERM_WEEK=9, TITLE='看台最後一排', COURSE='115-g9';
 // 單元進度條（和第 2 單元其他週的活動頁一樣）
@@ -414,6 +414,9 @@ const SOLDEP=R=>R.sol.dep;
 
 let level=1, ri=0, setRes=0, setDep=4, photos=[], answers=[], showOrig=false;
 const done=new Set();
+// 只過了最後一關，不代表整個活動完成：依實際過了幾關顯示
+function endMsg(txt){const got=ROUNDS.filter((_,i)=>done.has(i)).length,t=(typeof teacher!=='undefined'&&teacher);return t||got===ROUNDS.length?'<p><strong>'+txt+'</strong></p>':'<p>這一關完成了！這個活動目前完成 '+got+'／'+ROUNDS.length+' 關，還沒過的：'+ROUNDS.filter((_,i)=>!done.has(i)).map(r=>r.name).join('、')+'。</p>'}
+
 const $=id=>document.getElementById(id);
 const fmt=n=>n.toLocaleString('en-US');
 
@@ -546,7 +549,7 @@ function check(){
   let h='',cls='no',reshoot=false;
   if(r.k==='cap')h='<h3>傳不出去！</h3><p>這張照片要 '+sizeText(r.bits)+'，超過網路能傳的 '+fmt(R.cap/8)+' 位元組。把格子數或顏色數調低一點。</p>';
   else if(r.k==='wrong'){reshoot=true;h='<h3>朋友看錯了</h3><p>照片 '+r.wrong.map(i=>i+1).join('、')+' 的答案不對。'+(r.low?'用這個設定，'+lowTxt+'，很難看清楚。':'再仔細看一次。')+'已經換一組新照片，再試一次。</p>'}
-  else if(r.k==='lucky'){reshoot=true;cls='mid';h='<h3>答對了，可是有點靠運氣</h3><p>用這個設定，'+lowTxt+'；換一組照片很可能就看錯。調到「確定看得出來」的最小設定，再拍一次（已換新照片）。</p>'}
+  else if(r.k==='lucky'){reshoot=true;cls='mid';h='<h3>答對了，可是有點靠運氣</h3><p class="small">（「看得出來」的標準是這個活動訂的參考標準；每個人的眼睛、螢幕都不同，真實照片沒有固定的最低值。）</p><p>用這個設定，'+lowTxt+'；換一組照片很可能就看錯。調到「確定看得出來」的最小設定，再拍一次（已換新照片）。</p>'}
   else if(r.k==='big'){cls='mid';h='<h3>看得很清楚！但還能更小</h3><p>這張要 '+sizeText(r.bits)+'。現場網路很塞，再往下調，找出還看得出來的最小設定。</p>'}
   else{
     cls='ok';
@@ -558,7 +561,7 @@ function check(){
       '一格 2 公尺時，遊覽車是一整條亮白色，三台白車中間看得到深色的車窗；一格 4 公尺就全糊成一團。衛星圖的「解析度」就是一格代表地面多大，跟照片的取樣是同一件事。'][ri];
     h='<h3>朋友回訊息：「看到了！」</h3><p>'+extra+'</p>';
     const next=ROUNDS.findIndex((x,i)=>i>ri&&x.lv===level);
-    h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成！放大不會變清楚，因為照片只存了那幾格的數字——新手機的 AI 是把看不到的細節「猜」回去的。</strong></p>'))+'</div>';
+    h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':endMsg('全部完成！放大不會變清楚，因為照片只存了那幾格的數字——新手機的 AI 是把看不到的細節「猜」回去的。')))+'</div>';
     renderRounds();
     v.className='verdict ok';v.innerHTML=h;v.hidden=false;
     if($('b-next'))$('b-next').onclick=()=>load(next);

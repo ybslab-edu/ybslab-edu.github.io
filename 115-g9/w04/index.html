@@ -25,20 +25,23 @@
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
-const KB=1024, MB=KB*1024, GB=MB*1024, TB=GB*1024;
-// 以位元組為準的大小清單：數字刻意混用不同單位，有幾組容易看錯（1500 KB 比 1 MB 大、2000 MB 比 2 GB 小）
+// 單位採國際標準（SI）：1 KB＝1000 位元組，往上每級 1000 倍；手機、記憶卡標示的容量也是這樣算。
+// 1024 倍的單位正式寫法是 KiB、MiB、GiB（電腦作業系統常用），只在說明裡對照，不拿來出題。
+const KB=1000, MB=KB*1000, GB=MB*1000, TB=GB*1000;
+// 以位元組為準的大小清單：數字刻意混用不同單位，有幾組容易看錯（1500 KB 比 1 MB 大、1800 MB 比 2 GB 小）
 const POOL=[['64 位元',8],['16 位元組',16],['4,000 位元',500],['900 位元組',900],['2 KB',2*KB],['3,000 位元組',3000],
-  ['0.5 MB',0.5*MB],['1 MB',MB],['1,500 KB',1500*KB],['800 MB',800*MB],['1 GB',GB],['2,000 MB',2000*MB],['3 GB',3*GB],
+  ['0.5 MB',0.5*MB],['1 MB',MB],['1,500 KB',1500*KB],['800 MB',800*MB],['1 GB',GB],['1,800 MB',1800*MB],['3 GB',3*GB],
   ['600 GB',600*GB],['0.5 TB',0.5*TB],['2 TB',2*TB]];
 const UNITS=[['位元組',1],['KB',KB],['MB',MB],['GB',GB],['TB',TB]];
 function nice(bytes){                 // 選最合適的單位，留一位小數
   let u=UNITS[0];for(const x of UNITS)if(bytes>=x[1])u=x;
   const v=bytes/u[1];return (v>=100?Math.round(v):Math.round(v*10)/10).toLocaleString('en-US')+' '+u[0];
 }
-const ladder='<div class="ladder"><b>位元</b><i>×8</i><b>位元組</b><i>×1024</i><b>KB</b><i>×1024</i><b>MB</b><i>×1024</i><b>GB</b><i>×1024</i><b>TB</b></div>';
+const ladder='<div class="ladder"><b>位元</b><i>×8</i><b>位元組</b><i>×1000</i><b>KB</b><i>×1000</i><b>MB</b><i>×1000</i><b>GB</b><i>×1000</i><b>TB</b></div>';
+const binNote='<p class="small">另一種算法：電腦的記憶體和作業系統常用 1024 倍（2<sup>10</sup>），正式寫法是 KiB、MiB、GiB。1 GiB＝1024 MiB，比 1 GB 大一點。所以 128 GB 的手機在電腦上可能顯示成約 119 GiB；再扣掉系統占用，能用的又更少。</p>';
 
 // 排順序元件：點左邊的卡片放進下一格，點格子裡的卡片拿回去
 function ORDER(el,labels,api){
@@ -55,14 +58,16 @@ function ORDER(el,labels,api){
   return {get:()=>[...slots],fill:a=>{a.forEach((v,i)=>slots[i]=v);draw()},ready:()=>slots.every(v=>v!=null)};
 }
 function numIn(el,id,unit){el.insertAdjacentHTML('beforeend','<label style="display:flex;gap:10px;align-items:center;font-size:18px;flex-wrap:wrap"><input class="num-in" id="'+id+'" inputmode="decimal" autocomplete="off"> '+unit+'</label>');return el.querySelector('#'+id)}
-const numVal=s=>{const v=parseFloat(String(s).replace(/[,，\s]/g,''));return isFinite(v)?v:null};
+// 只接受完整的數字：去掉頭尾空白和千分位逗號後，整串都要是數字（73abc 不算 73）
+const numVal=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+(\.\d+)?$/.test(t)?Number(t):null};
+const intVal=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+$/.test(t)?Number(t):null};
 
 const ROUNDS=[
  {lv:1,name:'由小排到大',
   now:'跨年演唱會前，小安整理手機，看到一堆檔案和設定，單位全都不一樣。',
   goal:'把五個大小由小排到大。',
-  tip:'先換成同一個單位再比。1 位元組＝8 位元，往上每一級都是 1024 倍。',
-  learn:'比大小之前要先換成同一個單位：位元 → 位元組 → KB → MB → GB → TB，除了第一步是 8 倍，其他每一級都是 1024 倍。',
+  tip:'先換成同一個單位再比。1 位元組＝8 位元，往上每一級都是 1000 倍（KB、MB、GB、TB）。',
+  learn:'比大小之前要先換成同一個單位：位元 → 位元組 → KB → MB → GB → TB，除了第一步是 8 倍，其他每一級都是 1000 倍。電腦有時改用 1024 倍，那時正式寫法是 KiB、MiB、GiB。',
   gen(rnd){
     let pick;
     do{pick=SAMPLE(rnd,POOL,5).sort((a,b)=>a[1]-b[1])}while(pick.some((p,i)=>i&&p[1]/pick[i-1][1]<1.3));
@@ -73,38 +78,40 @@ const ROUNDS=[
     for(let i=1;i<a.length;i++){const p=inst.items[a[i-1]],q=inst.items[a[i]];if(p[1]>q[1])return '第 '+i+' 格和第 '+(i+1)+' 格的順序不對：「'+p[0]+'」其實比「'+q[0]+'」大。'}
     return true;
   },
-  peek:()=>'<section class="panel"><div class="ptitle"><h3>單位的階梯</h3></div>'+ladder+'<p class="small">電腦用二進位，所以每一級是 2<sup>10</sup>＝1024 倍。有些廠商用 1000 倍算，所以手機寫 128 GB，實際能用的會比較少。</p></section>'},
+  peek:()=>'<section class="panel"><div class="ptitle"><h3>單位的階梯</h3></div>'+ladder+binNote+'</section>'},
 
  {lv:1,name:'這個檔案多大',
   now:i=>i.kind==='photo'?'小安要傳一張沒壓縮的照片給後援會，照片是 '+FMT(i.w)+' × '+FMT(i.h)+' 格，每格 24 位元。':'小安錄了一段 '+i.sec+' 秒的清唱，沒壓縮的 CD 音質：每秒量 44,100 次、每次 16 位元、左右兩聲道。',
   goal:'算出檔案大約多大，選出正確的那一個。',
   tip:i=>i.kind==='photo'?'格子數 × 每格位元 ÷ 8 ＝ 位元組，再換成 KB、MB。':'秒數 × 每秒次數 × 每次位元 × 聲道數 ÷ 8 ＝ 位元組，再換成 KB、MB。',
-  learn:'檔案大小＝格子數（或取樣次數）× 每一格的位元數，最後除以 8 變成位元組。常見的錯誤是忘了除以 8，或單位差了一級（1024 倍）。',
+  learn:'檔案大小＝格子數（或取樣次數）× 每一格的位元數，最後除以 8 變成位元組。常見的錯誤是忘了除以 8，或單位差了一級（1000 倍）。',
   gen(rnd){
     let kind=rnd()<.5?'photo':'audio',w,h,sec,bits;
     if(kind==='photo'){[w,h]=PICK(rnd,[[1920,1080],[3000,2000],[4000,3000],[1280,720],[2048,1536],[2560,1440]]);bits=w*h*24}
     else{sec=PICK(rnd,[20,30,45,60,90,120]);bits=sec*44100*16*2}
-    const B=bits/8, wrong=[B*8,B/3,B*1024,B/1024].map(nice).filter(s=>s!==nice(B));
+    const B=bits/8, wrong=[B*8,B/3,B*1000,B/1000].map(nice).filter(s=>s!==nice(B));
     const opts=SHUF(rnd,[nice(B),...SAMPLE(rnd,[...new Set(wrong)],3)]);
     return {kind,w,h,sec,B,opts,ans:opts.indexOf(nice(B))};
   },
   view:null,   // 在下面 pickOne 定義好之後再指定
-  check(inst,a){return a===inst.ans?true:'再算一次。記得最後要除以 8 才是位元組，換單位時每一級是 1024 倍。'}},
+  check(inst,a){return a===inst.ans?true:'再算一次。記得最後要除以 8 才是位元組，換單位時每一級是 1000 倍。'}},
 
  {lv:2,name:'能錄幾分鐘',
   now:i=>'小安的手機是 '+i.cap+' GB，已經用了 '+i.used+' GB。相機設定頁寫：4K 影片每分鐘大約 '+i.rate+' MB。',
   goal:'跨年那天，剩下的空間最多能錄幾分鐘的 4K 影片？（取整數，錄不滿一分鐘的不算）',
-  tip:'剩下的空間換成 MB（1 GB＝1024 MB），再除以每分鐘的大小。',
+  tip:'剩下的空間換成 MB（1 GB＝1000 MB），再除以每分鐘的大小，最後無條件捨去成整數。',
   learn:'影片的大小跟長度成正比。先算剩下的空間，換成同一個單位，再除以每分鐘的大小。手機寫的容量有一部分給系統用，實際能錄的會再少一點。',
-  gen(rnd){const cap=PICK(rnd,[64,128,256]),used=RINT(rnd,Math.round(cap*.35),Math.round(cap*.85)),rate=PICK(rnd,[170,350,400,440]);return {cap,used,rate,min:Math.floor((cap-used)*1024/rate)}},
+  gen(rnd){const cap=PICK(rnd,[64,128,256]),used=RINT(rnd,Math.round(cap*.35),Math.round(cap*.85)),rate=PICK(rnd,[170,350,400,440]);return {cap,used,rate,min:Math.floor((cap-used)*1000/rate)}},
   view(inst,el,api){
     el.innerHTML='<div class="spec"><span>手機容量</span><span class="v">'+inst.cap+' GB</span><span>已經用了</span><span class="v">'+inst.used+' GB</span><span>4K 影片每分鐘</span><span class="v">約 '+inst.rate+' MB</span></div>';
     const inp=numIn(el,'n-min','分鐘');inp.oninput=()=>api.changed();
-    return {get:()=>numVal(inp.value),fill:()=>{inp.value=inst.min},ready:()=>numVal(inp.value)!=null};
+    return {get:()=>intVal(inp.value),fill:()=>{inp.value=inst.min},ready:()=>inp.value.trim()!==''};
   },
   check(inst,v){
-    if(Math.abs(v-inst.min)<=1)return true;
-    if(Math.abs(v-Math.floor((inst.cap-inst.used)*1000/inst.rate))<=1)return '很接近了！不過 1 GB 是 1024 MB，不是 1000 MB。';
+    if(v==null)return '請填一個整數（只能有數字）。';
+    if(v===inst.min)return true;
+    if(v===inst.min+1)return '多了 1 分鐘：最後那一分鐘錄不滿，要無條件捨去。';
+    if(v===Math.floor((inst.cap-inst.used)*1024/inst.rate))return '很接近了！不過手機標示的 1 GB 是 1000 MB（1024 是電腦常用的 GiB 算法）。';
     if(v>inst.min*3)return '比可能的多太多了，是不是忘了先扣掉已經用掉的空間，或單位沒換對？';
     return '再算一次：剩下幾 GB？換成幾 MB？再除以每分鐘幾 MB。';
   }},
@@ -112,13 +119,13 @@ const ROUNDS=[
  {lv:2,name:'128 還是 256',
   now:'小安要換新手機，店員問：「你要 128 GB 還是 256 GB？」小安列出要放的東西。',
   goal:'算出總共需要幾 GB，再選出夠用而且最小的容量。',
-  tip:'全部換成 GB 再加起來（1 GB＝1024 MB）。總數差幾 GB 沒關係，但容量一定要夠。',
+  tip:'全部換成 GB 再加起來（1 GB＝1000 MB）。總數差幾 GB 沒關係，但容量一定要夠。',
   learn:'買手機前先估：系統和 App、照片數量 × 每張大小、歌曲、要錄的影片，再留一些空間。容量選「夠用而且最小」的，不夠的話跨年錄到一半就會跳出「儲存空間不足」。',
   gen(rnd){
     let o;
     do{
       const sys=RINT(rnd,18,32),ph=RINT(rnd,20,90)*100,song=RINT(rnd,3,15)*100,vid=PICK(rnd,[60,90,120,150,180]),keep=10;
-      const tot=sys+ph*3/1024+song*8/1024+vid*400/1024+keep;
+      const tot=sys+ph*3/1000+song*8/1000+vid*400/1000+keep;
       o={sys,ph,song,vid,keep,tot,cap:[64,128,256,512].find(c=>c>=tot)};
     }while([64,128,256].some(c=>Math.abs(c-o.tot)<c*.06));
     return o;

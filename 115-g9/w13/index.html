@@ -24,8 +24,8 @@
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
 const KIND=['通訊','社群','娛樂','消費'];
 const SVC=[
@@ -88,17 +88,17 @@ const ROUNDS=[
  {lv:2,name:'是不是物聯網',
   now:'小安家的掃地機器人，好像知道他們什麼時候出門。',
   goal:'判斷每一個東西是不是物聯網裝置。',
-  tip:'物聯網裝置三件事都要有：會感測（知道外面的狀況）、會連網（把資料傳出去或接收指令）、會動作。只有自動、沒有連網的不算。',
-  learn:'物聯網（IoT）就是讓「東西」也連上網路：用感測器收集資料、透過網路傳到雲端或手機，再自動做出動作。重點是「連網」，只會自動、不會連網的不算物聯網。',
+  tip:'看兩件事：它能不能感測或控制真實世界的東西（量溫度、記位置、開鎖、灑水），還有它有沒有連上網路。有些只量測、把資料傳出去；有些也能收指令做動作。只會自動、沒有連網的不算。',
+  learn:'物聯網（IoT）是把能感測或控制真實世界的裝置連上網路。智慧電表只量用電量、傳回電力公司，也算物聯網；掃地機器人還會收指令動起來。重點是「連網」：只會自動、不會連網的不算。',
   gen(rnd){let p;do{p=SAMPLE(rnd,IOT,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不是','是物聯網'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：它有沒有「連上網路」？':true}},
 
  {lv:2,name:'感測、連網、動作',
-  now:'物聯網裝置都在做同樣三件事。',
+  now:'一個完整的物聯網應用，常常分成三步。',
   goal:'每一句話，是物聯網的哪一步？',
   tip:'感測：用感測器知道外面的狀況。連網傳送：把資料傳出去，或從網路收到指令。動作：真的做出一件事。',
-  learn:'物聯網的三步：感測（收集資料）→ 連網（傳到雲端或手機）→ 動作（自動反應）。這些資料也會被存起來分析，所以使用物聯網裝置，也要想想它蒐集了你哪些資料。',
+  learn:'一個完整的物聯網應用常走這三步：感測（收集資料）→ 連網（傳到雲端或手機）→ 動作（自動反應）。不是每個裝置三步都自己做，例如電表只負責感測和傳送。這些資料也會被存起來分析，所以使用物聯網裝置，也要想想它蒐集了你哪些資料。',
   gen(rnd){let p;do{p=SAMPLE(rnd,CHAIN,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),STEP,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 句再想想：是在「知道」、在「傳」，還是在「做」？':true}}

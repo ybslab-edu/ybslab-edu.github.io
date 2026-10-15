@@ -225,6 +225,9 @@ const ROUNDS=[
 
 let level=1, ri=0, slots=[], order=[], wall={}, powerOff=false, running=false;
 const done=new Set();
+// 只過了最後一關，不代表整個活動完成：依實際過了幾關顯示
+function endMsg(txt){const got=ROUNDS.filter((_,i)=>done.has(i)).length,t=(typeof teacher!=='undefined'&&teacher);return t||got===ROUNDS.length?'<p><strong>'+txt+'</strong></p>':'<p>這一關完成了！這個活動目前完成 '+got+'／'+ROUNDS.length+' 關，還沒過的：'+ROUNDS.filter((_,i)=>!done.has(i)).map(r=>r.name).join('、')+'。</p>'}
+
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,'0');
 
@@ -285,16 +288,18 @@ function renderWall(hit){
 function renderCards(now,bad){
   const R=ROUNDS[ri];
   $('pool').innerHTML=order.map(k=>'<button type="button" class="card'+(slots.includes(k)?' used':'')+'" data-k="'+k+'"'+(slots.includes(k)?' tabindex="-1" aria-hidden="true"':'')+'>'+R.cards[k].t+'</button>').join('');
-  $('pool').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;const k=+b.dataset.k;if(!slots.includes(k)){slots.push(k);resetStage();renderCards()}});
   const n=R.sol.length;
+  // 順序格滿了就不能再放：先拿回一張才能換（避免卡片跑進看不見的第 n+1 格）
+  $('pool').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;const k=+b.dataset.k;if(slots.includes(k))return;if(slots.length>=n){$('full-msg').hidden=false;return}slots.push(k);resetStage();renderCards()});
   let h='';
   for(let i=0;i<n;i++){
     const k=slots[i];
     h+='<div class="slot'+(i===now?(bad?' now bad':' now'):'')+'"><span class="n">'+(i+1)+'</span>'+(k==null?'<span class="empty">放第 '+(i+1)+' 張</span>':'<button type="button" class="card" data-s="'+i+'">'+R.cards[k].t+'</button>')+'</div>';
   }
-  $('slots').innerHTML=h;
+  $('slots').innerHTML=h+'<p class="small" id="full-msg" role="status" hidden style="color:var(--warn);font-size:15px">順序格已經滿了。想換卡片，先點格子裡的卡片拿回去。</p>';
   $('slots').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;slots.splice(+b.dataset.s,1);resetStage();renderCards()});
-  $('b-run').disabled=running||slots.length<n;
+  if(slots.length>n)slots.length=n;
+  $('b-run').disabled=running||slots.length!==n;
   $('b-clear').disabled=running||!slots.length;
 }
 
@@ -357,9 +362,9 @@ function verdict(res){
       done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg();
       const cu=res.steps.length, alu=res.steps.filter(s=>s.alu&&!s.bad&&R.cards[s.k].op!=='store').length;
       h='<h3>過關！</h3><p>出餐：'+fmt(res.outs)+'。換另一位客人（'+Object.entries(t2).filter(([c])=>c!=='10').map(([c,x])=>R.wall[c]+' '+x).join('、')+'）也對：'+fmt(e2)+'。</p>'+
-        '<p>店長看了 '+cu+' 張單、搖飲師動手 '+alu+' 次。你的手機處理器一秒能做這種事大約 30 億次。</p>';
+        '<p>店長看了 '+cu+' 張單、搖飲師動手 '+alu+' 次。真的手機處理器不用一單一單慢慢來：它的時脈一秒有幾十億次（這是粗略的比喻，不是每秒剛好做幾次這種事）。</p>';
       const next=ROUNDS.findIndex((r,i)=>i>ri&&r.lv===level);
-      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一單</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成，你已經是合格的店長了。</strong></p>'))+'</div>';
+      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一單</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':endMsg('全部完成，你已經是合格的店長了。')))+'</div>';
       renderRounds();
       v.className='verdict ok';v.innerHTML=h;v.hidden=false;
       if($('b-next'))$('b-next').onclick=()=>load(next);

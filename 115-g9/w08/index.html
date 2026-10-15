@@ -32,10 +32,10 @@ table.sheet{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261015e"></script>
-<script src="../../assets/shell.js?v=1"></script>
+<script src="../../assets/activities.js?v=20261016a"></script>
+<script src="../../assets/shell.js?v=3"></script>
 <script>
-const CITY={台北:['台北','臺北','台北市','taipei','Taipei','北市'],台中:['台中','臺中','台中市','taichung','Taichung','中市'],高雄:['高雄','高雄市','kaohsiung','Kaohsiung'],新竹:['新竹','新竹市','hsinchu','竹市']};
+const CITY={台北市:['台北','臺北','台北市','taipei','Taipei','北市'],台中市:['台中','臺中','台中市','taichung','Taichung','中市'],高雄市:['高雄','高雄市','kaohsiung','Kaohsiung'],新竹市:['新竹市','竹市','Hsinchu City','hsinchu city']};
 const CITIES=Object.keys(CITY);
 const SONGS=['Starlight','六連星','跨年夜'];
 const tm=m=>{const h=19+Math.floor(m/60),mm=m%60;return '11/30 '+h+':'+String(mm).padStart(2,'0')};
@@ -51,9 +51,17 @@ function survey(rnd,{people,dups,bad,blank,songW}){
   const order=SHUF(rnd,rows.filter(r=>!r.dupOf));
   rows.filter(r=>r.dupOf).forEach(d=>{const i=order.indexOf(d.dupOf);order.splice(RINT(rnd,i+1,order.length),0,d)});
   order.forEach(r=>{t+=RINT(rnd,1,9);r.t=tm(t)});
-  // 要刪的：重複填寫的較早那一列、座號不合理、沒填安可曲
-  order.forEach(r=>{r.del=!!(r.dupped||r.why)});
+  // 要刪哪幾列，只看表上看得到的欄位重新判定（不沿用產生資料時的暫存標記）
+  const keep=cleanKeep(order);order.forEach((r,i)=>{r.del=!keep[i]});
   return order;
+}
+// 清理規則：座號不在 1～60 刪、安可曲空白刪；同一班同一座號只留送出時間最晚的那一列
+const tmin=t=>{const m=String(t).match(/(\d+):(\d+)$/);return +m[1]*60+ +m[2]};
+function cleanKeep(rows){
+  const ok=r=>Number.isInteger(r.s)&&r.s>=1&&r.s<=60&&r.song!=='';
+  const last={};
+  rows.forEach((r,i)=>{if(!ok(r))return;const k=r.c+'-'+r.s;if(!(k in last)||tmin(r.t)>=tmin(rows[last[k]].t))last[k]=i});
+  return rows.map((r,i)=>ok(r)&&last[r.c+'-'+r.s]===i);
 }
 function sheet(rows,{toggle,raw=true},api){
   let h='<div class="sheet-wrap"><table class="sheet"><tr><th>送出時間</th><th>班級</th><th>座號</th><th>從哪個縣市出發</th><th>安可曲</th>'+(toggle?'<th>處理</th>':'')+'</tr>';
@@ -64,7 +72,7 @@ const ROUNDS=[
  {lv:1,name:'統一寫法',
   now:'後援會的跨年問卷收回來了，「從哪個縣市出發」那一題大家寫得五花八門。',
   goal:'把每一種寫法歸到正確的縣市，統計時才不會被算成不同的地方。',
-  tip:'「臺」和「台」是同一個字；英文拼音、加不加「市」、簡稱，都是同一個地方。',
+  tip:'這一題只有四個選項，都是「市」。「臺」和「台」是同一個字；英文拼音、加不加「市」、簡稱，都是同一個地方。',
   learn:'同一個東西有好幾種寫法，電腦會當成不同的值，統計就會分散。整理的第一步是把寫法統一，問卷也可以改用選項或下拉選單，從源頭避免。',
   gen(rnd){const all=CITIES.flatMap(c=>CITY[c].map(v=>[v,CITIES.indexOf(c)]));let p;do{p=SAMPLE(rnd,all,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b style="font-size:20px">'+x[0]+'</b>'})),CITIES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},

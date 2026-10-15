@@ -1,5 +1,5 @@
 // 所有課堂活動，全站只在這裡登記一次。新活動加在最前面。
-// codes：對應的課綱代碼（學習地圖）　date：上課日期（學期進度）
+// codes：對應的課綱代碼（學習地圖）　date：上課日期（學期進度）　also：同一活動重複上課的其他日期（選填，學期進度每一週都會列出）
 // week：該課程第幾個活動（成績碼用），要和活動頁的 WEEK 一致；畫面上的「第幾週」用 termWeekOf() 依 date 算學期週次　rounds：關卡名稱，順序同活動頁（最多 6 關，教師專區用）
 // track：必修 或 選修。選修是延伸實作或課綱選教項目，進度落後的班級可以跳過，改補看因材網影片。
 // why / because / so：這個活動的引起動機、發展活動、綜合活動，各一句。
@@ -10,6 +10,7 @@ const ACTIVITIES = [
     week: 1,
     track: '必修',
     date: '2026-10-21',
+    also: ['2026-10-28', '2026-11-04'],
     href: '115-df/a/',
     codes: ['資T-IV-1', '資H-IV-1'],
     node: '數位鑑識專題 A 版（兩堂，個人作答）',
@@ -59,4 +60,13 @@ function termWeekOf(a) {
     if (w >= 1 && w <= t.weeks) return w;
   }
   return null;
+}
+
+// 活動的所有上課日期（date 加上 also），以及學習地圖上顯示的週次文字，例如「第 8 週」或「第 8–10 週」
+const datesOf = a => [a.date, ...(a.also || [])].filter(Boolean).sort();
+function termWeekLabel(a) {
+  const ws = datesOf(a).map(d => termWeekOf({ date: d })).filter(Boolean);
+  if (!ws.length) return '';
+  const lo = Math.min(...ws), hi = Math.max(...ws);
+  return lo === hi ? '第 ' + lo + ' 週' : '第 ' + lo + '–' + hi + ' 週';
 }

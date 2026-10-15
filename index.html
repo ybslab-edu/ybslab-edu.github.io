@@ -434,7 +434,7 @@ function open(code,scroll){
     '<h4 class="acts-h">課堂活動</h4>'+
     (acts.length?'<div class="acts">'+acts.map(a=>{
       const c=courseOf(a.course);
-      return '<article class="act"><div><h4>'+esc(a.title)+trk(a)+'</h4><p class="meta">'+esc(c.name)+(termWeekOf(a)?' 第 '+termWeekOf(a)+' 週':'')+'｜'+esc(a.topic)+'</p></div>'+
+      return '<article class="act"><div><h4>'+esc(a.title)+trk(a)+'</h4><p class="meta">'+esc(c.name)+(termWeekLabel(a)?' '+termWeekLabel(a):'')+'｜'+esc(a.topic)+'</p></div>'+
         '<a class="play" href="'+esc(a.href)+'">開始活動</a>'+
         '<dl class="wbs"><dt>Why</dt><dd>'+esc(a.why)+'</dd><dt>Because</dt><dd>'+esc(a.because)+'</dd><dt>So</dt><dd>'+esc(a.so)+'</dd></dl></article>';
     }).join('')+'</div>':'<p class="empty">這一項的課堂活動還在準備中。</p>');
@@ -472,7 +472,7 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
 
 /* 更新日期＝最新活動日期 */
 (function(){
-  const d=ACTIVITIES.map(a=>a.date).sort().pop();
+  const d=ACTIVITIES.flatMap(datesOf).sort().pop();
   if(d){const [y,m,dd]=d.split('-');$('updated').textContent=y+' 年 '+(+m)+' 月 '+(+dd)+' 日'}
 })();
 
@@ -503,7 +503,7 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
     const inTerm=today>=ymd(term.begin)&&today<termEnd(term);
     const cw=inTerm?weekOf(term,today):(today<ymd(term.begin)?-1:term.weeks);
     const courses=COURSES.filter(c=>c.year===term.year);
-    const acts=ACTIVITIES.filter(a=>courses.some(c=>c.id===a.course)).map(a=>({...a,w:weekOf(term,ymd(a.date))})).filter(a=>a.w>=0&&a.w<term.weeks);
+    const acts=ACTIVITIES.filter(a=>courses.some(c=>c.id===a.course)).flatMap(a=>datesOf(a).map(dt=>({...a,date:dt,w:weekOf(term,ymd(dt))}))).filter(a=>a.w>=0&&a.w<term.weeks);
 
     // 副標與本週
     const [ws,we]=clip(term,new Date(ymd(term.start).getTime()+Math.max(0,cw)*7*DAY),new Date(ymd(term.start).getTime()+(Math.max(0,cw)*7+4)*DAY));

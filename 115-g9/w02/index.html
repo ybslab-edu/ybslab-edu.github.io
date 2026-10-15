@@ -329,11 +329,11 @@ const ROUNDS=[
   tests:[{order:atk('骷髏兵',2,60),sales:1200},{order:atk('骷髏兵',3,55),sales:700}],
   cards:[{u:'',t:'先把「LINE」收回儲存空間，空出一格',op:'unload',f:'LINE'},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'看到分數往上加',t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{u:'',t:'這次指令做完，從 RAM 清掉，空出一格',op:'tear'},{u:'切到 LINE，等了一下下',t:'從儲存空間把「LINE」載回 RAM',op:'load',f:'LINE'},{u:'回媽媽的訊息',t:'LINE 開始執行',op:'open',f:'LINE'}],
   sol:[0,1,2,3,4,5]},
- {lv:2,name:'從開機到存檔',now:'手機關機中，RAM 是空的；「作業系統」「遊戲」「存檔」都放在儲存空間。',goal:'小安開機、打開遊戲，打倒 1 隻魔王（500 分），螢幕顯示分數，最後把這次分數存進存檔。',tip:'開機時 CPU 會先執行 ROM 裡的開機程式；遊戲要靠作業系統打開。',
+ {lv:2,name:'從開機到存檔',now:'手機關機中，RAM 是空的；「作業系統」「遊戲」「存檔」都放在儲存空間。',goal:'小安開機、打開遊戲，打倒 1 隻魔王（500 分），螢幕顯示分數，最後把這次分數存進存檔。',tip:'開機時 CPU 會先執行 ROM 裡的開機程式；遊戲要靠作業系統打開。最後一關有一張陷阱卡，排完會剩一張用不到。',
   cap:4,power:false,boot:true,
   setup:t=>({ram:{},disk:{'作業系統':PROG,[GAME]:PROG,'存檔':t.ledger}}),
   tests:[{order:atk('魔王',1,500),ledger:0},{order:atk('史萊姆',5,20),ledger:450}],
-  cards:[{u:'按下電源鍵',t:'CPU 執行 ROM 裡的開機程式',op:'boot'},{u:'看到開機畫面',t:'照開機程式，從儲存空間把「作業系統」載入 RAM',op:'load',f:'作業系統',needBoot:true},{u:'點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,needOS:true},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'怪物被打倒',t:'CPU 算出這次拿到幾分，寫回 RAM',op:'calc',to:'這次分數'},{u:'看到分數跳出來',t:'把 RAM 的「這次分數」顯示在螢幕上',op:'outcell',c:'這次分數'},{u:'遊戲自動存檔',t:'把「這次分數」加進儲存空間的「存檔」',op:'saveAdd',src:'這次分數',dst:'存檔'}],
+  cards:[{u:'按下電源鍵',t:'CPU 執行 ROM 裡的開機程式',op:'boot'},{u:'看到開機畫面',t:'照開機程式，從儲存空間把「作業系統」載入 RAM',op:'load',f:'作業系統',needBoot:true},{u:'點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,needOS:true},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'怪物被打倒',t:'CPU 算出這次拿到幾分，寫回 RAM',op:'calc',to:'這次分數'},{u:'看到分數跳出來',t:'把 RAM 的「這次分數」顯示在螢幕上',op:'outcell',c:'這次分數'},{u:'遊戲自動存檔',t:'把「這次分數」加進儲存空間的「存檔」',op:'saveAdd',src:'這次分數',dst:'存檔'},{u:'',t:'CPU 直接到儲存空間拿資料來算',op:'direct'}],
   sol:[0,1,2,3,4,5,6],hdd:true}
 ];
 

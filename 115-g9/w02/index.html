@@ -191,6 +191,10 @@ body.teacher .slot .card{cursor:pointer}
     <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
     <div class="gerr" id="g-lerr" role="alert"></div>
   </div>
+  <div id="g-who" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
+    <p id="g-whotext" style="color:var(--ink);font-size:20px"></p>
+    <div class="btns" style="justify-content:center" id="g-whobtns"><button class="btn" id="g-notme" type="button">不是我</button><button class="btn primary" id="g-isme" type="button">對，開始</button></div>
+  </div>
   <div id="g-form" style="display:flex;flex-direction:column;gap:14px">
   <p id="g-me" class="g-me" hidden></p>
   <p>開始前先填班級和座號，只能填數字。</p>
@@ -694,7 +698,7 @@ $('tab-2').onclick=()=>{if(!running)setLevel(2)};
 // ===== 班級座號與進度 =====
 let ident=null, prog={mask:0,tries:[0,0,0,0],time:Date.now()};
 const KEY=()=>'it9:w'+WEEK+':'+ident.cls+'-'+ident.seat;
-function saveProg(){try{localStorage.setItem(KEY(),JSON.stringify(prog));localStorage.setItem('it9:last',JSON.stringify(ident))}catch(e){}renderReport()}
+function saveProg(){try{localStorage.setItem(KEY(),JSON.stringify(prog));localStorage.setItem('it9:last',JSON.stringify({cls:ident.cls,seat:ident.seat}))}catch(e){}renderReport()}
 function renderReport(){
   if(!ident)return;
   $('prog').innerHTML=ROUNDS.map((r,i)=>'<span class="'+(prog.mask&(1<<i)?'ok':'')+'">'+(r.lv===1?'基礎':'進階')+'・'+r.name+(prog.mask&(1<<i)?' ✓':'')+'</span>').join('');
@@ -726,8 +730,8 @@ function start(id){
   ident=id; prog={mask:0,tries:[0,0,0,0],time:Date.now()};
   try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
   done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
-  $('who').textContent=id.cls+' 班 '+id.seat+' 號';
-  if(YBS.enabled()&&YBS.profile()){try{localStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify(id))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
+  $('who').textContent=id.cls+' 班 '+id.seat+' 號'+(id.name?' '+id.name:'');
+  if(YBS.enabled()&&YBS.profile()){try{localStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
   $('gate').hidden=true;$('main').hidden=false;
   setLevel(1);renderReport();
 }
@@ -769,13 +773,31 @@ document.addEventListener('keydown',e=>{
 // ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
 function showLogin(){
   $('g-login').hidden=false;$('g-form').hidden=true;$('g-lerr').textContent='';
-  YBS.button($('g-gbtn'),me=>{
-    $('g-login').hidden=true;$('g-form').hidden=false;
-    $('g-me').hidden=false;$('g-me').textContent='已登入：'+me.email;
+  $('g-who').hidden=true;
+  YBS.button($('g-gbtn'),async me=>{
+    $('g-login').hidden=true;$('g-who').hidden=false;$('g-whobtns').hidden=true;
+    $('g-whotext').textContent='正在確認你的身分…';
+    const r=await YBS.whoami();
+    if(r.ok&&r.student){            // 名單上有：直接帶出，不用填
+      const st=r.student;
+      $('g-whotext').textContent='你是 '+st.cls+' 班 '+st.seat+' 號 '+(st.name||'')+'，對嗎？';
+      $('g-whobtns').hidden=false;$('g-isme').focus();
+      $('g-isme').onclick=()=>start({cls:st.cls,seat:st.seat,name:st.name});
+      return;
+    }
+    if(!r.ok&&r.error==='not-listed'){
+      $('g-who').hidden=true;YBS.logout();showLogin();
+      $('g-lerr').textContent='名單上找不到這個帳號（'+me.email+'），請改用自己的帳號，或告訴老師。';
+      return;
+    }
+    // 不在名單（但是本校帳號）或暫時連不上試算表：自己填班級座號
+    $('g-who').hidden=true;$('g-form').hidden=false;
+    $('g-me').hidden=false;$('g-me').textContent='已登入：'+me.email+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
     try{const s=JSON.parse(localStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
     $('in-cls').focus();
   },msg=>{$('g-lerr').textContent=msg});
 }
+$('g-notme').onclick=()=>{YBS.logout();showLogin()};
 function upload(r){
   if(!YBS.enabled()||!ident)return;
   YBS.submit({course:COURSE,activity:WEEK,termWeek:TERM_WEEK,title:TITLE,round:r,roundName:ROUNDS[r].name,level:ROUNDS[r].lv===1?'基礎':'進階',rounds:ROUNDS.map(x=>x.name),

@@ -6,7 +6,7 @@ const YBS = (() => {
   const CONFIG = {
     clientId: '',
     endpoint: '',
-    domain: 'cgjh.hcc.edu.tw'
+    domain: 'cgjh.hcc.edu.tw'   // 學生用一般 @gmail.com 時改成 ''（試算表端也要改），此時只有名單上的帳號能用
   };
   const enabled = () => !!(CONFIG.clientId && CONFIG.endpoint);
   let token = null, profile = null, inited = false, onLogin = null, onError = null, onStatus = () => {};
@@ -28,7 +28,7 @@ const YBS = (() => {
   function handle(r) {
     let p;
     try { p = decode(r.credential); } catch (e) { onError && onError('登入失敗，請再試一次。'); return; }
-    if (p.hd !== CONFIG.domain) { onError && onError('請改用學校帳號（@' + CONFIG.domain + '）登入。'); return; }
+    if (CONFIG.domain && p.hd !== CONFIG.domain) { onError && onError('請改用學校帳號（@' + CONFIG.domain + '）登入。'); return; }
     token = r.credential; profile = { email: p.email, exp: p.exp };
     onLogin && onLogin(profile);
     flush();
@@ -36,7 +36,7 @@ const YBS = (() => {
   async function init() {
     await loadGis();
     if (inited) return;
-    google.accounts.id.initialize({ client_id: CONFIG.clientId, hd: CONFIG.domain, callback: handle, auto_select: true, cancel_on_tap_outside: false });
+    google.accounts.id.initialize({ client_id: CONFIG.clientId, ...(CONFIG.domain ? { hd: CONFIG.domain } : {}), callback: handle, auto_select: true, cancel_on_tap_outside: false });
     inited = true;
   }
   // 在 el 放一顆「使用 Google 帳戶登入」按鈕；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
@@ -78,10 +78,18 @@ const YBS = (() => {
     a.push({ ...item, email: profile.email, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) });
     setQ(a); return flush();
   }
+  // 問試算表「我是誰」：回傳 { ok, student:{cls,seat,name}|null } 或 { ok:false, error }
+  async function whoami() {
+    if (!enabled() || !token) return { ok: false, error: 'auth' };
+    try {
+      const r = await fetch(CONFIG.endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'whoami', token }) });
+      return await r.json();
+    } catch (e) { return { ok: false, error: 'network' }; }
+  }
   function logout() {
     token = null; profile = null;
     try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {}
   }
   setInterval(() => { if (profile) flush(); }, 60000);
-  return { CONFIG, enabled, button, submit, flush, logout, profile: () => profile, status: f => { onStatus = f; } };
+  return { CONFIG, enabled, button, submit, flush, logout, whoami, profile: () => profile, status: f => { onStatus = f; } };
 })();

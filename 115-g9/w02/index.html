@@ -115,7 +115,13 @@ body.dragging-now{user-select:none;cursor:grabbing}
 .mv{flex:none;display:flex;flex-direction:column;gap:4px}
 .mv button{font:inherit;font-size:12px;width:32px;height:26px;padding:0;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;cursor:pointer;line-height:1}
 .mv button:disabled{opacity:.3;cursor:default}
-.slot .empty{flex:1;border:2px dashed var(--line);border-radius:10px;min-height:44px;display:flex;align-items:center;padding-inline:12px;color:var(--muted);font-size:14px}
+.slot .empty{flex:1;font:inherit;text-align:left;background:transparent;cursor:pointer;border:2px dashed var(--line);border-radius:10px;min-height:52px;display:flex;align-items:center;padding-inline:12px;color:var(--muted);font-size:14px}
+.slot .empty:hover{border-color:var(--muted)}
+.slot .empty.sel{border-style:solid;border-color:var(--mem);color:var(--mem);background:var(--mem-soft);font-weight:700}
+.slot.drop .empty,.slot.drop .card{border-color:var(--mem);background:var(--mem-soft)}
+.card.lifted{position:relative;z-index:10;pointer-events:none;transition:none;cursor:grabbing;box-shadow:0 10px 24px rgba(0,0,0,.25);border-color:var(--mem)}
+.pool .card{cursor:grab}
+.pool-hint{margin:0;color:var(--mem);font-weight:700}
 .slot.now .card{border-color:var(--cu);background:var(--cu-soft)}
 .slot.bad .card{border-color:var(--warn);background:var(--warn-soft)}
 
@@ -210,7 +216,7 @@ body.teacher .slot .card{cursor:pointer}
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
     <div class="order" aria-live="polite">
       <span class="who">任務：</span><span class="says" id="says"></span>
-      <span class="tip">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。排錯了可以直接拖曳步驟（或按 ▲▼）調整，點一下步驟就拿回去。</span>
+      <span class="tip">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。不一定要從第 1 步開始：先點一個空格（例如最後一步），再點步驟，就能放進那一格。排錯了可以直接拖曳步驟（或按 ▲▼）調整，點一下步驟就拿回去。</span>
     </div>
   </section>
 
@@ -218,11 +224,11 @@ body.teacher .slot .card{cursor:pointer}
     <h2 class="sec-h"><span class="num">2</span>排出運作流程</h2>
     <div class="two">
       <section class="panel">
-        <div class="ptitle"><h3>可用的步驟</h3><span class="small">點一下就排進「你的順序」</span></div>
+        <div class="ptitle"><h3>可用的步驟</h3><span class="small">點一下放進空格，或直接拖到某一格</span></div>
         <div class="pool" id="pool"></div>
       </section>
       <section class="panel">
-        <div class="ptitle"><h3>你的順序</h3><span class="small">拖曳或按 ▲▼ 調整，點一下拿回去</span></div>
+        <div class="ptitle"><h3>你的順序</h3><span class="small">點空格選位置；拖曳或按 ▲▼ 調整</span></div>
         <div class="slots" id="slots"></div>
         <div class="btns">
           <button class="btn primary" id="b-run">播放</button>
@@ -456,22 +462,26 @@ function startView(){const R=ROUNDS[ri],s=R.setup(R.tests[0]);return {wall:mkWal
 
 const NOFEEL='沒感覺';
 const GRIP='<svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor"><circle cx="3" cy="4" r="1.6"/><circle cx="9" cy="4" r="1.6"/><circle cx="3" cy="10" r="1.6"/><circle cx="9" cy="10" r="1.6"/><circle cx="3" cy="16" r="1.6"/><circle cx="9" cy="16" r="1.6"/></svg>';
-// 拖曳調整順序：滑鼠可拖整張，觸控只從左邊把手拖（不影響捲動頁面）
-let drag=null, suppressClick=false;
-function startDrag(e,card,fromGrip){
+// 拖曳：滑鼠可拖整張（左邊的步驟也能直接拖進某一格），觸控只從順序格左邊的把手拖（不影響捲動頁面）
+let drag=null, suppressClick=false, selSlot=null;
+const filled=()=>slots.filter(k=>k!=null).length;
+function startDrag(e,card,fromGrip,src){
   if(running||(e.button!=null&&e.button>0))return;
   if(e.pointerType!=='mouse'&&!fromGrip)return;
   if(fromGrip)e.preventDefault();
-  drag={i:+card.dataset.s,y0:e.clientY+scrollY,cy:e.clientY,on:false,card,id:e.pointerId};
+  drag={src,i:src==='slot'?+card.dataset.s:null,k:src==='pool'?+card.dataset.k:null,x0:e.clientX,y0:e.clientY+scrollY,cx:e.clientX,cy:e.clientY,on:false,card,id:e.pointerId,t:null};
 }
 function dragUpdate(){
-  const dy=drag.cy+scrollY-drag.y0;
-  drag.card.style.transform='translateY('+dy+'px)';
-  const r=drag.rects[drag.i], mid=(r.top+r.bottom)/2+dy;
-  let t=drag.i;
-  drag.rects.forEach((q,j)=>{const m=(q.top+q.bottom)/2;if(j<drag.i&&mid<m)t=Math.min(t,j);if(j>drag.i&&mid>m)t=Math.max(t,j)});
-  drag.t=t;
-  drag.cards.forEach((c,j)=>{if(j===drag.i)return;let s=0;if(t>drag.i&&j>drag.i&&j<=t)s=-drag.step;if(t<drag.i&&j<drag.i&&j>=t)s=drag.step;c.style.transform=s?'translateY('+s+'px)':''});
+  const dx=drag.cx-drag.x0, dy=drag.cy+scrollY-drag.y0;
+  drag.card.style.transform='translate('+dx+'px,'+dy+'px)';
+  const el=document.elementFromPoint(drag.cx,drag.cy);
+  const sl=el&&el.closest?el.closest('#slots .slot'):null;
+  const t=sl?+sl.dataset.i:null;
+  if(t!==drag.t){
+    $('slots').querySelectorAll('.slot.drop').forEach(x=>x.classList.remove('drop'));
+    if(sl&&t!==drag.i)sl.classList.add('drop');
+    drag.t=t;
+  }
 }
 function dragScroll(){
   if(!drag||!drag.on)return;
@@ -482,14 +492,10 @@ function dragScroll(){
 }
 document.addEventListener('pointermove',e=>{
   if(!drag||e.pointerId!==drag.id)return;
-  drag.cy=e.clientY;
+  drag.cx=e.clientX;drag.cy=e.clientY;
   if(!drag.on){
-    if(Math.abs(e.clientY+scrollY-drag.y0)<6)return;
-    drag.on=true;
-    drag.cards=[...$('slots').querySelectorAll('.slot .card')];
-    drag.rects=drag.cards.map(c=>{const b=c.getBoundingClientRect();return {top:b.top+scrollY,bottom:b.bottom+scrollY}});
-    const r=drag.rects;drag.step=r.length>1?r[1].top-r[0].top:r[0].bottom-r[0].top+8;
-    drag.card.closest('.slot').classList.add('dragging');document.body.classList.add('dragging-now');
+    if(Math.hypot(e.clientX-drag.x0,e.clientY+scrollY-drag.y0)<6)return;
+    drag.on=true;drag.card.classList.add('lifted');document.body.classList.add('dragging-now');
     requestAnimationFrame(dragScroll);
   }
   e.preventDefault();
@@ -500,39 +506,57 @@ function endDrag(e,cancel){
   const d=drag;drag=null;document.body.classList.remove('dragging-now');
   if(!d.on)return;
   suppressClick=true;setTimeout(()=>{suppressClick=false},0);
-  const t=d.t??d.i;
-  if(!cancel&&t!==d.i){const [k]=slots.splice(d.i,1);slots.splice(t,0,k);resetStage()}
+  const t=d.t;let changed=false;
+  if(!cancel&&t!=null){
+    if(d.src==='slot'&&t!==d.i){
+      if(slots[t]==null){slots[t]=slots[d.i];slots[d.i]=null}       // 拖到空格：只移動這一步
+      else{const k=slots[d.i];slots.splice(d.i,1);slots.splice(t,0,k)} // 拖到有步驟的格子：插進去，中間的往原位補
+      changed=true;
+    }else if(d.src==='pool'){slots[t]=d.k;changed=true}             // 從左邊拖進來：放進那一格（原本的步驟回到左邊）
+  }
+  if(changed){selSlot=null;resetStage()}
   renderCards();
 }
 document.addEventListener('pointerup',e=>endDrag(e,false));
 document.addEventListener('pointercancel',e=>endDrag(e,true));
 function cardHTML(cd){return '<span class="c-u'+(cd.u?'':' none')+'"><b>小安</b>'+(cd.u||NOFEEL)+'</span><span class="c-pc"><b>電腦</b>'+cd.t+'</span>'}
 function renderCards(now,bad){
-  const R=ROUNDS[ri];
-  $('pool').innerHTML=order.map(k=>'<button type="button" class="card'+(slots.includes(k)?' used':'')+'" data-k="'+k+'"'+(slots.includes(k)?' tabindex="-1" aria-hidden="true"':'')+'>'+cardHTML(R.cards[k])+'</button>').join('');
-  if(order.every(k=>slots.includes(k))||slots.length>=R.sol.length)$('pool').insertAdjacentHTML('beforeend','<p class="pool-done">'+(slots.length>=R.sol.length?'都排好了，按「播放」看看。':'')+'</p>');
-  $('pool').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;const k=+b.dataset.k;if(!slots.includes(k)&&slots.length<R.sol.length){slots.push(k);resetStage();renderCards()}});
-  const n=R.sol.length;let h='';
+  const R=ROUNDS[ri], n=R.sol.length, f=filled();
+  if(selSlot!=null&&slots[selSlot]!=null)selSlot=null;
+  $('pool').innerHTML=(selSlot!=null?'<p class="pool-hint">點一個步驟，放進第 '+(selSlot+1)+' 步</p>':'')+
+    order.map(k=>'<button type="button" class="card'+(slots.includes(k)?' used':'')+'" data-k="'+k+'"'+(slots.includes(k)?' tabindex="-1" aria-hidden="true"':'')+'>'+cardHTML(R.cards[k])+'</button>').join('')+
+    (f>=n?'<p class="pool-done">都排好了，按「播放」看看。</p>':'');
+  $('pool').querySelectorAll('.card').forEach(b=>{
+    b.onclick=()=>{
+      if(running||suppressClick)return;const k=+b.dataset.k;
+      if(slots.includes(k)||filled()>=n)return;
+      const tgt=selSlot!=null?selSlot:slots.indexOf(null);
+      slots[tgt]=k;selSlot=null;resetStage();renderCards();
+    };
+    b.addEventListener('pointerdown',e=>startDrag(e,b,false,'pool'));
+  });
+  let h='';
   for(let i=0;i<n;i++){
     const k=slots[i];
-    const last=i===slots.length-1;
-    h+='<div class="slot'+(i===now?(bad?' now bad':' now'):'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+(k==null?'<span class="empty">第 '+(i+1)+' 步</span>':
+    h+='<div class="slot'+(i===now?(bad?' now bad':' now'):'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+(k==null?
+      '<button type="button" class="empty'+(i===selSlot?' sel':'')+'" data-e="'+i+'"'+(running?' disabled':'')+'>第 '+(i+1)+' 步'+(i===selSlot?'：再點一個步驟放到這裡':'')+'</button>':
       '<span class="grip" aria-hidden="true" title="拖曳調整順序">'+GRIP+'</span><button type="button" class="card" data-s="'+i+'" title="拖曳調整順序，點一下拿回去">'+cardHTML(R.cards[k])+'</button>'+
-      '<span class="mv"><button type="button" data-mv="-1" data-s="'+i+'" aria-label="第 '+(i+1)+' 步往上移"'+(i===0||running?' disabled':'')+'>▲</button><button type="button" data-mv="1" data-s="'+i+'" aria-label="第 '+(i+1)+' 步往下移"'+(last||running?' disabled':'')+'>▼</button></span>')+'</div>';
+      '<span class="mv"><button type="button" data-mv="-1" data-s="'+i+'" aria-label="第 '+(i+1)+' 步往上移"'+(i===0||running?' disabled':'')+'>▲</button><button type="button" data-mv="1" data-s="'+i+'" aria-label="第 '+(i+1)+' 步往下移"'+(i===n-1||running?' disabled':'')+'>▼</button></span>')+'</div>';
   }
   $('slots').innerHTML=h;
+  $('slots').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{if(running)return;const i=+b.dataset.e;selSlot=selSlot===i?null:i;renderCards()});
   $('slots').querySelectorAll('.card').forEach(b=>{
-    b.onclick=()=>{if(suppressClick)return;if(teacher&&pb){jumpTo(+b.dataset.s);return}if(running)return;slots.splice(+b.dataset.s,1);resetStage();renderCards()};
-    b.addEventListener('pointerdown',e=>startDrag(e,b,false));
+    b.onclick=()=>{if(suppressClick)return;if(teacher&&pb){jumpTo(+b.dataset.s);return}if(running)return;slots[+b.dataset.s]=null;resetStage();renderCards()};
+    b.addEventListener('pointerdown',e=>startDrag(e,b,false,'slot'));
   });
-  $('slots').querySelectorAll('.grip').forEach(g=>g.addEventListener('pointerdown',e=>startDrag(e,g.nextElementSibling,true)));
+  $('slots').querySelectorAll('.grip').forEach(g=>g.addEventListener('pointerdown',e=>startDrag(e,g.nextElementSibling,true,'slot')));
   $('slots').querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{
-    if(running)return;const i=+b.dataset.s,j=i+(+b.dataset.mv);if(j<0||j>=slots.length)return;
+    if(running)return;const i=+b.dataset.s,j=i+(+b.dataset.mv);if(j<0||j>=n)return;
     [slots[i],slots[j]]=[slots[j],slots[i]];resetStage();renderCards();
     const nb=$('slots').querySelector('[data-mv="'+b.dataset.mv+'"][data-s="'+j+'"]');if(nb&&!nb.disabled)nb.focus();
   });
-  $('b-run').disabled=running||slots.length<n;
-  $('b-clear').disabled=running||!slots.length;
+  $('b-run').disabled=running||f<n;
+  $('b-clear').disabled=running||!f;
   tbarSync();
 }
 
@@ -547,7 +571,7 @@ function resetStage(){
 
 function load(i){
   ri=i;const R=ROUNDS[i];
-  slots=[];order=shuffle(R.cards.length);
+  slots=Array(R.sol.length).fill(null);selSlot=null;order=shuffle(R.cards.length);
   $('says').textContent=R.says+(R.tip?'　（提示：'+R.tip+'）':'');
   $('sign').hidden=!R.boot;
   renderRounds();resetStage();renderCards();
@@ -580,7 +604,7 @@ function finish(){
 }
 function stopPlayback(){if(pb){clearTimeout(pb.timer);pb=null}running=false;tbarSync()}
 function play(){
-  if(running||slots.length<ROUNDS[ri].sol.length)return;
+  if(running||filled()<ROUNDS[ri].sol.length)return;
   resetStage();
   const R=ROUNDS[ri];
   if(!teacher&&!done.has(ri)){prog.tries[ri]=Math.min(15,prog.tries[ri]+1);saveProg()}
@@ -593,7 +617,7 @@ function tbarSync(){
   if(!teacher)return;
   const has=!!pb, n=has?pb.res.steps.length:0;
   $('tb-play').textContent=!has||pb.done?'▶ 播放':pb.paused?'▶ 繼續':'⏸ 暫停';
-  $('tb-play').disabled=!has&&slots.length<ROUNDS[ri].sol.length;
+  $('tb-play').disabled=!has&&filled()<ROUNDS[ri].sol.length;
   $('tb-prev').disabled=!has||pb.i<=0;
   $('tb-next').disabled=!has||pb.done;
   $('tb-stop').disabled=!has;
@@ -645,7 +669,7 @@ function verdict(res){
 }
 
 $('b-run').onclick=play;
-$('b-clear').onclick=()=>{slots=[];resetStage();renderCards()};
+$('b-clear').onclick=()=>{slots=Array(ROUNDS[ri].sol.length).fill(null);selSlot=null;resetStage();renderCards()};
 function setLevel(l){level=l;$('tab-1').setAttribute('aria-selected',l===1);$('tab-2').setAttribute('aria-selected',l===2);load(ROUNDS.findIndex(r=>r.lv===l))}
 $('tab-1').onclick=()=>{if(!running)setLevel(1)};
 $('tab-2').onclick=()=>{if(!running)setLevel(2)};

@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>深夜手搖店：後面的倉庫｜第 2 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 客人說明 → 左「點單牆＋倉庫」、右「單子盒＋順序格」→ 下方「平板／店長＋搖飲師／出餐口」五大單元即時演出；顏色與簡報一致 */
+:root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#211B17; --muted:#5D6670; --line:#D3D9E0;
+  --mem:#2C67AE; --mem-soft:#E2ECF8;
+  --disk:#1E7570; --disk-soft:#DDF0EE;
+  --cu:#7A4EA8; --cu-soft:#EFE6F8;
+  --alu:#BD6216; --alu-soft:#FBEAD9;
+  --in:#A23E6E; --in-soft:#F7E3EC;
+  --out:#2B7A4C; --out-soft:#DFF1E6;
+  --warn:#B3261E; --warn-soft:#FBE4E2;
+  --f-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171B; --surface:#1D2127; --ink:#ECEFF2; --muted:#9AA3AD; --line:#323942;
+  --mem:#82B2EC; --mem-soft:#1C2A3A; --disk:#6CC9C1; --disk-soft:#17312F;
+  --cu:#BC9DE3; --cu-soft:#2A2236; --alu:#F0A45E; --alu-soft:#3A2A1B;
+  --in:#E995BB; --in-soft:#35202A; --out:#6FC995; --out-soft:#1A3325;
+  --warn:#F2897F; --warn-soft:#3A1F1D; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#14171B; --surface:#1D2127; --ink:#ECEFF2; --muted:#9AA3AD; --line:#323942;
+  --mem:#82B2EC; --mem-soft:#1C2A3A; --disk:#6CC9C1; --disk-soft:#17312F;
+  --cu:#BC9DE3; --cu-soft:#2A2236; --alu:#F0A45E; --alu-soft:#3A2A1B;
+  --in:#E995BB; --in-soft:#35202A; --out:#6FC995; --out-soft:#1A3325;
+  --warn:#F2897F; --warn-soft:#3A1F1D; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-size:clamp(26px,4vw,34px);margin:0;line-height:1.1}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{border:0;background:transparent;color:var(--ink);font:inherit;font-weight:700;padding:8px 16px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
+.rounds{display:flex;gap:8px;flex-wrap:wrap}
+.rounds button{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+.rounds button[aria-pressed="true"]{border-color:var(--ink);font-weight:700}
+.rounds button .done{color:var(--out);font-weight:700}
+
+.order{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;flex-wrap:wrap}
+.order .who{font-family:var(--f-display);font-size:20px;font-weight:700;white-space:nowrap}
+.order .says{font-size:19px;flex:1;min-width:0}
+.order .tip{width:100%;color:var(--muted);font-size:14.5px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:14px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ptitle{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ptitle h2{margin:0;font-family:var(--f-display);font-size:19px}
+.tag{font-size:12px;letter-spacing:.05em;font-weight:700;padding:2px 8px;border-radius:999px}
+.t-mem{color:var(--mem);background:var(--mem-soft)} .t-disk{color:var(--disk);background:var(--disk-soft)}
+.t-cu{color:var(--cu);background:var(--cu-soft)} .t-in{color:var(--in);background:var(--in-soft)}
+.t-out{color:var(--out);background:var(--out-soft)}
+
+.light{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700}
+.light::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--out)}
+.light.off{color:var(--muted)} .light.off::before{background:var(--line)}
+.wall{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.wall.dark{opacity:.55}
+.cell{border:2px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;min-height:72px;transition:border-color .2s,background .2s}
+.cell .addr{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.cell .lab{font-size:14px;color:var(--muted)}
+.cell .val{font-family:var(--f-mono);font-size:20px;font-weight:700;color:var(--mem);min-height:1.3em;overflow-wrap:anywhere}
+.cell .val.prog{font-family:var(--f-body);font-size:16px;color:var(--cu)}
+.cell.hit{border-color:var(--mem);background:var(--mem-soft)}
+.sign{font-size:14px;border:2px dashed var(--muted);border-radius:10px;padding:6px 10px;color:var(--muted)}
+.sign b{color:var(--ink)}
+.disk{display:flex;flex-direction:column;gap:6px}
+.file{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline;border:2px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--bg);transition:border-color .2s,background .2s}
+.file .fv{flex:none;font-family:var(--f-mono);font-weight:700;color:var(--disk)}
+.file .fv.prog{font-family:var(--f-body);font-weight:500;font-size:14px;color:var(--muted)}
+.file.hit{border-color:var(--disk);background:var(--disk-soft)}
+.small{font-size:13.5px;color:var(--muted);margin:0}
+
+.pool,.slots{display:flex;flex-direction:column;gap:8px}
+.pool{flex-direction:row;flex-wrap:wrap}
+.card{font:inherit;font-size:16px;text-align:left;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:9px 12px;cursor:pointer;line-height:1.35}
+.card:hover{border-color:var(--ink)}
+.card.used{visibility:hidden}
+.slot{display:flex;align-items:center;gap:10px;min-height:48px}
+.slot .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700;font-family:var(--f-mono)}
+.slot .card{flex:1}
+.slot .empty{flex:1;border:2px dashed var(--line);border-radius:10px;min-height:44px;display:flex;align-items:center;padding-inline:12px;color:var(--muted);font-size:14px}
+.slot.now .card{border-color:var(--cu);background:var(--cu-soft)}
+.slot.bad .card{border-color:var(--warn);background:var(--warn-soft)}
+
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:700;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-size:17px;padding:10px 22px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:12px}
+@media (max-width:700px){.stage{grid-template-columns:minmax(0,1fr)}}
+.unit{border-left:6px solid var(--line);min-height:120px}
+.unit.inp{border-left-color:var(--in)} .unit.cpu{border-left-color:var(--cu)} .unit.outp{border-left-color:var(--out)}
+.unit.on.inp{background:var(--in-soft)} .unit.on.cpu{background:var(--cu-soft)} .unit.on.outp{background:var(--out-soft)}
+.unit .say{font-size:16px;min-height:3em}
+.hand{font-family:var(--f-mono);font-size:22px;font-weight:700;color:var(--alu);line-height:1.2}
+.hand small{font-family:var(--f-body);font-size:13px;color:var(--muted);font-weight:500}
+.inv,.outv{font-size:22px;font-weight:700}
+.inv{color:var(--in)} .outv{color:var(--out)}
+.clock{font-family:var(--f-mono);font-size:14px;color:var(--muted)}
+
+.verdict{border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.verdict.ok{background:var(--out-soft)} .verdict.no{background:var(--warn-soft)}
+.verdict h3{margin:0;font-family:var(--f-display);font-size:22px}
+.verdict p{margin:0}
+.gate{max-width:440px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.gate h1{text-align:center}
+.gate p{margin:0;color:var(--muted);text-align:center}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-weight:700}
+.field input{font-family:var(--f-mono);font-size:26px;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.field input:focus{outline:none;border-color:var(--mem)}
+.field .hint{font-size:13.5px;color:var(--muted)}
+.gerr{color:var(--warn);font-size:14.5px;min-height:1.4em;text-align:center}
+.who-bar{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted);flex-wrap:wrap}
+.who-bar b{font-family:var(--f-mono);color:var(--ink);font-size:17px}
+.linkbtn{font:inherit;font-size:14px;border:0;background:none;color:var(--mem);cursor:pointer;text-decoration:underline;padding:0}
+.report{background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.report h2{margin:0;font-family:var(--f-display);font-size:19px;width:100%}
+.code{font-family:var(--f-mono);font-size:clamp(20px,4.5vw,28px);font-weight:700;letter-spacing:.06em;user-select:all;overflow-wrap:anywhere}
+.prog{display:flex;gap:8px;flex-wrap:wrap;width:100%}
+.prog span{font-size:14px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.prog span.ok{background:var(--out-soft);border-color:var(--out);color:var(--ink);font-weight:700}
+.copied{font-size:14px;color:var(--out)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<section class="gate" id="gate">
+  <h1>深夜手搖店：後面的倉庫</h1>
+  <p>開始前先填班級和座號，只能填數字。</p>
+  <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
+  <div class="field"><label for="in-seat">座號</label><input id="in-seat" inputmode="numeric" autocomplete="off" maxlength="2" placeholder="例如 12"><span class="hint">1～60</span></div>
+  <div class="gerr" id="gerr" role="alert"></div>
+  <div class="btns" id="g-step1"><button class="btn primary" id="g-next" style="width:100%">下一步</button></div>
+  <div id="g-step2" hidden style="display:flex;flex-direction:column;gap:10px">
+    <p style="color:var(--ink);font-size:20px" id="g-confirm"></p>
+    <div class="btns" style="justify-content:center"><button class="btn" id="g-back">我填錯了</button><button class="btn primary" id="g-go">對，開始</button></div>
+  </div>
+</section>
+
+<div class="wrap" id="main" hidden>
+  <header>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <h1>深夜手搖店：後面的倉庫</h1>
+      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button></div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="等級">
+      <button id="tab-1" role="tab" aria-selected="true">基礎關</button>
+      <button id="tab-2" role="tab" aria-selected="false">進階關</button>
+    </div>
+  </header>
+  <div class="rounds" id="rounds"></div>
+
+  <section class="order" aria-live="polite">
+    <span class="who">今天的任務：</span><span class="says" id="says"></span>
+    <span class="tip">點下面的卡片，依序放進「店長的順序」，排好按「開始做」。點順序格裡的卡片可以拿回來。</span>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <div class="ptitle"><h2>點單牆</h2><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">營業中</span><span class="tag t-mem">主記憶體</span></span></div>
+        <div class="sign" id="sign" hidden>門口招牌：<b>「開店第一步：去倉庫把店務系統搬上牆。」</b></div>
+        <div class="wall" id="wall"></div>
+        <p class="small">牆上的東西拿得很快，但斷電就全部清空。</p>
+      </section>
+      <section class="panel">
+        <div class="ptitle"><h2>後面的倉庫</h2><span class="tag t-disk">輔助記憶體</span></div>
+        <div class="disk" id="disk"></div>
+        <p class="small">斷電也不會忘記，但來回一趟要 30 秒。</p>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="ptitle"><h2>單子盒</h2><span class="small">點一張放進下面</span></div>
+      <div class="pool" id="pool"></div>
+      <div class="ptitle"><h2>店長的順序</h2></div>
+      <div class="slots" id="slots"></div>
+      <div class="btns">
+        <button class="btn primary" id="b-run">開始做</button>
+        <button class="btn" id="b-clear">全部拿回來</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="stage">
+    <section class="panel unit inp" id="u-in">
+      <div class="ptitle"><h2>點單平板</h2><span class="tag t-in">輸入</span></div>
+      <div class="inv" id="inv">—</div>
+    </section>
+    <section class="panel unit cpu" id="u-cpu">
+      <div class="ptitle"><h2>店長＋搖飲師</h2><span class="tag t-cu">中央處理器</span></div>
+      <div class="say" id="cu-say">等你排好單子。</div>
+      <div class="hand" id="hand"><small>搖飲師手上：</small>空手</div>
+      <div class="clock" id="clock">已花 0 秒</div>
+    </section>
+    <section class="panel unit outp" id="u-out">
+      <div class="ptitle"><h2>出餐口螢幕</h2><span class="tag t-out">輸出</span></div>
+      <div class="outv" id="outv">—</div>
+    </section>
+  </div>
+
+  <section class="verdict" id="verdict" hidden></section>
+
+  <section class="report" aria-live="polite">
+    <h2>我的成績碼</h2>
+    <div class="prog" id="prog"></div>
+    <span class="code" id="code"></span>
+    <button class="btn" id="b-copy" type="button">複製成績碼</button>
+    <span class="copied" id="copied"></span>
+    <p class="small" style="width:100%">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
+  </section>
+</div>
+
+<script src="../../assets/codec.js"></script>
+<script>
+const WEEK=2;
+const APP='點單 App', PROG='（程式）';
+const ord=(drink,qty,price)=>({drink,qty,price});
+
+// 每關：cap 牆的格數、power 一開始有沒有電、setup(t) 依測資產生一開始的牆與倉庫
+const ROUNDS=[
+ {lv:1,name:'開店第一杯',says:'客人要 2 杯紅茶（每杯 25 元）。可是「點單 App」還放在倉庫裡。',
+  cap:4,power:true,
+  setup:t=>({ram:{},disk:{[APP]:PROG}}),
+  tests:[{order:ord('紅茶',2,25)},{order:ord('綠茶',3,30)}],
+  cards:[{t:'從倉庫把「點單 App」搬上牆',op:'load',f:APP},{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'店長看單，叫搖飲師算出金額',op:'calc'},{t:'把金額送到出餐口螢幕',op:'outacc'}],
+  sol:[0,1,2,3]},
+ {lv:1,name:'打烊不能忘',says:'最後一位客人要 3 杯綠茶（每杯 30 元）。打烊後，明天早上老闆要看到今天一共賺多少。',tip:'拉電閘之後，牆上會怎樣？',
+  cap:4,power:true,
+  setup:t=>({ram:{[APP]:PROG,'今日營業額':t.sales},disk:{[APP]:PROG,'帳本':t.ledger}}),
+  tests:[{order:ord('綠茶',3,30),sales:1200,ledger:980},{order:ord('紅茶',4,25),sales:860,ledger:1010}],
+  cards:[{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'搖飲師把這單的錢加進牆上的「今日營業額」',op:'addTo',c:'今日營業額'},{t:'把牆上的「今日營業額」抄進倉庫的「帳本」',op:'save',src:'今日營業額',dst:'帳本'},{t:'拉電閘打烊',op:'off'},{t:'隔天開店，從倉庫把「帳本」搬上牆',op:'load',f:'帳本',on:true},{t:'把牆上「帳本」的數字給老闆看',op:'outcell',c:'帳本'}],
+  sol:[0,1,2,3,4,5]},
+ {lv:2,name:'牆貼滿了',says:'牆只剩 3 格，已經貼滿。又來一位客人要 2 杯珍奶（每杯 60 元），做完這單，外送平台馬上要用「外送 App」。',tip:'盒子裡有一張用不到的卡。下一位客人還要點單喔。',
+  cap:3,power:true,
+  setup:t=>({ram:{[APP]:PROG,'今日營業額':t.sales,'外送 App':PROG},disk:{[APP]:PROG,'外送 App':PROG}}),
+  tests:[{order:ord('珍奶',2,60),sales:1200},{order:ord('珍奶',3,55),sales:700}],
+  cards:[{t:'把「外送 App」先收回倉庫（空出一格）',op:'unload',f:'外送 App'},{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'搖飲師把這單的錢加進牆上的「今日營業額」',op:'addTo',c:'今日營業額'},{t:'撕掉做完的單子（空出一格）',op:'tear'},{t:'從倉庫把「外送 App」搬回牆上',op:'load',f:'外送 App'},{t:'打開外送 App，開始接外送單',op:'open',f:'外送 App'},{t:'把「點單 App」收回倉庫（空出一格）',op:'unload',f:APP}],
+  sol:[0,1,2,3,4,5]},
+ {lv:2,name:'從開店到記帳',says:'清晨，店裡一片黑。第一位客人要 2 杯珍奶（每杯 60 元）。從通電開店，一路做到出餐、記帳。',tip:'盒子裡有一張用不到的卡。搖飲師只拿得到牆上的東西。',
+  cap:4,power:false,boot:true,
+  setup:t=>({ram:{},disk:{'店務系統':PROG,[APP]:PROG,'帳本':t.ledger}}),
+  tests:[{order:ord('珍奶',2,60),ledger:0},{order:ord('紅茶',3,25),ledger:450}],
+  cards:[{t:'通電，店長先讀門口的招牌',op:'boot'},{t:'照招牌指示，從倉庫把「店務系統」搬上牆',op:'load',f:'店務系統',needBoot:true},{t:'從倉庫把「點單 App」搬上牆',op:'load',f:APP,needOS:true},{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'店長看單，叫搖飲師算出金額，寫回牆上',op:'calc',to:'這單金額'},{t:'把牆上的金額送到出餐口螢幕',op:'outcell',c:'這單金額'},{t:'把這單金額記進倉庫的「帳本」',op:'saveAdd',src:'這單金額',dst:'帳本'},{t:'搖飲師直接到倉庫翻單子算錢',op:'direct'}],
+  sol:[0,1,2,3,4,5,6]}
+];
+
+const DISK_T=30, WALL_T=1;
+let level=1, ri=0, slots=[], order=[], running=false;
+const done=new Set();
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const fmtv=v=>v===PROG?'程式':(v&&typeof v==='object')?v.drink+' ×'+v.qty:String(v);
+
+function shuffle(n){
+  const a=[...Array(n).keys()];
+  do{for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}while(n>1&&a.every((v,i)=>v===i));
+  return a;
+}
+
+// 牆：固定格數，東西貼在第一個空格
+function mkWall(cap,obj){const w=Array(cap).fill(null);Object.entries(obj).forEach(([k,v],i)=>w[i]={k,v});return w}
+const find=(w,k)=>w.findIndex(c=>c&&c.k===k);
+const has=(w,k)=>find(w,k)>=0;
+const get=(w,k)=>w[find(w,k)].v;
+const put=(w,k,v)=>{const i=find(w,k);if(i>=0){w[i]={k,v};return i}const e=w.indexOf(null);if(e<0)return -1;w[e]={k,v};return e};
+const del=(w,k)=>{const i=find(w,k);if(i>=0)w[i]=null;return i};
+const wallObj=w=>Object.fromEntries(w.filter(Boolean).map(c=>[c.k,c.v]));
+
+// 照順序跑一遍：回傳每一步的畫面和最後狀態
+function run(seq,t,R=ROUNDS[ri]){
+  const s0=R.setup(t);
+  const st={power:R.power,booted:R.power,wall:mkWall(R.cap,s0.ram),disk:{...s0.disk},acc:null,outs:[],time:0,diskTime:0};
+  const steps=[]; let err=null;
+  const snap=x=>({...x,wall:st.wall.map(c=>c&&{...c}),disk:{...st.disk},power:st.power,hand:st.acc,time:st.time});
+  const fail=(k,msg)=>{err={k,msg};steps.push(snap({k,cu:msg,bad:true}))};
+  const full='牆貼滿了，沒有空格可以貼！';
+  for(const k of seq){
+    const cd=R.cards[k]; let x={k};
+    const needPower=()=>{if(!st.power){fail(k,'店裡沒電，牆用不了，什麼都做不了！');return false}return true};
+    if(cd.op==='load'){
+      if(cd.on&&!st.power){st.power=true;st.booted=true;x.lightOn=true}
+      if(!needPower())break;
+      if(cd.needBoot&&!st.booted){fail(k,'還沒讀招牌，店長不知道開店要先搬什麼！');break}
+      if(cd.needOS&&!has(st.wall,'店務系統')){fail(k,'牆上還沒有「店務系統」，沒人知道怎麼打開 App！');break}
+      if(!(cd.f in st.disk)){fail(k,'倉庫裡找不到「'+cd.f+'」！');break}
+      const i=put(st.wall,cd.f,st.disk[cd.f]);
+      if(i<0){fail(k,full);break}
+      st.time+=DISK_T;st.diskTime+=DISK_T;
+      x.cu=(cd.on?'隔天開店、通電。':'')+'派人跑去倉庫，把「'+cd.f+'」搬來貼在 '+pad(i)+' 號格（跑一趟 30 秒）。';x.cell=i;x.file=cd.f;
+    }else if(cd.op==='unload'){
+      if(!needPower())break;
+      if(!has(st.wall,cd.f)){fail(k,'牆上沒有「'+cd.f+'」可以收！');break}
+      st.disk[cd.f]=get(st.wall,cd.f);const i=del(st.wall,cd.f);
+      st.time+=DISK_T;st.diskTime+=DISK_T;
+      x.cu='把「'+cd.f+'」收回倉庫，'+pad(i)+' 號格空出來了（跑一趟 30 秒）。';x.cell=i;x.file=cd.f;
+      if(st.opened===cd.f){st.opened=null;st.outs.push('外送中斷');x.out='外送中斷';x.cu+='外送才剛開就被收走，外送中斷了！'}
+    }else if(cd.op==='input'){
+      if(!needPower())break;
+      if(!has(st.wall,APP)){fail(k,'牆上沒有「點單 App」，平板打不開，客人沒辦法點單！');break}
+      const i=put(st.wall,'單子',t.order);
+      if(i<0){fail(k,full);break}
+      st.time+=WALL_T;x.cu='客人在平板按了送出，單子貼到 '+pad(i)+' 號格。';x.cell=i;x.inp=fmtv(t.order);
+    }else if(cd.op==='calc'){
+      if(!needPower())break;
+      if(!has(st.wall,APP)){fail(k,'牆上沒有「點單 App」，店長不知道價錢怎麼算！');break}
+      if(!has(st.wall,'單子')){fail(k,'牆上還沒有單子，不知道要算什麼！');break}
+      const o=get(st.wall,'單子');st.acc=o.price*o.qty;
+      x.alu=o.price+' × '+o.qty+' = '+st.acc;x.cu='店長看懂單子，叫搖飲師算。';x.cell=find(st.wall,'單子');
+      if(cd.to){const i=put(st.wall,cd.to,st.acc);if(i<0){fail(k,'算好了，可是'+full);break}x.cu+='算好寫回 '+pad(i)+' 號格。';x.cell=i}
+      st.time+=WALL_T;
+    }else if(cd.op==='addTo'){
+      if(!needPower())break;
+      if(!has(st.wall,'單子')){fail(k,'牆上還沒有單子，不知道要加多少！');break}
+      if(!has(st.wall,cd.c)){fail(k,'牆上沒有「'+cd.c+'」，加不進去！');break}
+      const o=get(st.wall,'單子'),a=get(st.wall,cd.c),v=a+o.price*o.qty;
+      put(st.wall,cd.c,v);st.acc=v;st.time+=WALL_T;
+      x.alu=a+' + '+o.price+' × '+o.qty+' = '+v;x.cu='叫搖飲師把這單的錢加進「'+cd.c+'」。';x.cell=find(st.wall,cd.c);
+    }else if(cd.op==='tear'){
+      if(!needPower())break;
+      if(!has(st.wall,'單子')){fail(k,'牆上沒有單子可以撕！');break}
+      const i=del(st.wall,'單子');st.time+=WALL_T;x.cu='做完的單子撕掉，'+pad(i)+' 號格空出來了。';x.cell=i;
+    }else if(cd.op==='save'||cd.op==='saveAdd'){
+      if(!needPower())break;
+      if(!has(st.wall,cd.src)){fail(k,'牆上沒有「'+cd.src+'」，沒東西可以存！');break}
+      const v=get(st.wall,cd.src);
+      st.disk[cd.dst]=cd.op==='save'?v:(st.disk[cd.dst]||0)+v;
+      st.time+=DISK_T;st.diskTime+=DISK_T;
+      x.cu=cd.op==='save'?'把 '+v+' 抄進倉庫的「'+cd.dst+'」（跑一趟 30 秒）。':'把 '+v+' 加進倉庫的「'+cd.dst+'」，變成 '+st.disk[cd.dst]+'（跑一趟 30 秒）。';
+      x.cell=find(st.wall,cd.src);x.file=cd.dst;
+    }else if(cd.op==='off'){
+      st.power=false;st.booted=false;st.wall=st.wall.map(()=>null);st.acc=null;st.time+=WALL_T;
+      x.cu='拉下電閘，打烊。牆上的東西全部清空，倉庫的東西還在。';x.lightOff=true;
+    }else if(cd.op==='boot'){
+      st.power=true;st.booted=true;st.time+=WALL_T;
+      x.cu='通電！店長先讀門口招牌：「開店第一步：去倉庫把店務系統搬上牆。」';x.lightOn=true;
+    }else if(cd.op==='outacc'){
+      if(!needPower())break;
+      if(st.acc==null){fail(k,'搖飲師手上沒有數字，沒東西可以送！');break}
+      st.outs.push(st.acc);st.time+=WALL_T;x.cu='把金額送到出餐口。';x.out=st.acc+' 元';
+    }else if(cd.op==='outcell'){
+      if(!needPower())break;
+      if(!has(st.wall,cd.c)){fail(k,'牆上沒有「'+cd.c+'」，沒東西可以給人看！');break}
+      const v=get(st.wall,cd.c);st.outs.push(v);st.time+=WALL_T;x.cu='把「'+cd.c+'」的數字送到螢幕。';x.out=v+' 元';x.cell=find(st.wall,cd.c);
+    }else if(cd.op==='open'){
+      if(!needPower())break;
+      if(!has(st.wall,cd.f)){fail(k,'牆上沒有「'+cd.f+'」，打不開！');break}
+      st.outs.push('外送接單中');st.opened=cd.f;st.time+=WALL_T;x.cu='外送 App 開好了。';x.out='外送接單中';x.cell=find(st.wall,cd.f);
+    }else if(cd.op==='direct'){
+      fail(k,'搖飲師跑去倉庫翻半天：倉庫的東西不能直接拿來算，要先搬上牆！');break;
+    }
+    steps.push(snap(x));
+  }
+  return {steps,outs:st.outs,ram:wallObj(st.wall),disk:st.disk,err,time:st.time,diskTime:st.diskTime};
+}
+
+function renderRounds(){
+  $('rounds').innerHTML=ROUNDS.map((r,i)=>r.lv!==level?'':'<button type="button" data-i="'+i+'" aria-pressed="'+(i===ri)+'">'+r.name+(done.has(i)?' <span class="done">✓</span>':'')+'</button>').join('');
+  $('rounds').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(!running)load(+b.dataset.i)});
+}
+
+function renderMem(v,hitCell,hitFile){
+  $('wall').innerHTML=v.wall.map((c,i)=>'<div class="cell'+(i===hitCell?' hit':'')+'"><span class="addr">#'+pad(i)+'</span>'+(c?'<span class="lab">'+c.k+'</span><span class="val'+(c.v===PROG?' prog':'')+'">'+fmtv(c.v)+'</span>':'<span class="lab">（空格）</span>')+'</div>').join('');
+  $('wall').classList.toggle('dark',!v.power);
+  $('light').textContent=v.power?'營業中':'斷電';$('light').classList.toggle('off',!v.power);
+  $('disk').innerHTML=Object.entries(v.disk).map(([k,x])=>'<div class="file'+(k===hitFile?' hit':'')+'"><span>'+k+'</span><span class="fv'+(x===PROG?' prog':'')+'">'+(x===PROG?'程式':x)+'</span></div>').join('');
+}
+function startView(){const R=ROUNDS[ri],s=R.setup(R.tests[0]);return {wall:mkWall(R.cap,s.ram),disk:s.disk,power:R.power}}
+
+function renderCards(now,bad){
+  const R=ROUNDS[ri];
+  $('pool').innerHTML=order.map(k=>'<button type="button" class="card'+(slots.includes(k)?' used':'')+'" data-k="'+k+'"'+(slots.includes(k)?' tabindex="-1" aria-hidden="true"':'')+'>'+R.cards[k].t+'</button>').join('');
+  $('pool').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;const k=+b.dataset.k;if(!slots.includes(k)&&slots.length<R.sol.length){slots.push(k);resetStage();renderCards()}});
+  const n=R.sol.length;let h='';
+  for(let i=0;i<n;i++){
+    const k=slots[i];
+    h+='<div class="slot'+(i===now?(bad?' now bad':' now'):'')+'"><span class="n">'+(i+1)+'</span>'+(k==null?'<span class="empty">放第 '+(i+1)+' 張</span>':'<button type="button" class="card" data-s="'+i+'">'+R.cards[k].t+'</button>')+'</div>';
+  }
+  $('slots').innerHTML=h;
+  $('slots').querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(running)return;slots.splice(+b.dataset.s,1);resetStage();renderCards()});
+  $('b-run').disabled=running||slots.length<n;
+  $('b-clear').disabled=running||!slots.length;
+}
+
+function setHand(v){$('hand').innerHTML='<small>搖飲師手上：</small>'+(v==null?'空手':v)}
+function resetStage(){
+  ['u-in','u-cpu','u-out'].forEach(id=>$(id).classList.remove('on'));
+  $('cu-say').textContent='等你排好單子。';setHand(null);$('clock').textContent='已花 0 秒';
+  $('inv').textContent='—';$('outv').textContent='—';$('verdict').hidden=true;
+  renderMem(startView());
+}
+
+function load(i){
+  ri=i;const R=ROUNDS[i];
+  slots=[];order=shuffle(R.cards.length);
+  $('says').textContent=R.says+(R.tip?'　（提示：'+R.tip+'）':'');
+  $('sign').hidden=!R.boot;
+  renderRounds();resetStage();renderCards();
+}
+
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function play(){
+  if(running)return; running=true; resetStage(); renderCards();
+  const R=ROUNDS[ri];
+  if(!done.has(ri)){prog.tries[ri]=Math.min(15,prog.tries[ri]+1);saveProg()}
+  const res=run(slots,R.tests[0]);
+  const T=matchMedia('(prefers-reduced-motion: reduce)').matches?450:1100;
+  for(let i=0;i<res.steps.length;i++){
+    const s=res.steps[i];
+    renderCards(i,s.bad);
+    ['u-in','u-cpu','u-out'].forEach(id=>$(id).classList.remove('on'));
+    $('u-cpu').classList.add('on');$('cu-say').textContent=s.cu;
+    await wait(T*0.5);
+    renderMem(s,s.cell,s.file);
+    if(s.inp){$('u-in').classList.add('on');$('inv').textContent=s.inp}
+    setHand(s.alu||s.hand);
+    if(s.out){$('u-out').classList.add('on');$('outv').textContent=s.out}
+    $('clock').textContent='已花 '+s.time+' 秒';
+    await wait(T);
+  }
+  verdict(res);
+  running=false; renderCards();
+}
+
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const sortObj=o=>Object.fromEntries(Object.entries(o).sort(([a],[b])=>a<b?-1:1));
+const fmtOuts=o=>o.length?o.map(x=>typeof x==='number'?x+' 元':x).join('、'):'什麼都沒有';
+const fmtWall=o=>Object.keys(o).length?Object.entries(o).map(([k,v])=>k+(v===PROG?'':'（'+fmtv(v)+'）')).join('、'):'空的';
+function diff(got,exp){
+  if(!same(got.outs,exp.outs))return '螢幕應該出現 '+fmtOuts(exp.outs)+'，你的順序出現 '+fmtOuts(got.outs)+'。';
+  if(!same(sortObj(got.disk),sortObj(exp.disk))){
+    const k=Object.keys(exp.disk).find(k=>got.disk[k]!==exp.disk[k]);
+    return '倉庫的「'+k+'」最後應該是 '+fmtv(exp.disk[k])+'，你的是 '+fmtv(got.disk[k])+'。';
+  }
+  if(!same(sortObj(got.ram),sortObj(exp.ram)))return '最後牆上應該是：'+fmtWall(exp.ram)+'；你的牆上是：'+fmtWall(got.ram)+'。';
+  return null;
+}
+function verdict(res){
+  const R=ROUNDS[ri], v=$('verdict');
+  let ok=false,h='';
+  if(res.err){
+    h='<h3>卡住了</h3><p>第 '+res.steps.length+' 步「'+R.cards[res.err.k].t+'」：'+res.err.msg+'</p>';
+  }else{
+    const e1=run(R.sol,R.tests[0]), d1=diff(res,e1);
+    const t2=R.tests[1], g2=run(slots,t2), e2=run(R.sol,t2), d2=g2.err?'第 '+g2.steps.length+' 步卡住了：'+g2.err.msg:diff(g2,e2);
+    if(d1) h='<h3>老闆說：「不對吧？」</h3><p>'+d1+'看看是哪一步開始不對，調整順序再試一次。</p>';
+    else if(d2) h='<h3>差一點！</h3><p>這次剛好對了，但換一位客人（'+fmtv(t2.order)+'）就錯：'+d2+'</p>';
+    else ok=true;
+    if(ok){
+      done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg();
+      h='<h3>過關！</h3><p>螢幕：'+fmtOuts(res.outs)+'。換另一位客人（'+fmtv(t2.order)+'）也對：'+fmtOuts(g2.outs)+'。</p>'+
+        '<p>這一輪花了 '+res.time+' 秒，其中 '+res.diskTime+' 秒在跑倉庫。真正的電腦裡，倉庫比牆慢上千倍以上，所以東西要先搬上牆才拿來用。</p>';
+      const next=ROUNDS.findIndex((r,i)=>i>ri&&r.lv===level);
+      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成！一張單子從倉庫到出餐口的完整旅程，你都走過了。</strong></p>'))+'</div>';
+      renderRounds();
+      v.className='verdict ok';v.innerHTML=h;v.hidden=false;
+      if($('b-next'))$('b-next').onclick=()=>load(next);
+      if($('b-lv2'))$('b-lv2').onclick=()=>$('tab-2').click();
+      return;
+    }
+  }
+  v.className='verdict no';v.innerHTML=h;v.hidden=false;
+}
+
+$('b-run').onclick=play;
+$('b-clear').onclick=()=>{slots=[];resetStage();renderCards()};
+function setLevel(l){level=l;$('tab-1').setAttribute('aria-selected',l===1);$('tab-2').setAttribute('aria-selected',l===2);load(ROUNDS.findIndex(r=>r.lv===l))}
+$('tab-1').onclick=()=>{if(!running)setLevel(1)};
+$('tab-2').onclick=()=>{if(!running)setLevel(2)};
+
+// ===== 班級座號與進度 =====
+let ident=null, prog={mask:0,tries:[0,0,0,0],time:Date.now()};
+const KEY=()=>'it9:w'+WEEK+':'+ident.cls+'-'+ident.seat;
+function saveProg(){try{localStorage.setItem(KEY(),JSON.stringify(prog));localStorage.setItem('it9:last',JSON.stringify(ident))}catch(e){}renderReport()}
+function renderReport(){
+  if(!ident)return;
+  $('prog').innerHTML=ROUNDS.map((r,i)=>'<span class="'+(prog.mask&(1<<i)?'ok':'')+'">'+(r.lv===1?'基礎':'進階')+'・'+r.name+(prog.mask&(1<<i)?' ✓':'')+'</span>').join('');
+  $('code').textContent=CODEC.encode({week:WEEK,cls:ident.cls,seat:ident.seat,mask:prog.mask,tries:prog.tries,time:prog.time});
+  $('copied').textContent='';
+}
+$('b-copy').onclick=()=>{
+  const t=$('code').textContent;
+  const sel=()=>{const r=document.createRange();r.selectNodeContents($('code'));const s=getSelection();s.removeAllRanges();s.addRange(r);$('copied').textContent='已選取，按 Ctrl+C 複製'};
+  try{navigator.clipboard.writeText(t).then(()=>{$('copied').textContent='已複製'},sel)}catch(e){sel()}
+};
+const digits=el=>{const f=()=>{const v=el.value.replace(/\D/g,'');if(v!==el.value)el.value=v};el.addEventListener('input',f);el.addEventListener('compositionend',f);el.addEventListener('blur',f)};
+digits($('in-cls'));digits($('in-seat'));
+function check(){
+  const c=$('in-cls').value, s=$('in-seat').value;
+  if(!/^[1-9]\d{2}$/.test(c)) return '班級要填三位數字，例如 901。';
+  if(!/^\d{1,2}$/.test(s)||+s<1||+s>60) return '座號要填 1～60 的數字。';
+  return null;
+}
+$('g-next').onclick=()=>{
+  const e=check();$('gerr').textContent=e||'';if(e)return;
+  $('g-confirm').textContent='你是 '+$('in-cls').value+' 班 '+(+$('in-seat').value)+' 號，對嗎？';
+  $('g-step1').hidden=true;$('g-step2').hidden=false;$('in-cls').disabled=true;$('in-seat').disabled=true;$('g-go').focus();
+};
+['in-cls','in-seat'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('g-next').click()}));
+$('g-back').onclick=()=>{$('g-step1').hidden=false;$('g-step2').hidden=true;$('in-cls').disabled=false;$('in-seat').disabled=false;$('in-cls').focus()};
+$('g-go').onclick=()=>start({cls:+$('in-cls').value,seat:+$('in-seat').value});
+function start(id){
+  ident=id; prog={mask:0,tries:[0,0,0,0],time:Date.now()};
+  try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
+  done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
+  $('who').textContent=id.cls+' 班 '+id.seat+' 號';
+  $('gate').hidden=true;$('main').hidden=false;
+  setLevel(1);renderReport();
+}
+$('b-swap').onclick=()=>{if(running)return;ident=null;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
+$('in-cls').focus();
+</script>

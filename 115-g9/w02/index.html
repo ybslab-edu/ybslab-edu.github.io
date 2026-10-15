@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>深夜手搖店：後面的倉庫｜第 2 週</title>
+<title>打王前記得存檔｜第 2 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: 客人說明 → 左「點單牆＋倉庫」、右「單子盒＋順序格」→ 下方「平板／店長＋搖飲師／出餐口」五大單元即時演出；顏色與簡報一致 */
+/* Layout: 任務說明 → 左「RAM＋儲存空間」、右「卡片盒＋慢動作重播」→ 下方「觸控螢幕／CPU／螢幕畫面」五大單元即時演出；顏色與簡報一致 */
 :root{
   --bg:#EDF0F3; --surface:#FFFFFF; --ink:#211B17; --muted:#5D6670; --line:#D3D9E0;
   --mem:#2C67AE; --mem-soft:#E2ECF8;
@@ -141,7 +141,7 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 </style>
 
 <section class="gate" id="gate">
-  <h1>深夜手搖店：後面的倉庫</h1>
+  <h1>打王前記得存檔</h1>
   <p>開始前先填班級和座號，只能填數字。</p>
   <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
   <div class="field"><label for="in-seat">座號</label><input id="in-seat" inputmode="numeric" autocomplete="off" maxlength="2" placeholder="例如 12"><span class="hint">1～60</span></div>
@@ -156,7 +156,7 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 <div class="wrap" id="main" hidden>
   <header>
     <div style="display:flex;flex-direction:column;gap:4px">
-      <h1>深夜手搖店：後面的倉庫</h1>
+      <h1>打王前記得存檔</h1>
       <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button></div>
     </div>
     <div class="tabs" role="tablist" aria-label="等級">
@@ -167,32 +167,32 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
   <div class="rounds" id="rounds"></div>
 
   <section class="order" aria-live="polite">
-    <span class="who">今天的任務：</span><span class="says" id="says"></span>
-    <span class="tip">點下面的卡片，依序放進「店長的順序」，排好按「開始做」。點順序格裡的卡片可以拿回來。</span>
+    <span class="who">任務：</span><span class="says" id="says"></span>
+    <span class="tip">點下面的卡片，依序放進「慢動作重播」，排好按「播放」。點順序格裡的卡片可以拿回來。</span>
   </section>
 
   <div class="grid">
     <div class="col">
       <section class="panel">
-        <div class="ptitle"><h2>點單牆</h2><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">營業中</span><span class="tag t-mem">主記憶體</span></span></div>
-        <div class="sign" id="sign" hidden>門口招牌：<b>「開店第一步：去倉庫把店務系統搬上牆。」</b></div>
+        <div class="ptitle"><h2>RAM：正在玩的地方</h2><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">開機中</span><span class="tag t-mem">主記憶體</span></span></div>
+        <div class="sign" id="sign" hidden>ROM 裡的開機程式：<b>「先從儲存空間載入作業系統。」</b></div>
         <div class="wall" id="wall"></div>
-        <p class="small">牆上的東西拿得很快，但斷電就全部清空。</p>
+        <p class="small">CPU 拿 RAM 裡的東西很快，但一沒電就全部清空。</p>
       </section>
       <section class="panel">
-        <div class="ptitle"><h2>後面的倉庫</h2><span class="tag t-disk">輔助記憶體</span></div>
+        <div class="ptitle"><h2>儲存空間：遊戲住的地方</h2><span class="tag t-disk">輔助記憶體</span></div>
         <div class="disk" id="disk"></div>
-        <p class="small">斷電也不會忘記，但來回一趟要 30 秒。</p>
+        <p class="small">沒電也不會忘記，但每次載入或存檔都要等 3 秒。</p>
       </section>
     </div>
 
     <section class="panel">
-      <div class="ptitle"><h2>單子盒</h2><span class="small">點一張放進下面</span></div>
+      <div class="ptitle"><h2>卡片盒</h2><span class="small">點一張放進下面</span></div>
       <div class="pool" id="pool"></div>
-      <div class="ptitle"><h2>店長的順序</h2></div>
+      <div class="ptitle"><h2>慢動作重播</h2></div>
       <div class="slots" id="slots"></div>
       <div class="btns">
-        <button class="btn primary" id="b-run">開始做</button>
+        <button class="btn primary" id="b-run">播放</button>
         <button class="btn" id="b-clear">全部拿回來</button>
       </div>
     </section>
@@ -200,17 +200,17 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 
   <div class="stage">
     <section class="panel unit inp" id="u-in">
-      <div class="ptitle"><h2>點單平板</h2><span class="tag t-in">輸入</span></div>
+      <div class="ptitle"><h2>觸控螢幕</h2><span class="tag t-in">輸入</span></div>
       <div class="inv" id="inv">—</div>
     </section>
     <section class="panel unit cpu" id="u-cpu">
-      <div class="ptitle"><h2>店長＋搖飲師</h2><span class="tag t-cu">中央處理器</span></div>
-      <div class="say" id="cu-say">等你排好單子。</div>
-      <div class="hand" id="hand"><small>搖飲師手上：</small>空手</div>
-      <div class="clock" id="clock">已花 0 秒</div>
+      <div class="ptitle"><h2>CPU</h2><span class="tag t-cu">中央處理器</span></div>
+      <div class="say" id="cu-say">等你排好順序。</div>
+      <div class="hand" id="hand"><small>正在算：</small>—</div>
+      <div class="clock" id="clock">已等 0 秒</div>
     </section>
     <section class="panel unit outp" id="u-out">
-      <div class="ptitle"><h2>出餐口螢幕</h2><span class="tag t-out">輸出</span></div>
+      <div class="ptitle"><h2>螢幕畫面</h2><span class="tag t-out">輸出</span></div>
       <div class="outv" id="outv">—</div>
     </section>
   </div>
@@ -230,38 +230,38 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 <script src="../../assets/codec.js"></script>
 <script>
 const WEEK=2;
-const APP='點單 App', PROG='（程式）';
-const ord=(drink,qty,price)=>({drink,qty,price});
+const GAME='遊戲', PROG='（程式）', CMD='這次指令';
+const atk=(drink,qty,price)=>({drink,qty,price});   // 打怪指令：怪物、隻數、每隻分數
 
-// 每關：cap 牆的格數、power 一開始有沒有電、setup(t) 依測資產生一開始的牆與倉庫
+// 每關：cap RAM 格數、power 一開始有沒有電、setup(t) 依測資產生一開始的 RAM 與儲存空間
 const ROUNDS=[
- {lv:1,name:'開店第一杯',says:'客人要 2 杯紅茶（每杯 25 元）。可是「點單 App」還放在倉庫裡。',
+ {lv:1,name:'開遊戲',says:'小安要打第一關：打倒 3 隻史萊姆，每隻 20 分。可是遊戲還在儲存空間裡，沒有開。',
   cap:4,power:true,
-  setup:t=>({ram:{},disk:{[APP]:PROG}}),
-  tests:[{order:ord('紅茶',2,25)},{order:ord('綠茶',3,30)}],
-  cards:[{t:'從倉庫把「點單 App」搬上牆',op:'load',f:APP},{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'店長看單，叫搖飲師算出金額',op:'calc'},{t:'把金額送到出餐口螢幕',op:'outacc'}],
+  setup:t=>({ram:{},disk:{[GAME]:PROG}}),
+  tests:[{order:atk('史萊姆',3,20)},{order:atk('哥布林',4,35)}],
+  cards:[{t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME},{t:'小安點螢幕「攻擊」（指令放進 RAM）',op:'input'},{t:'CPU 算出這次拿到幾分',op:'calc'},{t:'把分數顯示在螢幕上',op:'outacc'}],
   sol:[0,1,2,3]},
- {lv:1,name:'打烊不能忘',says:'最後一位客人要 3 杯綠茶（每杯 30 元）。打烊後，明天早上老闆要看到今天一共賺多少。',tip:'拉電閘之後，牆上會怎樣？',
+ {lv:1,name:'打王前存檔',says:'只差打倒 2 隻火龍（每隻 150 分）就破關，可是手機只剩 1% 電，打完一定會沒電。明天開機，要看到最新的進度。',tip:'沒電之後，RAM 會怎樣？',
   cap:4,power:true,
-  setup:t=>({ram:{[APP]:PROG,'今日營業額':t.sales},disk:{[APP]:PROG,'帳本':t.ledger}}),
-  tests:[{order:ord('綠茶',3,30),sales:1200,ledger:980},{order:ord('紅茶',4,25),sales:860,ledger:1010}],
-  cards:[{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'搖飲師把這單的錢加進牆上的「今日營業額」',op:'addTo',c:'今日營業額'},{t:'把牆上的「今日營業額」抄進倉庫的「帳本」',op:'save',src:'今日營業額',dst:'帳本'},{t:'拉電閘打烊',op:'off'},{t:'隔天開店，從倉庫把「帳本」搬上牆',op:'load',f:'帳本',on:true},{t:'把牆上「帳本」的數字給老闆看',op:'outcell',c:'帳本'}],
+  setup:t=>({ram:{[GAME]:PROG,'目前進度':t.sales},disk:{[GAME]:PROG,'存檔':t.ledger}}),
+  tests:[{order:atk('火龍',2,150),sales:1200,ledger:980},{order:atk('寶箱怪',4,25),sales:860,ledger:1010}],
+  cards:[{t:'小安點螢幕「攻擊」（指令放進 RAM）',op:'input'},{t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{t:'把 RAM 的「目前進度」寫進儲存空間的「存檔」',op:'save',src:'目前進度',dst:'存檔'},{t:'手機沒電，關機',op:'off'},{t:'隔天開機，從儲存空間把「存檔」載入 RAM',op:'load',f:'存檔',on:true},{t:'把「存檔」的進度顯示在螢幕上',op:'outcell',c:'存檔'}],
   sol:[0,1,2,3,4,5]},
- {lv:2,name:'牆貼滿了',says:'牆只剩 3 格，已經貼滿。又來一位客人要 2 杯珍奶（每杯 60 元），做完這單，外送平台馬上要用「外送 App」。',tip:'盒子裡有一張用不到的卡。下一位客人還要點單喔。',
+ {lv:2,name:'RAM 滿了',says:'RAM 只有 3 格，已經放滿遊戲、目前進度和 LINE。小安要再打 2 隻骷髏兵（每隻 60 分），打完馬上要回 LINE。',tip:'盒子裡有一張用不到的卡。回完 LINE，小安還要繼續玩。',ramHint:'遊戲被收回儲存空間了，等一下切回來就得重新載入——這就是切回遊戲要等的原因。',
   cap:3,power:true,
-  setup:t=>({ram:{[APP]:PROG,'今日營業額':t.sales,'外送 App':PROG},disk:{[APP]:PROG,'外送 App':PROG}}),
-  tests:[{order:ord('珍奶',2,60),sales:1200},{order:ord('珍奶',3,55),sales:700}],
-  cards:[{t:'把「外送 App」先收回倉庫（空出一格）',op:'unload',f:'外送 App'},{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'搖飲師把這單的錢加進牆上的「今日營業額」',op:'addTo',c:'今日營業額'},{t:'撕掉做完的單子（空出一格）',op:'tear'},{t:'從倉庫把「外送 App」搬回牆上',op:'load',f:'外送 App'},{t:'打開外送 App，開始接外送單',op:'open',f:'外送 App'},{t:'把「點單 App」收回倉庫（空出一格）',op:'unload',f:APP}],
+  setup:t=>({ram:{[GAME]:PROG,'目前進度':t.sales,'LINE':PROG},disk:{[GAME]:PROG,'LINE':PROG}}),
+  tests:[{order:atk('骷髏兵',2,60),sales:1200},{order:atk('骷髏兵',3,55),sales:700}],
+  cards:[{t:'先把「LINE」收回儲存空間（空出一格）',op:'unload',f:'LINE'},{t:'小安點螢幕「攻擊」（指令放進 RAM）',op:'input'},{t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{t:'這次指令做完，從 RAM 清掉（空出一格）',op:'tear'},{t:'從儲存空間把「LINE」載回 RAM',op:'load',f:'LINE'},{t:'打開 LINE 回訊息',op:'open',f:'LINE'},{t:'把「遊戲」收回儲存空間（空出一格）',op:'unload',f:GAME}],
   sol:[0,1,2,3,4,5]},
- {lv:2,name:'從開店到記帳',says:'清晨，店裡一片黑。第一位客人要 2 杯珍奶（每杯 60 元）。從通電開店，一路做到出餐、記帳。',tip:'盒子裡有一張用不到的卡。搖飲師只拿得到牆上的東西。',
+ {lv:2,name:'從開機到存檔',says:'手機關機中。小安要開機、打開遊戲，打倒 1 隻魔王（500 分），看到分數，最後存檔。',tip:'盒子裡有一張用不到的卡。CPU 只拿得到 RAM 裡的東西。',
   cap:4,power:false,boot:true,
-  setup:t=>({ram:{},disk:{'店務系統':PROG,[APP]:PROG,'帳本':t.ledger}}),
-  tests:[{order:ord('珍奶',2,60),ledger:0},{order:ord('紅茶',3,25),ledger:450}],
-  cards:[{t:'通電，店長先讀門口的招牌',op:'boot'},{t:'照招牌指示，從倉庫把「店務系統」搬上牆',op:'load',f:'店務系統',needBoot:true},{t:'從倉庫把「點單 App」搬上牆',op:'load',f:APP,needOS:true},{t:'客人在平板點單（單子貼上牆）',op:'input'},{t:'店長看單，叫搖飲師算出金額，寫回牆上',op:'calc',to:'這單金額'},{t:'把牆上的金額送到出餐口螢幕',op:'outcell',c:'這單金額'},{t:'把這單金額記進倉庫的「帳本」',op:'saveAdd',src:'這單金額',dst:'帳本'},{t:'搖飲師直接到倉庫翻單子算錢',op:'direct'}],
-  sol:[0,1,2,3,4,5,6]}
+  setup:t=>({ram:{},disk:{'作業系統':PROG,[GAME]:PROG,'存檔':t.ledger}}),
+  tests:[{order:atk('魔王',1,500),ledger:0},{order:atk('史萊姆',5,20),ledger:450}],
+  cards:[{t:'按下電源，CPU 先執行 ROM 裡的開機程式',op:'boot'},{t:'照開機程式，從儲存空間把「作業系統」載入 RAM',op:'load',f:'作業系統',needBoot:true},{t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,needOS:true},{t:'小安點螢幕「攻擊」（指令放進 RAM）',op:'input'},{t:'CPU 算出這次拿到幾分，寫回 RAM',op:'calc',to:'這次分數'},{t:'把 RAM 的「這次分數」顯示在螢幕上',op:'outcell',c:'這次分數'},{t:'把「這次分數」加進儲存空間的「存檔」',op:'saveAdd',src:'這次分數',dst:'存檔'},{t:'CPU 直接到儲存空間拿資料來算',op:'direct'}],
+  sol:[0,1,2,3,4,5,6],hdd:true}
 ];
 
-const DISK_T=30, WALL_T=1;
+const DISK_T=3, WALL_T=0;
 let level=1, ri=0, slots=[], order=[], running=false;
 const done=new Set();
 const $=id=>document.getElementById(id);
@@ -274,7 +274,7 @@ function shuffle(n){
   return a;
 }
 
-// 牆：固定格數，東西貼在第一個空格
+// RAM：固定格數，東西放進第一個空格
 function mkWall(cap,obj){const w=Array(cap).fill(null);Object.entries(obj).forEach(([k,v],i)=>w[i]={k,v});return w}
 const find=(w,k)=>w.findIndex(c=>c&&c.k===k);
 const has=(w,k)=>find(w,k)>=0;
@@ -286,84 +286,84 @@ const wallObj=w=>Object.fromEntries(w.filter(Boolean).map(c=>[c.k,c.v]));
 // 照順序跑一遍：回傳每一步的畫面和最後狀態
 function run(seq,t,R=ROUNDS[ri]){
   const s0=R.setup(t);
-  const st={power:R.power,booted:R.power,wall:mkWall(R.cap,s0.ram),disk:{...s0.disk},acc:null,outs:[],time:0,diskTime:0};
+  const st={power:R.power,booted:R.power,wall:mkWall(R.cap,s0.ram),disk:{...s0.disk},acc:null,outs:[],time:0,diskTime:0,opened:null};
   const steps=[]; let err=null;
   const snap=x=>({...x,wall:st.wall.map(c=>c&&{...c}),disk:{...st.disk},power:st.power,hand:st.acc,time:st.time});
   const fail=(k,msg)=>{err={k,msg};steps.push(snap({k,cu:msg,bad:true}))};
-  const full='牆貼滿了，沒有空格可以貼！';
+  const full='RAM 滿了，沒有空格可以放！';
+  const wait=()=>{st.time+=DISK_T;st.diskTime+=DISK_T};
   for(const k of seq){
     const cd=R.cards[k]; let x={k};
-    const needPower=()=>{if(!st.power){fail(k,'店裡沒電，牆用不了，什麼都做不了！');return false}return true};
+    const needPower=()=>{if(!st.power){fail(k,'手機沒電，什麼都做不了！');return false}return true};
     if(cd.op==='load'){
       if(cd.on&&!st.power){st.power=true;st.booted=true;x.lightOn=true}
       if(!needPower())break;
-      if(cd.needBoot&&!st.booted){fail(k,'還沒讀招牌，店長不知道開店要先搬什麼！');break}
-      if(cd.needOS&&!has(st.wall,'店務系統')){fail(k,'牆上還沒有「店務系統」，沒人知道怎麼打開 App！');break}
-      if(!(cd.f in st.disk)){fail(k,'倉庫裡找不到「'+cd.f+'」！');break}
+      if(cd.needBoot&&!st.booted){fail(k,'還沒執行開機程式，CPU 不知道要先載入什麼！');break}
+      if(cd.needOS&&!has(st.wall,'作業系統')){fail(k,'RAM 裡還沒有作業系統，沒有人幫你打開遊戲！');break}
+      if(!(cd.f in st.disk)){fail(k,'儲存空間裡找不到「'+cd.f+'」！');break}
       const i=put(st.wall,cd.f,st.disk[cd.f]);
       if(i<0){fail(k,full);break}
-      st.time+=DISK_T;st.diskTime+=DISK_T;
-      x.cu=(cd.on?'隔天開店、通電。':'')+'派人跑去倉庫，把「'+cd.f+'」搬來貼在 '+pad(i)+' 號格（跑一趟 30 秒）。';x.cell=i;x.file=cd.f;
+      wait();
+      x.cu=(cd.on?'隔天開機。':'')+'從儲存空間把「'+cd.f+'」載入 RAM 的 '+pad(i)+' 號格。載入中……等了 3 秒。';x.cell=i;x.file=cd.f;
     }else if(cd.op==='unload'){
       if(!needPower())break;
-      if(!has(st.wall,cd.f)){fail(k,'牆上沒有「'+cd.f+'」可以收！');break}
+      if(!has(st.wall,cd.f)){fail(k,'RAM 裡沒有「'+cd.f+'」可以收！');break}
       st.disk[cd.f]=get(st.wall,cd.f);const i=del(st.wall,cd.f);
-      st.time+=DISK_T;st.diskTime+=DISK_T;
-      x.cu='把「'+cd.f+'」收回倉庫，'+pad(i)+' 號格空出來了（跑一趟 30 秒）。';x.cell=i;x.file=cd.f;
-      if(st.opened===cd.f){st.opened=null;st.outs.push('外送中斷');x.out='外送中斷';x.cu+='外送才剛開就被收走，外送中斷了！'}
+      wait();
+      x.cu='把「'+cd.f+'」收回儲存空間，'+pad(i)+' 號格空出來了（等了 3 秒）。';x.cell=i;x.file=cd.f;
+      if(st.opened===cd.f){st.opened=null;st.outs.push(cd.f+' 被關掉');x.out=cd.f+' 被關掉';x.cu+='才剛打開就被收走了！'}
     }else if(cd.op==='input'){
       if(!needPower())break;
-      if(!has(st.wall,APP)){fail(k,'牆上沒有「點單 App」，平板打不開，客人沒辦法點單！');break}
-      const i=put(st.wall,'單子',t.order);
-      if(i<0){fail(k,full);break}
-      st.time+=WALL_T;x.cu='客人在平板按了送出，單子貼到 '+pad(i)+' 號格。';x.cell=i;x.inp=fmtv(t.order);
+      if(!has(st.wall,GAME)){fail(k,'RAM 裡沒有遊戲，點了螢幕也沒反應！');break}
+      const i=put(st.wall,CMD,t.order);
+      if(i<0){fail(k,'小安點了螢幕，可是'+full);break}
+      x.cu='小安點了螢幕，指令放進 RAM 的 '+pad(i)+' 號格。';x.cell=i;x.inp='攻擊：'+fmtv(t.order);
     }else if(cd.op==='calc'){
       if(!needPower())break;
-      if(!has(st.wall,APP)){fail(k,'牆上沒有「點單 App」，店長不知道價錢怎麼算！');break}
-      if(!has(st.wall,'單子')){fail(k,'牆上還沒有單子，不知道要算什麼！');break}
-      const o=get(st.wall,'單子');st.acc=o.price*o.qty;
-      x.alu=o.price+' × '+o.qty+' = '+st.acc;x.cu='店長看懂單子，叫搖飲師算。';x.cell=find(st.wall,'單子');
+      if(!has(st.wall,GAME)){fail(k,'RAM 裡沒有遊戲，CPU 不知道分數怎麼算！');break}
+      if(!has(st.wall,CMD)){fail(k,'RAM 裡還沒有指令，CPU 不知道要算什麼！');break}
+      const o=get(st.wall,CMD);st.acc=o.price*o.qty;
+      x.alu=o.price+' × '+o.qty+' = '+st.acc;x.cu='CPU 讀懂指令，開始計算。';x.cell=find(st.wall,CMD);
       if(cd.to){const i=put(st.wall,cd.to,st.acc);if(i<0){fail(k,'算好了，可是'+full);break}x.cu+='算好寫回 '+pad(i)+' 號格。';x.cell=i}
-      st.time+=WALL_T;
     }else if(cd.op==='addTo'){
       if(!needPower())break;
-      if(!has(st.wall,'單子')){fail(k,'牆上還沒有單子，不知道要加多少！');break}
-      if(!has(st.wall,cd.c)){fail(k,'牆上沒有「'+cd.c+'」，加不進去！');break}
-      const o=get(st.wall,'單子'),a=get(st.wall,cd.c),v=a+o.price*o.qty;
-      put(st.wall,cd.c,v);st.acc=v;st.time+=WALL_T;
-      x.alu=a+' + '+o.price+' × '+o.qty+' = '+v;x.cu='叫搖飲師把這單的錢加進「'+cd.c+'」。';x.cell=find(st.wall,cd.c);
+      if(!has(st.wall,CMD)){fail(k,'RAM 裡還沒有指令，不知道要加多少！');break}
+      if(!has(st.wall,cd.c)){fail(k,'RAM 裡沒有「'+cd.c+'」，加不進去！');break}
+      const o=get(st.wall,CMD),a=get(st.wall,cd.c),v=a+o.price*o.qty;
+      put(st.wall,cd.c,v);st.acc=v;
+      x.alu=a+' + '+o.price+' × '+o.qty+' = '+v;x.cu='CPU 把這次的分數加進「'+cd.c+'」。';x.cell=find(st.wall,cd.c);
     }else if(cd.op==='tear'){
       if(!needPower())break;
-      if(!has(st.wall,'單子')){fail(k,'牆上沒有單子可以撕！');break}
-      const i=del(st.wall,'單子');st.time+=WALL_T;x.cu='做完的單子撕掉，'+pad(i)+' 號格空出來了。';x.cell=i;
+      if(!has(st.wall,CMD)){fail(k,'RAM 裡沒有指令可以清！');break}
+      const i=del(st.wall,CMD);x.cu='這次指令做完了，'+pad(i)+' 號格清空。';x.cell=i;
     }else if(cd.op==='save'||cd.op==='saveAdd'){
-      if(!needPower())break;
-      if(!has(st.wall,cd.src)){fail(k,'牆上沒有「'+cd.src+'」，沒東西可以存！');break}
+      if(!st.power){fail(k,'手機已經沒電，RAM 裡的進度都清空了，來不及存檔！');break}
+      if(!has(st.wall,cd.src)){fail(k,'RAM 裡沒有「'+cd.src+'」，沒東西可以存！');break}
       const v=get(st.wall,cd.src);
       st.disk[cd.dst]=cd.op==='save'?v:(st.disk[cd.dst]||0)+v;
-      st.time+=DISK_T;st.diskTime+=DISK_T;
-      x.cu=cd.op==='save'?'把 '+v+' 抄進倉庫的「'+cd.dst+'」（跑一趟 30 秒）。':'把 '+v+' 加進倉庫的「'+cd.dst+'」，變成 '+st.disk[cd.dst]+'（跑一趟 30 秒）。';
+      wait();
+      x.cu=cd.op==='save'?'把 '+v+' 寫進儲存空間的「'+cd.dst+'」。存檔中……等了 3 秒。':'把 '+v+' 加進儲存空間的「'+cd.dst+'」，變成 '+st.disk[cd.dst]+'。存檔中……等了 3 秒。';
       x.cell=find(st.wall,cd.src);x.file=cd.dst;
     }else if(cd.op==='off'){
-      st.power=false;st.booted=false;st.wall=st.wall.map(()=>null);st.acc=null;st.time+=WALL_T;
-      x.cu='拉下電閘，打烊。牆上的東西全部清空，倉庫的東西還在。';x.lightOff=true;
+      st.power=false;st.booted=false;st.wall=st.wall.map(()=>null);st.acc=null;st.opened=null;
+      x.cu='手機沒電，關機了。RAM 全部清空，儲存空間的東西還在。';
     }else if(cd.op==='boot'){
-      st.power=true;st.booted=true;st.time+=WALL_T;
-      x.cu='通電！店長先讀門口招牌：「開店第一步：去倉庫把店務系統搬上牆。」';x.lightOn=true;
+      st.power=true;st.booted=true;
+      x.cu='按下電源！CPU 先執行 ROM 裡的開機程式：「先從儲存空間載入作業系統。」';
     }else if(cd.op==='outacc'){
       if(!needPower())break;
-      if(st.acc==null){fail(k,'搖飲師手上沒有數字，沒東西可以送！');break}
-      st.outs.push(st.acc);st.time+=WALL_T;x.cu='把金額送到出餐口。';x.out=st.acc+' 元';
+      if(st.acc==null){fail(k,'CPU 還沒算出東西，沒東西可以顯示！');break}
+      st.outs.push(st.acc);x.cu='把分數送到螢幕。';x.out=st.acc+' 分';
     }else if(cd.op==='outcell'){
       if(!needPower())break;
-      if(!has(st.wall,cd.c)){fail(k,'牆上沒有「'+cd.c+'」，沒東西可以給人看！');break}
-      const v=get(st.wall,cd.c);st.outs.push(v);st.time+=WALL_T;x.cu='把「'+cd.c+'」的數字送到螢幕。';x.out=v+' 元';x.cell=find(st.wall,cd.c);
+      if(!has(st.wall,cd.c)){fail(k,'RAM 裡沒有「'+cd.c+'」，沒東西可以顯示！');break}
+      const v=get(st.wall,cd.c);st.outs.push(v);x.cu='把「'+cd.c+'」送到螢幕。';x.out=v+' 分';x.cell=find(st.wall,cd.c);
     }else if(cd.op==='open'){
       if(!needPower())break;
-      if(!has(st.wall,cd.f)){fail(k,'牆上沒有「'+cd.f+'」，打不開！');break}
-      st.outs.push('外送接單中');st.opened=cd.f;st.time+=WALL_T;x.cu='外送 App 開好了。';x.out='外送接單中';x.cell=find(st.wall,cd.f);
+      if(!has(st.wall,cd.f)){fail(k,'RAM 裡沒有「'+cd.f+'」，打不開！');break}
+      st.outs.push(cd.f+' 打開了');st.opened=cd.f;x.cu=cd.f+' 打開了，可以回訊息。';x.out=cd.f+' 打開了';x.cell=find(st.wall,cd.f);
     }else if(cd.op==='direct'){
-      fail(k,'搖飲師跑去倉庫翻半天：倉庫的東西不能直接拿來算，要先搬上牆！');break;
+      fail(k,'CPU 不能直接用儲存空間裡的東西，要先載入 RAM 才拿得到！');break;
     }
     steps.push(snap(x));
   }
@@ -378,7 +378,7 @@ function renderRounds(){
 function renderMem(v,hitCell,hitFile){
   $('wall').innerHTML=v.wall.map((c,i)=>'<div class="cell'+(i===hitCell?' hit':'')+'"><span class="addr">#'+pad(i)+'</span>'+(c?'<span class="lab">'+c.k+'</span><span class="val'+(c.v===PROG?' prog':'')+'">'+fmtv(c.v)+'</span>':'<span class="lab">（空格）</span>')+'</div>').join('');
   $('wall').classList.toggle('dark',!v.power);
-  $('light').textContent=v.power?'營業中':'斷電';$('light').classList.toggle('off',!v.power);
+  $('light').textContent=v.power?'開機中':'關機';$('light').classList.toggle('off',!v.power);
   $('disk').innerHTML=Object.entries(v.disk).map(([k,x])=>'<div class="file'+(k===hitFile?' hit':'')+'"><span>'+k+'</span><span class="fv'+(x===PROG?' prog':'')+'">'+(x===PROG?'程式':x)+'</span></div>').join('');
 }
 function startView(){const R=ROUNDS[ri],s=R.setup(R.tests[0]);return {wall:mkWall(R.cap,s.ram),disk:s.disk,power:R.power}}
@@ -398,10 +398,10 @@ function renderCards(now,bad){
   $('b-clear').disabled=running||!slots.length;
 }
 
-function setHand(v){$('hand').innerHTML='<small>搖飲師手上：</small>'+(v==null?'空手':v)}
+function setHand(v){$('hand').innerHTML='<small>正在算：</small>'+(v==null?'—':v)}
 function resetStage(){
   ['u-in','u-cpu','u-out'].forEach(id=>$(id).classList.remove('on'));
-  $('cu-say').textContent='等你排好單子。';setHand(null);$('clock').textContent='已花 0 秒';
+  $('cu-say').textContent='等你排好順序。';setHand(null);$('clock').textContent='已等 0 秒';
   $('inv').textContent='—';$('outv').textContent='—';$('verdict').hidden=true;
   renderMem(startView());
 }
@@ -431,7 +431,7 @@ async function play(){
     if(s.inp){$('u-in').classList.add('on');$('inv').textContent=s.inp}
     setHand(s.alu||s.hand);
     if(s.out){$('u-out').classList.add('on');$('outv').textContent=s.out}
-    $('clock').textContent='已花 '+s.time+' 秒';
+    $('clock').textContent='已等 '+s.time+' 秒';
     await wait(T);
   }
   verdict(res);
@@ -440,15 +440,15 @@ async function play(){
 
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const sortObj=o=>Object.fromEntries(Object.entries(o).sort(([a],[b])=>a<b?-1:1));
-const fmtOuts=o=>o.length?o.map(x=>typeof x==='number'?x+' 元':x).join('、'):'什麼都沒有';
+const fmtOuts=o=>o.length?o.map(x=>typeof x==='number'?x+' 分':x).join('、'):'什麼都沒有';
 const fmtWall=o=>Object.keys(o).length?Object.entries(o).map(([k,v])=>k+(v===PROG?'':'（'+fmtv(v)+'）')).join('、'):'空的';
 function diff(got,exp){
   if(!same(got.outs,exp.outs))return '螢幕應該出現 '+fmtOuts(exp.outs)+'，你的順序出現 '+fmtOuts(got.outs)+'。';
   if(!same(sortObj(got.disk),sortObj(exp.disk))){
     const k=Object.keys(exp.disk).find(k=>got.disk[k]!==exp.disk[k]);
-    return '倉庫的「'+k+'」最後應該是 '+fmtv(exp.disk[k])+'，你的是 '+fmtv(got.disk[k])+'。';
+    return '儲存空間的「'+k+'」最後應該是 '+fmtv(exp.disk[k])+'，你的是 '+fmtv(got.disk[k])+'。';
   }
-  if(!same(sortObj(got.ram),sortObj(exp.ram)))return '最後牆上應該是：'+fmtWall(exp.ram)+'；你的牆上是：'+fmtWall(got.ram)+'。';
+  if(!same(sortObj(got.ram),sortObj(exp.ram)))return '最後 RAM 裡應該是：'+fmtWall(exp.ram)+'；你的 RAM 是：'+fmtWall(got.ram)+'。';
   return null;
 }
 function verdict(res){
@@ -459,15 +459,17 @@ function verdict(res){
   }else{
     const e1=run(R.sol,R.tests[0]), d1=diff(res,e1);
     const t2=R.tests[1], g2=run(slots,t2), e2=run(R.sol,t2), d2=g2.err?'第 '+g2.steps.length+' 步卡住了：'+g2.err.msg:diff(g2,e2);
-    if(d1) h='<h3>老闆說：「不對吧？」</h3><p>'+d1+'看看是哪一步開始不對，調整順序再試一次。</p>';
-    else if(d2) h='<h3>差一點！</h3><p>這次剛好對了，但換一位客人（'+fmtv(t2.order)+'）就錯：'+d2+'</p>';
+    const hint=d=>R.ramHint&&d&&d.startsWith('最後 RAM')&&!run(slots,R.tests[0]).ram[GAME]?R.ramHint:'';
+    if(d1) h='<h3>小安說：「怪怪的……」</h3><p>'+d1+hint(d1)+'看看是哪一步開始不對，調整順序再試一次。</p>';
+    else if(d2) h='<h3>差一點！</h3><p>這次剛好對了，但換一個情況（'+fmtv(t2.order)+'）就錯：'+d2+'</p>';
     else ok=true;
     if(ok){
       done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg();
-      h='<h3>過關！</h3><p>螢幕：'+fmtOuts(res.outs)+'。換另一位客人（'+fmtv(t2.order)+'）也對：'+fmtOuts(g2.outs)+'。</p>'+
-        '<p>這一輪花了 '+res.time+' 秒，其中 '+res.diskTime+' 秒在跑倉庫。真正的電腦裡，倉庫比牆慢上千倍以上，所以東西要先搬上牆才拿來用。</p>';
+      h='<h3>過關！</h3><p>螢幕：'+fmtOuts(res.outs)+'。換一個情況（'+fmtv(t2.order)+'）也對：'+fmtOuts(g2.outs)+'。</p>'+
+        '<p>這一輪一共等了 '+res.time+' 秒，全部花在儲存空間的載入和存檔；RAM 和 CPU 裡的動作幾乎不用等。</p>'+
+        (R.hdd?'<p>如果儲存空間是舊式硬碟（HDD），同樣的載入要慢好幾倍——這就是換一顆新硬碟（SSD），開機就快很多的原因。</p>':'');
       const next=ROUNDS.findIndex((r,i)=>i>ri&&r.lv===level);
-      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成！一張單子從倉庫到出餐口的完整旅程，你都走過了。</strong></p>'))+'</div>';
+      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':'<p><strong>全部完成！從開機、載入、計算到存檔，你都慢動作看過一遍了。</strong></p>'))+'</div>';
       renderRounds();
       v.className='verdict ok';v.innerHTML=h;v.hidden=false;
       if($('b-next'))$('b-next').onclick=()=>load(next);

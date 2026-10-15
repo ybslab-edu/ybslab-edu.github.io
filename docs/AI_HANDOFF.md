@@ -11,6 +11,7 @@
 - 另一個專案 **ClassScore**（`hs202864-art/class-score`）有自己的交接檔，不在這裡處理。
 
 ## 2. 網站結構重點
+- 頁面：`index.html`＝學期進度（首頁）、`map/`＝課綱學習地圖、`about/`＝關於。舊的 `/#S-IV-2` 連結會轉到 `map/#S-IV-2`。
 - `assets/activities.js`：全站唯一活動登記處。`week`＝該課程第幾個活動（成績碼用，須等於活動頁 `WEEK`）；畫面上的學期週次由 `date` 算（`termWeekOf`、`termWeekLabel`）；`also` 可列重複上課日期。
 - `assets/curriculum.js`：COURSES（`115-g9` 九年級必修、`115-df` 數理資優班專題研究，七、八年級）與 TERMS。
 - `assets/codec.js`：16 字元成績碼，**不要改**。

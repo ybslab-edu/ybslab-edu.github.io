@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>燈牌只有亮和暗｜第 11 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+/* 第 11 週：二進位。燈牌＝一排燈泡，每顆只有亮（1）和暗（0） */
+.board{background:#15131c;border-radius:16px;padding:18px 14px;display:flex;justify-content:center;gap:clamp(6px,1.6vw,16px);flex-wrap:nowrap;overflow-x:auto}
+.bulb{flex:none;display:flex;flex-direction:column;align-items:center;gap:8px}
+.bulb button{width:clamp(34px,8vw,58px);aspect-ratio:1;border-radius:50%;border:3px solid #4a4658;background:#2a2735;cursor:pointer;transition:background .15s,box-shadow .15s}
+.bulb button[aria-pressed="true"]{background:#FFD447;border-color:#FFE58A;box-shadow:0 0 18px 4px rgba(255,212,71,.55)}
+.bulb button:disabled{cursor:default}
+.bulb span{font-family:var(--f-mono);font-size:clamp(12px,2.6vw,16px);font-weight:700;color:#d8d2e6;min-height:1.3em}
+.bits{font-family:var(--f-mono);font-size:26px;font-weight:700;letter-spacing:.2em;color:var(--a)}
+.sum{font-family:var(--f-mono);font-size:18px;color:var(--ink)}
+.target{font-size:20px}
+.target b{font-family:var(--f-mono);font-size:34px;color:var(--b)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261015d"></script>
+<script src="../../assets/shell.js?v=1"></script>
+<script>
+const toBits=(v,n)=>v.toString(2).padStart(n,'0').split('').map(Number);
+const val=b=>b.reduce((s,x)=>s*2+x,0);
+// 燈牌元件：n 顆燈，labels 決定燈下面要不要寫數值，locked 時不能點
+function BOARD(el,n,{labels=true,locked=false,init=null},api){
+  const b=init?[...init]:Array(n).fill(0);
+  el.insertAdjacentHTML('beforeend','<div class="board" role="group" aria-label="燈牌，'+n+' 顆燈">'+b.map((x,i)=>'<div class="bulb"><button type="button" data-k="'+i+'" aria-pressed="'+!!x+'" aria-label="第 '+(i+1)+' 顆燈'+(labels?'，代表 '+2**(n-1-i):'')+'"'+(locked?' disabled':'')+'></button><span>'+(labels?2**(n-1-i):'')+'</span></div>').join('')+'</div>');
+  const sync=()=>el.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',!!b[+x.dataset.k]));
+  if(!locked)el.querySelectorAll('[data-k]').forEach(x=>x.onclick=()=>{b[+x.dataset.k]^=1;sync();api&&api.changed()});
+  return {get:()=>[...b],set:a=>{a.forEach((v,i)=>b[i]=v);sync()}};
+}
+const sumText=b=>{const n=b.length,parts=b.map((x,i)=>x?2**(n-1-i):0).filter(Boolean);return parts.length?parts.join(' + ')+' = '+val(b):'全部暗 = 0'};
+const peekBits=(b,withSum)=>'<section class="panel"><div class="ptitle"><h3>燈牌存的其實是這串 0 和 1</h3><span class="tag">二進位</span></div><div class="bits">'+b.join('')+'</div>'+(withSum?'<div class="sum">'+sumText(b)+'</div>':'')+'<p class="small">亮＝1、暗＝0，一顆燈就是一個位元。最右邊代表 1，往左每一顆都是右邊的 2 倍。</p></section>';
+
+const BDAY=[['阿晴',3],['莓莓',14],['米米',22],['柚柚',9],['海海',27],['小葡',18],['阿晴',30],['米米',11],['海海',6],['小葡',25],['柚柚',21],['莓莓',13]];
+const ROUNDS=[
+ {lv:1,name:'點亮生日',
+  now:i=>'後援會做了一塊 5 顆燈的燈牌，每顆燈下面寫著它代表的數字。跨年那天剛好有成員要慶生。',
+  goal:i=>'把燈點亮，拼出'+i.who+'的生日 <b style="font-family:var(--f-mono);font-size:1.3em;color:var(--b)">'+i.t+'</b> 號。',
+  tip:'亮的燈代表的數字加起來，就是燈牌顯示的數字。',
+  learn:'燈牌只有亮和暗，也能表示 0～31：每顆燈代表 16、8、4、2、1，亮的加起來就是答案。只用 0 和 1 表示數字，叫做二進位。',
+  gen(rnd){const [who,t]=PICK(rnd,BDAY);return {who,t}},
+  view(inst,el,api){const h=BOARD(el,5,{},api);return {get:h.get,fill:()=>h.set(toBits(inst.t,5))}},
+  check(inst,b){const v=val(b);return v===inst.t?true:'燈牌現在是 '+v+'，'+(v>inst.t?'太大了':'還不夠')+'。看第 3 部分的加法，再調一調。'},
+  peek:(i,b)=>peekBits(b,true)},
+
+ {lv:1,name:'看燈猜數字',
+  now:'對面看台的粉絲也舉了一塊燈牌，6 顆燈，下面有寫數字。',
+  goal:'看亮著的燈，算出燈牌上是幾。',
+  tip:'只加亮著的燈下面的數字。',
+  learn:'把亮的燈代表的數字加起來，就能把二進位換成平常用的十進位。例如 101010 ＝ 32 + 8 + 2 ＝ 42。',
+  gen(rnd){let t;do{t=RINT(rnd,5,63)}while(toBits(t,6).filter(Boolean).length<3);return {t}},
+  view(inst,el,api){
+    BOARD(el,6,{locked:true,init:toBits(inst.t,6)});
+    el.insertAdjacentHTML('beforeend','<label style="display:flex;gap:10px;align-items:center;font-size:18px;margin-top:12px;flex-wrap:wrap">燈牌上的數字是 <input class="num-in" id="n-v" inputmode="numeric" autocomplete="off"></label>');
+    const inp=el.querySelector('#n-v');inp.oninput=()=>{inp.value=inp.value.replace(/\D/g,'');api.changed()};
+    return {get:()=>inp.value===''?null:+inp.value,fill:()=>{inp.value=inst.t},ready:()=>inp.value!==''};
+  },
+  check(inst,v){return v===inst.t?true:'不對喔。把亮著的燈下面的數字一個一個加起來，暗的不要加。'},
+  peek:i=>peekBits(toBits(i.t,6),false)},
+
+ {lv:2,name:'沒有標數字的燈牌',
+  now:'跨年夜的大燈牌有 8 顆燈，這次燈下面沒有寫數字。',
+  goal:i=>'拼出 <b style="font-family:var(--f-mono);font-size:1.3em;color:var(--b)">'+i.t+'</b>（'+i.why+'）。',
+  tip:'最右邊的燈代表 1，往左每一顆是右邊的 2 倍。從最大的那顆開始想：放得下就點亮，再看剩多少。',
+  learn:'十進位換二進位：從最大的位值開始，放得下就是 1、扣掉；放不下就是 0。8 顆燈（8 位元）最多能表示 0～255，這就是 1 個位元組。',
+  gen(rnd){return PICK(rnd,[{t:RINT(rnd,100,255),why:'跨年場的座位區號碼'},{t:RINT(rnd,60,200),why:'今年的應援場次'},{t:RINT(rnd,128,255),why:'燈牌上的倒數秒數'}])},
+  view(inst,el,api){const h=BOARD(el,8,{labels:false},api);return {get:h.get,fill:()=>h.set(toBits(inst.t,8))}},
+  check(inst,b){const v=val(b);return v===inst.t?true:'燈牌現在是 '+v+'，'+(v>inst.t?'太大了':'還不夠')+'。最左邊那顆代表 128，右邊每一顆減半。'},
+  peek:(i,b)=>peekBits(b,false)},
+
+ {lv:2,name:'要幾顆燈才夠',
+  now:i=>'後援會要做一塊新燈牌，用來顯示'+i.what+'，最大會到 '+i.n+'。',
+  goal:'最少要幾顆燈才夠？用這麼多顆燈，最大能顯示到多少？',
+  tip:'1 顆燈最大 1、2 顆最大 3、3 顆最大 7……每多一顆，能表示的數量就加倍。',
+  learn:'n 顆燈（n 個位元）能表示 2ⁿ 種狀態，最大是 2ⁿ − 1。燈太少放不下，太多又浪費：資料要用幾個位元，就是這樣算出來的。',
+  gen(rnd){let n;do{n=RINT(rnd,9,999)}while(Number.isInteger(Math.log2(n+1)));const b=Math.ceil(Math.log2(n+1));return {n,b,max:2**b-1,what:PICK(rnd,['跨年倒數的秒數','排隊的號碼牌','應援棒的編號','座位號碼'])}},
+  view(inst,el,api){
+    el.insertAdjacentHTML('beforeend','<div class="rows"><div class="row"><div class="q">最少要幾顆燈？</div><input class="num-in" id="n-b" inputmode="numeric" autocomplete="off"></div><div class="row"><div class="q">用這麼多顆燈，最大能顯示到？</div><input class="num-in" id="n-m" inputmode="numeric" autocomplete="off"></div></div>');
+    const a=el.querySelector('#n-b'),m=el.querySelector('#n-m');[a,m].forEach(x=>x.oninput=()=>{x.value=x.value.replace(/\D/g,'');api.changed()});
+    return {get:()=>({b:+a.value,m:+m.value}),fill:()=>{a.value=inst.b;m.value=inst.max},ready:()=>a.value!==''&&m.value!==''};
+  },
+  check(inst,a){
+    if(a.b<inst.b)return a.b+' 顆燈最大只能到 '+(2**a.b-1)+'，放不下 '+inst.n+'。';
+    if(a.b>inst.b)return a.b+' 顆燈夠用，但還能更少。';
+    if(a.m!==inst.max)return '燈的數量對了！最大值再算一次：全部點亮時，每顆代表的數字加起來是多少？';
+    return true;
+  },
+  peek:i=>'<section class="panel"><div class="ptitle"><h3>燈越多，能表示的數字越多</h3></div><div class="sum">'+[1,2,3].map(k=>k+' 顆 → 0～'+(2**k-1)).join('<br>')+'<br>……</div><p class="small">每多一顆燈，能表示的數量就加倍。</p></section>'}
+];
+const APP=SHELL({week:5,termWeek:11,title:'燈牌只有亮和暗',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！數字可以用 0 和 1 存，那文字呢？下一站：傳給阿嬤的方塊。'});
+</script>
+</body>
+</html>

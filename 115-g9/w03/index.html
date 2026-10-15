@@ -159,6 +159,12 @@ body.showorig .frame .orig{opacity:1}
 .g-me{margin:0;text-align:center;color:var(--ink)!important;font-size:15px}
 .sync{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
 .sync.ok{color:var(--out);border-color:var(--out)} .sync.warn{color:var(--warn);border-color:var(--warn)}
+.unit{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.unit a,.unit span{flex:none;display:flex;flex-direction:column;text-decoration:none;color:var(--muted);font-size:13px;line-height:1.35;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.unit b{font-size:14px;color:var(--ink);font-weight:500}
+.unit .now{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.unit .now b{color:var(--bg);font-weight:700}
+.unit .lbl{border:0;background:transparent;justify-content:center;font-weight:700;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -207,6 +213,7 @@ body.showorig .frame .orig{opacity:1}
       <button id="tab-2" role="tab" aria-selected="false">進階關</button>
     </div>
   </header>
+  <nav class="unit" id="unit" aria-label="本單元進度" hidden></nav>
   <div class="rounds" id="rounds"></div>
 
   <section class="sec">
@@ -280,8 +287,14 @@ body.showorig .frame .orig{opacity:1}
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js"></script>
 <script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261015d"></script>
 <script>
 const WEEK=3, TERM_WEEK=9, TITLE='看台最後一排', COURSE='115-g9';
+// 單元進度條（和第 2 單元其他週的活動頁一樣）
+(()=>{const list=ACTIVITIES.filter(a=>a.course===COURSE&&a.unit===2).sort((a,b)=>a.date.localeCompare(b.date));if(list.length<2)return;
+  const el=document.getElementById('unit');el.hidden=false;
+  el.innerHTML='<span class="lbl">第 2 單元</span>'+list.map(a=>{const w=termWeekOf(a),now=a.week===WEEK;return (now?'<span class="now" aria-current="page">':'<a href="../../'+a.href+'">')+'<b>'+a.title+'</b>第 '+w+' 週'+(a.track==='選修'?'・選修':'')+(now?'</span>':'</a>')}).join('')})();
 
 // ===== 照片產生器：全部用程式畫，不用真人照片 =====
 // 偶像團體「六連星」：每人一個應援色。顏色兩兩相近（紅／酒紅、黃／橘、藍／紫），只有 8 色時會被併成同一色，64 色才分得開。

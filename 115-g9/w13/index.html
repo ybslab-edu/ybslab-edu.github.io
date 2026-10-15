@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>短影音怎麼猜中我｜第 19 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+/* 第 19 週：網路服務、推薦、物聯網。觀看紀錄模仿短影音 App 的紀錄頁 */
+.hist{display:flex;flex-direction:column;gap:6px}
+.hist .v{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:16px;flex-wrap:wrap}
+.hist .st{font-weight:700;border-radius:999px;padding:1px 10px;font-size:14px;flex:none}
+.hist .st.y{background:var(--out-soft);color:var(--out)}.hist .st.n{background:var(--warn-soft);color:var(--warn)}
+.tagx{display:inline-block;background:var(--cu-soft);color:var(--cu);border-radius:6px;padding:0 6px;margin-right:4px;font-size:14px}
+.cand{display:flex;flex-direction:column;gap:4px;text-align:left}
+.score{display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:15px;justify-content:start}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261015e"></script>
+<script src="../../assets/shell.js?v=1"></script>
+<script>
+const KIND=['通訊','社群','娛樂','消費'];
+const SVC=[
+ ['跟馬祖的小澄開視訊會議',0],['寄電子郵件給活動中心問租借',0],['用通訊軟體傳訊息給幹部',0],['用網路電話打給東京的粉絲',0],
+ ['在社群平台發跨年心得，大家按讚留言',1],['追蹤六連星的官方帳號',1],['加入粉絲社團，跟大家討論新歌',1],['在論壇發文徵求一起去演唱會的人',1],
+ ['用串流平台重看跨年演唱會',2],['睡前刷短影音',2],['跟朋友線上組隊打遊戲',2],['用音樂 App 聽六連星新歌',2],
+ ['網購應援毛巾',3],['用 App 搶加場的票',3],['用行動支付買飲料',3],['網路訂票、訂餐廳',3]];
+const TAGS=['六連星','舞蹈','貓咪','搞笑','美食','遊戲','籃球','化妝','旅行','科學'];
+const TITLE={'六連星':['六連星後台花絮','六連星新歌舞蹈','米米生日直播精華','六連星跨年安可'],'舞蹈':['十秒學會副歌舞','街舞挑戰'],'貓咪':['貓咪搶鏡頭','橘貓睡姿大賞'],'搞笑':['班上整人大成功','爆笑翻車集'],'美食':['夜市十元美食','三分鐘做蛋餅'],'遊戲':['手遊神操作','新角色實測'],'籃球':['NBA 本週十大好球','三分球挑戰'],'化妝':['五分鐘上學妝','應援妝教學'],'旅行':['馬祖藍眼淚','東京一日遊'],'科學':['為什麼天空是藍的','海纜怎麼鋪到海底']};
+const vid=(rnd,t,used)=>{const left=TITLE[t[0]].filter(x=>!used.has(x));const title=left.length?PICK(rnd,left):t[0]+'精選 '+(used.size+1);used.add(title);return {tags:t,title}};
+const IOT=[
+ ['掃地機器人：用手機 App 遠端叫它開始掃，掃完把地圖傳回手機',1],['智慧電表：每 15 分鐘自動把用電量傳給電力公司',1],['共享單車的鎖：記下位置傳到雲端，掃碼後自動開鎖',1],
+ ['智慧門鎖：有人按門鈴就推播到手機，可以遠端開門',1],['農田的感測器：土壤太乾就自動通知、自動灑水',1],['連網的空氣清淨機：PM2.5 太高就自己調強，手機可以看數值',1],
+ ['一般的電風扇：按按鈕才會轉',0],['遙控車：用紅外線遙控器操控，不能上網',0],['工程計算機：算完顯示在螢幕上',0],
+ ['自動感應門：有人靠近就打開，但沒有連網',0],['隨身碟：插上電腦才能存檔案',0],['電子鍋：設定好時間會自己煮',0]];
+const STEP=['感測','連網傳送','動作'];
+const CHAIN=[
+ ['掃地機器人用雷射量出牆壁和家具的位置',0],['掃地機器人把畫好的地圖傳到手機 App',1],['掃地機器人照著地圖把每個房間掃一遍',2],
+ ['共享單車的 GPS 記下車子在哪裡',0],['共享單車把位置傳到雲端，App 上看得到',1],['共享單車收到「已付款」，鎖自動打開',2],
+ ['農田感測器量到土壤太乾',0],['感測器把數值傳到農夫的手機',1],['灑水器自動打開',2],
+ ['空氣清淨機量到 PM2.5 變高',0],['清淨機把數值傳到家人的手機',1],['清淨機自動把風量調強',2],
+ ['智慧門鈴的鏡頭偵測到有人站在門口',0],['門鈴把畫面推播到手機',1],['手機按一下，門鎖打開',2]];
+
+const ROUNDS=[
+ {lv:1,name:'這是哪一種服務',
+  now:'跨年後的一個星期，小安打開手機的「螢幕使用時間」，發現自己一天用了好多網路服務。',
+  goal:'把每一件事分到它屬於的網路服務。',
+  tip:'通訊：一對一或一小群人傳訊息、通話。社群：公開分享、追蹤、大家一起討論。娛樂：看、聽、玩。消費：買東西、付錢、訂票。',
+  learn:'網路服務大致分成通訊、社群、娛樂、消費。很多 App 其實同時做好幾種（例如社群平台也能購物），所以要看你「正在用它做什麼」。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,SVC,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),KIND,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：這時候是在跟誰說話、跟大家分享、自己看自己玩，還是在付錢？':true}},
+
+ {lv:1,name:'猜下一支推薦',
+  now:'小安發現：短影音一直推六連星給他。他打開了自己的觀看紀錄。',
+  goal:'照下面的規則，猜出 App 下一支最可能推給他哪一支。',
+  tip:'簡化的推薦規則：看完的影片，它的每個標籤 +1 分；滑掉的影片，它的每個標籤 -1 分。候選影片的分數＝它的標籤分數加起來，最高分的推給你。',
+  learn:'推薦系統會記下你看了什麼、看多久、滑掉什麼，替每種內容打分數，再推最可能讓你繼續看的。真實的推薦系統用的資料多得多，還會參考「跟你很像的人」看了什麼。',
+  gen(rnd){
+    for(let t=0;t<300;t++){
+      const pool=['六連星',...SAMPLE(rnd,TAGS.slice(1),5)],hist=[],used=new Set();
+      for(let k=0;k<6;k++){const tg=SAMPLE(rnd,pool.slice(0,5),2);hist.push({...vid(rnd,tg,used),ok:tg.includes('六連星')?true:rnd()<.5})}
+      const sc={};hist.forEach(h=>h.tags.forEach(g=>sc[g]=(sc[g]||0)+(h.ok?1:-1)));
+      const cands=[];const seen=new Set();
+      while(cands.length<4){const tg=SAMPLE(rnd,pool,2),k=tg.slice().sort().join();if(seen.has(k))continue;seen.add(k);cands.push({...vid(rnd,tg,used),s:tg.reduce((a,g)=>a+(sc[g]||0),0)})}
+      const s=cands.map(c=>c.s).sort((a,b)=>b-a);
+      if(s[0]>s[1]&&hist.some(h=>!h.ok)&&hist.some(h=>h.tags.includes('六連星'))&&hist.filter(h=>h.ok).length>=3)return {hist,cands,sc,best:cands.findIndex(c=>c.s===s[0])};
+    }
+  },
+  view(inst,el,api){
+    const tg=t=>t.map(g=>'<span class="tagx">#'+g+'</span>').join('');
+    el.innerHTML='<div class="ptitle"><h3>觀看紀錄</h3></div><div class="hist">'+inst.hist.map(h=>'<div class="v"><span class="st '+(h.ok?'y':'n')+'">'+(h.ok?'看完':'滑掉')+'</span><span>'+h.title+'</span><span>'+tg(h.tags)+'</span></div>').join('')+'</div><div class="ptitle" style="margin-top:14px"><h3>候選影片</h3></div>';
+    el.insertAdjacentHTML('beforeend','<div class="picks">'+inst.cands.map((c,j)=>'<button type="button" class="pk" data-o="'+j+'" aria-pressed="false"><span class="cand"><b>'+c.title+'</b><span>'+tg(c.tags)+'</span></span></button>').join('')+'</div>');
+    let v=null;const sync=()=>el.querySelectorAll('[data-o]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===v));
+    el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{v=+b.dataset.o;sync();api.changed()});
+    return {get:()=>v,fill:()=>{v=inst.best;sync()},ready:()=>v!=null};
+  },
+  check(inst,v){if(v===inst.best)return true;const c=inst.cands[v];if(!c)return '先選一支影片。';return '「'+c.title+'」的分數是 '+c.tags.map(g=>'#'+g+'（'+(inst.sc[g]||0)+'）').join('＋')+'＝'+c.s+'，還有分數更高的。'}},
+
+ {lv:2,name:'是不是物聯網',
+  now:'小安家的掃地機器人，好像知道他們什麼時候出門。',
+  goal:'判斷每一個東西是不是物聯網裝置。',
+  tip:'物聯網裝置三件事都要有：會感測（知道外面的狀況）、會連網（把資料傳出去或接收指令）、會動作。只有自動、沒有連網的不算。',
+  learn:'物聯網（IoT）就是讓「東西」也連上網路：用感測器收集資料、透過網路傳到雲端或手機，再自動做出動作。重點是「連網」，只會自動、不會連網的不算物聯網。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,IOT,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不是','是物聯網'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：它有沒有「連上網路」？':true}},
+
+ {lv:2,name:'感測、連網、動作',
+  now:'物聯網裝置都在做同樣三件事。',
+  goal:'每一句話，是物聯網的哪一步？',
+  tip:'感測：用感測器知道外面的狀況。連網傳送：把資料傳出去，或從網路收到指令。動作：真的做出一件事。',
+  learn:'物聯網的三步：感測（收集資料）→ 連網（傳到雲端或手機）→ 動作（自動反應）。這些資料也會被存起來分析，所以使用物聯網裝置，也要想想它蒐集了你哪些資料。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,CHAIN,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),STEP,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 句再想想：是在「知道」、在「傳」，還是在「做」？':true}}
+];
+const APP=SHELL({week:13,termWeek:19,title:'短影音怎麼猜中我',course:'115-g9',unit:4,rounds:ROUNDS,finale:'全部完成！下一站：影片住在哪個國家。你上傳的東西，到底存在哪裡？'});
+</script>
+</body>
+</html>

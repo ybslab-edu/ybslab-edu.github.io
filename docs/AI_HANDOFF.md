@@ -12,7 +12,7 @@
 
 ## 2. 網站結構重點
 - `assets/activities.js`：全站唯一活動登記處。`week`＝該課程第幾個活動（成績碼用，須等於活動頁 `WEEK`）；畫面上的學期週次由 `date` 算（`termWeekOf`、`termWeekLabel`）；`also` 可列重複上課日期。
-- `assets/curriculum.js`：COURSES（`115-g9` 九年級必修、`115-df` 數位鑑識專題）與 TERMS。
+- `assets/curriculum.js`：COURSES（`115-g9` 九年級必修、`115-df` 數理資優班專題研究，前幾週用數位鑑識包裝興趣探索）與 TERMS。
 - `assets/codec.js`：16 字元成績碼，**不要改**。
 - `assets/teacher.js`：教師模式（密碼只存 SHA-256；密碼由老師保管，勿寫進 repo）。
 - `assets/login.js`＋`tools/grade-upload/`：學校 Google 帳號登入＋過關自動上傳到老師的試算表。`clientId`、`endpoint` 仍空白＝未啟用，活動頁維持「班級座號＋成績碼」。

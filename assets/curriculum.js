@@ -166,7 +166,7 @@ const CURRICULUM = CURRICULA[0];
 // 開設中的課程（學生入口）。year 要和 TERMS 的 year 對上，學期進度才會列出這一列。
 const COURSES = [
   { id: '115-g9', name: '九年級資訊科技', short: '九年級', year: 115, path: '115-g9/' },
-  { id: '115-df', name: '數位鑑識專題（七年級）', short: '鑑識專題', year: 115, path: '115-df/' }
+  { id: '115-df', name: '數理資優班專題研究（七年級）', short: '專題研究', year: 115, path: '115-df/' }
 ];
 
 // 學期：依學校行事曆填開學日（begin）與休業式（end）。週次從開學那週的星期一算起，週數自動計算。

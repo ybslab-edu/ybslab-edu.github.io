@@ -211,6 +211,7 @@ a{color:inherit}
 .corner{position:sticky;left:0;z-index:3;background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted);box-shadow:2px 0 0 var(--faint)}
 .cell{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:76px}
 .cell.cur{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.chip em{font-style:normal;font-size:12px;color:var(--muted)}
 .cell.past{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--faint) 60%,transparent) 6px 7px)}
 .chip{display:flex;flex-direction:column;gap:1px;text-decoration:none;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 13%,var(--surface));border-radius:6px;padding:6px 8px;font-size:14px;line-height:1.3}
 .chip b{font-weight:700}
@@ -529,10 +530,17 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
     }
     for(const c of courses){
       h+='<div class="rowname">'+esc(c.short)+'<small>'+esc(c.name)+'</small></div>';
-      for(let i=0;i<term.weeks;i++){
+      const chip=(a,more)=>'<a class="chip'+(a.track==='選修'?' opt':'')+'" style="--c:var(--'+strandOf(a.codes[0])+')" href="'+esc(a.href)+'"><b>'+esc(a.title)+'</b><span>'+esc(a.codes.join('、'))+'　'+(a.track==='選修'?'選修':'必修')+'</span>'+(more||'')+'</a>';
+      for(let i=0;i<term.weeks;){
         const list=acts.filter(a=>a.course===c.id&&a.w===i);
-        h+='<div class="cell'+(i===cw?' cur':i<cw&&!list.length?' past':'')+'">'+list.map(a=>
-          '<a class="chip'+(a.track==='選修'?' opt':'')+'" style="--c:var(--'+strandOf(a.codes[0])+')" href="'+esc(a.href)+'"><b>'+esc(a.title)+'</b><span>'+esc(a.codes.join('、'))+'　'+(a.track==='選修'?'選修':'必修')+'</span></a>').join('')+'</div>';
+        // 同一個活動連上好幾週（also）：這幾週都只有它時，合併成一格，免得看起來像好幾個活動
+        let n=1;
+        if(list.length===1){const k=list[0].href;while(i+n<term.weeks){const nx=acts.filter(a=>a.course===c.id&&a.w===i+n);if(nx.length===1&&nx[0].href===k)n++;else break}}
+        if(n>1){
+          const a=list[0], ds=datesOf(a).filter(d=>{const w=weekOf(term,ymd(d));return w>=i&&w<i+n});
+          h+='<div class="cell span'+(cw>=i&&cw<i+n?' cur':'')+'" style="grid-column:span '+n+'">'+chip(a,'<em>連上 '+n+' 週：'+ds.map(d=>md(ymd(d))).join('、')+'</em>')+'</div>';
+        }else h+='<div class="cell'+(i===cw?' cur':i<cw&&!list.length?' past':'')+'">'+list.map(a=>chip(a)).join('')+'</div>';
+        i+=n;
       }
     }
     if(!courses.length)h+='<div class="rowname">—</div><div class="cell" style="grid-column:span '+term.weeks+'">這學期還沒有開設課程。</div>';

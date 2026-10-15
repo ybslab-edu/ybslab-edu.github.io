@@ -51,7 +51,11 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 
 .order{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;flex-wrap:wrap}
 .order .who{font-family:var(--f-display);font-size:20px;font-weight:700;white-space:nowrap}
-.order .says{font-size:19px;flex:1;min-width:0}
+.order .says{font-size:18px;flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.order .tk{display:flex;gap:10px;align-items:baseline}
+.order .tk b{flex:none;font-size:13px;letter-spacing:.05em;padding:2px 10px;border-radius:999px;background:var(--ink);color:var(--bg)}
+.order .tk.tip{color:var(--muted);font-size:16px}
+.order .tk.tip b{background:var(--line);color:var(--ink)}
 .order .tip{width:100%;color:var(--muted);font-size:14.5px}
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:14px;align-items:start}
@@ -215,7 +219,7 @@ body.teacher .slot .card{cursor:pointer}
   <section class="sec">
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
     <div class="order" aria-live="polite">
-      <span class="who">任務：</span><span class="says" id="says"></span>
+      <span class="says" id="says"></span>
       <span class="tip">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。不一定要從第 1 步開始：先點一個空格（例如最後一步），再點步驟，就能放進那一格。排錯了可以直接拖曳步驟（或按 ▲▼）調整，點一下步驟就拿回去。</span>
     </div>
   </section>
@@ -307,29 +311,29 @@ const atk=(drink,qty,price)=>({drink,qty,price});   // 打怪指令：怪物、�
 
 // 每關：cap RAM 格數、power 一開始有沒有電、setup(t) 依測資產生一開始的 RAM 與儲存空間
 const ROUNDS=[
- {lv:1,name:'開遊戲',says:'小安要打第一關：打倒 3 隻史萊姆，每隻 20 分。可是遊戲還在儲存空間裡，沒有開。',
+ {lv:1,name:'開遊戲',now:'遊戲還放在儲存空間裡，RAM 是空的。',goal:'小安打開遊戲，打倒 3 隻史萊姆（每隻 20 分），螢幕顯示這次拿到幾分。',tip:'CPU 只拿得到 RAM 裡的東西。',
   cap:4,power:true,
   setup:t=>({ram:{},disk:{[GAME]:PROG}}),
   tests:[{order:atk('史萊姆',3,20)},{order:atk('哥布林',4,35)}],
   cards:[{u:'點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'怪物被打倒',t:'CPU 算出這次拿到幾分',op:'calc'},{u:'看到分數跳出來',t:'把分數顯示在螢幕上',op:'outacc'}],
   sol:[0,1,2,3]},
- {lv:1,name:'打王前存檔',says:'手機跳出「電量 1%」！小安決定先存檔，果然沒多久就沒電關機了。隔天充好電，他要接著打 2 隻火龍（每隻 150 分），看到最新的進度。',tip:'沒電的時候，RAM 裡還沒存的東西會怎樣？',
+ {lv:1,name:'打王前存檔',now:'遊戲正在玩，RAM 裡的「目前進度」是 1200 分；儲存空間的「存檔」還是昨天的 980 分。手機突然跳出「電量 1%」！',goal:'小安先保住現在的進度；手機沒電後，隔天開機接著玩，再打倒 2 隻火龍（每隻 150 分），看到最新進度。',tip:'沒電的時候，RAM 裡還沒存的東西會全部清空。',
   cap:4,power:true,
   setup:t=>({ram:{[GAME]:PROG,'目前進度':t.sales},disk:{[GAME]:PROG,'存檔':t.ledger}}),
   tests:[{order:atk('火龍',2,150),sales:1200,ledger:980},{order:atk('寶箱怪',4,25),sales:860,ledger:1010}],
   cards:[{u:'按「存檔」',t:'把 RAM 的「目前進度」寫進儲存空間的「存檔」',op:'save',src:'目前進度',dst:'存檔'},{u:'手機沒電，螢幕黑掉',t:'斷電，RAM 全部清空',op:'off'},{u:'隔天開機，點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,on:true},{u:'選「繼續遊戲」',t:'從儲存空間把「存檔」載入 RAM，當作「目前進度」',op:'load',f:'存檔',as:'目前進度',needGame:true,needReboot:true},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input',needs:'目前進度'},{u:'看到分數往上加',t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{u:'看到最新進度',t:'把 RAM 的「目前進度」顯示在螢幕上',op:'outcell',c:'目前進度',needReboot:true}],
   sol:[0,1,2,3,4,5,6],only:'outs',risky:0},
- {lv:2,name:'RAM 滿了',says:'RAM 只有 3 格，已經放滿遊戲、目前進度和 LINE。小安要再打 2 隻骷髏兵（每隻 60 分），打完馬上要回 LINE。',tip:'盒子裡有一張用不到的卡。回完 LINE，小安還要繼續玩。',ramHint:'遊戲被收回儲存空間了，等一下切回來就得重新載入——這就是切回遊戲要等的原因。',
+ {lv:2,name:'RAM 滿了',now:'RAM 只有 3 格，已經被「遊戲」「目前進度」「LINE」放滿了。',goal:'小安再打倒 2 隻骷髏兵（每隻 60 分），分數加進目前進度；打完切到 LINE 回媽媽的訊息。遊戲要一直留在 RAM 裡，等一下還要繼續玩。',tip:'每點一次「攻擊」，指令都要先在 RAM 占一格；RAM 滿了就放不進去。',ramHint:'遊戲被收回儲存空間了，等一下切回來就得重新載入——這就是切回遊戲要等的原因。',
   cap:3,power:true,
   setup:t=>({ram:{[GAME]:PROG,'目前進度':t.sales,'LINE':PROG},disk:{[GAME]:PROG,'LINE':PROG}}),
   tests:[{order:atk('骷髏兵',2,60),sales:1200},{order:atk('骷髏兵',3,55),sales:700}],
-  cards:[{u:'',t:'先把「LINE」收回儲存空間，空出一格',op:'unload',f:'LINE'},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'看到分數往上加',t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{u:'',t:'這次指令做完，從 RAM 清掉，空出一格',op:'tear'},{u:'切到 LINE，等了一下下',t:'從儲存空間把「LINE」載回 RAM',op:'load',f:'LINE'},{u:'回媽媽的訊息',t:'LINE 開始執行',op:'open',f:'LINE'},{u:'',t:'把「遊戲」收回儲存空間，空出一格',op:'unload',f:GAME}],
+  cards:[{u:'',t:'先把「LINE」收回儲存空間，空出一格',op:'unload',f:'LINE'},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'看到分數往上加',t:'CPU 把這次的分數加進 RAM 的「目前進度」',op:'addTo',c:'目前進度'},{u:'',t:'這次指令做完，從 RAM 清掉，空出一格',op:'tear'},{u:'切到 LINE，等了一下下',t:'從儲存空間把「LINE」載回 RAM',op:'load',f:'LINE'},{u:'回媽媽的訊息',t:'LINE 開始執行',op:'open',f:'LINE'}],
   sol:[0,1,2,3,4,5]},
- {lv:2,name:'從開機到存檔',says:'手機關機中。小安要開機、打開遊戲，打倒 1 隻魔王（500 分），看到分數，最後存檔。',tip:'盒子裡有一張用不到的卡。CPU 只拿得到 RAM 裡的東西。',
+ {lv:2,name:'從開機到存檔',now:'手機關機中，RAM 是空的；「作業系統」「遊戲」「存檔」都放在儲存空間。',goal:'小安開機、打開遊戲，打倒 1 隻魔王（500 分），螢幕顯示分數，最後把這次分數存進存檔。',tip:'開機時 CPU 會先執行 ROM 裡的開機程式；遊戲要靠作業系統打開。',
   cap:4,power:false,boot:true,
   setup:t=>({ram:{},disk:{'作業系統':PROG,[GAME]:PROG,'存檔':t.ledger}}),
   tests:[{order:atk('魔王',1,500),ledger:0},{order:atk('史萊姆',5,20),ledger:450}],
-  cards:[{u:'按下電源鍵',t:'CPU 執行 ROM 裡的開機程式',op:'boot'},{u:'看到開機畫面',t:'照開機程式，從儲存空間把「作業系統」載入 RAM',op:'load',f:'作業系統',needBoot:true},{u:'點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,needOS:true},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'怪物被打倒',t:'CPU 算出這次拿到幾分，寫回 RAM',op:'calc',to:'這次分數'},{u:'看到分數跳出來',t:'把 RAM 的「這次分數」顯示在螢幕上',op:'outcell',c:'這次分數'},{u:'遊戲自動存檔',t:'把「這次分數」加進儲存空間的「存檔」',op:'saveAdd',src:'這次分數',dst:'存檔'},{u:'',t:'CPU 直接到儲存空間拿資料來算',op:'direct'}],
+  cards:[{u:'按下電源鍵',t:'CPU 執行 ROM 裡的開機程式',op:'boot'},{u:'看到開機畫面',t:'照開機程式，從儲存空間把「作業系統」載入 RAM',op:'load',f:'作業系統',needBoot:true},{u:'點開遊戲，看到「載入中」',t:'從儲存空間把「遊戲」載入 RAM',op:'load',f:GAME,needOS:true},{u:'點螢幕「攻擊」',t:'觸控螢幕把攻擊指令放進 RAM',op:'input'},{u:'怪物被打倒',t:'CPU 算出這次拿到幾分，寫回 RAM',op:'calc',to:'這次分數'},{u:'看到分數跳出來',t:'把 RAM 的「這次分數」顯示在螢幕上',op:'outcell',c:'這次分數'},{u:'遊戲自動存檔',t:'把「這次分數」加進儲存空間的「存檔」',op:'saveAdd',src:'這次分數',dst:'存檔'}],
   sol:[0,1,2,3,4,5,6],hdd:true}
 ];
 
@@ -572,7 +576,7 @@ function resetStage(){
 function load(i){
   ri=i;const R=ROUNDS[i];
   slots=Array(R.sol.length).fill(null);selSlot=null;order=shuffle(R.cards.length);
-  $('says').textContent=R.says+(R.tip?'　（提示：'+R.tip+'）':'');
+  $('says').innerHTML='<span class="tk"><b>現在</b>'+R.now+'</span><span class="tk"><b>要做到</b>'+R.goal+'</span>'+(R.tip?'<span class="tk tip"><b>提示</b>'+R.tip+'</span>':'');
   $('sign').hidden=!R.boot;
   renderRounds();resetStage();renderCards();
 }

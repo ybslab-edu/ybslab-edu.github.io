@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>消失的原始資料｜數位鑑識調查站</title>
+<title>消失的原始資料｜專題研究</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
@@ -410,7 +410,7 @@ function renderLogin(){
   const last = (()=>{ try{return JSON.parse(lsGet('df-last')||'null');}catch(e){return null;} })();
   $('#app').innerHTML=`
   <div class="login"><div class="sheet">
-    <div class="eyebrow">數位鑑識專題課 · 個人調查</div>
+    <div class="eyebrow">數理資優班專題研究 · 個人調查</div>
     <h1 class="title-xl">消失的原始資料</h1>
     <p class="lead">你是研究鑑識員。今天每個人獨立調查，下一堂課再把你的結論帶到證據畫廊和同學討論。</p>
     <form id="lf" class="grid2" autocomplete="off">
@@ -1048,13 +1048,13 @@ function reportHTML(){
   const exifStr=x=>x?[x.time,x.make,x.model].map(val).join(' ｜ ')+(x.dim||x.ori?` ｜ 選填：${esc(x.dim)} ${esc(x.ori)}`:''):'';
   const logRows=S.log.map(l=>`<tr><td class="t">${hm(l.t)}</td><td>${esc(({start:'開始',open:'打開證物',zoom:'放大照片',download:'下載照片',l01check:'檢查練習',h1submit:'送出 H1',unlock2:'解鎖第二批',unlock2fail:'第二批密碼錯誤',hint:'使用提示',concldone:'完成第一堂',comment:'收到留言',unlock3:'解鎖揭露',unlock3fail:'揭露密碼錯誤',calc:'數資挑戰檢查',import:'匯入報告檔',export:'下載報告檔'})[l.e]||l.e)}</td><td>${esc(l.d??'')}</td></tr>`).join('');
   const data=JSON.stringify({...S, b2:{...S.b2,pw:undefined}, reveal:{...S.reveal,pw:undefined}}).replace(/<\//g,'<\\/');
-  return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(S.cls)}班${esc(S.seat)}號 數位鑑識報告</title>
+  return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(S.cls)}班${esc(S.seat)}號 專題研究報告</title>
 <style>body{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color:#17222D;background:#fff;max-width:900px;margin:0 auto;padding:24px 20px 60px;line-height:1.65;font-size:15px}
 h1{font-size:24px;margin:0}h2{font-size:18px;margin:28px 0 8px;padding-bottom:4px;border-bottom:2px solid #17222D}
 table{border-collapse:collapse;width:100%;margin:6px 0}th,td{border:1px solid #C9D2DA;padding:5px 8px;text-align:left;vertical-align:top}th{background:#F1F4F6;width:11em;font-weight:700}
 .t{font-family:Consolas,monospace;white-space:nowrap}.na{color:#9AA4AE}.meta{color:#56636F}.tag{background:#F2C230;padding:0 6px;font-family:Consolas,monospace;font-weight:700}
 @media print{h2{break-after:avoid}table{break-inside:auto}tr{break-inside:avoid}}</style></head><body>
-<h1>消失的原始資料｜數位鑑識報告（${esc(VERSION)} 版）</h1>
+<h1>消失的原始資料｜專題研究報告（${esc(VERSION)} 版）</h1>
 <p class="meta">${esc(S.cls)} 班 ${esc(S.seat)} 號 ｜ 開始 ${new Date(S.started).toLocaleString('zh-TW')} ｜ 下載 ${new Date().toLocaleString('zh-TW')}</p>
 <h2>EXIF 練習與研究問題</h2><table>${row('EXIF 練習',S.l01.ok?'通過':'未通過')}${row('研究問題',val(S.problem))}</table>
 <h2>第一批：觀察</h2><table><tr><th>證據</th><th>EXIF／觀察</th></tr>${ev1.map(e=>{const x=S.ev[e.id]; return `<tr><td><span class="tag">${e.id}</span><br>${esc(e.title)}</td><td>${e.type==='photo'?`EXIF：${exifStr(x.exif)}<br>`:''}觀察：${val(x.fact)}${x.interp?`<br>解釋（舊版）：${esc(x.interp)}`:''}</td></tr>`}).join('')}</table>
@@ -1072,7 +1072,7 @@ table{border-collapse:collapse;width:100%;margin:6px 0}th,td{border:1px solid #C
 function exportReport(final){
   log('export', final?'final':'');
   S.exports.push(now()); save();
-  const name=`${S.cls}班${String(S.seat).padStart(2,'0')}號_數位鑑識報告_${VERSION}.html`;
+  const name=`${S.cls}班${String(S.seat).padStart(2,'0')}號_專題研究報告_${VERSION}.html`;
   download(name, new Blob([reportHTML()],{type:'text/html'}));
   toast(`已下載 ${name}，請上傳到老師指定的作業區`);
 }

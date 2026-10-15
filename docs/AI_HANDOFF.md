@@ -12,7 +12,7 @@
 
 ## 2. 網站結構重點
 - `assets/activities.js`：全站唯一活動登記處。`week`＝該課程第幾個活動（成績碼用，須等於活動頁 `WEEK`）；畫面上的學期週次由 `date` 算（`termWeekOf`、`termWeekLabel`）；`also` 可列重複上課日期。
-- `assets/curriculum.js`：COURSES（`115-g9` 九年級必修、`115-df` 數理資優班專題研究，前幾週用數位鑑識包裝興趣探索）與 TERMS。
+- `assets/curriculum.js`：COURSES（`115-g9` 九年級必修、`115-df` 數理資優班專題研究，七、八年級）與 TERMS。
 - `assets/codec.js`：16 字元成績碼，**不要改**。
 - `assets/teacher.js`：教師模式（密碼只存 SHA-256；密碼由老師保管，勿寫進 repo）。
 - `assets/login.js`＋`tools/grade-upload/`：學校 Google 帳號登入＋過關自動上傳到老師的試算表。`clientId`、`endpoint` 仍空白＝未啟用，活動頁維持「班級座號＋成績碼」。
@@ -42,7 +42,7 @@ w03 是「調設定」型（不是排順序），沿用三段版面與教師模�
 ## 4. 下一步（依序）
 1. **11/2（學期第 10 週）備課**：對應新版規劃表「第 8 週」——2-05、2-06 計量單位與檔案大小（買新手機 128 還是 256 GB；**選修**）。規劃表週次＋2＝實際學期週次。w03 出場券已預告這個故事。
 2. **學生登入上線**：等老師完成 `tools/grade-upload/README.md` 的 A（OAuth 用戶端 ID）、B（試算表＋Apps Script，貼名單），拿到兩個值填進 `assets/login.js`，再實測一次登入與上傳。
-3. **數位鑑識 B/C/D 版**：等老師提供。重建任何鑑識頁時，探測程式要保留：`if(!/^https?:$/.test(location.protocol)||/\.github\.io$/.test(location.hostname)) return;`（否則 github.io 上會一直 404 `/api/ping`）。
+3. **專題研究「消失的原始資料」B/C/D 版**：等老師提供。重建任何調查頁時，探測程式要保留：`if(!/^https?:$/.test(location.protocol)||/\.github\.io$/.test(location.hostname)) return;`（否則 github.io 上會一直 404 `/api/ping`）。
 4. 之後：教師模式改成走登入、答案改由伺服器判定；與 ClassScore 共用 Firebase 後端（方案記在 ClassScore 交接檔 C 節，需老師核准）。
 
 ## 5. 待老師決定（沒有偏好前不動）

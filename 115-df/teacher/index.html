@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>數位鑑識調查站｜老師儀表板</title>
+<title>專題研究｜老師彙整台</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
 /* Layout: grading desk. Summary strip on top, class roster table as the main surface, detail drawer slides over on the right. */
@@ -88,7 +88,7 @@ td.t{font-family:var(--f-mono);white-space:nowrap}
   <label class="drop" id="drop">
     <input type="file" id="files" multiple accept=".html,.htm" hidden>
     <span class="btn pri">選擇報告檔</span>
-    <p>或把整批 <b>…_數位鑑識報告_A.html</b> 拖到這裡。檔案只在這台電腦讀取，不會上傳。</p>
+    <p>或把整批 <b>…_專題研究報告_A.html</b> 拖到這裡。檔案只在這台電腦讀取，不會上傳。</p>
   </label>
   <section class="tiles" id="tiles"></section>
   <section id="tablebox"><div class="empty">還沒有載入任何報告檔。學生在第 6 步完成後，或按上方「下載報告檔」，就會產生報告檔。</div></section>
@@ -214,7 +214,7 @@ function csv(){
   const q=s=>`"${String(s??'').replace(/"/g,'""')}"`;
   const rows=list.map(d=>{ const h=d.b2?.hints||[]; return [d.cls,d.seat,progress(d)[1],d.problem||'',(d.susp||[]).filter(s=>(s.text||'').trim()).length,B1.filter(i=>opened(d,i)).length,B2.filter(i=>opened(d,i)).length,hm(d.h1?.submittedAt),mins(d.started,d.h1?.submittedAt)??'',h.length?Math.max(...h.map(x=>x.level)):0,d.h2?.decision||'',`${d.h1?.cause||''} 可能造成 ${d.h1?.effect||''}`,d.h2?.now||'',d.concl?.best||'',[d.concl?.can,d.concl?.cannot,d.concl?.cbecause].filter(Boolean).join('｜'),(d.gallery?.comments||[]).length,d.reveal?.calc?.ok?'全對':'','','','','','',''].map(q).join(','); });
   const blob=new Blob(['﻿'+[head.map(q).join(','),...rows].join('\r\n')],{type:'text/csv'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`數位鑑識_成績彙整_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`專題研究_成績彙整_${new Date().toISOString().slice(0,10)}.csv`; a.click();
 }
 
 /* ---------------- live mode ---------------- */

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>登入，出發｜第 2 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
+.tblwrap{overflow-x:auto;max-width:100%}
+.row .q small{color:var(--muted)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=4"></script>
+<script>
+// TITLE:登入，出發
+// TERMWEEK:2
+// 開學第 2 週：確認因材網與 YBS Lab 都能登入使用，複習電腦教室規則與評量方式，預告整學期的故事線
+const LOGIN=[
+ '打開瀏覽器，搜尋「因材網」',
+ '點進 adl.edu.tw 的「教育部因材網」',
+ '按右上角的「登入／帳號申請」',
+ '選「教育雲端帳號／縣市帳號登入」',
+ '按「使用縣市帳號登入」，選「新竹縣」',
+ '選「學生登入」',
+ '輸入帳號、密碼和驗證碼，按「登入」',
+ '在「我的任務」點老師指派的節點，看影片、做練習題'];
+const RULES=['依照號碼入座','不飲食','認真上課學習','尊重同學','離開前收好'];
+const SIT=[
+ ['想跟好朋友坐，換到別人的座位',0],['來得晚，隨便找一台空的電腦坐',0],
+ ['帶珍珠奶茶進教室，放在鍵盤旁邊',1],['上課肚子餓，偷吃餅乾',1],
+ ['實作做完了，偷開遊戲網站',2],['老師講解時，戴耳機看影片',2],
+ ['伸手搶隔壁同學的滑鼠，幫他按',3],['大聲喊叫，吵到別人操作',3],
+ ['下課鐘一響就走，沒有登出帳號',4],['沒關機就離開座位',4],['鍵盤、滑鼠亂放在桌上就走',4]];
+const PARTS=['認知（30%）','情意（30%）','技能（40%）'];
+const EVAL=[
+ ['期末考的紙筆測驗',0],['期末考：從 50 題題庫抽 25 題',0],
+ ['上課準時入座、專心聽講（學習態度）',1],['依照規則使用電腦教室（學習態度）',1],['主動教會隔壁同學（學習互助）',1],['分組時和同學一起討論（學習互助）',1],
+ ['完成課堂作業',2],['課堂實作過關，把成績碼交給老師',2],['在電腦上完成老師指定的作品',2]];
+const STORY=[
+ '六連星演唱會開賣，小安搶門票',
+ '加場開賣，搶票 App 被手機自己關掉',
+ '為了拍清楚，小安換了一支新手機',
+ '小安開直播，陪後援會朋友倒數',
+ '演唱會當天，小安坐在看台最後一排',
+ '後援會發問卷，調查跨年應援',
+ '跨年夜的影片，傳到群組變糊了',
+ '後援會擴大到馬祖，海底電纜卻斷了',
+ '學期最後，小安問 AI 一個問題'];
+const CR=(items,a,h)=>Array.isArray(a)?CHECKROWS(items,a,h):'每一項都要選好。';
+const allIn=(p,k,n)=>new Set(p.map(x=>x[k])).size===n;
+// 從清單裡挑 k 個，保留原本的先後，再打亂成卡片
+function pickOrdered(rnd,list,k){const idx=SAMPLE(rnd,list.map((_,i)=>i),k).sort((a,b)=>a-b);const order=SHUF(rnd,idx.map((_,i)=>i));
+  return {cards:order.map(i=>list[idx[i]]),sol:idx.map((_,i)=>order.indexOf(i))}}
+function orderCheck(inst,a,hint){if(!Array.isArray(a)||a.length!==inst.cards.length||a.some(v=>v==null||!inst.cards[v]))return '每一格都要放一張卡片。';
+  const w=a.findIndex((v,i)=>v!==inst.sol[i]);return w<0?true:'從第 '+(w+1)+' 格開始順序不對。'+hint}
+const ROUNDS=[
+ {lv:1,name:'登入因材網',
+  now:'每一堂課的前 12 分鐘，都要先在因材網看影片、做練習題。今天先確認每個人都登入得進去。',
+  goal:'把登入因材網的步驟，照順序排好。',
+  tip:'先要找到網站，才能按登入；登入以後才看得到老師指派的任務。帳號、密碼照老師說的格式輸入。',
+  learn:'因材網用的是新竹縣的教育雲端帳號（縣市帳號）。登不進去時，先看是不是選錯縣市或身分、密碼的英文大小寫打錯，再舉手問老師。',
+  gen(rnd){return pickOrdered(rnd,LOGIN,5)},
+  view(inst,el,api){const ob=ORDERBOX(el,inst.cards,api,{pool:'步驟卡',slots:'登入的順序',first:'第一步',last:'最後一步'});return {...ob,fill:()=>ob.fill(inst.sol)}},
+  check(inst,a){return orderCheck(inst,a,'這一步需要上一步先做好什麼？')}},
+ {lv:1,name:'電腦教室規則',
+  now:'電腦教室有五條規則。下面這些狀況，各違反了哪一條？',
+  goal:'把每一個狀況，放到它違反的那一條規則。',
+  tip:'座位、飲食、上課做的事、有沒有影響別人、離開前有沒有收好，一條一條對。',
+  learn:'五條規則：依照號碼入座、不飲食、認真上課學習、尊重同學、離開前登出帳號、關機、把鍵盤靠緊螢幕腳架並把滑鼠放在腳架上。愛護設備，大家共同維護。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,SIT,6)}while(new Set(p.map(x=>x[1])).size<4);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),RULES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'放錯了。這個狀況和座位、飲食、上課做的事、別人，還是離開前有關？')}},
+ {lv:2,name:'成績怎麼算',
+  now:'這一科的學期成績分成三部分：認知 30%、情意 30%、技能 40%。',
+  goal:'把每一件事，放到它算在哪一部分。',
+  tip:'考試是認知；上課的態度、幫助同學是情意；動手完成的作業和作品是技能。',
+  learn:'認知 30%：期末紙筆測驗（題庫 50 題，抽 25 題）。情意 30%：學習態度、學習互助。技能 40%：課堂作業。技能占最多，所以每一堂的實作都很重要。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,EVAL,5)}while(!allIn(p,1,3));return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),PARTS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'放錯了。它是考試、上課的態度和互助，還是動手完成的作業？')}},
+ {lv:2,name:'這學期的故事',
+  now:'這學期每一週，都會跟著小安和偶像團體「六連星」的後援會走一段故事。',
+  goal:'照故事發生的先後，把這些事排好。',
+  tip:'先要搶到票，才會去看演唱會；跨年之後，後援會才擴大到外島。最後一站是問 AI。',
+  learn:'上學期三個單元串成一條故事：系統平台（搶票、換手機、直播）→ 數位化與資料處理（演唱會、問卷、跨年影片）→ 網路技術與服務（後援會擴大、海纜斷線、問 AI）。每一週的故事，都藏著當週要學的科技。',
+  gen(rnd){return pickOrdered(rnd,STORY,5)},
+  view(inst,el,api){const ob=ORDERBOX(el,inst.cards,api,{pool:'故事卡',slots:'故事的順序',first:'最早',last:'最後'});return {...ob,fill:()=>ob.fill(inst.sol)}},
+  check(inst,a){return orderCheck(inst,a,'想想哪一件事要先發生，下一件才會發生？')}}
+];
+const APP=SHELL({week:30,termWeek:2,title:'登入，出發',course:'115-g9',unit:0,rounds:ROUNDS,finale:'全部完成！帳號都能用了。下週開始，跟著小安搶六連星的演唱會門票。'});
+</script>
+</body>
+</html>

@@ -107,6 +107,13 @@
   - 教師通行碼太短（公開雜湊可在數秒內猜出），請老師換成 12 字以上隨機字串，只給雜湊；若同一組數字用在別處也要換。
   - `115-g9/teacher/` 沒有門檻、成績存在瀏覽器：只在老師自己的電腦使用。
 
+## 3.7 YBS × ClassScore 串接（2026-10-16 從 ClassScore 視窗移交，主導在這裡）
+- 完整規劃：`hs202864-art/class-score` 分支 `docs/classscore-release-main-verification-blocked` 的 `docs/AI_HANDOFF.md` 第 3 節 C。
+- 老師決定：方案 A（共用 Firebase `class-score-86020`）、每關一筆紀錄。學生 email：八、九年級可由學號推算，七年級規則已改不能推算 → 名單匯入一律保留 email 欄位。成績碼之後不再需要（保留為登入出問題時的備案，待正式上線再定）。
+- 階段 0：Draft PR #1 `lab/login-test/`（不寫資料）。老師需先在 OAuth 網頁用戶端加授權來源 `https://ybslab-edu.github.io`、Firebase Auth 授權網域加 `ybslab-edu.github.io`；合併後用學生帳號測，回報兩步結果。尚未決定：試點班級與週次、是否有學生帳號可測。
+- 規則：YBS 改動與 Firebase Rules／ClassScore UI 都先開 Draft PR，合併與發布另行核准；class-score 合併到 main 即正式發布；不得操作正式教師資料。上線時 YBS 各頁 CSP 要放行 Firebase 網域。
+- 這會取代第 4 節第 4 項（Apps Script 登入）與第 6 項的方向；Apps Script 判題可作為之後的防偽升級（免計費）。
+
 ## 4. 下一步（依序）
 1. **老師測試第 2、4、5 單元的連貫性**，依回饋調整 w03～w25（故事、關卡、簡報）。
 2. **第 3 單元影音專題（畢業影片）**：會考後 5/17～6/7 約 4 週，延續九年三班故事；開學後確認會考日期與畢業典禮再細排。

@@ -110,7 +110,9 @@
 ## 3.7 YBS × ClassScore 串接（2026-10-16 從 ClassScore 視窗移交，主導在這裡）
 - 完整規劃：`hs202864-art/class-score` 分支 `docs/classscore-release-main-verification-blocked` 的 `docs/AI_HANDOFF.md` 第 3 節 C。
 - 老師決定：方案 A（共用 Firebase `class-score-86020`）、每關一筆紀錄。學生 email：八、九年級可由學號推算，七年級規則已改不能推算 → 名單匯入一律保留 email 欄位。成績碼之後不再需要（保留為登入出問題時的備案，待正式上線再定）。
-- 階段 0：Draft PR #1 `lab/login-test/`（不寫資料）。老師需先在 OAuth 網頁用戶端加授權來源 `https://ybslab-edu.github.io`、Firebase Auth 授權網域加 `ybslab-edu.github.io`；合併後用學生帳號測，回報兩步結果。尚未決定：試點班級與週次、是否有學生帳號可測。
+- 階段 0 **通過**（PR #1 已合併）：學生帳號 GIS 登入＋Firebase `signInWithCredential` 皆成功。
+- 階段 1：class-score Draft PR #102（Rules＋模擬器測試，CircleCI PASS，Rules 未部署）。
+- 階段 2 準備：YBS Draft PR `feat/firebase-attempts`——`assets/login.js` 改走 Firebase（`CONFIG.on=false` 預設關閉，`courses` 對應 `ybsCourses` 文件 ID），每關寫 `attempts/{uid}_{活動}_{關卡}`；佇列只存 sessionStorage；全站 CSP 放行 gstatic Firebase SDK、identitytoolkit、securetoken、firestore 與 class-score-86020 網域並移除 Apps Script 網域。試點時：部署 Rules → 建 `ybsTeachers/{UID}`、`ybsCourses/115-g9`（open:true）與試點班名單 → `on:true`。尚未決定試點班級與週次。
 - 規則：YBS 改動與 Firebase Rules／ClassScore UI 都先開 Draft PR，合併與發布另行核准；class-score 合併到 main 即正式發布；不得操作正式教師資料。上線時 YBS 各頁 CSP 要放行 Firebase 網域。
 - 這會取代第 4 節第 4 項（Apps Script 登入）與第 6 項的方向；Apps Script 判題可作為之後的防偽升級（免計費）。
 

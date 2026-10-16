@@ -16,9 +16,9 @@
 | `assets/shell.js`、`assets/shell.css` | 活動頁共用外框（第 2 單元起）：填班級座號、基礎／進階分頁、單元進度條、成績碼、教師模式；各週頁面只寫關卡，過關要連續答對兩組不同的資料 |
 | `assets/codec.js` | 成績碼編碼與解碼，所有課程共用 |
 | `assets/teacher.js` | 教師模式通行碼（只存雜湊）。活動頁載入後，起始畫面有「教師登入」：可一鍵顯示答案、暫停播放、上一步／下一步、點步驟跳過去；教師模式不產生成績碼。通行碼只防學生隨手點開，不是帳號安全機制 |
-| `assets/login.js` | 學生以學校 Google 帳號登入、每過一關自動上傳到老師的 Google 試算表；`clientId`、`endpoint` 留空時不啟用（維持班級座號＋成績碼）。設定步驟見 `tools/grade-upload/` |
+| `assets/login.js` | 學生以學校 Google 帳號登入，每過一關寫一筆紀錄到 ClassScore 的 Firebase（`class-score-86020`，結構見 class-score repo 的 `docs/YBS_FIRESTORE.md`）；`on` 為 false 時不啟用（維持班級座號＋成績碼） |
 | `assets/vendor/` | 第三方程式庫的固定版本（教師專區匯出 Excel 用的 SheetJS），不從 CDN 載入 |
-| `tools/grade-upload/` | 成績上傳的 Apps Script（`Code.gs`）與設定步驟 |
+| `tools/grade-upload/` | 舊方案（Apps Script＋試算表），已改走 Firebase，保留備查、不要和 Firebase 同時啟用 |
 | `115-g9/w01/` … | 115 學年九年級的每週活動頁（`115-g9/index.html` 只是轉回首頁） |
 | `115-g9/teacher/` | 該課程的教師成績彙整，入口在關於頁頁尾（資料只存在老師自己的瀏覽器） |
 | `115-df/` | 數理資優班專題研究（七、八年級）：`a/` 是 A 版學生頁（單檔，第二批與揭露內容加密），`teacher/` 是老師彙整台（讀學生匯出的報告檔）。原始碼、密碼與教師解答版不放這個公開儲存庫 |

@@ -216,7 +216,7 @@ const SHELL = (cfg) => {
     YBS.button($('g-gbtn'), async me => {
       $('g-login').hidden = true; $('g-who').hidden = false; $('g-whobtns').hidden = true; $('g-whotext').textContent = '正在確認你的身分…';
       const r = await YBS.whoami();
-      if (r.ok && r.student) { const st = r.student; $('g-whotext').textContent = '你是 ' + st.cls + ' 班 ' + st.seat + ' 號 ' + (st.name || '') + '，對嗎？'; $('g-whobtns').hidden = false; $('g-isme').focus(); $('g-isme').onclick = () => start({ cls: st.cls, seat: st.seat, name: st.name }); return }
+      if (r.ok && r.student) { const st = r.student; $('g-whotext').textContent = '你是 ' + st.cls + ' 班 ' + st.seat + ' 號，對嗎？'; $('g-whobtns').hidden = false; $('g-isme').focus(); $('g-isme').onclick = () => start({ cls: st.cls, seat: st.seat, name: st.name }); return }
       if (!r.ok && r.error === 'not-listed') { $('g-who').hidden = true; YBS.logout(); showLogin(); $('g-lerr').textContent = '名單上找不到這個帳號（' + me.email + '），請改用自己的帳號，或告訴老師。'; return }
       $('g-who').hidden = true; $('g-form').hidden = false;
       $('g-me').hidden = false; $('g-me').textContent = '已登入：' + me.email + (r.ok ? '（名單上沒有你，請填班級座號並告訴老師）' : '');

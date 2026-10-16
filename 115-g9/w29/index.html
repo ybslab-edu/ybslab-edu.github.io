@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>演唱會倒數直播｜第 6 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
+.tblwrap{overflow-x:auto;max-width:100%}
+.row .q small{color:var(--muted)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016c"></script>
+<script src="../../assets/shell.js?v=4"></script>
+<script>
+// TITLE:演唱會倒數直播
+// TERMWEEK:6
+// 第 1 單元第 4 站：電腦的五大單元、輸入單元、輸出單元。故事：演唱會倒數三週，小安開直播陪後援會的朋友一起倒數
+const IO=['輸入','輸出','輸入也輸出'];
+const IOD=[
+ ['麥克風',0],['網路攝影機',0],['鍵盤',0],['滑鼠',0],['繪圖板',0],['掃描器',0],['條碼掃描槍',0],
+ ['喇叭',1],['耳機',1],['螢幕',1],['印表機',1],['投影機',1],
+ ['觸控螢幕',2],['有麥克風的耳機',2],['會震動的遊戲手把',2]];
+const IPO=['輸入','處理','輸出'];
+const IPOD=[
+ ['小安對著麥克風說「大家晚安」',0],['小安按下鍵盤快捷鍵，切換到倒數畫面',0],['鏡頭拍到小安揮手',0],['小安用滑鼠點「開始直播」',0],
+ ['電腦把聲音和畫面合在一起，壓縮變小',1],['電腦算出現在有幾個人在看',1],['電腦判斷這筆斗內有沒有超過 100 元',1],['電腦在小安的臉上加貓耳朵濾鏡',1],
+ ['螢幕顯示聊天室的留言',2],['耳機傳出斗內的音效',2],['喇叭播出六連星的新歌',2]];
+const SENS=['麥克風','光感測器','溫度感測器','按鈕','加速度感測器（偵測搖晃）'];
+const OUTS=['LED 燈','震動馬達','蜂鳴器（會嗶嗶叫）','小螢幕'];
+const GADGET=[
+ ['應援手環','跟著現場音樂的節拍一閃一閃',0,0],
+ ['安靜提醒牌','教室太吵就亮紅燈',0,0],
+ ['小夜燈','房間變暗就自動亮起來',1,0],
+ ['倒數計時器','按一下開始，畫面顯示還剩幾秒',3,3],
+ ['叫人鈴','按下去就嗶嗶叫',3,2],
+ ['防中暑提醒器','太熱就嗶嗶叫',2,2],
+ ['冰箱溫度計','畫面顯示冰箱現在幾度',2,3],
+ ['搖一搖抽籤器','搖一下，畫面顯示抽到的號碼',4,3],
+ ['跌倒偵測手環','偵測到老人家摔倒的劇烈晃動，就震動提醒',4,1],
+ ['哭聲提醒手環','寶寶一哭，戴在爸媽手上的手環就震動',0,1]];
+const FLOW=[
+ ['虛擬主播',['鏡頭拍下小安的臉','畫面先放進記憶體','CPU 算出臉轉了幾度、嘴巴張多大','CPU 照算出來的角度，畫出虛擬角色的動作','螢幕顯示虛擬角色，同時傳給觀眾']],
+ ['AI 即時字幕',['麥克風收到小安說話的聲音','聲音先放進記憶體','CPU 把聲音辨識成文字','CPU 把文字排成字幕，疊到畫面上','螢幕顯示有字幕的直播畫面']],
+ ['斗內音效',['網路收到粉絲斗內 200 元的訊息','訊息先放進記憶體','CPU 比較：200 有沒有超過 100？','CPU 決定：超過了，要播大音效','喇叭播出音效，螢幕跳出特效']]];
+const PART=['輸入','存進記憶體','CPU 處理','CPU 處理','輸出'];
+const allIn=(p,k,n)=>new Set(p.map(x=>x[k])).size===n;
+function twoPick(el,api,inst){
+  const v=inst.g.map(()=>[null,null]);
+  el.innerHTML=inst.g.map((g,d)=>'<section class="panel" style="margin-bottom:10px"><div class="ptitle"><h3>'+g[0]+'</h3><span class="small">'+g[1]+'</span></div>'+
+    '<p class="small" style="margin:6px 0 2px">要用哪一個輸入零件？</p><div class="picks" data-d="'+d+'" data-k="0">'+SENS.map((t,j)=>'<button type="button" class="pk" data-j="'+j+'" aria-pressed="false">'+t+'</button>').join('')+'</div>'+
+    '<p class="small" style="margin:10px 0 2px">要用哪一個輸出零件？</p><div class="picks" data-d="'+d+'" data-k="1">'+OUTS.map((t,j)=>'<button type="button" class="pk" data-j="'+j+'" aria-pressed="false">'+t+'</button>').join('')+'</div></section>').join('');
+  const sync=()=>el.querySelectorAll('.picks[data-d]').forEach(p=>p.querySelectorAll('.pk').forEach(b=>b.setAttribute('aria-pressed',v[+p.dataset.d][+p.dataset.k]===+b.dataset.j)));
+  el.querySelectorAll('.picks[data-d]').forEach(p=>p.querySelectorAll('.pk').forEach(b=>b.onclick=()=>{v[+p.dataset.d][+p.dataset.k]=+b.dataset.j;sync();api.changed()}));
+  return {get:()=>v.map(x=>[...x]),fill:()=>{inst.g.forEach((g,d)=>{v[d]=[g[2],g[3]]});sync()},ready:()=>v.every(x=>x[0]!=null&&x[1]!=null)};
+}
+const CR=(items,a,h)=>Array.isArray(a)?CHECKROWS(items,a,h):'每一項都要選好。';
+const ROUNDS=[
+ {lv:1,name:'收進來還是送出去',
+  now:'演唱會倒數三週，小安想開直播陪後援會的朋友一起倒數。他把要用的設備全部擺上桌。',
+  goal:'判斷每一個設備，是把東西收進電腦（輸入）、從電腦送出來（輸出），還是兩件事都做。',
+  tip:'它是把聲音、影像、動作「收進來」，還是把聲音、畫面、震動「送出去」？',
+  learn:'把資料收進電腦的是輸入單元，把結果送出來給人看、聽、感覺的是輸出單元。觸控螢幕一邊顯示、一邊感應手指，兩件事都做。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,IOD,6)}while(!allIn(p,1,3));return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b>'})),IO,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'判斷錯了。它是收進來、送出去，還是兩件事都做？')}},
+ {lv:1,name:'輸入、處理、輸出',
+  now:'直播開始了，聊天室一直刷，斗內音效也響了。每一個瞬間，電腦都在做三種事的其中一種。',
+  goal:'把每一件事分成輸入、處理或輸出。',
+  tip:'從外面收進來的是輸入；電腦自己在算、在判斷的是處理；送出來給人看、聽的是輸出。',
+  learn:'所有電腦做的事，都是「輸入 → 處理 → 輸出」。中間的處理，靠的是 CPU 和記憶體；下一站「深夜手搖店」要把它們拆開來看。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,IPOD,6)}while(!allIn(p,1,3));return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),IPO,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'分錯了。是從外面收進來、電腦自己在算，還是送出來給人看或聽？')}},
+ {lv:2,name:'幫小裝置挑零件',
+  now:'後援會想做幾個小裝置帶去演唱會和教室用。每個小裝置都是一台小電腦：要一個輸入零件感測外面，一個輸出零件做出反應。',
+  goal:'幫每一個小裝置，各挑一個輸入零件和一個輸出零件。',
+  tip:'先找它要「感覺」什麼（聲音、光、溫度、按壓、搖晃），再找它要「做出」什麼（亮燈、震動、嗶嗶叫、顯示）。',
+  learn:'智慧手環、夜燈、溫度計，都是「感測器輸入 → 晶片處理 → 輸出反應」的小電腦。換掉輸入或輸出零件，同一顆晶片就能做出完全不同的東西。',
+  gen(rnd){let g;do{g=SAMPLE(rnd,GADGET,2)}while(g[0][2]===g[1][2]&&g[0][3]===g[1][3]);return {g}},
+  view(inst,el,api){return twoPick(el,api,inst)},
+  check(inst,a){if(!Array.isArray(a))return '每個小裝置都要挑好兩個零件。';for(let d=0;d<inst.g.length;d++){const g=inst.g[d],x=a[d]||[];
+    if(x[0]!==g[2])return '「'+g[0]+'」的輸入零件不對：它要感覺到的是什麼？';
+    if(x[1]!==g[3])return '「'+g[0]+'」的輸出零件不對：它要做出什麼反應？'}return true}},
+ {lv:2,name:'直播的一秒鐘',
+  now:e=>'直播裡的「'+e.name+'」看起來一瞬間就完成了，其實電腦裡的五大單元依序動了一輪。',
+  goal:'把這一秒鐘裡發生的事，照順序排好。',
+  tip:'從外面收進來的先發生，最後才送出來給人看或聽。CPU 只拿得到記憶體裡的東西。',
+  learn:'一秒鐘裡，輸入單元收資料、記憶單元先放好、算術邏輯單元算和比、控制單元決定下一步、輸出單元送出結果。五大單元每秒要這樣跑好幾十億次。',
+  gen(rnd){const f=PICK(rnd,FLOW),order=SHUF(rnd,[0,1,2,3,4]);return {name:f[0],cards:order.map(i=>f[1][i]),sol:[0,1,2,3,4].map(i=>order.indexOf(i))}},
+  view(inst,el,api){const ob=ORDERBOX(el,inst.cards,api,{pool:'發生的事',slots:'這一秒鐘',first:'最先',last:'最後'});return {...ob,fill:()=>ob.fill(inst.sol)}},
+  check(inst,a){if(!Array.isArray(a)||a.some(v=>v==null||!inst.cards[v]))return '每一格都要放一件事。';const w=a.findIndex((v,i)=>v!==inst.sol[i]);return w<0?true:'從第 '+(w+1)+' 格開始順序不對。這一步是'+PART[w]+'：它需要上一步先做好什麼？'}}
+];
+const APP=SHELL({week:29,termWeek:6,title:'演唱會倒數直播',course:'115-g9',unit:1,rounds:ROUNDS,finale:'全部完成！下一站：深夜手搖店，手機裡的店長和搖飲師。'});
+</script>
+</body>
+</html>

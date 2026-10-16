@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>服務台放哪裡｜第 11 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+.plot svg{width:100%;height:auto;display:block}
+.plot .ax{stroke:var(--line);stroke-width:1}
+.plot text{fill:var(--muted);font:12px var(--f-body)}
+.legend{display:flex;gap:14px;font-size:15px;flex-wrap:wrap}
+.perc{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;line-height:1.8}
+.perc b{font-family:var(--f-mono)}
+.ctr{font-size:17px;display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
+.tbl{border-collapse:collapse;font-size:16px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 12px;text-align:center}.tbl th{background:var(--bg)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016b"></script>
+<script src="../../assets/shell.js?v=4"></script>
+<script>
+// TITLE:服務台放哪裡
+// TERMWEEK:11
+// 第 5 單元第 8 站（選修）：K 平均分群（二維）、分群好壞、要分幾群（手肘法）。故事：畢業園遊會要放服務台
+const COL=['#2C67AE','#BD6216','#1E7570'];
+const mapSVG=(pts,cs=[],grp=null)=>{const S=36,O=26,W=O+10*S+10,H=W,px=x=>O+x*S,py=y=>H-O-y*S;let s='<svg viewBox="0 0 '+W+' '+(H+4)+'" role="img" aria-label="園遊會場地平面圖">';
+  for(let i=0;i<=10;i++){s+='<line class="ax" x1="'+px(i)+'" y1="'+py(0)+'" x2="'+px(i)+'" y2="'+py(10)+'"/><line class="ax" x1="'+px(0)+'" y1="'+py(i)+'" x2="'+px(10)+'" y2="'+py(i)+'"/>';if(i%2===0)s+='<text x="'+px(i)+'" y="'+(py(0)+16)+'" text-anchor="middle">'+i+'</text><text x="'+(px(0)-6)+'" y="'+(py(i)+4)+'" text-anchor="end">'+i+'</text>'}
+  pts.forEach((p,i)=>{const c=grp?COL[grp[i]]:'#5D6670';s+='<circle cx="'+px(p[0])+'" cy="'+py(p[1])+'" r="11" fill="'+c+'"/><text x="'+px(p[0])+'" y="'+(py(p[1])+4)+'" text-anchor="middle" style="fill:#fff;font-weight:700">'+(i+1)+'</text>'});
+  cs.forEach((c,i)=>s+='<rect x="'+(px(c[0])-11)+'" y="'+(py(c[1])-11)+'" width="22" height="22" fill="none" stroke="'+COL[i]+'" stroke-width="4"/><text x="'+(px(c[0])+15)+'" y="'+(py(c[1])-10)+'" style="fill:'+COL[i]+';font-weight:700;font-size:15px">'+'ABC'[i]+'</text>');
+  return '<div class="plot">'+s+'</svg></div>'};
+const d2=(p,c)=>(p[0]-c[0])**2+(p[1]-c[1])**2;
+const near=(p,cs)=>{const d=cs.map(c=>d2(p,c)),m=Math.min(...d);return d.filter(x=>x===m).length>1?-1:d.indexOf(m)};
+function blobs(rnd,k,n){const ctr=[];while(ctr.length<k){const c=[RINT(rnd,1,9),RINT(rnd,1,9)];if(ctr.every(o=>d2(c,o)>=20))ctr.push(c)}
+  const pts=[],used=new Set();let t=0;while(pts.length<n&&t++<500){const c=ctr[pts.length%k],p=[Math.min(10,Math.max(0,c[0]+RINT(rnd,-2,2))),Math.min(10,Math.max(0,c[1]+RINT(rnd,-2,2)))];if(!used.has(p.join()))(used.add(p.join()),pts.push(p))}return pts}
+const sse=(pts,g,cs)=>pts.reduce((s,p,i)=>s+d2(p,cs[g[i]]),0);
+const ROUNDS=[
+ {lv:1,name:'去最近的服務台',
+  now:'畢業園遊會的場地是一個 10 × 10 的方格圖，點是人潮最多的攤位。學務處先放了兩個服務台（方框 A、B），每個攤位歸最近的服務台管。',
+  goal:'判斷每一個攤位，離 A 近還是離 B 近。',
+  tip:'用格數算：橫的差幾格、直的差幾格，用畢氏定理（或直接比「橫差² ＋ 直差²」）比大小。',
+  learn:'二維的 K 平均分群，「最近」用平面上的直線距離來比。跟一維一樣：每個點加入最近的中心。',
+  gen(rnd){for(;;){const pts=blobs(rnd,2,8),cs=[[RINT(rnd,0,10),RINT(rnd,0,10)],[RINT(rnd,0,10),RINT(rnd,0,10)]];const g=pts.map(p=>near(p,cs));if(g.includes(-1)||new Set(g).size<2||d2(cs[0],cs[1])<16)continue;return {pts,cs,g}}},
+  view(inst,el,api){el.innerHTML=mapSVG(inst.pts,inst.cs)+'<div class="ctr"><span>A 在（'+inst.cs[0]+'）</span><span>B 在（'+inst.cs[1]+'）</span></div>';const c=CLASSIFY(el,inst.pts.map((p,i)=>({html:'攤位 '+(i+1)+'（'+p.join(', ')+'）'})),['A','B'],api);return {...c,fill:()=>c.fill(inst.g)}},
+  check(inst,a){const w=inst.g.map((v,i)=>a[i]===v?0:i+1).filter(Boolean);return w.length?'攤位 '+w.join('、')+' 再比一次：橫差² ＋ 直差²，哪個小？':true}},
+ {lv:1,name:'搬到正中間',
+  now:'分好組了。服務台要搬到自己這一組攤位的正中間，大家走過去才近。',
+  goal:'算出 A 組的新位置：所有 A 組攤位的「橫座標平均」和「直座標平均」。',
+  tip:'橫座標全部加起來 ÷ 個數，直座標也一樣。',
+  learn:'二維的中心＝橫座標的平均、直座標的平均，叫做「重心」。K 平均分群就是一直「指派、搬到重心」。',
+  gen(rnd){for(;;){const pts=blobs(rnd,2,8),cs=[[2,2],[8,8]].map(c=>[c[0]+RINT(rnd,-1,1),c[1]+RINT(rnd,-1,1)]);const g=pts.map(p=>near(p,cs));if(g.includes(-1))continue;const A=pts.filter((_,i)=>g[i]===0);if(A.length<3)continue;const m=[A.reduce((s,p)=>s+p[0],0)/A.length,A.reduce((s,p)=>s+p[1],0)/A.length];if(m.every(Number.isInteger))return {pts,g,m}}},
+  view(inst,el,api){el.innerHTML=mapSVG(inst.pts,[],inst.g)+'<p class="small">藍色是 A 組，橘色是 B 組。</p><p>A 組：'+inst.pts.filter((_,i)=>inst.g[i]===0).map(p=>'（'+p.join(', ')+'）').join('、')+'</p><div class="ctr"><label>新的 A：橫 <input class="num-in" data-k="0" inputmode="numeric" autocomplete="off"></label><label>直 <input class="num-in" data-k="1" inputmode="numeric" autocomplete="off"></label></div>';
+    const I=[...el.querySelectorAll('input[data-k]')];I.forEach(i=>i.oninput=()=>api.changed());return {get:()=>I.map(i=>NUMOK(i.value,{dec:true})),fill:()=>I.forEach((i,k)=>i.value=inst.m[k]),ready:()=>I.every(i=>i.value.trim()!=='')}},
+  check(inst,a){const w=[0,1].filter(k=>a[k]!==inst.m[k]);return w.length?(w.map(k=>k?'直座標':'橫座標').join('和'))+'的平均再算一次。':true}},
+ {lv:2,name:'哪一種分得好',
+  now:'兩位幹部各自分了組，都說自己的比較好。',
+  goal:'哪一種分法，攤位離自己的服務台比較近（總距離比較小）？',
+  tip:'看每一組的點是不是都靠近自己的方框。也可以算：每個點到自己方框的「橫差² ＋ 直差²」，全部加起來，越小越好。',
+  learn:'分群好不好，可以算「每個點到自己中心的距離平方和」：越小，表示每一群越集中。K 平均分群就是在讓這個數字變小。',
+  gen(rnd){for(;;){const pts=blobs(rnd,2,8);const good=[[0,1]];const g1=pts.map(p=>near(p,[[2,2],[8,8]]));if(g1.includes(-1)||new Set(g1).size<2)continue;
+    const cen=g=>[0,1].map(k=>{const A=pts.filter((_,i)=>g[i]===k);return [Math.round(A.reduce((s,p)=>s+p[0],0)/A.length),Math.round(A.reduce((s,p)=>s+p[1],0)/A.length)]});
+    const c1=cen(g1),g2=SHUF(rnd,g1.map(()=>RINT(rnd,0,1)));if(new Set(g2).size<2)continue;const c2=cen(g2);const s1=sse(pts,g1,c1),s2=sse(pts,g2,c2);if(s2<s1*1.6)continue;
+    const L=rnd()<.5;return {pts,A:L?{g:g1,c:c1}:{g:g2,c:c2},B:L?{g:g2,c:c2}:{g:g1,c:c1},ans:L?0:1}}},
+  view(inst,el,api){el.innerHTML='<div class="two"><div><p><b>小安的分法</b></p>'+mapSVG(inst.pts,inst.A.c,inst.A.g)+'</div><div><p><b>小禾的分法</b></p>'+mapSVG(inst.pts,inst.B.c,inst.B.g)+'</div></div>';return PICKONE(el,['小安的比較好','小禾的比較好'],api,inst.ans)},
+  check:(inst,v)=>v===inst.ans?true:'這一種有些點離自己的方框很遠。看看哪一種每組的點都比較集中。'},
+ {lv:2,name:'要放幾個服務台',
+  now:'服務台放越多，大家走越近，但也越花人力。小安用電腦試了 1～6 個服務台，算出「總距離」。',
+  goal:'用「手肘法」選出最划算的服務台數量：再多放一個，總距離也不會少很多的那個點。',
+  tip:'看每多一個服務台，總距離少了多少。少很多 → 值得；突然只少一點點 → 前一個就是「手肘」。',
+  learn:'K 要選多少？常用「手肘法」：畫出 K 和總距離的關係，找曲線突然變平的轉折點。再多分幾群，改善也很有限，就不划算了。',
+  gen(rnd){const k=RINT(rnd,2,4);let d=RINT(rnd,25,40)*10;const dec=[];for(let i=1;i<6;i++){if(i<k){dec.push(d);d=Math.round(d*(0.7+rnd()*0.2))}else dec.push(RINT(rnd,8,20))}
+    const v=[dec.reduce((a,b)=>a+b,0)+RINT(rnd,40,90)];dec.forEach(x=>v.push(v[v.length-1]-x));return {v,k}},   // 手肘之前每次都少很多，之後每次只少一點點
+  view(inst,el,api){el.innerHTML='<div class="tblwrap"><table class="tbl"><tr><th>服務台數量</th>'+inst.v.map((_,i)=>'<th>'+(i+1)+'</th>').join('')+'</tr><tr><td>總距離</td>'+inst.v.map(x=>'<td>'+x+'</td>').join('')+'</tr><tr><td>比上一個少了</td>'+inst.v.map((x,i)=>'<td>'+(i?inst.v[i-1]-x:'—')+'</td>').join('')+'</tr></table></div>';
+    return PICKONE(el,inst.v.map((_,i)=>(i+1)+' 個'),api,inst.k-1)},
+  check:(inst,v)=>v===inst.k-1?true:(v<inst.k-1?'再多放一個，總距離還會少很多，還值得加。':'從前一個數量開始，再加服務台已經少不了多少了。')}
+];
+const APP=SHELL({week:23,termWeek:11,title:'服務台放哪裡',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：教 AI 認手勢，猜拳 AI 要開始訓練了。'});
+</script>
+</body>
+</html>

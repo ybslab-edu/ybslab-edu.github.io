@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>回收分類機｜第 7 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.tree{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;line-height:1.9}
+.tree .q{font-weight:700}.tree .y{color:var(--out)}.tree .n{color:var(--warn)}
+.tree .leaf{display:inline-block;background:var(--c-soft);color:var(--c);border-radius:6px;padding:0 8px;font-weight:700}
+.attr{display:inline-block;font-size:13px;border-radius:6px;padding:0 6px;margin-right:4px;background:var(--bg);border:1px solid var(--line)}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
+.tblwrap{overflow-x:auto}
+.sel{font:inherit;font-size:16px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);max-width:100%}
+.build{display:flex;flex-direction:column;gap:8px;font-size:16px}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016b"></script>
+<script src="../../assets/shell.js?v=4"></script>
+<script>
+// TITLE:回收分類機
+// TERMWEEK:7
+// 第 5 單元第 5 站：監督式學習、決策樹、訓練與測試。故事：環保股長阿哲想做一台會分類回收物的機器
+const CLS=['紙類','塑膠','鐵鋁罐','一般垃圾'];
+// 屬性：油（沾到油或食物）、金（金屬）、撕（撕得開）
+const ITEM=[['乾淨的鋁罐',0,1,0,2],['洗乾淨的鐵罐頭',0,1,0,2],['乾淨的寶特瓶',0,0,0,1],['乾淨的塑膠杯',0,0,0,1],['洗乾淨的優格塑膠盒',0,0,0,1],
+ ['舊作業簿',0,0,1,0],['廣告傳單',0,0,1,0],['乾淨的紙箱',0,0,1,0],['沾滿醬汁的便當紙盒',1,0,1,3],['沾油的披薩盒',1,0,1,3],['沾了油的塑膠袋',1,0,0,3],['裝過咖哩沒洗的鋁盒',1,1,0,3]];
+const yn=v=>v?'是':'否';
+const attrs=it=>'<span class="attr">沾油或食物：'+yn(it[1])+'</span><span class="attr">金屬：'+yn(it[2])+'</span><span class="attr">撕得開：'+yn(it[3])+'</span>';
+const treeCls=it=>it[1]?3:it[2]?2:it[3]?0:1;
+const TREE='<div class="tree"><span class="q">① 有沒有沾到油或食物？</span><br>　<span class="y">是</span> → <span class="leaf">一般垃圾</span><br>　<span class="n">否</span> → <span class="q">② 是金屬嗎？</span><br>　　<span class="y">是</span> → <span class="leaf">鐵鋁罐</span><br>　　<span class="n">否</span> → <span class="q">③ 撕得開嗎？</span><br>　　　<span class="y">是</span> → <span class="leaf">紙類</span><br>　　　<span class="n">否</span> → <span class="leaf">塑膠</span></div>';
+// 測試資料：真實的分類（有幾個是這棵樹會分錯的）
+const TEST=[['乾淨的鋁罐',0,1,0,2],['舊課本',0,0,1,0],['乾淨的寶特瓶',0,0,0,1],['沾油的披薩盒',1,0,1,3],['乾淨的紙袋',0,0,1,0],['乾淨的鐵罐',0,1,0,2],
+ ['洗乾淨的鋁箔包（紙和鋁黏在一起）',0,1,0,0],['乾淨的保鮮膜（撕得開）',0,0,1,1],['洗乾淨的牛奶紙盒（撕不太開）',0,0,0,0],['用過的衛生紙（沒沾油）',0,0,1,3],['乾淨的塑膠吸管',0,0,0,1],['用過的油漆鐵罐（洗不掉）',1,1,0,3]];
+// 自己蓋樹用的資料：都是乾淨的回收物；顏色跟類別無關
+const F3=['是金屬','撕得開','是白色的'];
+const R3=[['可樂鋁罐',1,0,0,2],['白色鐵罐頭',1,0,1,2],['咖啡鐵罐',1,0,0,2],['鋁製便當盒',1,0,0,2],['白色影印紙',0,1,1,0],['報紙',0,1,0,0],['紙箱',0,1,0,0],['廣告單',0,1,0,0],['白色塑膠杯',0,0,1,1],['寶特瓶',0,0,0,1],['白色優格盒',0,0,1,1],['養樂多瓶',0,0,1,1]];
+const FEAT=['有回收標誌','沾到油或食物','好幾種材料黏在一起'];
+const NAMES=['飲料杯','便當盒','餅乾袋','牛奶瓶','醬油瓶','雞蛋盒','零食罐','果汁瓶','調味罐','麵包袋','優格杯','布丁杯'];
+const ROUNDS=[
+ {lv:1,name:'照著樹分類',
+  now:'環保股長阿哲想做一台「回收分類機」放在園遊會。他先畫了一棵「決策樹」：一題一題問下去，就能分到某一類。',
+  goal:'照著決策樹，把每一件東西分到正確的類別。',
+  tip:'從第 ① 題開始問，答案是「是」就走是的那條，「否」就走否的那條，走到底就是答案。',
+  learn:'決策樹就是一連串「是或否」的問題，從上往下問，最後落到一個答案。電腦可以從很多已經分好類的例子，自己找出該問哪些問題——這就是機器學習。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,ITEM,5)}while(new Set(p.map(treeCls)).size<3);return {items:p}},
+  view(inst,el,api){el.innerHTML=TREE;const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b><br>'+attrs(x)})),CLS,api);return {...c,fill:()=>c.fill(inst.items.map(treeCls))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===treeCls(x)?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項走錯路了，從第 ① 題重新問一次。':true}},
+ {lv:1,name:'哪一題分得最乾淨',
+  now:'阿哲收集了一些例子，每一個都已經標好「可回收」或「不可回收」（這叫標籤）。他想找一個問題，一問就能把兩類分開。',
+  goal:'哪一個問題，能把「可回收」和「不可回收」完全分開，一個都不錯？',
+  tip:'看每一欄：如果這一欄是「是」的都在同一類、「否」的都在另一類，它就能完全分開。',
+  learn:'監督式學習：給電腦很多「有標準答案」的例子，讓它找出最能分開答案的規則。決策樹就是一次挑一個「分得最乾淨」的問題。',
+  gen(rnd){
+    for(;;){const k=RINT(rnd,0,2),flip=k===0?0:1,names=SAMPLE(rnd,NAMES,8);
+      const rows=names.map(n=>{const f=[RINT(rnd,0,1),RINT(rnd,0,1),RINT(rnd,0,1)];return {n,f,y:flip?1-f[k]:f[k]}});
+      const perfect=j=>{const a=rows.filter(r=>r.f[j]===1),b=rows.filter(r=>r.f[j]===0);return a.length&&b.length&&new Set(a.map(r=>r.y)).size===1&&new Set(b.map(r=>r.y)).size===1&&a[0].y!==b[0].y};
+      if(perfect(k)&&[0,1,2].filter(perfect).length===1)return {rows,k}}},
+  view(inst,el,api){el.innerHTML='<div class="tblwrap"><table class="tbl"><tr><th>東西</th>'+FEAT.map(f=>'<th>'+f+'</th>').join('')+'<th>標籤</th></tr>'+inst.rows.map(r=>'<tr><td>'+r.n+'</td>'+r.f.map(v=>'<td>'+yn(v)+'</td>').join('')+'<td><b>'+(r.y?'可回收':'不可回收')+'</b></td></tr>').join('')+'</table></div><p style="margin-top:10px">哪一個問題分得最乾淨？</p>';
+    return PICKONE(el,FEAT.map(f=>f+'？'),api,inst.k)},
+  check(inst,v){if(v===inst.k)return true;const r=inst.rows;const a=r.filter(x=>x.f[v]),b=r.filter(x=>!x.f[v]);return '用「'+FEAT[v]+'」分：回答「是」的有 '+a.length+' 個，裡面可回收和不可回收混在一起（或另一邊混在一起），不夠乾淨。'}},
+ {lv:2,name:'自己蓋一棵樹',
+  now:'阿哲又收集了一批乾淨的回收物，每一件都標好了類別。這次換你來設計決策樹。',
+  goal:'選好兩個問題和三個答案，讓樹把下面每一個例子都分對。',
+  tip:'先找一個問題，回答「是」的全部屬於同一類；剩下的，再用第二個問題分開。有一欄跟類別沒關係，用不到。',
+  learn:'機器學習的「訓練」，就是不斷調整規則，直到訓練資料都分對。電腦會自動試很多種問題組合，挑出錯最少的那棵樹；跟答案無關的特徵（像顏色），就不會被選上。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,R3,8)}while(new Set(p.map(x=>x[4])).size<3||p.filter(x=>x[1]).length<2||p.filter(x=>x[2]).length<2);return {rows:p}},
+  view(inst,el,api){
+    el.innerHTML='<div class="tblwrap"><table class="tbl"><tr><th>東西</th>'+F3.map(f=>'<th>'+f+'</th>').join('')+'<th>標籤</th></tr>'+inst.rows.map(r=>'<tr><td>'+r[0]+'</td>'+[r[1],r[2],r[3]].map(v=>'<td>'+yn(v)+'</td>').join('')+'<td><b>'+CLS[r[4]]+'</b></td></tr>').join('')+'</table></div>';
+    const qs='<option value="">選問題</option>'+F3.map((f,i)=>'<option value="'+i+'">'+f+'嗎？</option>').join(''),cs='<option value="">選類別</option>'+CLS.slice(0,3).map((c,i)=>'<option value="'+i+'">'+c+'</option>').join('');
+    el.insertAdjacentHTML('beforeend','<div class="build tree" style="margin-top:12px"><label>① <select class="sel" data-k="q1">'+qs+'</select></label><label>　是 → <select class="sel" data-k="a">'+cs+'</select></label><label>　否 → ② <select class="sel" data-k="q2">'+qs+'</select></label><label>　　是 → <select class="sel" data-k="b">'+cs+'</select></label><label>　　否 → <select class="sel" data-k="c">'+cs+'</select></label></div>');
+    const S=[...el.querySelectorAll('select')];S.forEach(s=>s.onchange=()=>api.changed());
+    const get=()=>{const o={};S.forEach(s=>o[s.dataset.k]=s.value===''?null:+s.value);return o};
+    return {get,fill:()=>{const sol={q1:0,a:2,q2:1,b:0,c:1};S.forEach(s=>s.value=sol[s.dataset.k])},ready:()=>Object.values(get()).every(v=>v!=null)}},
+  check(inst,t){const pred=r=>r[1+t.q1]?t.a:r[1+t.q2]?t.b:t.c;const wrong=inst.rows.filter(r=>pred(r)!==r[4]);return wrong.length?'有 '+wrong.length+' 個分錯，例如「'+wrong[0][0]+'」應該是'+CLS[wrong[0][4]]+'，你的樹分成'+CLS[pred(wrong[0])]+'。':true},
+  peek(inst,t){if(Object.values(t).some(v=>v==null))return '';const pred=r=>r[1+t.q1]?t.a:r[1+t.q2]?t.b:t.c;const ok=inst.rows.filter(r=>pred(r)===r[4]).length;return '<section class="panel"><div class="ptitle"><h3>用你的樹分分看</h3><span class="tag">分對 '+ok+' / '+inst.rows.length+'</span></div></section>'}},
+ {lv:2,name:'考考這棵樹',
+  now:'樹做好了，阿哲拿一批「它沒看過」的東西來測試（測試資料），每一件都附上真正的分類。',
+  goal:'照決策樹分一次，算出它的準確率（分對的數量 ÷ 全部 × 100%）。',
+  tip:'一件一件照著樹走，跟「真正的分類」比，對的數一數。',
+  learn:'訓練用的資料和測試用的資料要分開，才知道模型遇到新東西準不準。準確率不是 100% 很正常：像鋁箔包是紙和鋁黏在一起，這棵簡單的樹就會分錯，要再收集這類例子改進。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,TEST,10)}while(p.every(x=>treeCls(x)===x[4]));return {items:p,acc:p.filter(x=>treeCls(x)===x[4]).length*10}},
+  view(inst,el,api){el.innerHTML=TREE+'<div class="tblwrap" style="margin-top:10px"><table class="tbl"><tr><th>測試的東西</th><th>屬性</th><th>真正的分類</th></tr>'+inst.items.map(x=>'<tr><td>'+x[0]+'</td><td>'+attrs(x)+'</td><td>'+CLS[x[4]]+'</td></tr>').join('')+'</table></div>'+
+    '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:18px">準確率 <input class="num-in" id="acc" inputmode="numeric" autocomplete="off"> %</label>';
+    const i=el.querySelector('#acc');i.oninput=()=>api.changed();return {get:()=>NUMOK(i.value),fill:()=>{i.value=inst.acc},ready:()=>i.value.trim()!==''}},
+  check(inst,v){if(v==null)return '填一個整數。';if(v===inst.acc)return true;return '再數一次：照樹分出來的，和「真正的分類」一樣的有幾個？共 '+inst.items.length+' 個。'}}
+];
+const APP=SHELL({week:20,termWeek:7,title:'回收分類機',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：跟誰最像？用「最近的鄰居」來猜答案。'});
+</script>
+</body>
+</html>

@@ -254,3 +254,30 @@ function CLASSIFY(el, items, opts, api, onChange) {
   el.querySelectorAll('.picks[data-i]').forEach(p => p.querySelectorAll('.pk').forEach(b => b.onclick = () => { const i = +p.dataset.i, j = +b.dataset.j; ans[i] = ans[i] === j ? null : j; sync(); onChange && onChange(); api.changed() }));
   return { get: () => [...ans], fill: a => { a.forEach((v, i) => ans[i] = v); sync(); onChange && onChange() }, ready: () => ans.every(v => v != null) };
 }
+// ===== 第 5 單元起的共用元件 =====
+// 排順序：labels 是卡片（可含 HTML）；點左邊放進右邊下一格，點格子裡的拿回去
+function ORDERBOX(el, labels, api, o = {}) {
+  const n = labels.length, slots = Array(n).fill(null);
+  el.insertAdjacentHTML('beforeend', '<div class="two"><section class="panel"><div class="ptitle"><h3>' + (o.pool || '卡片') + '</h3><span class="small">點一下放進右邊下一格</span></div><div class="picks ob-pool"></div></section>' +
+    '<section class="panel"><div class="ptitle"><h3>' + (o.slots || '順序') + '</h3><span class="small">點格子裡的卡片拿回去</span></div><div class="slots ob-slots"></div></section></div>');
+  const P = el.querySelector('.ob-pool'), S = el.querySelector('.ob-slots');
+  const draw = () => {
+    P.innerHTML = labels.map((l, i) => slots.includes(i) ? '' : '<button type="button" class="pk" data-i="' + i + '">' + l + '</button>').join('') || '<p class="small">都排好了，按「送出」。</p>';
+    S.innerHTML = slots.map((k, j) => '<div class="slot"><span class="n">' + (j + 1) + '</span>' + (k == null ? '<span class="empty">' + (j === 0 && o.first ? o.first : j === n - 1 && o.last ? o.last : '　') + '</span>' : '<button type="button" class="pk" data-s="' + j + '">' + labels[k] + '</button>') + '</div>').join('');
+    P.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const j = slots.indexOf(null); if (j < 0) return; slots[j] = +b.dataset.i; draw(); api.changed() });
+    S.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { slots[+b.dataset.s] = null; draw(); api.changed() });
+  };
+  draw();
+  return { get: () => [...slots], fill: a => { a.forEach((v, i) => slots[i] = v); draw() }, ready: () => slots.every(v => v != null) };
+}
+// 單選：labels 一排按鈕
+function PICKONE(el, labels, api, ans, o = {}) {
+  el.insertAdjacentHTML('beforeend', '<div class="picks" style="margin-top:10px">' + labels.map((t, j) => '<button type="button" class="pk" data-o="' + j + '" aria-pressed="false"' + (o.mono ? ' style="font-family:var(--f-mono)"' : '') + '>' + t + '</button>').join('') + '</div>');
+  let v = null; const sync = () => el.querySelectorAll('[data-o]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.o === v));
+  el.querySelectorAll('[data-o]').forEach(b => b.onclick = () => { v = +b.dataset.o; sync(); api.changed() });
+  return { get: () => v, fill: () => { v = typeof ans === 'function' ? ans() : ans; sync() }, ready: () => v != null };
+}
+// 只接受整串都是數字（可有小數、負號依 o 設定）；不合格回傳 null
+const NUMOK = (s, o = {}) => { const t = String(s).trim().replace(/[,，]/g, ''); const re = o.neg ? (o.dec ? /^-?\d+(\.\d+)?$/ : /^-?\d+$/) : (o.dec ? /^\d+(\.\d+)?$/ : /^\d+$/); return re.test(t) ? Number(t) : null };
+// 分類題的標準檢查（每列一個答案）
+const CHECKROWS = (items, a, hint) => { const w = items.map((x, i) => a[i] === x[1] ? 0 : i + 1).filter(Boolean); return w.length ? '第 ' + w.join('、') + ' 項' + (hint || '再想想。') : true };

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>繪本需要插圖｜第 6 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.scene{position:relative;width:100%;max-width:260px;aspect-ratio:4/3;border-radius:12px;overflow:hidden;border:2px solid var(--line)}
+.scene .sky{position:absolute;inset:0}
+.scene .gnd{position:absolute;left:0;right:0;bottom:0;height:34%}
+.scene .e{position:absolute;line-height:1}
+.scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:560px}
+.scenes .pk{padding:6px;display:flex;justify-content:center}
+.prompt{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:10px;padding:10px 14px;font-size:17px}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js"></script>
+<script src="../../assets/login.js"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016b"></script>
+<script src="../../assets/shell.js?v=4"></script>
+<script>
+// TITLE:繪本需要插圖
+// TERMWEEK:6
+// 第 5 單元第 4 站（選修）：用文字生成圖片、提示詞與畫面的對應、合理使用、整合成繪本
+const WHO=[['貓','🐱'],['狗','🐶'],['機器人','🤖'],['兔子','🐰']];
+const HOLD=[['抱著一本書','📚'],['在踢足球','⚽'],['撐著雨傘','☂️'],['背著書包','🎒']];
+const WHERE=[['教室','🏫','#d9c9a8'],['操場','🌳','#8cc68a'],['海邊','🌊','#e8d39a']];
+const WHEN=[['白天','#9fd8ff',''],['黃昏','#f4a66a',''],['晚上','#1f2d52','🌙']];
+const sceneHTML=(s,big)=>{const [w,h,p,t]=[WHO[s[0]],HOLD[s[1]],WHERE[s[2]],WHEN[s[3]]],f=big?1:.8;
+  return '<div class="scene" role="img" aria-label="'+t[0]+'，在'+p[0]+'，一隻'+w[0]+h[0]+'"><div class="sky" style="background:'+t[1]+'"></div><div class="gnd" style="background:'+p[2]+'"></div>'+
+  (t[2]?'<span class="e" style="right:10%;top:8%;font-size:'+28*f+'px">'+t[2]+'</span>':'')+'<span class="e" style="left:8%;bottom:26%;font-size:'+44*f+'px">'+p[1]+'</span>'+
+  '<span class="e" style="left:44%;bottom:12%;font-size:'+64*f+'px">'+w[1]+'</span><span class="e" style="left:68%;bottom:18%;font-size:'+36*f+'px">'+h[1]+'</span></div>'};
+const promptOf=s=>'畫一隻'+WHO[s[0]][0]+'，'+HOLD[s[1]][0]+'，在'+WHEN[s[3]][0]+'的'+WHERE[s[2]][0]+'，繪本風格。';
+const SIZES=[WHO.length,HOLD.length,WHERE.length,WHEN.length];
+const rndScene=rnd=>SIZES.map(n=>RINT(rnd,0,n-1));
+const tweak=(rnd,s,k)=>{const t=[...s];let v;do{v=RINT(rnd,0,SIZES[k]-1)}while(v===s[k]);t[k]=v;return t};
+const OKUSE=[
+ ['自己用 AI 生成的圖，在繪本最後標示「插圖由 AI 生成」',1],['自己畫的圖，掃描後放進繪本',1],['網站標示「CC BY 可自由使用，需標示作者」的圖，放進繪本並寫上作者',1],['同學自己畫、也同意你使用的圖，並寫上他的名字',1],
+ ['網路上搜尋到的知名動畫角色圖片，直接貼進繪本',0],['叫 AI 畫出「和某知名卡通一模一樣的角色」，當成繪本主角',0],['同學在走廊的照片，沒問過他就放進繪本',0],['別人部落格的插圖，截圖後把作者的浮水印裁掉',0]];
+const STORY=[
+ ['阿迷是剛上國中的七年級生，第一天就背著新書包來到學校。','下課回來，阿迷發現自己找不到教室了。','阿迷看著樓層圖，一間一間找，還是找不到。','一位學姊走過來，帶他看門牌上的班級號碼。','阿迷學會看門牌，再也不會迷路了，還交到第一個朋友。'],
+ ['小葵是七年級新生，最怕吃不慣學校的營養午餐。','第一天打開餐盒，裡面全是她不敢吃的青菜。','小葵只好把飯吃完，把菜偷偷推到旁邊。','同桌的同學分享：這道菜加一點肉汁很好吃。','小葵試了一口，發現真的不錯，從此愛上營養午餐。'],
+ ['阿哲是七年級新生，參加了熱舞社。','社團老師說：下週成果發表，新生也要上台。','阿哲每天放學都在走廊偷偷練習，還是跳錯好幾次。','學長教他：數拍子，比記動作更重要。','成果發表那天，阿哲跟著拍子跳完整首，台下掌聲一片。']];
+const PAGE=['開頭','遇到問題','試著解決','轉折','結局'];
+const ROUNDS=[
+ {lv:1,name:'哪一句提示詞',
+  now:'繪本需要插圖。小禾用 AI 畫了一張，可是忘了自己打了什麼提示詞。',
+  goal:'哪一句提示詞，最可能畫出這張圖？',
+  tip:'一項一項對照：主角是誰、手上拿什麼或在做什麼、在哪裡、什麼時間。',
+  learn:'圖片生成 AI 會把提示詞裡的每個條件畫出來。寫提示詞就像點菜：主角、動作、地點、時間、風格，寫得越清楚，越接近你要的。',
+  gen(rnd){const s=rndScene(rnd),opts=[s];const ks=SAMPLE(rnd,[0,1,2,3],3);ks.forEach(k=>opts.push(tweak(rnd,s,k)));const o=SHUF(rnd,opts.map(x=>promptOf(x)));return {s,opts:o,ans:o.indexOf(promptOf(s))}},
+  view(inst,el,api){el.innerHTML=sceneHTML(inst.s,true);const c=CLASSIFY(el,inst.opts.map(o=>({html:o})),['就是這句'],api);return {get:()=>c.get().findIndex(v=>v===0),fill:()=>c.fill(inst.opts.map((_,i)=>i===inst.ans?0:null)),ready:()=>c.get().filter(v=>v===0).length===1}},
+  check(inst,v){if(v<0)return '選一句。';if(v===inst.ans)return true;return '這句有一個條件和圖不一樣，再一項一項對照。'}},
+ {lv:1,name:'改一個詞',
+  now:'小安把提示詞改了一個詞，再請 AI 畫一次。',
+  goal:'改過的提示詞，會畫出哪一張？',
+  tip:'先找出兩句提示詞哪裡不一樣，再找出只有那個地方改變的圖。',
+  learn:'提示詞改一個詞，AI 就會改畫面裡對應的部分。想微調圖，就一次只改一個條件，比較容易找到你要的版本。',
+  gen(rnd){const a=rndScene(rnd),k=RINT(rnd,0,3),b=tweak(rnd,a,k);const others=[];while(others.length<3){const x=tweak(rnd,a,PICK(rnd,[0,1,2,3].filter(j=>j!==k)));if(!others.some(o=>o.join()===x.join())&&x.join()!==b.join())others.push(x)}
+    const opts=SHUF(rnd,[b,...others]);return {a,b,opts,ans:opts.findIndex(o=>o.join()===b.join())}},
+  view(inst,el,api){el.innerHTML='<div class="two"><div><p class="small">原本的提示詞和圖</p><div class="prompt">'+promptOf(inst.a)+'</div>'+sceneHTML(inst.a)+'</div><div><p class="small">改過的提示詞</p><div class="prompt">'+promptOf(inst.b)+'</div></div></div><p style="margin-top:10px">會畫出哪一張？</p>';
+    el.insertAdjacentHTML('beforeend','<div class="scenes">'+inst.opts.map((o,j)=>'<button type="button" class="pk" data-o="'+j+'" aria-pressed="false" aria-label="第 '+(j+1)+' 張">'+sceneHTML(o)+'</button>').join('')+'</div>');
+    let v=null;const sync=()=>el.querySelectorAll('[data-o]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===v));el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{v=+b.dataset.o;sync();api.changed()});
+    return {get:()=>v,fill:()=>{v=inst.ans;sync()},ready:()=>v!=null}},
+  check:(inst,v)=>v===inst.ans?true:'這張改到的地方不對，或改了不只一個地方。'},
+ {lv:2,name:'可以放進繪本嗎',
+  now:'繪本要印出來送給學弟妹，班上收集了很多圖。林老師提醒：不是網路上找得到的圖都能用。',
+  goal:'判斷每一張圖可不可以放進繪本。',
+  tip:'可以用的：自己做的、有授權而且照規定標示的、作者同意的。不行：別人的作品沒授權、知名角色、沒經同意的人像、拿掉作者標示。',
+  learn:'使用別人的作品要有授權，並照規定標示來源；知名角色有著作權，就算請 AI 畫出來也一樣不行；拍到別人要先問過。用了 AI 生成的圖，也要誠實標示。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,OKUSE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不可以','可以'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：有沒有授權？有沒有經過同意？有沒有照規定標示？')},
+ {lv:2,name:'排好繪本頁',
+  now:'AI 寫好的五頁故事印出來，結果順序全亂了。',
+  goal:'把五頁排成一個完整的故事。',
+  tip:'故事通常是：開頭介紹主角 → 遇到問題 → 試著解決 → 出現轉折 → 結局。',
+  learn:'AI 可以幫忙寫，但要把文字、圖片整合成一本好讀的繪本，還是要靠人來安排順序、檢查前後有沒有接得上。',
+  gen(rnd){const s=RINT(rnd,0,STORY.length-1);let o;do{o=SHUF(rnd,[0,1,2,3,4])}while(o.every((v,i)=>v===i));return {s,cards:o}},
+  view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>STORY[inst.s][k]),api,{pool:'故事頁',slots:'繪本順序',first:'第 1 頁',last:'最後一頁'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},
+  check(inst,a){if(a.some(k=>k==null))return '還有空頁。';for(let i=0;i<a.length;i++)if(inst.cards[a[i]]!==i)return '第 '+(i+1)+' 頁應該是「'+PAGE[i]+'」，再讀一次前後有沒有接上。';return true}}
+];
+const APP=SHELL({week:19,termWeek:6,title:'繪本需要插圖',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：回收分類機，換 AI 從例子學規則。'});
+</script>
+</body>
+</html>

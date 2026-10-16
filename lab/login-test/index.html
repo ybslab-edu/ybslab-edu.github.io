@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://class-score-86020.web.app https://class-score-86020.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; frame-src https://accounts.google.com/gsi/ https://class-score-86020.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>登入測試｜YBS Lab</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#F1F3F5;--surface:#fff;--ink:#1F2328;--muted:#5D6670;--line:#D5DBE1;--accent:#2C67AE;--ok:#2B7A4C;--ok-soft:#DFF1E6;--bad:#B3261E;--bad-soft:#FBE4E2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181C;--surface:#1E2228;--ink:#ECEFF2;--muted:#9AA3AD;--line:#333A42;--accent:#82B2EC;--ok:#6FC995;--ok-soft:#1A3325;--bad:#F2897F;--bad-soft:#3A1F1D;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181C;--surface:#1E2228;--ink:#ECEFF2;--muted:#9AA3AD;--line:#333A42;--accent:#82B2EC;--ok:#6FC995;--ok-soft:#1A3325;--bad:#F2897F;--bad-soft:#3A1F1D;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;font-size:16px;line-height:1.6}
+.wrap{max-width:680px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:24px;margin:0}.sub{color:var(--muted);margin:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+h2{font-size:17px;margin:0}
+label{font-size:14px;color:var(--muted)}
+input{font:inherit;font-family:ui-monospace,Consolas,monospace;font-size:13px;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+button{font:inherit;font-weight:700;padding:8px 16px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;align-self:flex-start}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.res{border-radius:8px;padding:10px 12px;font-size:15px}
+.res.ok{background:var(--ok-soft);color:var(--ok)}.res.bad{background:var(--bad-soft);color:var(--bad)}
+.res dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:6px 0 0;color:var(--ink)}
+.res dt{color:var(--muted)}.res dd{margin:0;word-break:break-all}
+ol{margin:0;padding-left:1.3em}
+.note{font-size:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>學生帳號登入測試</h1>
+  <p class="sub">階段 0：只測試學校 Google 帳號能不能登入。<b>這一頁不會寫入任何資料</b>，也不會把登入資訊送到任何地方保存。</p>
+
+  <section class="panel">
+    <h2>設定</h2>
+    <label for="cid">OAuth 用戶端 ID（class-score-86020 的網頁用戶端）</label>
+    <input id="cid" placeholder="例如 123456789-xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+    <label for="akey">Firebase 網頁 API 金鑰（選填：第 2 步說讀不到設定時才填，在 Firebase 主控台 → 專案設定 → 一般）</label>
+    <input id="akey" placeholder="AIza…" autocomplete="off" spellcheck="false">
+    <p class="note">用戶端 ID 與網頁 API 金鑰都不是密碼，可以公開。只存在這個分頁，關掉就清除。</p>
+  </section>
+
+  <section class="panel">
+    <h2>第 1 步：用學生帳號登入 Google</h2>
+    <div id="gbtn"></div>
+    <button id="b-load">載入登入按鈕</button>
+    <div id="r1" hidden></div>
+  </section>
+
+  <section class="panel">
+    <h2>第 2 步：用同一個登入換取 ClassScore 的 Firebase 身分</h2>
+    <p class="note">只登入、不讀寫資料庫；測完自動登出。</p>
+    <button id="b-fb" disabled>測試 Firebase 登入</button>
+    <div id="r2" hidden></div>
+  </section>
+
+  <section class="panel">
+    <h2>測完請回報</h2>
+    <ol>
+      <li>第 1 步：綠色或紅色框裡的文字（email 可以遮掉數字）。如果 Google 跳出「已封鎖」或「存取遭拒」的畫面，請截那個畫面。</li>
+      <li>第 2 步：綠色或紅色框裡的文字。</li>
+      <li>用的是幾年級的學生帳號、哪台裝置與瀏覽器。</li>
+    </ol>
+    <button class="ghost" id="b-out">登出並清除這一頁</button>
+  </section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const DOMAIN='cgjh.hcc.edu.tw', PROJECT='class-score-86020', SDK='10.14.1';
+let idToken=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function show(el,ok,title,rows){
+  el.hidden=false; el.className='res '+(ok?'ok':'bad');
+  el.innerHTML='<b>'+esc(title)+'</b>'+(rows&&rows.length?'<dl>'+rows.map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+'</dl>':'');
+}
+function decode(jwt){
+  const b=jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  const bin=atob(b+'='.repeat((4-b.length%4)%4));
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0))));
+}
+const mask=e=>String(e||'').replace(/\d(?=\d{2})/g,'＊');
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('無法載入 '+src));document.head.appendChild(s)})}
+
+try{ $('cid').value=sessionStorage.getItem('ybs-lt-cid')||'' }catch(e){}
+$('b-load').onclick=async()=>{
+  const cid=$('cid').value.trim();
+  if(!/^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(cid)){ show($('r1'),false,'用戶端 ID 格式不對，請貼完整的 ….apps.googleusercontent.com'); return; }
+  try{ sessionStorage.setItem('ybs-lt-cid',cid) }catch(e){}
+  try{ if(!(window.google&&google.accounts&&google.accounts.id)) await loadScript('https://accounts.google.com/gsi/client'); }
+  catch(e){ show($('r1'),false,'無法載入 Google 登入元件（網路或學校防火牆擋住 accounts.google.com）'); return; }
+  google.accounts.id.initialize({client_id:cid, hd:DOMAIN, auto_select:false, callback:onGoogle,
+    error_callback:e=>show($('r1'),false,'Google 登入沒有完成：'+(e&&e.type||'未知原因'))});
+  $('gbtn').innerHTML='';
+  google.accounts.id.renderButton($('gbtn'),{theme:'outline',size:'large',text:'signin_with',shape:'pill',locale:'zh-TW',width:260});
+  $('b-load').hidden=true;
+};
+function onGoogle(r){
+  let p; try{ p=decode(r.credential) }catch(e){ show($('r1'),false,'登入回傳的資料無法解讀'); return; }
+  const inDomain=p.hd===DOMAIN, verified=p.email_verified===true||p.email_verified==='true';
+  idToken=r.credential;
+  show($('r1'),inDomain&&verified, inDomain&&verified?'✓ Google 登入成功，是學校帳號':'✗ 登入了，但不是學校網域帳號',
+    [['帳號',mask(p.email)],['網域 hd',p.hd||'（無，個人帳號）'],['已驗證',verified?'是':'否'],['用戶端 aud',p.aud]]);
+  $('b-fb').disabled=!(inDomain&&verified);
+}
+$('b-fb').onclick=async()=>{
+  $('b-fb').disabled=true;
+  try{
+    if(!window.firebase){
+      await loadScript(`https://www.gstatic.com/firebasejs/${SDK}/firebase-app-compat.js`);
+      await loadScript(`https://www.gstatic.com/firebasejs/${SDK}/firebase-auth-compat.js`);
+    }
+    if(!firebase.apps.length){
+      let cfg=null;
+      try{ const r=await fetch(`https://${PROJECT}.web.app/__/firebase/init.json`,{cache:'no-store'}); if(r.ok) cfg=await r.json(); }catch(e){}
+      const k=$('akey').value.trim();
+      if(!cfg&&/^AIza[0-9A-Za-z_-]{30,}$/.test(k)) cfg={apiKey:k,authDomain:`${PROJECT}.firebaseapp.com`,projectId:PROJECT};
+      if(!cfg){ show($('r2'),false,'讀不到 ClassScore 的 Firebase 公開設定：請在上方「設定」貼上網頁 API 金鑰再按一次'); return; }
+      firebase.initializeApp({apiKey:cfg.apiKey,authDomain:cfg.authDomain,projectId:cfg.projectId,appId:cfg.appId},'ybs-login-test');
+    }
+    const auth=firebase.app('ybs-login-test').auth();
+    await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    const cred=await auth.signInWithCredential(firebase.auth.GoogleAuthProvider.credential(idToken));
+    const u=cred.user;
+    show($('r2'),true,'✓ Firebase 登入成功（未讀寫任何資料，已自動登出）',[['帳號',mask(u.email)],['已驗證',u.emailVerified?'是':'否'],['UID 前 6 碼',String(u.uid).slice(0,6)+'…']]);
+    await auth.signOut();
+  }catch(e){
+    show($('r2'),false,'✗ Firebase 登入失敗',[['錯誤代碼',e&&e.code||'—'],['訊息',String(e&&e.message||e).slice(0,200)]]);
+  }finally{ $('b-fb').disabled=!idToken; }
+};
+$('b-out').onclick=()=>{
+  idToken=null;
+  try{ google.accounts.id.disableAutoSelect() }catch(e){}
+  try{ sessionStorage.removeItem('ybs-lt-cid') }catch(e){}
+  location.reload();
+};
+</script>
+</body>
+</html>

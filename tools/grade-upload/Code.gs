@@ -15,6 +15,7 @@ const DOMAIN = 'cgjh.hcc.edu.tw';     // 只接受這個網域的帳號；學生
 const ALLOW_UNLISTED = true;          // 本校網域但不在名單上的帳號，可自己填班級座號上傳（姓名欄會標「不在名單」）
 
 const ROSTER = '名單', LOG = '上傳紀錄', SUM = '成績總表', MAX_ROUNDS = 6;
+const RATE_MAX = 60, RATE_SEC = 600;  // 同一個帳號 10 分鐘內最多上傳 60 次，超過先擋（防灌爆試算表）
 const ROSTER_HEAD = ['學校帳號', '班級', '座號', '姓名'];
 
 function setup() {
@@ -39,6 +40,7 @@ function doPost(e) {
       return out_({ ok: true, student: me ? { cls: me.cls, seat: me.seat, name: me.name } : null });
     }
     if (!me && listedOnly) return out_({ ok: false, error: 'not-listed' });
+    if (!rate_(who.email)) return out_({ ok: false, error: 'rate' });
     const rec = clean_(d, me);
     if (!rec) return out_({ ok: false, error: 'data' });
     const lock = LockService.getScriptLock();
@@ -50,7 +52,8 @@ function doPost(e) {
     }
     return out_({ ok: true });
   } catch (err) {
-    return out_({ ok: false, error: String(err && err.message || err) });
+    console.error(err);                       // 細節只留在 Apps Script 的執行紀錄，不回傳給瀏覽器
+    return out_({ ok: false, error: 'server' });
   }
 }
 
@@ -83,7 +86,7 @@ function lookup_(email) {
 // 只收合理範圍的資料；名單上有的人，班級座號以名單為準
 function clean_(d, me) {
   const int = (v, lo, hi) => { const n = Number(v); return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };
-  const txt = (v, n) => String(v == null ? '' : v).slice(0, n);
+  const txt = (v, n) => safe_(String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, n));
   const rec = {
     course: txt(d.course, 20), activity: int(d.activity, 1, 63), termWeek: int(d.termWeek, 1, 30),
     title: txt(d.title, 60), round: int(d.round, 0, MAX_ROUNDS - 1), roundName: txt(d.roundName, 30), level: txt(d.level, 10),
@@ -94,6 +97,21 @@ function clean_(d, me) {
   };
   if ([rec.activity, rec.round, rec.cls, rec.seat].some(v => v == null) || !rec.course) return null;
   return rec;
+}
+
+// 學生送來的文字一律當純文字：開頭是 = + - @ 的字串會被試算表當成公式執行（可能把名單外傳），前面補一個 ' 讓它保持文字
+function safe_(s) {
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+// 簡單的頻率限制：用 CacheService 記每個帳號最近的上傳次數
+function rate_(email) {
+  const cache = CacheService.getScriptCache();
+  const k = 'r:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, email)).slice(0, 40);
+  const n = Number(cache.get(k) || 0);
+  if (n >= RATE_MAX) return false;
+  cache.put(k, String(n + 1), RATE_SEC);
+  return true;
 }
 
 function sheet_(name, header) {

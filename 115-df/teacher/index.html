@@ -2,6 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://script.google.com https://script.googleusercontent.com; frame-src https://accounts.google.com/gsi/; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>專題研究｜老師彙整台</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
@@ -211,7 +213,8 @@ function detail(d){
 function csv(){
   const list=[...R.values()].sort((a,b)=>(a.cls+'').localeCompare(b.cls+'')||(+a.seat)-(+b.seat));
   const head=['班級','座號','進度','研究問題','疑點數','第一批打開數','第二批打開數','H1送出','H1耗時分鐘','最高提示級','H1→H2決定','H1','H2','最支持解釋','不能證明','畫廊收到留言','數資挑戰','證據擷取(20)','事實與推論(20)','交叉驗證(20)','反證與修正(20)','結論邊界(20)','總分'];
-  const q=s=>`"${String(s??'').replace(/"/g,'""')}"`;
+  // 開頭是 = + - @ 的儲存格，Excel 會當成公式執行；前面補 ' 保持文字
+  const q=s=>{ let t=String(s??''); if(/^[=+\-@\t\r]/.test(t)) t="'"+t; return `"${t.replace(/"/g,'""')}"`; };
   const rows=list.map(d=>{ const h=d.b2?.hints||[]; return [d.cls,d.seat,progress(d)[1],d.problem||'',(d.susp||[]).filter(s=>(s.text||'').trim()).length,B1.filter(i=>opened(d,i)).length,B2.filter(i=>opened(d,i)).length,hm(d.h1?.submittedAt),mins(d.started,d.h1?.submittedAt)??'',h.length?Math.max(...h.map(x=>x.level)):0,d.h2?.decision||'',`${d.h1?.cause||''} 可能造成 ${d.h1?.effect||''}`,d.h2?.now||'',d.concl?.best||'',[d.concl?.can,d.concl?.cannot,d.concl?.cbecause].filter(Boolean).join('｜'),(d.gallery?.comments||[]).length,d.reveal?.calc?.ok?'全對':'','','','','','',''].map(q).join(','); });
   const blob=new Blob(['﻿'+[head.map(q).join(','),...rows].join('\r\n')],{type:'text/csv'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`專題研究_成績彙整_${new Date().toISOString().slice(0,10)}.csv`; a.click();

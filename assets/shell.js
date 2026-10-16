@@ -187,7 +187,7 @@ const SHELL = (cfg) => {
     try { const p = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (p && Array.isArray(p.tries)) prog = p } catch (e) { }
     done.clear(); for (let i = 0; i < R.length; i++) if (prog.mask & (1 << i)) done.add(i);
     $('who').textContent = id.cls + ' 班 ' + id.seat + ' 號' + (id.name ? ' ' + id.name : '');
-    if (YBS.enabled() && YBS.profile()) { try { localStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; $('rep-note').innerHTML = '每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。'; YBS.flush() }
+    if (YBS.enabled() && YBS.profile()) { try { sessionStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; $('rep-note').innerHTML = '每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。'; YBS.flush() }
     $('gate').hidden = true; $('main').hidden = false;
     setLevel(1); renderReport();
   }
@@ -220,7 +220,7 @@ const SHELL = (cfg) => {
       if (!r.ok && r.error === 'not-listed') { $('g-who').hidden = true; YBS.logout(); showLogin(); $('g-lerr').textContent = '名單上找不到這個帳號（' + me.email + '），請改用自己的帳號，或告訴老師。'; return }
       $('g-who').hidden = true; $('g-form').hidden = false;
       $('g-me').hidden = false; $('g-me').textContent = '已登入：' + me.email + (r.ok ? '（名單上沒有你，請填班級座號並告訴老師）' : '');
-      try { const s = JSON.parse(localStorage.getItem('ybslab:me:' + me.email) || 'null'); if (s) { $('in-cls').value = s.cls; $('in-seat').value = s.seat } } catch (e) { }
+      try { const s = JSON.parse(sessionStorage.getItem('ybslab:me:' + me.email) || 'null'); if (s) { $('in-cls').value = s.cls; $('in-seat').value = s.seat } } catch (e) { }
       $('in-cls').focus();
     }, msg => { $('g-lerr').textContent = msg });
   }

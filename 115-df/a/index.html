@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://script.google.com https://script.googleusercontent.com; frame-src https://accounts.google.com/gsi/; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>消失的原始資料｜專題研究</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -583,7 +584,7 @@ function refreshRail(){ $$('.step').forEach(b=>{ const n=+b.dataset.n; b.classLi
 function chips(path, ids, max, locked){
   return `<span class="chips" data-chips="${path}" data-max="${max||99}">${ids.map(id=>`<label class="chip ${locked?'dis':''}"><input type="checkbox" value="${id}" ${locked?'disabled':''}>${lbl(id)}</label>`).join('')}</span>`;
 }
-const lbl = id => ({E07F:'E07完整',SUP:'補充'})[id]||id;
+const lbl = id => esc(({E07F:'E07完整',SUP:'補充'})[id]||id);
 const B1IDS = () => PUB.batch1.map(e=>e.id);
 const ALLIDS = () => [...B1IDS(), ...(B2? B2.batch2.map(e=>e.id):[])];
 const SRC_TYPE = id => ({E01:'照片',E02:'照片',E03:'照片',E04:'照片',E05:'照片',E06:'門禁',E07:'電腦紀錄',E07F:'電腦紀錄',E08:'版本紀錄',SUP:'補充資料'})[id];

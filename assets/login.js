@@ -36,7 +36,7 @@ const YBS = (() => {
   async function init() {
     await loadGis();
     if (inited) return;
-    google.accounts.id.initialize({ client_id: CONFIG.clientId, ...(CONFIG.domain ? { hd: CONFIG.domain } : {}), callback: handle, auto_select: true, cancel_on_tap_outside: false });
+    google.accounts.id.initialize({ client_id: CONFIG.clientId, ...(CONFIG.domain ? { hd: CONFIG.domain } : {}), callback: handle, auto_select: false, cancel_on_tap_outside: false });
     inited = true;
   }
   // 在 el 放一顆「使用 Google 帳戶登入」按鈕；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
@@ -91,5 +91,8 @@ const YBS = (() => {
     try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {}
   }
   setInterval(() => { if (profile) flush(); }, 60000);
+  // 電腦教室是共用機：不自動沿用上一位的 Google 登入（auto_select 關閉）；
+  // 舊版曾把「帳號→班級座號」存在 localStorage，這裡清掉，改存在只限本分頁的 sessionStorage。
+  try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {}
   return { CONFIG, enabled, button, submit, flush, logout, whoami, profile: () => profile, status: f => { onStatus = f; } };
 })();

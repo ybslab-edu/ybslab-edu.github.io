@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://script.google.com https://script.googleusercontent.com; frame-src https://accounts.google.com/gsi/; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>打王前記得存檔｜第 8 週</title>
@@ -320,7 +321,7 @@ body.teacher .slot .card{cursor:pointer}
 
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js"></script>
-<script src="../../assets/login.js"></script>
+<script src="../../assets/login.js?v=20261016s"></script>
 <script>
 const WEEK=2, TERM_WEEK=8, TITLE='打王前記得存檔', COURSE='115-g9';
 const GAME='遊戲', PROG='（程式）', CMD='這次指令';
@@ -734,7 +735,7 @@ function start(id){
   try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
   done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
   $('who').textContent=id.cls+' 班 '+id.seat+' 號'+(id.name?' '+id.name:'');
-  if(YBS.enabled()&&YBS.profile()){try{localStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
+  if(YBS.enabled()&&YBS.profile()){try{sessionStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
   $('gate').hidden=true;$('main').hidden=false;
   setLevel(1);renderReport();
 }
@@ -796,7 +797,7 @@ function showLogin(){
     // 不在名單（但是本校帳號）或暫時連不上試算表：自己填班級座號
     $('g-who').hidden=true;$('g-form').hidden=false;
     $('g-me').hidden=false;$('g-me').textContent='已登入：'+me.email+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
-    try{const s=JSON.parse(localStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
+    try{const s=JSON.parse(sessionStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
     $('in-cls').focus();
   },msg=>{$('g-lerr').textContent=msg});
 }

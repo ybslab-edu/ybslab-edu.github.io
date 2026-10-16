@@ -115,6 +115,7 @@
 - 階段 2 準備：YBS Draft PR `feat/firebase-attempts`——`assets/login.js` 改走 Firebase（`CONFIG.on=false` 預設關閉，`courses` 對應 `ybsCourses` 文件 ID），每關寫 `attempts/{uid}_{活動}_{關卡}`；佇列只存 sessionStorage；全站 CSP 放行 gstatic Firebase SDK、identitytoolkit、securetoken、firestore 與 class-score-86020 網域並移除 Apps Script 網域。試點時：部署 Rules → 建 `ybsTeachers/{UID}`、`ybsCourses/115-g9`（open:true）與試點班名單 → `on:true`。尚未決定試點班級與週次。
 - 規則：YBS 改動與 Firebase Rules／ClassScore UI 都先開 Draft PR，合併與發布另行核准；class-score 合併到 main 即正式發布；不得操作正式教師資料。上線時 YBS 各頁 CSP 要放行 Firebase 網域。
 - 架構定案：兩站獨立、共用 Firebase 交換區；YBS 只寫過關紀錄、不保存成績；名單由 ClassScore「送名單」寫入（無姓名）；成績在 ClassScore 由老師確認後匯入（過關數÷關卡數）；成績碼只當登入失敗備案。試點 w04（11/2）。
+- 上線進度（10/16 17:20 暫停）：ClassScore PR #102 合併發布、Rules 已部署、ybsTeachers 已建；**下一步是在 ClassScore「YBS Lab 連線」送試點班名單**（班級未定），之後合併本 PR（`on:true`）並找學生實測 w04（11/2）。
 - 這會取代第 4 節第 4 項（Apps Script 登入）與第 6 項的方向；Apps Script 判題可作為之後的防偽升級（免計費）。
 
 ## 4. 下一步（依序）

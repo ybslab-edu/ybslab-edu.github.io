@@ -8,6 +8,7 @@
 | --- | --- |
 | `index.html` | 首頁：學期進度（依日期捲到本週，同一活動連上多週會合併成一格） |
 | `map/` | 課綱學習地圖（國中／高中必修／高中選修三個分頁，放射地圖或路線清單）；舊的 `/#S-IV-2` 連結會自動轉到 `map/#S-IV-2` |
+| `assets/activities.json` | 由 `activities.js` 產生的公開清單（課程、活動序號、標題、關卡），ClassScore 讀它計算「過關數 ÷ 關卡數」。**改過 activities.js 後要執行 `node tools/activities-json.mjs`** |
 | `assets/curriculum.js` | 課綱資料 `CURRICULA`：國中、高中必修、高中加深加廣「進階程式設計」的學習內容、年級、細項與附錄三說明（依 107 年 9 月科技領域課綱）；另有開設中的課程 `COURSES`、學期 `TERMS`（填開學日與休業式，週次自動計算） |
 | `assets/activities.js` | 所有課堂活動（全站唯一登記處）：`codes` 對應學習地圖、`date` 排進學期進度、`rounds` 給教師專區 |
 | `404.html` | 網址打錯時顯示的頁面 |
@@ -34,7 +35,7 @@
 ## 每週新增一課
 
 1. 在課程資料夾新增 `w02/`，放入 `index.html`，頁面開頭設定 `const WEEK=2;`，並載入 `../../assets/codec.js`。`w02`、`WEEK`、activities.js 的 `week` 都是「第幾個活動」（成績碼用）；分頁標題寫學期週次（例如第 8 週），首頁與教師專區會依 `date` 自動換算週次。
-2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處）：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
+2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處），再執行 `node tools/activities-json.mjs` 更新 `assets/activities.json`：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
 3. 推上 `main`，網站自動更新。
 
 ## 成績碼

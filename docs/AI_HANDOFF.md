@@ -117,6 +117,7 @@
 - 架構定案：兩站獨立、共用 Firebase 交換區；YBS 只寫過關紀錄、不保存成績；名單由 ClassScore「送名單」寫入（無姓名）；成績在 ClassScore 由老師確認後匯入（過關數÷關卡數）；成績碼只當登入失敗備案。試點 w04（11/2）。
 - 上線進度（10/16 17:20 暫停）：ClassScore PR #102 合併發布、Rules 已部署、ybsTeachers 已建；**下一步是在 ClassScore「YBS Lab 連線」送試點班名單**（班級未定），之後合併本 PR（`on:true`）並找學生實測 w04（11/2）。
 - 10/16 老師確認開學簡報四項假設並已改好：w30 帳密頁只寫規則（帳號 cgjh＋學號，密碼口頭說明）；前測不計分；Wayground 每班不同連結（W01 簡報不再放固定連結）；技能 40%＝YBS 實作過關紀錄（登入失敗交成績碼）。W01（J1DG…）、w30（KSSJ…）簡報與 w30 活動頁「成績怎麼算」已同步。
+- ClassScore 端讀紀錄與匯入：class-score Draft PR #103（依賴本 PR 的 `assets/activities.json`）。之後新增活動要執行 `node tools/activities-json.mjs`（weekly-it-lesson 流程也要加這步）。
 - 這會取代第 4 節第 4 項（Apps Script 登入）與第 6 項的方向；Apps Script 判題可作為之後的防偽升級（免計費）。
 
 ## 4. 下一步（依序）

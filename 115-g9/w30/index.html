@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://script.google.com https://script.googleusercontent.com; frame-src https://accounts.google.com/gsi/; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://class-score-86020.web.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://accounts.google.com/gsi/ https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>登入，出發｜第 2 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
@@ -18,10 +18,10 @@
 <body>
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js"></script>
-<script src="../../assets/login.js?v=20261016s"></script>
+<script src="../../assets/login.js?v=20261016f"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=5"></script>
+<script src="../../assets/shell.js?v=6"></script>
 <script>
 // TITLE:登入，出發
 // TERMWEEK:2
@@ -46,7 +46,7 @@ const PARTS=['認知（30%）','情意（30%）','技能（40%）'];
 const EVAL=[
  ['期末考的紙筆測驗',0],['期末考：從 50 題題庫抽 25 題',0],
  ['上課準時入座、專心聽講（學習態度）',1],['依照規則使用電腦教室（學習態度）',1],['主動教會隔壁同學（學習互助）',1],['分組時和同學一起討論（學習互助）',1],
- ['完成課堂作業',2],['課堂實作過關，把成績碼交給老師',2],['在電腦上完成老師指定的作品',2]];
+ ['完成課堂作業',2],['在 YBS Lab 用學校帳號登入，實作過關留下紀錄',2],['在電腦上完成老師指定的作品',2]];
 const STORY=[
  '六連星演唱會開賣，小安搶門票',
  '加場開賣，搶票 App 被手機自己關掉',
@@ -85,7 +85,7 @@ const ROUNDS=[
   now:'這一科的學期成績分成三部分：認知 30%、情意 30%、技能 40%。',
   goal:'把每一件事，放到它算在哪一部分。',
   tip:'考試是認知；上課的態度、幫助同學是情意；動手完成的作業和作品是技能。',
-  learn:'認知 30%：期末紙筆測驗（題庫 50 題，抽 25 題）。情意 30%：學習態度、學習互助。技能 40%：課堂作業。技能占最多，所以每一堂的實作都很重要。',
+  learn:'認知 30%：期末紙筆測驗（題庫 50 題，抽 25 題）。情意 30%：學習態度、學習互助。技能 40%：YBS Lab 的實作過關紀錄（學校帳號登入，每過一關自動記錄；登入不了時交成績碼）。技能占最多，所以每一堂的實作都很重要。',
   gen(rnd){let p;do{p=SAMPLE(rnd,EVAL,5)}while(!allIn(p,1,3));return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),PARTS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){return CR(inst.items,a,'放錯了。它是考試、上課的態度和互助，還是動手完成的作業？')}},

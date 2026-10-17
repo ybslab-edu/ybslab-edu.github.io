@@ -8,6 +8,7 @@
 | --- | --- |
 | `index.html` | 首頁：學期進度（依日期捲到本週，同一活動連上多週會合併成一格） |
 | `map/` | 課綱學習地圖（國中／高中必修／高中選修三個分頁，放射地圖或路線清單）；舊的 `/#S-IV-2` 連結會自動轉到 `map/#S-IV-2` |
+| `assets/activities.json` | 由 `activities.js` 產生的公開清單（課程、活動序號、標題、關卡），ClassScore 讀它計算「過關數 ÷ 關卡數」。**改過 activities.js 後要執行 `node tools/activities-json.mjs`** |
 | `assets/curriculum.js` | 課綱資料 `CURRICULA`：國中、高中必修、高中加深加廣「進階程式設計」的學習內容、年級、細項與附錄三說明（依 107 年 9 月科技領域課綱）；另有開設中的課程 `COURSES`、學期 `TERMS`（填開學日與休業式，週次自動計算） |
 | `assets/activities.js` | 所有課堂活動（全站唯一登記處）：`codes` 對應學習地圖、`date` 排進學期進度、`rounds` 給教師專區 |
 | `404.html` | 網址打錯時顯示的頁面 |
@@ -16,9 +17,9 @@
 | `assets/shell.js`、`assets/shell.css` | 活動頁共用外框（第 2 單元起）：填班級座號、基礎／進階分頁、單元進度條、成績碼、教師模式；各週頁面只寫關卡，過關要連續答對兩組不同的資料 |
 | `assets/codec.js` | 成績碼編碼與解碼，所有課程共用 |
 | `assets/teacher.js` | 教師模式通行碼（只存雜湊）。活動頁載入後，起始畫面有「教師登入」：可一鍵顯示答案、暫停播放、上一步／下一步、點步驟跳過去；教師模式不產生成績碼。通行碼只防學生隨手點開，不是帳號安全機制 |
-| `assets/login.js` | 學生以學校 Google 帳號登入、每過一關自動上傳到老師的 Google 試算表；`clientId`、`endpoint` 留空時不啟用（維持班級座號＋成績碼）。設定步驟見 `tools/grade-upload/` |
+| `assets/login.js` | 學生以學校 Google 帳號登入，每過一關寫一筆紀錄到 ClassScore 的 Firebase（`class-score-86020`，結構見 class-score repo 的 `docs/YBS_FIRESTORE.md`）；`on` 為 false 時不啟用（維持班級座號＋成績碼） |
 | `assets/vendor/` | 第三方程式庫的固定版本（教師專區匯出 Excel 用的 SheetJS），不從 CDN 載入 |
-| `tools/grade-upload/` | 成績上傳的 Apps Script（`Code.gs`）與設定步驟 |
+| `tools/grade-upload/` | 舊方案（Apps Script＋試算表），已改走 Firebase，保留備查、不要和 Firebase 同時啟用 |
 | `115-g9/w01/` … | 115 學年九年級的每週活動頁（`115-g9/index.html` 只是轉回首頁） |
 | `115-g9/teacher/` | 該課程的教師成績彙整，入口在關於頁頁尾（資料只存在老師自己的瀏覽器） |
 | `115-df/` | 數理資優班專題研究（七、八年級）：`a/` 是 A 版學生頁（單檔，第二批與揭露內容加密），`teacher/` 是老師彙整台（讀學生匯出的報告檔）。原始碼、密碼與教師解答版不放這個公開儲存庫 |
@@ -34,7 +35,7 @@
 ## 每週新增一課
 
 1. 在課程資料夾新增 `w02/`，放入 `index.html`，頁面開頭設定 `const WEEK=2;`，並載入 `../../assets/codec.js`。`w02`、`WEEK`、activities.js 的 `week` 都是「第幾個活動」（成績碼用）；分頁標題寫學期週次（例如第 8 週），首頁與教師專區會依 `date` 自動換算週次。
-2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處）：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
+2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處），再執行 `node tools/activities-json.mjs` 更新 `assets/activities.json`：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
 3. 推上 `main`，網站自動更新。
 
 ## 成績碼

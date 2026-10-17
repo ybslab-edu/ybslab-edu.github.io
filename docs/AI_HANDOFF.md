@@ -59,7 +59,7 @@
 第 1 單元前段（w26～w29，2026-10-16 補登，節點 1-01～1-08）：
 - 活動序號接在 w25 後面（成績碼用），日期排在學期第 3～6 週。第 1、2 週是開學導覽：w30（unit 0、codes 空陣列，首頁圖例已略過沒有 codes 的活動）。評量方式與教室規則照老師 W01 簡報：認知 30%（期末紙筆，題庫 50 抽 25）、情意 30%（學習態度、學習互助）、技能 40%（課堂作業）。
 - 故事：小安搶六連星第一場演唱會（開賣倒數十秒 → 加場搶票 → 換手機 → 直播倒數），w01 手搖店、w02 打王存檔是插曲，w03 看台最後一排就是這場演唱會當天（w03 簡報 seat 頁已改成接續語氣）。
-- 簡報單元地圖是六站（第 3～8 週）；w01、w02 的簡報還沒有單元地圖。
+- 簡報單元地圖是六站（第 3～8 週）；10/16 已補到 w01（第 5 站，sum-mem 後）與 w02（第 6 站，單元結束版，sum-flow 後），六份簡報一致。
 - 原始檔與測試在當時工作階段的 scratchpad（u1/wNN.js、u1/test.py、decks/mk_unit1.py），新環境看不到。
 
 第 2 單元（w03～w09）的連貫設計，老師會整單元一起測：
@@ -110,8 +110,14 @@
 ## 3.7 YBS × ClassScore 串接（2026-10-16 從 ClassScore 視窗移交，主導在這裡）
 - 完整規劃：`hs202864-art/class-score` 分支 `docs/classscore-release-main-verification-blocked` 的 `docs/AI_HANDOFF.md` 第 3 節 C。
 - 老師決定：方案 A（共用 Firebase `class-score-86020`）、每關一筆紀錄。學生 email：八、九年級可由學號推算，七年級規則已改不能推算 → 名單匯入一律保留 email 欄位。成績碼之後不再需要（保留為登入出問題時的備案，待正式上線再定）。
-- 階段 0：Draft PR #1 `lab/login-test/`（不寫資料）。老師需先在 OAuth 網頁用戶端加授權來源 `https://ybslab-edu.github.io`、Firebase Auth 授權網域加 `ybslab-edu.github.io`；合併後用學生帳號測，回報兩步結果。尚未決定：試點班級與週次、是否有學生帳號可測。
+- 階段 0 **通過**（PR #1 已合併）：學生帳號 GIS 登入＋Firebase `signInWithCredential` 皆成功。
+- 階段 1：class-score Draft PR #102（Rules＋模擬器測試，CircleCI PASS，Rules 未部署）。
+- 階段 2 準備：YBS Draft PR `feat/firebase-attempts`——`assets/login.js` 改走 Firebase（`CONFIG.on=false` 預設關閉，`courses` 對應 `ybsCourses` 文件 ID），每關寫 `attempts/{uid}_{活動}_{關卡}`；佇列只存 sessionStorage；全站 CSP 放行 gstatic Firebase SDK、identitytoolkit、securetoken、firestore 與 class-score-86020 網域並移除 Apps Script 網域。試點時：部署 Rules → 建 `ybsTeachers/{UID}`、`ybsCourses/115-g9`（open:true）與試點班名單 → `on:true`。尚未決定試點班級與週次。
 - 規則：YBS 改動與 Firebase Rules／ClassScore UI 都先開 Draft PR，合併與發布另行核准；class-score 合併到 main 即正式發布；不得操作正式教師資料。上線時 YBS 各頁 CSP 要放行 Firebase 網域。
+- 架構定案：兩站獨立、共用 Firebase 交換區；YBS 只寫過關紀錄、不保存成績；名單由 ClassScore「送名單」寫入（無姓名）；成績在 ClassScore 由老師確認後匯入（過關數÷關卡數）；成績碼只當登入失敗備案。試點 w04（11/2）。
+- 上線進度（10/16 17:20 暫停）：ClassScore PR #102 合併發布、Rules 已部署、ybsTeachers 已建；**下一步是在 ClassScore「YBS Lab 連線」送試點班名單**（班級未定），之後合併本 PR（`on:true`）並找學生實測 w04（11/2）。
+- 10/16 老師確認開學簡報四項假設並已改好：w30 帳密頁只寫規則（帳號 cgjh＋學號，密碼口頭說明）；前測不計分；Wayground 每班不同連結（W01 簡報不再放固定連結）；技能 40%＝YBS 實作過關紀錄（登入失敗交成績碼）。W01（J1DG…）、w30（KSSJ…）簡報與 w30 活動頁「成績怎麼算」已同步。
+- ClassScore 端讀紀錄與匯入：class-score Draft PR #103（依賴本 PR 的 `assets/activities.json`）。之後新增活動要執行 `node tools/activities-json.mjs`（weekly-it-lesson 流程也要加這步）。
 - 這會取代第 4 節第 4 項（Apps Script 登入）與第 6 項的方向；Apps Script 判題可作為之後的防偽升級（免計費）。
 
 ## 4. 下一步（依序）

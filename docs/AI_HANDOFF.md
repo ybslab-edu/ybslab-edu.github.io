@@ -1,6 +1,8 @@
 # YBS Lab 交接（覆寫式，只留最新狀態）
 
-最後更新：2026-10-16（安全排查後）。新對話先讀完這份，再依「下一步」推進；不用從頭研究整個網站。
+最後更新：2026-10-17（10/16 工作階段結束交接）。新對話先讀完這份，再依「下一步」推進；不用從頭研究整個網站。
+
+> **目前最優先**：YBS × ClassScore 串接上線（第 3.7 節）。下一個動作在老師：到 ClassScore「成績管理 → YBS Lab 連線」送出試點班名單。
 
 ## 1. 專案與相關位置
 - 網站：<https://ybslab-edu.github.io>，repo `ybslab-edu/ybslab-edu.github.io`（GitHub Pages，main 直接上線）。
@@ -8,7 +10,7 @@
   - 主分頁：每週進度表（已登記到 1/18）與節點表（第 2、4 單元節點都已填活動）。
   - 分頁「上學期課程規劃（新版）」：21 週 3 單元＋4 條科技趨勢；子分頁「第 1 單元 系統平台」。規劃表週次＋2＝實際學期週次。
 - 備課流程：技能 `weekly-it-lesson`（故事簡報＝Slides artifact＋分級活動頁＋登記到網站與總表）。
-- 另一個專案 **ClassScore**（`hs202864-art/class-score`）有自己的交接檔，不在這裡處理。
+- 另一個專案 **ClassScore**（`hs202864-art/class-score`，私人 repo）有自己的交接檔（在 Draft PR #85 的分支 `docs/classscore-release-main-verification-blocked`，不在 main）。兩站的串接由**這個視窗主導**，但 ClassScore 程式改在它的 repo；**class-score 任何合併到 main 都會觸發正式發布**，合併前一律要老師核准。
 
 ## 2. 網站結構重點
 - 頁面：`index.html`＝學期進度（首頁）、`map/`＝課綱學習地圖、`about/`＝關於。舊的 `/#S-IV-2` 連結會轉到 `map/#S-IV-2`。
@@ -17,7 +19,9 @@
 - **`assets/shell.js`＋`shell.css`：第 2 單元起的活動頁共用外框**（w04～w09 用）。填班級座號、基礎／進階分頁、單元進度條、成績碼、教師模式（顯示答案、換一組資料）、Google 登入上傳都在裡面；各週頁面只寫關卡：`{name, lv, now, goal, tip, learn, gen(rnd), view(inst, el, api), check(inst, ans), peek?}`。過關規則：**連續答對兩組不同的資料**；答錯留在同一組修正，答對才換新的一組。注意 curriculum.js 有全域 `N`、`DESC`，頁面變數不要撞名。
 - `assets/codec.js`：16 字元成績碼，**不要改**。
 - `assets/teacher.js`：教師模式（密碼只存 SHA-256；密碼由老師保管，勿寫進 repo）。
-- `assets/login.js`＋`tools/grade-upload/`：學校 Google 帳號登入＋過關自動上傳到老師的試算表。`clientId`、`endpoint` 仍空白＝未啟用，活動頁維持「班級座號＋成績碼」。
+- `assets/login.js`：學校 Google 帳號登入。**main 上仍是舊的 Apps Script 版（未啟用）**；Draft PR #2 把它改成 Firebase 版（見 3.7），合併前活動頁維持「班級座號＋成績碼」。`tools/grade-upload/`（Apps Script＋試算表）在 PR #2 後標為舊方案、不再使用。
+- `assets/activities.json`（PR #2 新增）：由 `node tools/activities-json.mjs` 從 activities.js 產生的公開清單，ClassScore 讀它算「過關數÷關卡數」。**新增或改活動後都要重跑一次。**
+- `lab/login-test/`：階段 0 的學生帳號登入測試頁（noindex、不連結、不寫資料），已上線，留著方便之後再測。
 - 著作權：`LICENSE` 全權保留；頁尾與 `about/#h-rights` 寫「可瀏覽、不可轉用」。
 
 ## 3. 已上線內容
@@ -101,32 +105,55 @@
   - Excel 元件改用 repo 內的 `assets/vendor/xlsx-0.18.5.full.min.js`（不再從 CDN 載入；只用來寫檔，已知漏洞在讀檔端）。
   - 專題彙整台 CSV 以 = + - @ 開頭的儲存格補 `'`；專題學生頁證物代號 `lbl()` 改為跳脫（匯入惡意報告檔可執行腳本，已實測修好）；`115-df/teacher/` 加 noindex。
   - 全站 39 頁加 meta CSP。**之後新增外部來源（字型、CDN、iframe、API）要同步改每頁的 CSP**，否則會被擋。
-  - 快取版本：`login.js?v=20261016s`、`shell.js?v=5`。
+  - 快取版本：main 上 `login.js?v=20261016s`、`shell.js?v=5`；PR #2 分支是 `login.js?v=20261016f`、`shell.js?v=6`。`activities.js` 仍是 `?v=20261016d`。
 - 待老師決定：
-  - 成績碼可被偽造（編碼與鹽值公開，console 一行即可產生全過關碼）；靜態網站無法根治，短期靠抽查，長期走伺服器判題（第 4 節第 6 項）。
-  - 教師通行碼太短（公開雜湊可在數秒內猜出），請老師換成 12 字以上隨機字串，只給雜湊；若同一組數字用在別處也要換。
+  - 成績碼可被偽造：老師已決定改走學校帳號登入、成績碼只當登入失敗時的備案（見 3.7）。Firebase 版的過關仍由前端判定（學生只能替自己造假），長期可加 Apps Script 伺服器判題（免計費）。
+  - 教師通行碼太短（6 位數字，公開雜湊可在數秒內猜出），請老師換成 12 字以上隨機字串，只給雜湊 `sha256("ybslab-teacher:"+通行碼)`；若同一組數字用在別處也要換。**老師尚未回覆。**
   - `115-g9/teacher/` 沒有門檻、成績存在瀏覽器：只在老師自己的電腦使用。
 
-## 3.7 YBS × ClassScore 串接（2026-10-16 從 ClassScore 視窗移交，主導在這裡）
-- 完整規劃：`hs202864-art/class-score` 分支 `docs/classscore-release-main-verification-blocked` 的 `docs/AI_HANDOFF.md` 第 3 節 C。
-- 老師決定：方案 A（共用 Firebase `class-score-86020`）、每關一筆紀錄。學生 email：八、九年級可由學號推算，七年級規則已改不能推算 → 名單匯入一律保留 email 欄位。成績碼之後不再需要（保留為登入出問題時的備案，待正式上線再定）。
-- 階段 0 **通過**（PR #1 已合併）：學生帳號 GIS 登入＋Firebase `signInWithCredential` 皆成功。
-- 階段 1：class-score Draft PR #102（Rules＋模擬器測試，CircleCI PASS，Rules 未部署）。
-- 階段 2 準備：YBS Draft PR `feat/firebase-attempts`——`assets/login.js` 改走 Firebase（`CONFIG.on=false` 預設關閉，`courses` 對應 `ybsCourses` 文件 ID），每關寫 `attempts/{uid}_{活動}_{關卡}`；佇列只存 sessionStorage；全站 CSP 放行 gstatic Firebase SDK、identitytoolkit、securetoken、firestore 與 class-score-86020 網域並移除 Apps Script 網域。試點時：部署 Rules → 建 `ybsTeachers/{UID}`、`ybsCourses/115-g9`（open:true）與試點班名單 → `on:true`。尚未決定試點班級與週次。
-- 規則：YBS 改動與 Firebase Rules／ClassScore UI 都先開 Draft PR，合併與發布另行核准；class-score 合併到 main 即正式發布；不得操作正式教師資料。上線時 YBS 各頁 CSP 要放行 Firebase 網域。
-- 架構定案：兩站獨立、共用 Firebase 交換區；YBS 只寫過關紀錄、不保存成績；名單由 ClassScore「送名單」寫入（無姓名）；成績在 ClassScore 由老師確認後匯入（過關數÷關卡數）；成績碼只當登入失敗備案。試點 w04（11/2）。
-- 上線進度（10/16 17:20 暫停）：ClassScore PR #102 合併發布、Rules 已部署、ybsTeachers 已建；**下一步是在 ClassScore「YBS Lab 連線」送試點班名單**（班級未定），之後合併本 PR（`on:true`）並找學生實測 w04（11/2）。
-- 10/16 老師確認開學簡報四項假設並已改好：w30 帳密頁只寫規則（帳號 cgjh＋學號，密碼口頭說明）；前測不計分；Wayground 每班不同連結（W01 簡報不再放固定連結）；技能 40%＝YBS 實作過關紀錄（登入失敗交成績碼）。W01（J1DG…）、w30（KSSJ…）簡報與 w30 活動頁「成績怎麼算」已同步。
-- ClassScore 端讀紀錄與匯入：class-score Draft PR #103（依賴本 PR 的 `assets/activities.json`）。之後新增活動要執行 `node tools/activities-json.mjs`（weekly-it-lesson 流程也要加這步）。
-- 這會取代第 4 節第 4 項（Apps Script 登入）與第 6 項的方向；Apps Script 判題可作為之後的防偽升級（免計費）。
+## 3.7 YBS × ClassScore 串接（主導在這個視窗）
+**架構（10/16 老師定案）**：兩站獨立前端、共用 ClassScore 的 Firebase `class-score-86020`。Firestore 分兩區、用 Rules 隔開：
+- 交換區 `ybsTeachers/{uid}`、`ybsCourses/{課程}`、`…/roster/{email}`、`…/attempts/{uid}_{活動}_{關卡}`；
+- 老師私人區 `users/{uid}/…`（ClassScore 原本的資料，規則沒動）。
+- YBS 只寫過關紀錄、不存成績；名單由 ClassScore「送名單」寫入（只有班級、座號、學號，**不送姓名**）；成績只在 ClassScore 由老師確認後匯入（過關數÷關卡數×100），不自動；成績碼降為登入失敗時的備案。
+- 細節：class-score `docs/YBS_FIRESTORE.md`。
+
+**老師的決定**：每關一筆紀錄；email 八、九年級＝`cgjh`＋學號，七年級規則已改、要用學校給的「學號,email」對照表；試點 **w04 錄滿一整場（11/2，選修週）**，試點班**還沒選**。
+
+**已完成**
+| 步驟 | 狀態 |
+| --- | --- |
+| 階段 0 學生帳號登入實測（YBS PR #1，`lab/login-test/`） | ✅ 學生帳號 GIS 登入（hd＝cgjh.hcc.edu.tw）＋ Firebase `signInWithCredential` 都成功。OAuth 用戶端已加授權來源、Firebase 已加授權網域 `ybslab-edu.github.io` |
+| ClassScore PR #102：Rules＋模擬器測試＋送名單頁「成績管理 → YBS Lab 連線」（第 1～5 區） | ✅ 已合併發布（`501d2af`） |
+| Firestore Rules 部署 | ✅ 老師 10/16 16:50 在主控台發布；要退回時點 Rules 歷史的 9/24 11:35 版 |
+| `ybsTeachers/qom8JNwguERZipfjI4u6lVwQeZV2`（老師 UID，欄位 email） | ✅ 老師已在主控台建立 |
+| ClassScore PR #103：第 6 區讀過關紀錄 → 學生×活動矩陣 → 勾選匯入成技能作業（`adaptiveTasks`，`fileKey`＝`ybs:{課程}:{活動}`） | ✅ 已合併發布（`428c695`） |
+| w04 用模擬登入跑完 4 關 | ✅ 每關一筆、欄位符合 Rules、重做不重複寫 |
+
+**YBS Draft PR #2（`feat/firebase-attempts`，還沒合併）**
+- `assets/login.js` 改 Firebase 版：GIS → `signInWithCredential`（Persistence＝SESSION，關分頁即登出）→ 讀名單確認班級座號 → 每過一關寫 `attempts/{uid}_{活動}_{關卡}`（伺服器時間）。待送佇列只放 sessionStorage。`CONFIG.on=false` **預設關閉**；`clientId` 已填（class-score-86020 的網頁用戶端，非密碼）；`courses: {'115-g9':'115-g9'}`。
+- 全站 CSP 放行 gstatic Firebase SDK、identitytoolkit、securetoken、firestore、class-score-86020 網域，移除 Apps Script 網域。確認畫面不再顯示姓名。
+- 新增 `assets/activities.json` 與 `tools/activities-json.mjs`；w30「成績怎麼算」改成「技能＝YBS 實作過關紀錄」。
+- 驗證：40 頁載入無新錯誤；模擬 Google／Firebase 跑 w10、w02、w04 完整流程。
+
+**上線剩下的步驟（每步都要老師核准）**
+1. **老師送試點班名單**：ClassScore「YBS Lab 連線」→ 勾一班 → 預覽（紅字＝不會送出）→ 送出。送完可在主控台看到 `ybsCourses/115-g9` 與 roster。
+2. **合併 YBS PR #2 前必須先補「備案入口」**：目前 `on:true` 時活動頁只剩 Google 登入，名單外或登入失敗的學生**沒有**「不登入、改填班級座號＋交成績碼」的按鈕（shell.js 的 `showLogin()` 把 `g-form` 藏起來；w02、w03 獨立頁同樣）。但 w30 簡報已經告訴學生登入不了時可以這樣做，而且非試點班此時都不在名單上。做法建議：登入畫面加一顆「登入不了？改填班級座號」，按了就顯示原本的班級座號表單、走成績碼。補好、測過後，把 `CONFIG.on` 改 true 再合併（需老師核准）。
+3. 試點前一週找一位試點班學生實測：登入 → w04 過一關 → 主控台出現 attempts → ClassScore 第 6 區讀得到。
+4. 11/2 試點後，ClassScore 第 6 區匯入成績。第 6 區要讀 YBS 的 `assets/activities.json`，**PR #2 上線前會顯示讀不到活動清單**，這是正常的。
+
+**規則**：YBS 與 class-score 的改動都先開 Draft PR，合併與發布要老師另外核准；Rules 不在 CI 部署，由老師在主控台手動發布；不得操作正式教師資料。class-score 的 PR CI 走 CircleCI `fallback-pr-ci`，要在 `.circleci/config.yml` 加**暫時分支白名單**，合併前移除（config 要回到與 main 相同）。Rules 測試用 `bash scripts/ybs-rules-emulator.sh`（只能在 CI 跑，這裡的環境連不到 npm）。
+
+**開學簡報四項假設（10/16 老師確認、已改好）**：w30 帳密頁只寫規則（帳號 cgjh＋學號，密碼口頭說明）；前測不計分；Wayground 每班不同連結（W01 簡報不放固定連結）；技能 40%＝YBS 實作過關紀錄（登入失敗交成績碼）。W01（`J1DG…`）、w30（`KSSJ…`）簡報與 w30 活動頁已同步；w01、w02 簡報已補第 1 單元地圖（六份一致）。
 
 ## 4. 下一步（依序）
-1. **老師測試第 2、4、5 單元的連貫性**，依回饋調整 w03～w25（故事、關卡、簡報）。
-2. **第 3 單元影音專題（畢業影片）**：會考後 5/17～6/7 約 4 週，延續九年三班故事；開學後確認會考日期與畢業典禮再細排。
-3. **確認段考週、會考日期與國定假日**：若撞到週一，調整 w10～w25 的日期（選修週可以讓出來）。
-4. **學生登入上線**：等老師完成 `tools/grade-upload/README.md` 的 A（OAuth 用戶端 ID）、B（試算表＋Apps Script，貼名單），拿到兩個值填進 `assets/login.js`，再實測一次登入與上傳。
+1. **串接上線**（3.7「上線剩下的步驟」）：先等老師送試點班名單，並確認 PR #2 開啟登入後「名單外的班級怎麼辦」。
+2. **老師測試第 2、4、5 單元的連貫性**，依回饋調整 w03～w25（故事、關卡、簡報）。
+3. **第 3 單元影音專題（畢業影片）**：會考後 5/17～6/7 約 4 週，延續九年三班故事；確認會考日期與畢業典禮再細排。
+4. **確認段考週、會考日期與國定假日**：若撞到週一，調整 w10～w25 的日期（選修週可以讓出來）。
 5. **專題研究「消失的原始資料」B/C/D 版**：等老師提供。重建任何調查頁時，探測程式要保留：`if(!/^https?:$/.test(location.protocol)||/\.github\.io$/.test(location.hostname)) return;`（否則 github.io 上會一直 404 `/api/ping`）。
-6. 之後：教師模式改成走登入、答案改由伺服器判定；與 ClassScore 共用 Firebase 後端（方案記在 ClassScore 交接檔 C 節，需老師核准）。
+6. 之後：Apps Script 伺服器判題（防偽升級）；教師模式改走登入；`weekly-it-lesson` 技能加上「改 activities.js 後跑 `node tools/activities-json.mjs`」。
+7. 零星：教師通行碼換新（等老師給雜湊）；D01 等報告項目老師沒表態前不要動。
 
 ## 5. 待老師決定（沒有偏好前不動）
 - 新版學期規劃是否取代主分頁的「學期規劃（草案）」。
@@ -138,4 +165,7 @@
 ## 6. 開發注意
 - 本機測試：`python3 -m http.server 8765`，Playwright（Chromium 已預裝）。共用外框的頁面可以在 console 用 `APP.load(i)`、`APP.handle.fill()`、`APP.rounds[i].check(APP.inst, …)` 做自動檢查。
 - 改活動邏輯後，用窮舉或大量隨機資料確認每關仍有解、錯的答案不會被接受、產生器不會無限迴圈。
-- commit 訊息用中文短句；直接推 main 即上線，推之前先本機看過。
+- commit 訊息用中文短句，結尾兩行署名（`Co-Authored-By` 與該對話的 `Claude-Session` 網址）；直接推 main 即上線，推之前先本機看過。
+- Firebase 流程的本機測試：用 Playwright 攔截 `accounts.google.com/gsi/client`、`gstatic.com/firebasejs/*`、`class-score-86020.web.app/__/firebase/init.json`，換成假的 google／firebase 物件，並把 login.js 的 `on:false` 改 true 後回應；再用 `APP.handle.fill()` 過關，檢查寫入的路徑與欄位。（10/16 的測試腳本在當時 scratchpad，新環境看不到，需要時照這個方式重寫。）
+- 簡報（Slides artifact）發布若被拒「沒看過最新版本」：先用 Artifact read 重讀 deck 再發布，內容沒變就直接重送。發布後不要自行打開檢查。
+- 推新分支後，本機 clone 可能沒有遠端追蹤 ref，stop hook 會誤報「未推送」：用 `git fetch origin <branch>:refs/remotes/origin/<branch>` 後 `git branch --set-upstream-to` 即可。

@@ -85,6 +85,7 @@ const SHELL = (cfg) => {
     <button class="btn" id="b-copy" type="button">複製成績碼</button>
     <span class="copied" id="copied"></span>
     <p class="small" style="width:100%" id="rep-note">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
+    <p class="sync" id="sync2" hidden style="margin:0"></p>
   </section>
   <p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
 </div>`);
@@ -238,6 +239,7 @@ const SHELL = (cfg) => {
     if (st === 'relogin') { el.innerHTML = '登入過期，重新登入才能上傳 <span id="sync-btn"></span>'; YBS.button($('sync-btn'), () => { }, msg => { el.textContent = msg }) }
     else el.textContent = st === 'ok' ? '✓ 紀錄已上傳給老師' : st === 'sending' ? '上傳中…' : '還沒上傳成功，會自動重試';
   });
+  (()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
   if (TEACHER.remembered()) enterTeacher(); else if (YBS.enabled()) showLogin(); else $('in-cls').focus();
 
   // 測試用：讓自動檢查可以拿到目前這一組資料與答案

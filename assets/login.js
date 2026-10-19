@@ -7,6 +7,8 @@ const YBS = (() => {
     on: 'pilot',                                  // false 關閉；'pilot' 只在網址加 ?login=1 的分頁啟用；true 全面啟用
     clientId: '1078830272862-u8oeft1u88aommaj3710hi7q3m2hcq6h.apps.googleusercontent.com',
     project: 'class-score-86020',
+    apiKey: 'AIzaSyAooTgTdo8xiaFn6Tl2dLHLwFDlyn0frIQ',   // Firebase 網頁金鑰是公開識別碼，不是密碼
+    sender: '1078830272862',
     sdk: '10.14.1',
     domain: 'cgjh.hcc.edu.tw',
     courses: { '115-g9': '115-g9' }               // 網站課程代號 → Firestore ybsCourses 文件 ID
@@ -43,10 +45,8 @@ const YBS = (() => {
     await loadScript(base + '/firebase-app-compat.js');
     await loadScript(base + '/firebase-auth-compat.js');
     await loadScript(base + '/firebase-firestore-compat.js');
-    const r = await fetch('https://' + CONFIG.project + '.web.app/__/firebase/init.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error('無法取得登入設定，請稍後再試。');
-    const c = await r.json();
-    const app = firebase.apps.find(a => a.name === 'ybs') || firebase.initializeApp({ apiKey: c.apiKey, authDomain: c.authDomain, projectId: c.projectId, appId: c.appId }, 'ybs');
+    // 設定直接寫在這裡：ClassScore 的 init.json 不允許跨站讀取（CORS）
+    const app = firebase.apps.find(a => a.name === 'ybs') || firebase.initializeApp({ apiKey: CONFIG.apiKey, authDomain: CONFIG.project + '.firebaseapp.com', projectId: CONFIG.project, messagingSenderId: CONFIG.sender }, 'ybs');
     const auth = app.auth();
     await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);   // 關掉分頁就登出：電腦教室是共用機
     fb = { app, auth, db: app.firestore() };

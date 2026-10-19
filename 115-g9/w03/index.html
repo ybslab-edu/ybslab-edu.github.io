@@ -197,7 +197,7 @@ body.showorig .frame .orig{opacity:1}
     <button class="linkbtn" id="t-open" type="button">教師登入</button>
     <div id="t-box" hidden class="field">
       <label for="in-tcode">教師通行碼</label>
-      <input id="in-tcode" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+      <input id="in-tcode" type="password" autocomplete="off" maxlength="40">
       <div class="btns"><button class="btn primary" id="t-go" type="button" style="width:100%">進入教師模式</button></div>
       <span class="gerr" id="terr" role="alert"></span>
     </div>
@@ -629,7 +629,6 @@ function enterTeacher(){
   setLevel(1);
 }
 $('t-open').onclick=()=>{$('t-box').hidden=!$('t-box').hidden;if(!$('t-box').hidden)$('in-tcode').focus()};
-digits($('in-tcode'));
 const tryTeacher=async()=>{
   $('terr').textContent='';
   if(await TEACHER.check($('in-tcode').value)){$('in-tcode').value='';enterTeacher()}

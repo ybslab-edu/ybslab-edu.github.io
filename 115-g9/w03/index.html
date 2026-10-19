@@ -197,7 +197,8 @@ body.showorig .frame .orig{opacity:1}
     <button class="linkbtn" id="t-open" type="button">教師登入</button>
     <div id="t-box" hidden class="field">
       <label for="in-tcode">教師通行碼</label>
-      <input id="in-tcode" type="password" autocomplete="off" maxlength="40">
+      <input id="in-tcode" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40">
+      <button class="linkbtn" id="t-show" type="button" style="align-self:flex-start">顯示通行碼</button>
       <div class="btns"><button class="btn primary" id="t-go" type="button" style="width:100%">進入教師模式</button></div>
       <span class="gerr" id="terr" role="alert"></span>
     </div>
@@ -287,7 +288,7 @@ body.showorig .frame .orig{opacity:1}
 </div>
 
 <script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
 <script src="../../assets/login.js?v=20261019q"></script>
 <script src="../../assets/curriculum.js?v=20261015c"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
@@ -628,6 +629,7 @@ function enterTeacher(){
   $('gate').hidden=true;$('main').hidden=false;
   setLevel(1);
 }
+$('t-show').onclick=()=>{const i=$('in-tcode'),s=i.type==='password';i.type=s?'text':'password';$('t-show').textContent=s?'隱藏通行碼':'顯示通行碼'};
 $('t-open').onclick=()=>{$('t-box').hidden=!$('t-box').hidden;if(!$('t-box').hidden)$('in-tcode').focus()};
 const tryTeacher=async()=>{
   $('terr').textContent='';

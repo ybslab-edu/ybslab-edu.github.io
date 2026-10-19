@@ -1,6 +1,10 @@
-// 數資班（115-df）活動上鎖；九年級的鎖在 login.js。只開放 OPEN 裡的資料夾，老師輸入通行碼可解鎖（只在這個分頁有效）
+// 活動上鎖：只開放 OPEN 裡的資料夾，其他活動頁蓋一層「還沒開放」，老師輸入通行碼可解鎖（只在這個分頁有效）。
+// 開新的一週：把資料夾名加進對應課程的清單，例如九年級加 'w03'。課程首頁、教師頁（teacher）不受影響。
 (() => {
-  const OPEN = { '115-df': [] };                  // 要開放就把資料夾名（例如 'a'）加進來
+  const OPEN = {
+    '115-g9': ['w01', 'w02'],
+    '115-df': []                                  // 數資班專題：要開放就加 'a'
+  };
   const seg = location.pathname.split('/').filter(Boolean);
   const list = OPEN[seg[0]], sub = seg[1] || '';
   if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub) || list.includes(sub)) return;

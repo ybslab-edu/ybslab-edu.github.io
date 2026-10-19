@@ -1,37 +1,22 @@
 // 學生用帳號密碼登入（cgjh學號／cgjh身分證字號），每過一關寫一筆紀錄到 ClassScore 的 Firebase（class-score-86020）。
 // 資料結構與權限見 class-score repo 的 docs/YBS_FIRESTORE.md：學生只能新增自己的紀錄、一關一筆、不能改刪。
 // on 為 false 或該課程沒有對應的 courseId 時不啟用：活動頁維持「班級座號＋成績碼」。
-// 用戶端 ID、專案 ID 都不是密碼，放在公開網站沒有關係。
+// 專案 ID、網頁金鑰都是公開識別碼，不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
   const CONFIG = {
-    on: true,                                     // false 關閉；'pilot' 只在網址加 ?login=1 的分頁啟用；true 全面啟用
-    clientId: '1078830272862-u8oeft1u88aommaj3710hi7q3m2hcq6h.apps.googleusercontent.com',
+    on: true,                                     // false：關閉登入，活動頁只用「班級座號＋成績碼」
     project: 'class-score-86020',
     apiKey: 'AIzaSyAooTgTdo8xiaFn6Tl2dLHLwFDlyn0frIQ',   // Firebase 網頁金鑰是公開識別碼，不是密碼
     sender: '1078830272862',
     sdk: '10.14.1',
-    domain: 'cgjh.hcc.edu.tw',
+    domain: 'cgjh.hcc.edu.tw',                    // 名單上的學校信箱網域
     courses: { '115-g9': '115-g9' }               // 網站課程代號 → Firestore ybsCourses 文件 ID
   };
   const courseCode = (location.pathname.split('/').filter(Boolean)[0] || '');
   const courseId = () => CONFIG.courses[courseCode] || null;
-  // 試點：網址帶 ?login=1 才啟用，記在這個分頁（關掉分頁就失效）；?login=0 取消
-  const pilot = (() => {
-    const q = location.search;
-    try {
-      if (/[?&]login=1(&|$)/.test(q)) sessionStorage.setItem('ybslab:login', '1');
-      if (/[?&]login=0(&|$)/.test(q)) sessionStorage.removeItem('ybslab:login');
-      return sessionStorage.getItem('ybslab:login') === '1';
-    } catch (e) { return /[?&]login=1(&|$)/.test(q); }
-  })();
-  const enabled = () => !!((CONFIG.on === true || (CONFIG.on === 'pilot' && pilot)) && CONFIG.clientId && courseId());
+  const enabled = () => !!(CONFIG.on && courseId());
 
-  let fb = null, profile = null, onLogin = null, onError = null, onStatus = () => {}, gisReady = false;
-  const decode = jwt => {
-    const b = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const bin = atob(b + '='.repeat((4 - b.length % 4) % 4));
-    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
-  };
+  let fb = null, profile = null, onLogin = null, onError = null, onStatus = () => {};
   const loadScript = src => new Promise((ok, no) => {
     if (document.querySelector('script[src="' + src + '"]')) return ok();
     const s = document.createElement('script'); s.src = src; s.async = true;
@@ -153,35 +138,8 @@ const YBS = (() => {
     try { if (fb) fb.auth.signOut(); } catch (e) {}
   }
   // 舊版（Apps Script）曾把帳號存在 localStorage：清掉
-  try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('ybslab:login'); } catch (e) {}
   setInterval(() => { if (profile) flush(); }, 60000);
   window.addEventListener('online', () => { if (profile) flush(); });
   return { CONFIG, enabled, button, submit, flush, logout, whoami, profile: () => profile, status: f => { onStatus = f; } };
-})();
-
-// 上鎖：只開放 OPEN 裡的週次；其他週次蓋一層「還沒開放」，老師輸入通行碼可解鎖（只在這個分頁有效）
-(() => {
-  const OPEN = { '115-g9': ['w01', 'w02'] };       // 開新的一週就把資料夾名加進來
-  const seg = location.pathname.split('/').filter(Boolean);
-  const list = OPEN[seg[0]], wk = seg[1] || '';
-  if (!list || !/^w\d{2}$/.test(wk) || list.includes(wk)) return;
-  const T = typeof TEACHER !== 'undefined' ? TEACHER : null;   // const 宣告不會掛在 window 上
-  if (T && T.remembered()) return;
-  const show = () => {
-    const d = document.createElement('div');
-    d.id = 'ybs-lock';
-    d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:#14161b;color:#e8eaee;font:18px/1.6 system-ui,"Noto Sans TC",sans-serif;text-align:center';
-    d.innerHTML = '<div style="max-width:420px"><div style="font-size:44px">🔒</div><h1 style="font-size:26px;margin:8px 0">這個活動還沒開放</h1>'
-      + '<p style="color:#a9b0bb;margin:0 0 20px">請回到 YBS Lab 首頁，做老師這週指定的活動。</p>'
-      + '<p><a href="/" style="color:#8ab4f8">← 回 YBS Lab 首頁</a></p>'
-      + '<p style="margin-top:28px"><button type="button" id="ybs-unlock" style="background:none;border:0;color:#6b7280;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">教師解鎖</button></p></div>';
-    document.body.appendChild(d);
-    document.getElementById('ybs-unlock').onclick = async () => {
-      const code = prompt('教師通行碼');
-      if (code == null) return;
-      if (T && await T.check(code)) { T.remember(true); location.reload(); }
-      else alert('通行碼不對。');
-    };
-  };
-  if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
 })();

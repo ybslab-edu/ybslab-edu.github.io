@@ -4,7 +4,7 @@
 // 用戶端 ID、專案 ID 都不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
   const CONFIG = {
-    on: 'pilot',                                  // false 關閉；'pilot' 只在網址加 ?login=1 的分頁啟用；true 全面啟用
+    on: true,                                     // false 關閉；'pilot' 只在網址加 ?login=1 的分頁啟用；true 全面啟用
     clientId: '1078830272862-u8oeft1u88aommaj3710hi7q3m2hcq6h.apps.googleusercontent.com',
     project: 'class-score-86020',
     apiKey: 'AIzaSyAooTgTdo8xiaFn6Tl2dLHLwFDlyn0frIQ',   // Firebase 網頁金鑰是公開識別碼，不是密碼

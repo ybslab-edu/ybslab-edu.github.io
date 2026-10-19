@@ -2,7 +2,7 @@
 // 網站是公開的靜態網頁，答案邏輯本來就在頁面原始碼裡；通行碼只是避免學生隨手點開，不是帳號安全機制。
 // 換通行碼：把下面的 HASH 換成 sha256("ybslab-teacher:" + 新通行碼) 的十六進位字串。
 const TEACHER = (() => {
-  const HASH = '9be5ecded36dff395356266728323afa06a53682a3a20db84f986e21c0fb45dd';
+  const HASH = '3149cb52de2c3de0fbe9c922b30893a405fb6952567abc24494cbaf2988fdb3a';
   async function check(code) {
     if (!(window.crypto && crypto.subtle)) return false;
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ybslab-teacher:' + String(code)));

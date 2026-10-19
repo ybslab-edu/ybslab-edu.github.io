@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' https://accounts.google.com/gsi/ https://class-score-86020.web.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://accounts.google.com/gsi/ https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>打王前記得存檔｜第 8 週</title>
@@ -324,7 +324,8 @@ body.teacher .slot .card{cursor:pointer}
 
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/login.js?v=20261019t"></script>
+<script src="../../assets/lock.js?v=20261019b"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
 <script>
 const WEEK=2, TERM_WEEK=8, TITLE='打王前記得存檔', COURSE='115-g9';
 const GAME='遊戲', PROG='（程式）', CMD='這次指令';
@@ -794,12 +795,12 @@ function showLogin(){
     }
     if(!r.ok&&r.error==='not-listed'){
       $('g-who').hidden=true;YBS.logout();showLogin();
-      $('g-lerr').textContent='名單上找不到這個帳號（'+me.email+'），請改用自己的帳號，或告訴老師。';
+      $('g-lerr').textContent='名單上找不到這個帳號（'+(me.account||me.email)+'），請改用自己的帳號，或告訴老師。';
       return;
     }
     // 不在名單（但是本校帳號）或暫時連不上試算表：自己填班級座號
     $('g-who').hidden=true;$('g-form').hidden=false;
-    $('g-me').hidden=false;$('g-me').textContent='已登入：'+me.email+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
+    $('g-me').hidden=false;$('g-me').textContent='已登入：'+(me.account||me.email)+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
     try{const s=JSON.parse(sessionStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
     $('in-cls').focus();
   },msg=>{$('g-lerr').textContent=msg});

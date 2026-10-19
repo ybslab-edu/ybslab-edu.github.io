@@ -19,6 +19,7 @@ const SHELL = (cfg) => {
     <p>先用學校 Google 帳號登入，每過一關，紀錄會自動交給老師。</p>
     <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
     <div class="gerr" id="g-lerr" role="alert"></div>
+    <button class="linkbtn" id="g-manual" type="button">登入不了？改填班級座號</button>
   </div>
   <div id="g-who" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
     <p id="g-whotext" style="color:var(--ink);font-size:20px"></p>
@@ -225,6 +226,7 @@ const SHELL = (cfg) => {
     }, msg => { $('g-lerr').textContent = msg });
   }
   $('g-notme').onclick = () => { YBS.logout(); showLogin() };
+  $('g-manual').onclick = () => { YBS.logout(); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '這次不登入：過關後請把成績碼交給老師。'; $('in-cls').focus() };
   function upload(r) {
     if (!YBS.enabled() || !ident) return;
     YBS.submit({ course: cfg.course, activity: cfg.week, termWeek: cfg.termWeek, title: cfg.title, round: r, roundName: R[r].name, level: R[r].lv === 1 ? '基礎' : '進階', rounds: R.map(x => x.name), tries: prog.tries[r], mask: prog.mask, cls: ident.cls, seat: ident.seat, code: $('code').textContent, at: new Date().toISOString() });

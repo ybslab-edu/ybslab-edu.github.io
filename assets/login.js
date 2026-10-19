@@ -4,7 +4,7 @@
 // 用戶端 ID、專案 ID 都不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
   const CONFIG = {
-    on: false,                                    // 試點時改 true（Rules 部署、名單建好之後）
+    on: 'pilot',                                  // false 關閉；'pilot' 只在網址加 ?login=1 的分頁啟用；true 全面啟用
     clientId: '1078830272862-u8oeft1u88aommaj3710hi7q3m2hcq6h.apps.googleusercontent.com',
     project: 'class-score-86020',
     sdk: '10.14.1',
@@ -13,7 +13,16 @@ const YBS = (() => {
   };
   const courseCode = (location.pathname.split('/').filter(Boolean)[0] || '');
   const courseId = () => CONFIG.courses[courseCode] || null;
-  const enabled = () => !!(CONFIG.on && CONFIG.clientId && courseId());
+  // 試點：網址帶 ?login=1 才啟用，記在這個分頁（關掉分頁就失效）；?login=0 取消
+  const pilot = (() => {
+    const q = location.search;
+    try {
+      if (/[?&]login=1(&|$)/.test(q)) sessionStorage.setItem('ybslab:login', '1');
+      if (/[?&]login=0(&|$)/.test(q)) sessionStorage.removeItem('ybslab:login');
+      return sessionStorage.getItem('ybslab:login') === '1';
+    } catch (e) { return /[?&]login=1(&|$)/.test(q); }
+  })();
+  const enabled = () => !!((CONFIG.on === true || (CONFIG.on === 'pilot' && pilot)) && CONFIG.clientId && courseId());
 
   let fb = null, profile = null, onLogin = null, onError = null, onStatus = () => {}, gisReady = false;
   const decode = jwt => {

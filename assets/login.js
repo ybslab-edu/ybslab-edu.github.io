@@ -1,4 +1,4 @@
-// 學生以學校 Google 帳號登入，每過一關寫一筆紀錄到 ClassScore 的 Firebase（class-score-86020）。
+// 學生用帳號密碼登入（cgjh學號／cgjh身分證字號），每過一關寫一筆紀錄到 ClassScore 的 Firebase（class-score-86020）。
 // 資料結構與權限見 class-score repo 的 docs/YBS_FIRESTORE.md：學生只能新增自己的紀錄、一關一筆、不能改刪。
 // on 為 false 或該課程沒有對應的 courseId 時不啟用：活動頁維持「班級座號＋成績碼」。
 // 用戶端 ID、專案 ID 都不是密碼，放在公開網站沒有關係。
@@ -52,30 +52,46 @@ const YBS = (() => {
     fb = { app, auth, db: app.firestore() };
     return fb;
   }
-  async function initGis() {
-    if (!(window.google && google.accounts && google.accounts.id)) await loadScript('https://accounts.google.com/gsi/client');
-    if (gisReady) return;
-    google.accounts.id.initialize({ client_id: CONFIG.clientId, hd: CONFIG.domain, callback: onCredential, auto_select: false, cancel_on_tap_outside: false });
-    gisReady = true;
+  // 帳號密碼登入：帳號 cgjh＋學號、密碼 cgjh＋身分證字號（老師在 ClassScore「YBS Lab 連線」第 7 區建立）。
+  // 登入用的信箱是 cgjh學號@ybslab-edu.github.io（不寄信，只是識別），對應到名單上的學校信箱 cgjh學號@cgjh.hcc.edu.tw。
+  const ACCT_DOMAIN = 'ybslab-edu.github.io';
+  const normAccount = v => { const t = String(v || '').trim().toLowerCase().replace(/@.*$/, '').replace(/\s+/g, ''); return /^\d{3,12}$/.test(t) ? 'cgjh' + t : t; };
+  const normPassword = v => { const t = String(v || '').trim(); const m = t.match(/^cgjh([a-z][0-9a-d]\d{8})$/i); return m ? 'cgjh' + m[1].toUpperCase() : t; };
+  async function signIn(account, password) {
+    const acct = normAccount(account);
+    if (!/^cgjh\d{3,12}$/.test(acct)) throw { msg: '帳號是 cgjh 加學號，例如 cgjh1100123。' };
+    if (!password) throw { msg: '請輸入密碼。' };
+    const { auth } = await initFirebase();
+    let cred;
+    try { cred = await auth.signInWithEmailAndPassword(acct + '@' + ACCT_DOMAIN, normPassword(password)); }
+    catch (e) {
+      const c = e && e.code || '';
+      if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) throw { msg: '帳號或密碼不對。密碼是 cgjh 加身分證字號；還是不行請告訴老師。' };
+      if (/too-many-requests/.test(c)) throw { msg: '嘗試太多次，請等幾分鐘再試，或告訴老師。' };
+      if (/network/.test(c)) throw { msg: '連不上網路，請確認網路後再試。' };
+      throw { msg: '登入沒有完成（' + (c || '連線問題') + '），請再試一次或告訴老師。' };
+    }
+    profile = { email: acct + '@' + CONFIG.domain, account: acct, uid: cred.user.uid };
+    return profile;
   }
-  async function onCredential(r) {
-    let p;
-    try { p = decode(r.credential); } catch (e) { onError && onError('登入失敗，請再試一次。'); return; }
-    if (p.hd !== CONFIG.domain) { onError && onError('請改用學校帳號（@' + CONFIG.domain + '）登入。'); return; }
-    try {
-      const { auth } = await initFirebase();
-      const cred = await auth.signInWithCredential(firebase.auth.GoogleAuthProvider.credential(r.credential));
-      profile = { email: String(cred.user.email || '').toLowerCase(), uid: cred.user.uid };
-    } catch (e) { onError && onError('登入沒有完成（' + (e && e.code || '連線問題') + '），請再試一次或告訴老師。'); return; }
-    onLogin && onLogin(profile);
-    flush();
-  }
-  // 在 el 放一顆「使用 Google 帳戶登入」按鈕；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
+  // 在 el 放「帳號、密碼、登入」表單；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
   async function button(el, ok, bad) {
     onLogin = ok; onError = bad;
-    try { await initGis(); } catch (e) { bad && bad(e.message); return; }
-    el.innerHTML = '';
-    google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'zh-TW', width: 260 });
+    const id = 'ybs' + Math.random().toString(36).slice(2, 7);
+    const box = 'display:block;width:100%;box-sizing:border-box;font:inherit;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #4b5563;background:#0f1218;color:#e8eaee';
+    el.innerHTML = '<form id="' + id + '" autocomplete="off" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left">'
+      + '<label style="font-size:15px">帳號<input name="a" inputmode="text" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號" style="' + box + '"></label>'
+      + '<label style="font-size:15px">密碼<input name="p" type="password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號" style="' + box + '"></label>'
+      + '<button type="submit" class="btn primary" style="width:100%">登入</button></form>';
+    const f = document.getElementById(id), btn = f.querySelector('button');
+    f.onsubmit = async ev => {
+      ev.preventDefault(); if (btn.disabled) return;
+      btn.disabled = true; btn.textContent = '登入中…';
+      try { const p = await signIn(f.a.value, f.p.value); f.p.value = ''; onLogin && onLogin(p); flush(); }
+      catch (e) { f.p.value = ''; onError && onError(e && e.msg || '登入失敗，請再試一次。'); }
+      finally { btn.disabled = false; btn.textContent = '登入'; }
+    };
+    setTimeout(() => { try { f.a.focus(); } catch (e) {} }, 0);
   }
 
   // 名單：ybsCourses/{courseId}/roster/{email}；回傳 { ok, student:{cls,seat} } 或 { ok:false, error }
@@ -135,7 +151,6 @@ const YBS = (() => {
   function logout() {
     profile = null;
     try { if (fb) fb.auth.signOut(); } catch (e) {}
-    try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {}
   }
   // 舊版（Apps Script）曾把帳號存在 localStorage：清掉
   try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); } catch (e) {}

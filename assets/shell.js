@@ -16,7 +16,7 @@ const SHELL = (cfg) => {
 <section class="gate" id="gate">
   <h1>${esc(cfg.title)}</h1>
   <div id="g-login" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
-    <p>先用學校 Google 帳號登入，每過一關，紀錄會自動交給老師。</p>
+    <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
     <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
     <div class="gerr" id="g-lerr" role="alert"></div>
     <button class="linkbtn" id="g-manual" type="button">登入不了？改填班級座號</button>

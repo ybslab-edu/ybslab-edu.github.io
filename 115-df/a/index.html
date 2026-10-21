@@ -376,7 +376,7 @@ function lockPoll(on){ clearInterval(NET.poll); NET.poll=null; if(on&&NET.on) NE
 const LSKEY = () => `df-${VERSION}-${S.cls}-${S.seat}`;
 function lsGet(k){ try{return localStorage.getItem(k);}catch(e){return null;} }
 function lsSet(k,v){ try{localStorage.setItem(k,v); return true;}catch(e){return false;} }
-function save(){ if(!S) return; if(NET.on){ NET.rev++; NET.dirty=true; clearTimeout(NET.soon); NET.soon=setTimeout(()=>netSend(false),1500); } clearTimeout(saveT); saveT=setTimeout(flushSave,300); }
+function save(){ if(!S) return; syncRecords(); if(NET.on){ NET.rev++; NET.dirty=true; clearTimeout(NET.soon); NET.soon=setTimeout(()=>netSend(false),1500); } clearTimeout(saveT); saveT=setTimeout(flushSave,300); }
 function flushSave(){ if(!S) return; clearTimeout(saveT); { const ok=lsSet(LSKEY(), JSON.stringify(S)); lsSet('df-last', JSON.stringify({cls:S.cls,seat:S.seat,version:VERSION})); const el=$('#saved'); if(el) el.textContent = ok ? `已自動儲存 ${hm(now())}` : '這台電腦無法自動儲存，請記得下載報告檔'; } }
 ['pagehide','beforeunload'].forEach(ev=>addEventListener(ev,flushSave));
 addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSave(); });
@@ -420,6 +420,7 @@ function renderLogin(){
     <p class="lead">你是研究鑑識員。前兩堂每個人獨立調查（第一堂做到提出 H1，第二堂找反證、寫結論），第三堂再把你的結論帶到證據畫廊和同學討論。</p>
     ${acctLogin?`<div id="yl"><p class="lead" style="font-size:.95em">先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。</p><div id="yl-btn"></div><p id="yl-err" role="alert" style="color:var(--bad,#f87171);min-height:1.2em;margin:.4em 0 0"></p><p style="margin:.2em 0 0"><button type="button" id="yl-manual" class="btn" style="background:none;border:0;padding:0;color:#8ab4f8;text-decoration:underline;cursor:pointer">登入不了？改填班級座號</button></p></div>
     <div id="yw" hidden><p class="lead" id="yw-text"></p><div class="row" id="yw-btns" hidden><button type="button" class="btn" id="yw-no">不是我</button><button type="button" class="btn pri" id="yw-yes">對，開始調查</button></div></div>`:''}
+    <p id="yl-me" class="lead" hidden style="font-size:.95em"></p>
     <form id="lf" class="grid2" autocomplete="off" ${acctLogin?'hidden':''}>
       <label class="fld"><span>班級（例如 701）</span><input id="lf-cls" inputmode="numeric" required maxlength="6" value="${esc(ANS?'777':(last?.cls||''))}"></label>
       <label class="fld"><span>座號</span><input id="lf-seat" inputmode="numeric" required maxlength="3" value="${ANS?'77':''}"></label>
@@ -464,27 +465,19 @@ function wireAcctLogin(){
   async function onLogin(me){
     $('#yl-err').textContent=''; $('#yl').hidden=true; $('#yw').hidden=false; $('#yw-btns').hidden=true;
     $('#yw-text').textContent='正在確認你的身分…';
-    const r=await whoamiAny();
+    const r=await YBS.whoami();
     if(r.ok && r.student){
       const cls=String(r.student.cls), seat=String(r.student.seat);
       $('#yw-text').textContent=`你是 ${cls} 班 ${seat} 號，對嗎？`;
       $('#yw-btns').hidden=false; $('#yw-yes').focus();
-      $('#yw-yes').onclick=()=>startAs(cls, seat);
-      $('#yw-no').onclick=()=>{ YBS.logout(); showLogin(); };
+      $('#yw-yes').onclick=()=>{ recOn=true; startAs(cls, seat); syncRecords(); };
+      $('#yw-no').onclick=()=>{ acctLogout(); showLogin(); };
       return;
     }
-    YBS.logout();
-    if(r.error==='not-listed'){ showLogin(); $('#yl-err').textContent=`名單上找不到這個帳號（${me.account||me.email}），請改用自己的帳號，或告訴老師。`; return; }
-    showForm('暫時連不上名單，請改填班級座號。');
-  }
-  // 名單可能匯在 115-df，也可能沿用 ClassScore 預設代號 115-g9：依序查，找到就用
-  async function whoamiAny(){
-    const own=YBS.CONFIG.courses['115-df']; let r;
-    for(const c of ['115-df','115-g9']){
-      YBS.CONFIG.courses['115-df']=c; r=await YBS.whoami();
-      if(r.ok || r.error!=='not-listed') break;
-    }
-    YBS.CONFIG.courses['115-df']=own; return r;
+    // 帳號正確但名單上沒有班級座號（例如班級代號「數資」送不進名單）：保持登入，請學生自己填
+    $('#yl-me').hidden=false;
+    $('#yl-me').textContent=`已登入：${me.account||me.email}。請填你的班級和座號。`;
+    showForm();
   }
   $('#yl-manual').onclick=()=>{ YBS.logout(); showForm(); };
   showLogin();
@@ -597,7 +590,21 @@ function exportNudge(){
   $('#x2').onclick=()=>{ netStop(); acctLogout(); S=null;B2=null;RV=null; renderLogin(); };
   $('#x3').onclick=()=>render();
 }
-function acctLogout(){ try{ if(typeof YBS!=='undefined') YBS.logout(); }catch(e){} }
+function acctLogout(){ recOn=false; recSent.clear(); try{ if(typeof YBS!=='undefined') YBS.logout(); }catch(e){} }
+// 過關紀錄：和九年級活動一樣寫到 ClassScore 的 ybsCourses/115-df/attempts。
+// 活動編號＝activities.js 的 week（1）；三個關卡＝三堂課的完成點，一關只記一筆。
+const REC_ACT=1, recSent=new Set();
+let recOn=false;
+function syncRecords(){
+  if(!recOn || !S || S.ansMode || typeof YBS==='undefined' || !YBS.enabled() || !YBS.profile()) return;
+  const done=[!!S.h1.submittedAt, !!S.concl.doneAt, stepDone(8)];
+  done.forEach((d,r)=>{ if(d && !recSent.has(r)){ recSent.add(r); YBS.submit({activity:REC_ACT, round:r, level:1, tries:1}); } });
+}
+if(typeof YBS!=='undefined') YBS.status(st=>{
+  if(!recOn) return;
+  if(st==='ok' && recSent.size) toast('✓ 紀錄已交給老師');
+  else if(st==='relogin') toast('登入過期：紀錄還沒交給老師，請按「換人登入」後重新登入');
+});
 
 /* ---------- generic bind helpers ---------- */
 function bind(root){

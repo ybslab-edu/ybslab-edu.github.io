@@ -10,7 +10,7 @@ const YBS = (() => {
     sender: '1078830272862',
     sdk: '10.14.1',
     domain: 'cgjh.hcc.edu.tw',                    // 名單上的學校信箱網域
-    courses: { '115-g9': '115-g9' }               // 網站課程代號 → Firestore ybsCourses 文件 ID
+    courses: { '115-g9': '115-g9', '115-df': '115-df' }   // 網站課程代號 → Firestore ybsCourses 文件 ID
   };
   const courseCode = (location.pathname.split('/').filter(Boolean)[0] || '');
   const courseId = () => CONFIG.courses[courseCode] || null;

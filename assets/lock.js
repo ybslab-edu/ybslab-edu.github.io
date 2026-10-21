@@ -3,7 +3,7 @@
 (() => {
   const OPEN = {
     '115-g9': ['w01', 'w02'],
-    '115-df': []                                  // 數資班專題：要開放就加 'a'
+    '115-df': ['a']                                  // 數資班專題：要開放就加 'a'
   };
   const seg = location.pathname.split('/').filter(Boolean);
   const list = OPEN[seg[0]], sub = seg[1] || '';

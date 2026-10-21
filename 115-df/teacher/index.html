@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/ https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>專題研究｜老師彙整台</title>
@@ -80,6 +80,18 @@ td.t{font-family:var(--f-mono);white-space:nowrap}
     <button class="btn" id="csv" type="button" disabled>下載成績彙整表（CSV）</button>
     <button class="btn" id="clear" type="button" disabled>清空</button>
   </header>
+  <section class="live" aria-label="雲端報告">
+    <h2>雲端報告（115-df）</h2>
+    <div class="row">
+      <button class="btn" id="cloud-login" type="button">Google 教師登入</button>
+      <button class="btn" id="cloud-logout" type="button" disabled>雲端登出</button>
+      <label>堂次 <select id="cloud-session"><option value="1">第 1 堂</option><option value="2">第 2 堂</option><option value="3">第 3 堂</option></select></label>
+      <button class="btn pri" id="cloud-read" type="button" disabled>讀取雲端報告／手動更新</button>
+      <button class="btn" id="cloud-delete" type="button" disabled>刪除該堂雲端報告</button>
+    </div>
+    <p class="note" id="cloud-status" role="status">請使用 ClassScore 課程老師的 Google 帳號登入；僅 owner 本人可讀取。</p>
+    <p class="note" id="cloud-roster"></p>
+  </section>
   <section class="live" id="live" hidden>
     <h2>即時教室 <span id="conn" class="note"></span><span class="grow"></span><button class="btn sm" id="rst" type="button">重設全部資料</button><button class="btn sm" id="out" type="button">登出</button></h2>
     <div class="row">學生網址 <span id="urls"></span></div>
@@ -98,6 +110,8 @@ td.t{font-family:var(--f-mono);white-space:nowrap}
 </div>
 <aside class="drawer" id="drawer" hidden></aside>
 <div class="gate" id="gate" hidden><form id="gf"><h2>老師登入</h2><p class="note">輸入啟動伺服器時顯示的 6 位數 PIN。</p><input id="pin" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="PIN"><button class="btn pri" type="submit">登入</button><p id="gmsg" class="note"></p></form></div>
+<script src="../../assets/df-report.js"></script>
+<script src="../../assets/df-teacher-cloud.js"></script>
 <script>
 "use strict";
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -115,15 +129,29 @@ async function load(files){
   for(const f of files){
     const t=await f.text(); const m=t.match(/<script id="df-report" type="application\/json">([\s\S]*?)<\/script>/);
     if(!m){bad++;continue;}
-    try{ const d=JSON.parse(m[1]); if(d.app!=='DF-investigation'){bad++;continue;}
-      const key=`${d.version}-${d.cls}-${d.seat}`; const prev=R.get(key);
-      const last=d.exports?.at(-1)||d.started;
-      if(!prev || (prev.exports?.at(-1)||'')<last) R.set(key,{...d,_file:f.name});
+    try{ const raw=JSON.parse(m[1]);
+      ingestReport({...raw,appVersion:raw.appVersion||'1.0'},{source:'本機檔案',file:f.name});
     }catch(e){bad++;}
   }
   if(bad) alertBox(`${bad} 個檔案不是調查站報告檔，已略過。`);
   render();
 }
+function ingestReport(raw, meta){
+  const d=DFReport.select(raw,true);
+  // 字串長度另設界線，避免異常文字拖慢彙整及相似度比較。
+  const validate=v=>{if(typeof v==='string'&&v.length>65536)throw new Error('報告文字過長');if(v&&typeof v==='object')Object.values(v).forEach(validate);};
+  validate(d);
+  d.log=d.log||[];
+  if(meta.source==='雲端'){
+    d.cls=meta.cls; d.seat=meta.seat; d._uid=meta.uid; d._session=meta.session; d._at=meta.at;
+    d._key=`cloud:${meta.uid}:s${meta.session}`;
+  }else d._key=`local:${d.version}-${d.cls}-${d.seat}`;
+  d._source=meta.source; d._file=meta.file||'雲端';
+  const prev=R.get(d._key);
+  if(meta.source==='雲端'||!prev||(prev.exports?.at(-1)||'')<(d.exports?.at(-1)||d.started||''))R.set(d._key,d);
+}
+function resetReports(){R.clear();CLS='';OPEN=null;$('#drawer').hidden=true;$('#drawer').innerHTML='';render();}
+function sourceLabel(d){return (d._source||d._file||'')+(d._at?' · 第 '+d._session+' 堂 · '+new Date(d._at).toLocaleString('zh-TW'):'');}
 function alertBox(msg){ const n=document.createElement('div'); n.className='empty'; n.style.color='var(--warn)'; n.textContent=msg; $('#tablebox').before(n); setTimeout(()=>n.remove(),5000); }
 
 function opened(d,id){ return d.log.some(l=>l.e==='open'&&l.d===id); }
@@ -145,9 +173,10 @@ function similar(list){
   }
   return out;
 }
-const key=d=>`${d.version}-${d.cls}-${d.seat}`;
+const key=d=>d._key||`${d.version}-${d.cls}-${d.seat}`;
 function flags(d, sim, given){
   const f=[...(sim.get(key(d))||[])];
+  if([...R.values()].some(x=>key(x)!==key(d)&&String(x.cls)===String(d.cls)&&String(x.seat)===String(d.seat)))f.push('同班座有多份來源／UID，請核對');
   const cited=[...(d.h1?.ev||[]),...(d.h2?.ev||[]),...(d.concl?.ev||[])];
   const un=[...new Set(cited.filter(id=>!opened(d,id)))]; if(un.length) f.push(`引用未打開證據 ${un.join('、')}`);
   if(!d.l01?.ok) f.push('EXIF 練習未通過');
@@ -168,12 +197,12 @@ function render(){
     [cnt(d=>d.reveal?.unlockedAt),'已看揭露'],[cnt(d=>d.b2?.hints?.length),'用過提示'],[list.filter(d=>flags(d,sim,given.get(`${d.cls}-${d.seat}`)||0).length).length,'有警示']
   ].map(([v,k])=>`<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('') : '';
   if(!n){ $('#tablebox').innerHTML='<div class="empty">還沒有載入任何報告檔。</div>'; return; }
-  $('#tablebox').innerHTML=`<div class="tbl"><table><thead><tr>${LIVE?'<th>狀態</th><th>目前步驟</th>':''}<th>班級座號</th><th>進度</th><th>打開證據</th><th>H1 送出</th><th>第二批解鎖</th><th>提示</th><th>H1 → H2</th><th>完成</th><th>畫廊</th><th>警示</th></tr></thead><tbody>
+  $('#tablebox').innerHTML=`<div class="tbl"><table><thead><tr>${LIVE?'<th>狀態</th><th>目前步驟</th>':''}<th>班級座號</th><th>來源／伺服器交件時間</th><th>進度</th><th>打開證據</th><th>H1 送出</th><th>第二批解鎖</th><th>提示</th><th>H1 → H2</th><th>完成</th><th>畫廊</th><th>警示</th></tr></thead><tbody>
   ${list.map(d=>{ const [lv,lab]=progress(d); const g=given.get(`${d.cls}-${d.seat}`)||0; const fl=flags(d,sim,g);
     const hints=d.b2?.hints||[]; const maxH=hints.length?Math.max(...hints.map(h=>h.level)):0;
     return `<tr data-k="${esc(key(d))}" tabindex="0">
       ${LIVE?(()=>{ const pr=presence(key(d)); const l=L.get(key(d)); return pr?`<td><span class="dot ${pr[0]}"></span>${pr[1]}</td><td class="t">${l.cur}. ${STEPN[l.cur-1]||''}</td>`:'<td class="na">—</td><td></td>'; })():''}
-      <td class="t">${esc(d.cls)}-${esc(d.seat)}</td>
+      <td class="t">${esc(d.cls)}-${esc(d.seat)}</td><td>${esc(sourceLabel(d))}</td>
       <td><span class="pill p${lv}">${lab}</span></td>
       <td class="t">${B1.filter(id=>opened(d,id)).length}/6 · ${B2.filter(id=>opened(d,id)).length}/4</td>
       <td class="t">${hm(d.h1?.submittedAt)}${d.h1?.submittedAt?` <span class="na">(${mins(d.started,d.h1.submittedAt)} 分)</span>`:''}</td>
@@ -195,7 +224,7 @@ function detail(d){
   const ev2=B2.map(id=>{const x=d.b2?.ev?.[id]||{}; return `<dt><span class="tag">${id==='E07F'?'E07完整':id==='SUP'?'補充':id}</span></dt><dd><b>${v(x.rel)}</b>　${v(x.key)}<br>${v(x.why)}</dd>`;}).join('');
   const dr=$('#drawer'); dr.hidden=false;
   dr.innerHTML=`<div style="display:flex;gap:1em;align-items:center"><h2>${esc(d.cls)} 班 ${esc(d.seat)} 號</h2><span class="grow"></span><button class="btn" type="button" id="dx">關閉</button></div>
-  <p class="note">檔案 ${esc(d._file)}</p>
+  <p class="note">${esc(sourceLabel(d))}${d._uid?` · UID ${esc(d._uid)}`:` · ${esc(d._file)}`}</p>
   <h3>研究問題</h3><p>${v(d.problem)}</p>
   <h3>H1（${hm(d.h1?.submittedAt)||'未送出'}）</h3><p>我目前推測：<b>${v(d.h1?.cause)}</b> 可能造成 <b>${v(d.h1?.effect)}</b>，因為證據 ${tags(d.h1?.ev)}</p><p>還不能確定：${v(d.h1?.unsure)}</p>
   <h3>第一批：觀察</h3><dl>${ev1}</dl>
@@ -212,10 +241,10 @@ function detail(d){
 }
 function csv(){
   const list=[...R.values()].sort((a,b)=>(a.cls+'').localeCompare(b.cls+'')||(+a.seat)-(+b.seat));
-  const head=['班級','座號','進度','研究問題','疑點數','第一批打開數','第二批打開數','H1送出','H1耗時分鐘','最高提示級','H1→H2決定','H1','H2','最支持解釋','不能證明','畫廊收到留言','數資挑戰','證據擷取(20)','事實與推論(20)','交叉驗證(20)','反證與修正(20)','結論邊界(20)','總分'];
+  const head=['班級','座號','來源','堂次','伺服器交件時間','UID','進度','研究問題','疑點數','第一批打開數','第二批打開數','H1送出','H1耗時分鐘','最高提示級','H1→H2決定','H1','H2','最支持解釋','不能證明','畫廊收到留言','數資挑戰','證據擷取(20)','事實與推論(20)','交叉驗證(20)','反證與修正(20)','結論邊界(20)','總分'];
   // 開頭是 = + - @ 的儲存格，Excel 會當成公式執行；前面補 ' 保持文字
   const q=s=>{ let t=String(s??''); if(/^[=+\-@\t\r]/.test(t)) t="'"+t; return `"${t.replace(/"/g,'""')}"`; };
-  const rows=list.map(d=>{ const h=d.b2?.hints||[]; return [d.cls,d.seat,progress(d)[1],d.problem||'',(d.susp||[]).filter(s=>(s.text||'').trim()).length,B1.filter(i=>opened(d,i)).length,B2.filter(i=>opened(d,i)).length,hm(d.h1?.submittedAt),mins(d.started,d.h1?.submittedAt)??'',h.length?Math.max(...h.map(x=>x.level)):0,d.h2?.decision||'',`${d.h1?.cause||''} 可能造成 ${d.h1?.effect||''}`,d.h2?.now||'',d.concl?.best||'',[d.concl?.can,d.concl?.cannot,d.concl?.cbecause].filter(Boolean).join('｜'),(d.gallery?.comments||[]).length,d.reveal?.calc?.ok?'全對':'','','','','','',''].map(q).join(','); });
+  const rows=list.map(d=>{ const h=d.b2?.hints||[]; return [d.cls,d.seat,d._source||d._file||'',d._session||'',d._at||'',d._uid||'',progress(d)[1],d.problem||'',(d.susp||[]).filter(s=>(s.text||'').trim()).length,B1.filter(i=>opened(d,i)).length,B2.filter(i=>opened(d,i)).length,hm(d.h1?.submittedAt),mins(d.started,d.h1?.submittedAt)??'',h.length?Math.max(...h.map(x=>x.level)):0,d.h2?.decision||'',`${d.h1?.cause||''} 可能造成 ${d.h1?.effect||''}`,d.h2?.now||'',d.concl?.best||'',[d.concl?.can,d.concl?.cannot,d.concl?.cbecause].filter(Boolean).join('｜'),(d.gallery?.comments||[]).length,d.reveal?.calc?.ok?'全對':'','','','','','',''].map(q).join(','); });
   const blob=new Blob(['﻿'+[head.map(q).join(','),...rows].join('\r\n')],{type:'text/csv'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`專題研究_成績彙整_${new Date().toISOString().slice(0,10)}.csv`; a.click();
 }
@@ -273,7 +302,8 @@ const dz=$('#drop');
 ['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over');}));
 dz.addEventListener('drop',e=>load(e.dataTransfer.files));
 $('#csv').onclick=csv;
-$('#clear').onclick=()=>{ if(LIVE){ toast2('即時模式的資料由伺服器保存，請用「重設全部資料」'); return; } R.clear();$('#drawer').hidden=true;render();};
+$('#clear').onclick=()=>{ if(LIVE){ toast2('即時模式的資料由伺服器保存，請用「重設全部資料」'); return; } resetReports();};
+DFTeacherCloud({ingest:ingestReport,reset:resetReports,render});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#drawer').hidden=true;});
 </script>
 </body>

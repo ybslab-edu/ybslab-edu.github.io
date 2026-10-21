@@ -141,5 +141,77 @@ const YBS = (() => {
   try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('ybslab:login'); } catch (e) {}
   setInterval(() => { if (profile) flush(); }, 60000);
   window.addEventListener('online', () => { if (profile) flush(); });
-  return { CONFIG, enabled, button, submit, flush, logout, whoami, profile: () => profile, status: f => { onStatus = f; } };
+
+  // DF 報告專用 API：不公開 db，也不沿用 attempts 的佇列或「已存在就成功」判斷。
+  let reportAuthObserved = false, reportAuthUid = null, reportAuthGeneration = 0;
+  async function submitReport(session, encoded) {
+    const fail = (code, message, extra) => Object.assign(new Error(message), {code}, extra);
+    if (!enabled() || courseId() !== '115-df') throw fail('report/course', '此課程不開放報告交件');
+    if (!Number.isInteger(session) || session < 1 || session > 3) throw fail('report/session', '堂次不正確');
+    if (!profile || !fb || !fb.auth.currentUser || fb.auth.currentUser.uid !== profile.uid) {
+      throw fail('report/auth', '請先登入並確認班級座號');
+    }
+    if (!encoded || encoded.schemaVersion !== 1 || !['ascii-json','gzip-base64'].includes(encoded.encoding)
+        || typeof encoded.payload !== 'string' || !encoded.payload.length || /[^\x20-\x7e]/.test(encoded.payload)) {
+      throw fail('report/format', '報告格式不正確，請下載報告檔交給老師');
+    }
+    if (encoded.payload.length > 524288) throw fail('report/too-large', '報告過大，請下載報告檔交給老師');
+    const me = {...profile}, db = fb.db, auth = fb.auth;
+    const packet = {schemaVersion:1, encoding:encoded.encoding, payload:encoded.payload};
+    const snapshotAt = encoded.snapshotAt, overwriteAt = encoded.overwriteAt;
+    if (!Number.isFinite(snapshotAt) || snapshotAt <= 0) throw fail('report/format', '報告快照時間不正確');
+    if (!reportAuthObserved) {
+      reportAuthObserved = true;
+      reportAuthUid = auth.currentUser.uid;
+      auth.onAuthStateChanged(user => {
+        const uid = user?.uid || null;
+        if (uid !== reportAuthUid) { reportAuthUid = uid; reportAuthGeneration++; }
+        window.dispatchEvent(new CustomEvent('ybs-report-auth', {detail:{uid}}));
+      });
+    }
+    const generation = reportAuthGeneration;
+    const sameUser = () => {
+      if (!profile || profile.uid !== me.uid || auth.currentUser?.uid !== me.uid || generation !== reportAuthGeneration) {
+        throw fail('report/auth', '登入身分已變更，請重新登入後交件');
+      }
+    };
+    const course = await db.doc('ybsCourses/115-df').get({source:'server'});
+    sameUser();
+    if (!course.exists || course.data().open !== true) throw fail('report/closed', '課程已停止收件，請找老師');
+    const roster = await db.doc('ybsCourses/115-df/roster/' + me.email).get({source:'server'});
+    sameUser();
+    if (!roster.exists) throw fail('report/not-listed', '你不在課程名單，請找老師');
+    const {cls,seat} = roster.data();
+    if (!Number.isInteger(cls) || cls < 100 || cls > 999 || !Number.isInteger(seat) || seat < 1 || seat > 60) {
+      throw fail('report/not-listed', '課程名單的班級座號不正確，請找老師');
+    }
+    // 班座採用剛從名單讀到的整數；若和學生確認的作答身分不同，不能代換後上傳。
+    if (Number(encoded.cls) !== cls || Number(encoded.seat) !== seat) throw fail('report/identity', '班級座號已變更，請重新登入並確認作答屬於你');
+    const ref = db.doc('ybsCourses/115-df/reports/' + me.uid + '_s' + session);
+    await db.runTransaction(async tx => {
+      sameUser();
+      const previous = await tx.get(ref);
+      sameUser();
+      const old = previous.exists ? previous.data() : null;
+      const updatedAt = old?.updatedAt?.toMillis();
+      if (old && updatedAt > snapshotAt && old.payload !== packet.payload && overwriteAt !== updatedAt) {
+        throw fail('report/conflict', '老師已有較新的報告，請確認後再覆寫', {updatedAt});
+      }
+      const stamp = firebase.firestore.FieldValue.serverTimestamp();
+      tx.set(ref, {uid:me.uid, session, cls, seat, ...packet,
+        createdAt:old ? old.createdAt : stamp, updatedAt:stamp});
+    });
+    sameUser();
+    // transaction 只有伺服器接受後才完成；再讀伺服器交件時間，不把本機離線待寫當作成功。
+    const received = await ref.get({source:'server'});
+    sameUser();
+    const report = received.exists && received.data();
+    const updatedAt = report && report.updatedAt?.toMillis();
+    if (!Number.isFinite(updatedAt)) throw fail('unavailable', '尚未取得伺服器交件時間，請重試');
+    if (report.payload !== packet.payload || report.encoding !== packet.encoding) {
+      throw fail('report/conflict', '老師已有較新的報告，請確認後再覆寫', {updatedAt});
+    }
+    return {courseId:'115-df', uid:me.uid, session, cls, seat, updatedAt};
+  }
+  return { CONFIG, enabled, button, submit, flush, logout, whoami, submitReport, profile: () => profile, status: f => { onStatus = f; } };
 })();

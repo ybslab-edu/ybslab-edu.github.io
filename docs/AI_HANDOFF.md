@@ -1,8 +1,8 @@
 # YBS Lab 交接（覆寫式，只留最新狀態）
 
-最後更新：2026-10-19 15:00（10/19 工作階段結束；之後改在 **Claude Code** 接續，見第 7 節）。新對話先讀完這份，再依「下一步」推進；不用從頭研究整個網站。
+最後更新：2026-10-21（依 10/19 之後的 git log 與 YBS／ClassScore 程式核對）。新對話先讀完這份，再依「下一步」推進；不用從頭研究整個網站。
 
-> **目前狀態**：YBS × ClassScore 串接**已正式上線**（第 3.7 節）。學生用**自建帳號密碼**登入（帳號 cgjh＋學號、密碼 cgjh＋身分證字號），每過一關自動寫紀錄，老師在 ClassScore 第 6 區匯入。九年級只開放 w01、w02，其他活動與數資班都上鎖。
+> **目前狀態**：YBS × ClassScore 過關紀錄串接已上線。115-df 的活動 a 已開放；登入後依名單確認班座，每堂完成點寫入過關紀錄。報告採三堂流程：DF-3A 定義格式，YBS 學生端 DF-3C 交件，教師端 DF-3D 讀取；Firestore Rules 與模擬器測試由 ClassScore 的 DF-3B 維護。數資班在 ClassScore 的班級代號為 `724`。每週開新關卡須更新 `assets/lock.js` 的 `OPEN`。
 
 ## 1. 專案與相關位置
 - 網站：<https://ybslab-edu.github.io>，repo `ybslab-edu/ybslab-edu.github.io`（GitHub Pages，main 直接上線）。
@@ -128,16 +128,23 @@
 
 **Rules**：10/19 老師在主控台發布含 `ybsAccount()`／`rosterEmail()` 的版本（= class-score main 的 `firestore.rules`）。class-score 的 GitHub Actions「Bootstrap Firestore」（改 rules 會自動部署）自 10/16 起**job 起不來（0 steps）**，所以 Rules 一律由老師手動貼上發布。tests/ybs-rules.emulator.mjs 已加 10 個自建帳號案例，但這裡的環境裝不到 `@firebase/rules-unit-testing`（npm 403），**還沒實際跑過**。
 
-**10/19 試點紀錄**：917 上午試點，Google SSO 故障只有少數人登入成功，其他人用成績碼；917 1 號何同學的帳號被老師拿來測試，w02 第 1 關留有一筆（老師可在主控台 `ybsCourses/115-g9/attempts` 刪）。下午 922、920 改用帳號密碼。
+**10/19 試點紀錄**：Google SSO 故障時部分學生改用成績碼；測試帳號曾留下測試紀錄，需由老師在 Firebase 主控台清理。之後班級改用帳號密碼。
 
 **規則**：YBS 與 class-score 的改動都先開 Draft PR（**一個功能一個 PR，趕課也一樣**），合併與發布要老師核准；class-score 合併 main＝正式發布；PR CI 走 CircleCI `fallback-pr-ci`，要在 `.circleci/config.yml` 加暫時分支白名單、合併前移除。CircleCI `auth-preflight-sts` 10/19 失敗一次，不擋部署（獨立的 credentials-only workflow）。不得操作正式教師資料。
 
 **開學簡報四項假設（10/16 確認）**：w30 帳密頁只寫規則（帳號 cgjh＋學號，密碼口頭說明）；前測不計分；Wayground 每班不同連結；技能 40%＝YBS 實作過關紀錄（登入失敗交成績碼）。
 
+## 3.8 2026-10-21 交件與 ClassScore 現況
+- **115-df 開放**：`assets/lock.js` 的 `OPEN['115-df']` 含 `a`。`assets/login.js` 的 `courses` 將 `115-g9`、`115-df` 分別對應到相同 Firestore 課程 ID。學生登入後以雲端名單確認班座；活動 a 的三堂完成點各寫一筆過關紀錄。
+- **DF-1／DF-2**：完成反思的紀錄時機改為下載最終報告時；匯入報告前必須先登入。
+- **DF-3A／3B／3C／3D**：DF-3A 在本 repo 的 `docs/DF_REPORT_FORMAT.md` 與 `assets/df-report.js` 定義白名單格式、編碼與解碼；DF-3C 在 `assets/login.js` 提供學生交件；DF-3D 在 `115-df/teacher/` 提供教師讀取。Firestore 權限、名單／班座與報告資料驗證屬 ClassScore 的 DF-3B（見其 `docs/YBS_FIRESTORE.md`），不要把 Rules 當作 YBS 頁面程式。
+- **ClassScore 串接**：第 6 區支援 `115-df`，使用班級代號 `724`。ClassScore #110 增加依完成先後顯示的 YBS 過關區塊及評分操作；#111 擴充為跨班／課程彙整並顯示個人平均。DF-3B 已合併為 #118；YBS 第 6 區成績碼匯入與雲端紀錄合併由 ClassScore 的後續變更提供。這次本機 git log／交接資料未能確認 #113 的主題，勿推測其內容；需要時再查原 PR。以各 repo 最新程式及交接文件確認發布狀態，不沿用舊待辦快照。
+- **每週開關卡**：改 `assets/lock.js` 中對應課程的 `OPEN` 清單，加入活動資料夾名稱（例如九年級 `w03` 或數資班 `a`）；新增／修改活動後執行 `node tools/activities-json.mjs`，並同步更新本機回歸測試使用的開放清單。
+
 ## 4. 下一步（依序）
-1. **ClassScore 第 6 區加「貼上成績碼」**：沒登入的學生交成績碼，和雲端紀錄合成同一張表一起匯入（成績碼含班級、座號、週次、過關、各關嘗試、時間；解碼見 YBS `assets/codec.js`）。
-2. **每週開新活動**：`assets/lock.js` 的 `OPEN` 加資料夾名；改 activities.js 後跑 `node tools/activities-json.mjs`。
-3. **登入相關**：在 CI 跑一次 Rules 模擬器測試（`bash scripts/ybs-rules-emulator.sh`）；學生測試帳號（測試班 999，用自建帳號）方便每週課前自測；考慮做「登入檢查」頁。
+1. **依部署證據確認 DF-3B Rules 與 DF-3C／DF-3D 交件流程**：Rules 的模擬器測試在 ClassScore `bash scripts/ybs-rules-emulator.sh`；測試與部署狀態以 ClassScore 最新交接及 Actions 為準，不操作正式教師資料。
+2. **每週開新活動**：`assets/lock.js` 的 `OPEN` 加資料夾名；改 `assets/activities.js` 後跑 `node tools/activities-json.mjs`，並同步本機回歸測試的開放清單。
+3. **登入相關**：規劃隔離的學生測試帳號方便每週課前自測；需要時再做「登入檢查」頁。不得把真實名單、帳密或識別資料放入文件、repo 或對話。
 4. **老師測試第 2、4、5 單元的連貫性**，依回饋調整 w03～w25。
 5. **第 3 單元影音專題（畢業影片）**、**確認段考週與會考日期**、**專題 B/C/D 版**（重建調查頁時保留 github.io 探測守門那一行）。
 6. 之後：防偽（學生可用開發者工具送假的過關紀錄，匯入時看時間與嘗試次數；長期可讓 ClassScore 只收已開放週次）；`weekly-it-lesson` 技能加上「開放週次要改 lock.js」「改 activities.js 後跑 activities-json」。D01 等報告項目老師沒表態前不要動。

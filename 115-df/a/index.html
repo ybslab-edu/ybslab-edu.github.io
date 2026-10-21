@@ -331,6 +331,10 @@ function statePayload(){ const c=JSON.parse(JSON.stringify(S)); if(c.b2) delete 
 function setNet(){
   const el=$('#net'), bn=$('#netbanner'); if(!el) return;
   let txt='單機模式', cls='off', tip='沒有連到老師的電腦，作答只存在這台電腦。';
+  // 「單機模式」原本指沒連到老師的本機伺服器；用學校帳號登入時改顯示登入狀態，避免學生以為紀錄沒交出去
+  if(!NET.on && recOn){ const me=YBS.profile();
+    if(me){ txt='已登入 '+me.account; cls='ok'; tip='作答存在這台電腦；完成「提出 H1」「完成結論」「完成反思」時，紀錄會自動交給老師。'; }
+    else { txt='登入已登出'; cls='warn'; tip='紀錄不會交給老師，請按「換人登入」重新登入。'; } }
   if(NET.on){ if(NET.err==='seat'){ txt='座號重複'; cls='bad'; }
     else if(NET.state==='down'){ txt='連線中斷，作答仍會儲存'; cls='warn'; }
     else { txt='已連線老師'; cls='ok'; tip='老師可以看到你的作答進度。'; } }
@@ -603,6 +607,7 @@ function syncRecords(){
 }
 if(typeof YBS!=='undefined') YBS.status(st=>{
   if(!recOn) return;
+  setNet();
   if(st==='ok' && recSent.size) toast('✓ 紀錄已交給老師');
   else if(st==='relogin') toast('登入過期：紀錄還沒交給老師，請按「換人登入」後重新登入');
 });

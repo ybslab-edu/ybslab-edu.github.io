@@ -430,7 +430,7 @@ function renderLogin(){
       <label class="fld"><span>座號</span><input id="lf-seat" inputmode="numeric" required maxlength="3" value="${ANS?'77':''}"></label>
       <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">開始調查</button></div>
     </form>
-    <div class="callout lockbox">
+    <div class="callout lockbox" id="impbox" ${acctLogin?'hidden':''}>
       <p><b>換了一台電腦？</b>如果你上一堂課已經下載過「報告檔」，請在這裡匯入，接著做下去。</p>
       <div class="row" style="margin-top:.6em"><label class="btn"><input id="imp" type="file" accept=".html,.htm" hidden>匯入我的報告檔</label></div>
     </div>
@@ -463,7 +463,7 @@ function startAs(cls, seat){
 }
 // 學校帳號登入只用來從名單帶出班級座號；作答仍只存在這台電腦（不上傳 Firestore）
 function wireAcctLogin(){
-  const showForm=msg=>{ $('#yl').hidden=true; $('#yw').hidden=true; $('#lf').hidden=false; if(msg) toast(msg); $('#lf-cls').focus(); };
+  const showForm=msg=>{ impWho=null; $('#yl').hidden=true; $('#yw').hidden=true; $('#lf').hidden=false; $('#impbox').hidden=false; if(msg) toast(msg); $('#lf-cls').focus(); };
   const showLogin=()=>{ $('#yw').hidden=true; $('#yl').hidden=false; YBS.button($('#yl-btn'), onLogin, msg=>{ $('#yl-err').textContent=msg; });
     const b=$('#yl-btn button'); if(b) b.className='btn pri'; };
   async function onLogin(me){
@@ -475,8 +475,9 @@ function wireAcctLogin(){
       const no=String(me.account||'').replace(/^cgjh/,'');   // 名單不存姓名，用登入帳號裡的學號讓學生確認
       $('#yw-text').textContent=`你是 ${cls} 班 ${seat} 號（學號 ${no}），對嗎？`;
       $('#yw-btns').hidden=false; $('#yw-yes').focus();
+      impWho={cls, seat}; $('#impbox').hidden=false;   // 換電腦的同學：確認身分後才能匯入自己的報告檔
       $('#yw-yes').onclick=()=>{ recOn=true; startAs(cls, seat); syncRecords(); };
-      $('#yw-no').onclick=()=>{ acctLogout(); showLogin(); };
+      $('#yw-no').onclick=()=>{ impWho=null; $('#impbox').hidden=true; acctLogout(); showLogin(); };
       return;
     }
     // 帳號正確但名單上沒有班級座號（例如班級代號「數資」送不進名單）：保持登入，請學生自己填
@@ -531,7 +532,10 @@ async function importReport(ev){
   let data; try{ data=JSON.parse(m[1].replace(/<\\\//g,'</')); }catch(e){ toast('報告檔損毀，無法讀取'); return; }
   if(data.app!=='DF-investigation'){ toast('這不是調查站產生的報告檔'); return; }
   if(data.version!==VERSION){ toast('這份報告屬於另一個案件版本，請找老師'); return; }
-  S=data; S.log.push({t:now(),e:'import',d:f.name}); save(); toast(`已匯入 ${S.cls} 班 ${S.seat} 號的報告`); boot();
+  if(impWho && (String(data.cls)!==impWho.cls || String(data.seat)!==impWho.seat)){
+    ev.target.value=''; toast(`這是 ${data.cls} 班 ${data.seat} 號的報告，不是你的（${impWho.cls} 班 ${impWho.seat} 號）`); return; }
+  const logged=!!impWho;
+  S=data; S.log.push({t:now(),e:'import',d:f.name}); if(logged) recOn=true; save(); toast(`已匯入 ${S.cls} 班 ${S.seat} 號的報告`); boot();
 }
 async function boot(){
   S.cid ??= newCid();
@@ -595,14 +599,14 @@ function exportNudge(){
   $('#x2').onclick=()=>{ netStop(); acctLogout(); S=null;B2=null;RV=null; renderLogin(); };
   $('#x3').onclick=()=>render();
 }
-function acctLogout(){ recOn=false; recSent.clear(); try{ if(typeof YBS!=='undefined') YBS.logout(); }catch(e){} }
+function acctLogout(){ recOn=false; impWho=null; recSent.clear(); try{ if(typeof YBS!=='undefined') YBS.logout(); }catch(e){} }
 // 過關紀錄：和九年級活動一樣寫到 ClassScore 的 ybsCourses/115-df/attempts。
 // 活動編號＝activities.js 的 week（1）；三個關卡＝三堂課的完成點，一關只記一筆。
 const REC_ACT=1, recSent=new Set();
-let recOn=false;
+let recOn=false, impWho=null;   // impWho：帳號登入並確認身分後的班級座號，匯入報告時用來比對
 function syncRecords(){
   if(!recOn || !S || S.ansMode || typeof YBS==='undefined' || !YBS.enabled() || !YBS.profile()) return;
-  const done=[!!S.h1.submittedAt, !!S.concl.doneAt, stepDone(8)];
+  const done=[!!S.h1.submittedAt, !!S.concl.doneAt, !!S.reveal.finalAt];
   done.forEach((d,r)=>{ if(d && !recSent.has(r)){ recSent.add(r); YBS.submit({activity:REC_ACT, round:r, level:1, tries:1}); } });
 }
 if(typeof YBS!=='undefined') YBS.status(st=>{
@@ -1109,7 +1113,7 @@ function pReveal(){
    <div class="row"><button class="btn pri" type="button" id="fin">下載最終報告檔</button></div>`;
   bind($('#main'));
   $('#calc').onclick=()=>{ const v=['t','i','s'].map(k=>parseFloat(String(S.reveal.calc[k]).normalize('NFKC'))); const ok=v.every((x,i)=>Math.abs(x-r.calc.answers[i])<0.01); S.reveal.calc.ok=ok; log('calc',ok); save(); $('#calcmsg').innerHTML= ok?'<span class="seen">三組都算對了</span>':'<span style="color:var(--warn)">還有算錯的。提示：總分 = 人數 × 平均。</span>'; $('#calcdisc').hidden=!ok; };
-  $('#fin').onclick=()=>{ if(!S.reveal.r1.trim()){toast('反思第 1 題是必答');return;} exportReport(true); };
+  $('#fin').onclick=()=>{ if(!S.reveal.r1.trim()){toast('反思第 1 題是必答');return;} if(!S.reveal.finalAt) S.reveal.finalAt=now(); save(); exportReport(true); };
 }
 
 /* ---------- report export ---------- */

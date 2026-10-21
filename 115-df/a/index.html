@@ -468,7 +468,8 @@ function wireAcctLogin(){
     const r=await YBS.whoami();
     if(r.ok && r.student){
       const cls=String(r.student.cls), seat=String(r.student.seat);
-      $('#yw-text').textContent=`你是 ${cls} 班 ${seat} 號，對嗎？`;
+      const no=String(me.account||'').replace(/^cgjh/,'');   // 名單不存姓名，用登入帳號裡的學號讓學生確認
+      $('#yw-text').textContent=`你是 ${cls} 班 ${seat} 號（學號 ${no}），對嗎？`;
       $('#yw-btns').hidden=false; $('#yw-yes').focus();
       $('#yw-yes').onclick=()=>{ recOn=true; startAs(cls, seat); syncRecords(); };
       $('#yw-no').onclick=()=>{ acctLogout(); showLogin(); };

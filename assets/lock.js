@@ -2,7 +2,7 @@
 // 開新的一週：把資料夾名加進對應課程的清單，例如九年級加 'w03'。課程首頁、教師頁（teacher）不受影響。
 (() => {
   const OPEN = {
-    '115-g9': ['w01', 'w02'],
+    '115-g9': ['w01', 'w02', 'w03'],
     '115-df': ['a']                                  // 數資班專題：要開放就加 'a'
   };
   const seg = location.pathname.split('/').filter(Boolean);

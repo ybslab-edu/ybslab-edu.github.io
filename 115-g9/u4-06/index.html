@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>問 AI 一個問題｜第 21 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+/* 第 21 週：學期統整。一個問題從手機到資料中心、再回到螢幕 */
+.unitchip{display:inline-block;font-size:13px;font-weight:700;border-radius:999px;padding:0 8px;margin-right:6px}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// 一個問題的旅程（雲端版），順序固定；每一步有幾種說法
+const TRIP=[
+ ['小安用手指在螢幕上打出問題','觸控螢幕把手指點的位置傳給手機'],
+ ['每個字變成編碼（UTF-8），存成 0 和 1','問題的每個字，換成一串 0 和 1'],
+ ['問題拆成封包，貼上收件的 IP 位址','訊息切成一包一包，每包寫上編號和地址'],
+ ['封包經 Wi-Fi 飛到家裡的路由器','封包用行動網路送到附近的基地台'],
+ ['沿著光纖、海纜，送到國外的資料中心','封包跨過海纜，抵達 AI 公司的資料中心'],
+ ['資料中心的 AI 晶片算出答案','雲端的伺服器算出回答'],
+ ['答案拆成封包傳回來，手機照編號組回去','回答的封包一路傳回，手機照編號組好'],
+ ['螢幕把答案一個字一個字畫出來','答案出現在螢幕上']];
+function ORDER(el,labels,api){
+  const n=labels.length, slots=Array(n).fill(null);
+  el.innerHTML='<div class="two"><section class="panel"><div class="ptitle"><h3>打亂的步驟</h3><span class="small">點一下放進右邊下一格</span></div><div class="picks" id="o-pool"></div></section>'+
+    '<section class="panel"><div class="ptitle"><h3>一個問題的旅程</h3><span class="small">點格子裡的卡片拿回去</span></div><div class="slots" id="o-slots"></div></section></div>';
+  const draw=()=>{
+    el.querySelector('#o-pool').innerHTML=labels.map((l,i)=>slots.includes(i)?'':'<button type="button" class="pk" data-i="'+i+'">'+l+'</button>').join('')||'<p class="small">都排好了，按「送出」。</p>';
+    el.querySelector('#o-slots').innerHTML=slots.map((k,j)=>'<div class="slot"><span class="n">'+(j+1)+'</span>'+(k==null?'<span class="empty">'+(j===0?'按下送出之前':j===n-1?'看到答案':'　')+'</span>':'<button type="button" class="pk" data-s="'+j+'">'+labels[k]+'</button>')+'</div>').join('');
+    el.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{slots[slots.indexOf(null)]=+b.dataset.i;draw();api.changed()});
+    el.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{slots[+b.dataset.s]=null;draw();api.changed()});
+  };
+  draw();
+  return {get:()=>[...slots],fill:a=>{a.forEach((v,i)=>slots[i]=v);draw()},ready:()=>slots.every(v=>v!=null)};
+}
+const UNITS=['第 1 單元 系統平台','第 2 單元 數位化','第 4 單元 網路'];
+const WHICH=[
+ ['觸控螢幕把手指點的位置傳給手機（輸入）',0],['作業系統把 CPU 時間分給聊天 App',0],['答案先暫放在 RAM 裡',0],['螢幕把答案畫出來（輸出）',0],['聊天紀錄存進手機的儲存空間',0],
+ ['每個字變成 UTF-8 編碼',1],['截圖的題目變成一格一格的像素',1],['上傳前，截圖被壓縮成 JPG',1],['一張截圖大約 300 KB',1],
+ ['問題拆成封包，貼上 IP 位址',2],['封包經 Wi-Fi 送到路由器',2],['封包走海纜到國外的資料中心',2],['DNS 把 AI 網站的名字換成 IP 位址',2],['AI 公司租用雲端的資料中心來算',2]];
+const WHERE=['兩種都有','只有雲端版','只有手機版'];
+const BOTH=[
+ ['手指在螢幕上打出問題',0],['每個字編成 0 和 1',0],['螢幕把答案畫出來',0],['手機的 CPU 和 RAM 處理 App 的畫面',0],
+ ['封包經 Wi-Fi 送出去',1],['封包走海纜到資料中心',1],['DNS 把網站名稱換成 IP 位址',1],['資料中心的 AI 晶片算出答案',1],
+ ['手機裡的晶片（例如專門算 AI 的 NPU）算出答案',2],['先把 AI 模型下載到手機裡，占掉好幾 GB',2],['飛航模式下也能回答',2]];
+const PICKAI=[
+ ['搭飛機沒有網路，要翻譯菜單',1],['照片有隱私，不想上傳到別人的電腦',1],['視訊時要即時字幕，不能等網路慢半拍',1],['馬祖海纜又斷了，還想用 AI 整理筆記',1],
+ ['要查今天最新的新聞',0],['要用最大、最強的模型寫一篇長報告',0],['要分析後援會上千筆問卷資料',0],['舊手機的空間和 RAM 不夠裝 AI 模型',0]];
+
+const ROUNDS=[
+ {lv:1,name:'一個問題的旅程',
+  now:'期末考前一晚，小安半夜卡在一題數學，拿起手機問 AI。按下送出，幾秒後答案就出現了。',
+  goal:'把這幾秒鐘裡發生的事，照順序排好。',
+  tip:'想像你是那個問題：先被打出來、變成 0 和 1、打包、出門、過海、被算、再回家。',
+  learn:'一個問題的旅程，把整學期串起來：輸入和輸出是第 1 單元的系統平台，變成 0 和 1 是第 2 單元的數位化，封包、Wi-Fi、海纜、資料中心是第 4 單元的網路。幾秒鐘裡，三個單元全都用上了。最後別忘了：AI 算出來的數學解答也可能錯，自己再驗算一次。',
+  gen(rnd){const pick=[0,...SAMPLE(rnd,[1,2,3,4,5,6],4).sort((a,b)=>a-b),7];let order;do{order=SHUF(rnd,pick.map((k,i)=>i))}while(order.every((v,i)=>v===i));return {cards:order.map(i=>({k:pick[i],t:PICK(rnd,TRIP[pick[i]])}))}},
+  view(inst,el,api){const h=ORDER(el,inst.cards.map(c=>c.t),api);const sol=inst.cards.map((c,i)=>i).sort((a,b)=>inst.cards[a].k-inst.cards[b].k);return {...h,fill:()=>h.fill(sol)}},
+  check(inst,a){if(a.some(k=>!inst.cards[k]))return '還有空格沒放卡片。';for(let i=1;i<a.length;i++){const p=inst.cards[a[i-1]],q=inst.cards[a[i]];if(p.k>q.k)return '第 '+i+' 格和第 '+(i+1)+' 格的順序不對：「'+q.t+'」應該更早發生。'}return true}},
+
+ {lv:1,name:'這一步是哪一單元',
+  now:'小安回頭看這學期的筆記：原來每一步，都是某一個單元學過的。',
+  goal:'每一步，是哪一個單元學的？',
+  tip:'第 1 單元：電腦的硬體、作業系統、輸入輸出、記憶體。第 2 單元：變成 0 和 1、檔案大小、編碼、壓縮。第 4 單元：封包、地址、無線、海纜、雲端。',
+  learn:'同一件事可以從三個角度看：機器怎麼做（系統平台）、資料長什麼樣（數位化）、資料怎麼送（網路）。下學期還會加上「怎麼命令電腦」——程式設計。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,WHICH,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),UNITS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：它在講機器、講資料的樣子，還是講資料怎麼送？':true}},
+
+ {lv:2,name:'雲端版和手機版',
+  now:'小安的新手機說：「這個 AI 可以直接在手機上算，不用連網。」這一題比較兩種版本：雲端版（問題送到資料中心算），和本題的手機版（模型先下載好、這次完全離線）。',
+  goal:'每一步，是兩種都有、只有雲端版才有，還是只有手機版才有？',
+  tip:'本題的手機版這一次完全離線：問題不出門，沒有封包、Wi-Fi、海纜、資料中心，改由手機裡的晶片來算（常用 NPU，也可能用 CPU、GPU），模型也要先存在手機裡。雲端版從手機出去，可能走 Wi-Fi 也可能走行動網路。',
+  learn:'在手機上算的 AI，省掉了整段網路旅程：比較快、沒網路也能用、資料不用離開手機；但手機的晶片和記憶體有限，模型比較小。這就是第 1 單元說的 NPU，和 AI 手機的 RAM 越來越大的原因。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,BOTH,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),WHERE,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：這一步要不要「出門」？':true}},
+
+ {lv:2,name:'雲端算還是手機算',
+  now:'雲端 AI 和手機上的 AI 各有長處。本題的雲端 AI 模型很大、可以上網搜尋；本題的手機 AI 是先下載好、完全離線的小模型。',
+  goal:'每一個情況，比較適合用哪一種？',
+  tip:'手機上的 AI：沒網路也能用、快、資料不外流，但模型小。雲端 AI：模型大、能查最新資料、能處理很多資料，但要網路、資料要送出去。',
+  learn:'現在的 AI 常常「分工」：簡單、急、私密的在手機上算，難的、需要大量資料的送到雲端。選哪一種，就是在網路、速度、隱私和能力之間取捨。不管哪一種，AI 的答案都可能錯，重要的事要自己再查證。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,PICKAI,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['雲端 AI','手機上的 AI'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：有沒有網路？資料能不能送出去？需不需要很強的模型？':true}}
+];
+const APP=SHELL({week:15,termWeek:21,title:'問 AI 一個問題',course:'115-g9',unit:4,rounds:ROUNDS,finale:'四關都完成了！這是這學期的最後一站：從拆開手機、把世界變成 0 和 1，到把一個問題送過網路再回到螢幕，整學期學的東西就串在這條路上。'});
+</script>
+</body>
+</html>

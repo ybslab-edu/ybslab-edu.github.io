@@ -3,92 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>寫給學弟妹的繪本｜第 5 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-.prompt{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:10px;padding:12px 14px;font-size:17px;line-height:1.6}
-.goalbox{background:var(--c-soft);border-radius:10px;padding:10px 14px;font-size:16px}
-.nexttok{display:flex;flex-direction:column;gap:10px}
-.nexttok .row .pk small{opacity:.75;margin-left:6px;font-family:var(--f-mono)}
-.sent{font-size:20px;font-weight:700;background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:10px 14px}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u5-03/">
+<meta http-equiv="refresh" content="0; url=../u5-03/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u5-03/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-// TITLE:寫給學弟妹的繪本
-// TERMWEEK:5
-// 第 5 單元第 3 站：生成式 AI、提示詞、語言模型「猜下一個字」。故事：九年三班要做一本《國中生存指南》繪本送給七年級
-const GEN=[
- ['AI 寫一首畢業歌的歌詞',1],['AI 畫出班上吉祥物的樣子',1],['AI 接著把故事寫下去',1],['AI 把一段文字唸成配音',1],['AI 把報告改寫成小學生看得懂的版本',1],['AI 做出園遊會的宣傳海報草稿',1],
- ['AI 把老師說的話變成字幕',0],['AI 認出照片裡的是狗',0],['AI 預測明天會不會下雨',0],['AI 判斷這封信是不是詐騙',0],['AI 推薦你下一首歌',0]];
-const PART={任務:['寫一個小故事，主角是第一次上國中的七年級生，在學校迷路了。','寫一段故事，介紹國中的營養午餐有多好吃。','寫一個小故事：七年級新生第一次參加社團就上台表演。'],
- 讀者:['讀者是剛上國一的學弟妹。','這是要送給七年級新生看的。'],
- 格式:['分成 4 頁，每頁不超過 40 個字。','寫成 3 段，每段兩句話。'],
- 語氣:['語氣要溫暖，帶一點好笑。','用輕鬆、鼓勵的語氣。']};
-const KEYS=['任務','讀者','格式','語氣'];
-const TOPIC=['在學校迷路','第一次吃營養午餐','第一次參加社團'];
-const W1=['找不到','走錯','愛上','忘記'],W2=['教室','福利社','操場','保健室'],W3=['，只好問老師。','，結果遇到學長。','，好緊張。','，最後笑出來。'];
-function probs(rnd){let p;do{p=[RINT(rnd,5,60),RINT(rnd,5,60),RINT(rnd,5,60)];p.push(100-p[0]-p[1]-p[2])}while(p[3]<5||new Set(p).size<4);return p}
-const ROUNDS=[
- {lv:1,name:'是不是生成式 AI',
-  now:'林老師說：班上要做一本《國中生存指南》繪本，送給剛入學的學弟妹，文字和插圖都可以請 AI 幫忙。可是，哪些 AI 會「做出新東西」？',
-  goal:'判斷每一件事，是不是生成式 AI 在做。',
-  tip:'生成式 AI 會做出原本不存在的新內容：文字、圖片、聲音、影片。只是認出來、猜未來、幫你挑的，不算生成。',
-  learn:'生成式 AI 會「做出新的內容」，像寫文章、畫圖、作曲、配音。它是從大量的文字、圖片裡學會「通常長什麼樣子」，再組合出新的。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,GEN,6)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不是生成','生成式 AI'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：它有沒有做出原本不存在的新東西？')},
- {lv:1,name:'提示詞少了什麼',
-  now:'小禾寫了一段給 AI 的指令（提示詞），可是 AI 寫出來的總是怪怪的。',
-  goal:'這段提示詞少了哪一個要素？',
-  tip:'好的提示詞通常有：任務（要寫什麼）、讀者（寫給誰）、格式（多長、分幾段）、語氣（什麼感覺）。',
-  learn:'提示詞越清楚，AI 越能寫出你要的東西：說清楚任務、讀者、格式和語氣。少了一項，AI 就只好自己亂猜。',
-  gen(rnd){const miss=RINT(rnd,0,3);const txt=KEYS.map((k,i)=>i===miss?'':PICK(rnd,PART[k])).filter(Boolean).join('');return {txt:'你是一位繪本作家。'+txt,miss}},
-  view(inst,el,api){el.innerHTML='<div class="prompt">'+inst.txt+'</div><p style="margin-top:10px">少了哪一個？</p>';return PICKONE(el,KEYS,api,inst.miss)},
-  check:(inst,v)=>v===inst.miss?true:'這段提示詞裡已經有「'+KEYS[v]+'」了，再找找看少了哪一個。'},
- {lv:2,name:'選出最好的提示詞',
-  now:'繪本要分頁印出來給七年級看。小安寫了好幾個版本的提示詞，不知道該用哪一個。',
-  goal:'哪一個提示詞，最能做出下面這個目標？',
-  tip:'對照目標：主題、讀者、頁數和字數、語氣，四個都要說到，而且不能說錯。',
-  learn:'選提示詞時，把目標拆成幾個條件，一個一個對照。說得太少，AI 只能亂猜；說錯了，AI 會很認真地做錯。',
-  gen(rnd){
-    const t=PICK(rnd,TOPIC),pg=RINT(rnd,3,5),n=PICK(rnd,[30,40,50]),tone=PICK(rnd,['溫暖','好笑','鼓勵人']);
-    const goal='主題「'+t+'」｜讀者：七年級新生｜'+pg+' 頁，每頁不超過 '+n+' 個字｜語氣'+tone;
-    const good='請寫一個關於「'+t+'」的繪本故事，讀者是剛上國中的七年級新生。分成 '+pg+' 頁，每頁不超過 '+n+' 個字，語氣要'+tone+'。';
-    const bad=['寫一個關於「'+t+'」的故事。',
-      '請寫一篇關於「'+t+'」的報告，讀者是大學教授，用正式的語氣，寫 2,000 字。',
-      '請寫一個關於「'+t+'」的繪本故事，讀者是剛上國中的七年級新生，語氣要'+tone+'，越長越好。',
-      '請寫一個關於「'+t+'」的繪本故事，分成 '+(pg+5)+' 頁，每頁至少 200 個字，讀者是七年級新生。'];
-    const opts=SHUF(rnd,[good,...SAMPLE(rnd,bad,3)]);return {goal,opts,ans:opts.indexOf(good)}},
-  view(inst,el,api){el.innerHTML='<div class="goalbox"><b>目標</b>　'+inst.goal+'</div>';const c=CLASSIFY(el,inst.opts.map(o=>({html:'<div class="prompt">'+o+'</div>'})),['用這個'],api);
-    return {get:()=>c.get().findIndex(v=>v===0),fill:()=>c.fill(inst.opts.map((_,i)=>i===inst.ans?0:null)),ready:()=>c.get().filter(v=>v===0).length===1}},
-  check(inst,v){if(v===inst.ans)return true;if(v<0)return '選一個。';return '這一個少了或說錯了目標裡的條件，再對照一次。'}},
- {lv:2,name:'猜下一個字',
-  now:'小安好奇：AI 怎麼寫出一整句話？原來語言模型每次只做一件事——猜「下一個詞最可能是什麼」。',
-  goal:'從「國中的第一天，我」開始，每一步都選機率最高的詞，接出一句話。',
-  tip:'每一列是一步，括號裡是模型算出來的機率。每一步都挑最高的那個。',
-  learn:'語言模型就是一直猜下一個詞：算出每個詞的機率，挑一個接上去，再猜下一個。實際的 AI 會加一點隨機，不一定每次都挑最高的，所以同一個問題問兩次，答案會不一樣，也可能接出錯的內容。',
-  gen(rnd){const S=[W1,W2,W3].map(ws=>{const p=probs(rnd),o=SHUF(rnd,[0,1,2,3]);return {w:o.map(i=>ws[i]),p:o.map(i=>p[i])}});return {S,ans:S.map(s=>s.p.indexOf(Math.max(...s.p)))}},
-  view(inst,el,api){
-    const pick=[null,null,null];
-    el.innerHTML='<div class="nexttok">'+inst.S.map((s,r)=>'<div class="row"><div class="q">第 '+(r+1)+' 步</div><div class="picks">'+s.w.map((w,j)=>'<button type="button" class="pk" data-r="'+r+'" data-j="'+j+'" aria-pressed="false">'+w+'<small>'+s.p[j]+'%</small></button>').join('')+'</div></div>').join('')+'<p class="sent" id="sent"></p></div>';
-    const sync=()=>{el.querySelectorAll('[data-r]').forEach(b=>b.setAttribute('aria-pressed',pick[+b.dataset.r]===+b.dataset.j));el.querySelector('#sent').textContent='國中的第一天，我'+pick.map((j,r)=>j==null?'＿＿':inst.S[r].w[j]).join('')};
-    el.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{pick[+b.dataset.r]=+b.dataset.j;sync();api.changed()});sync();
-    return {get:()=>[...pick],fill:()=>{inst.ans.forEach((v,i)=>pick[i]=v);sync()},ready:()=>pick.every(v=>v!=null)}},
-  check(inst,a){const i=a.findIndex((v,r)=>v!==inst.ans[r]);return i<0?true:'第 '+(i+1)+' 步沒有選機率最高的詞。'}}
-];
-const APP=SHELL({week:18,termWeek:5,title:'寫給學弟妹的繪本',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：繪本需要插圖，換成用文字指揮 AI 畫圖。'});
-</script>
+<p><a href="../u5-03/">這個活動已搬到新網址</a></p>
 </body>
 </html>

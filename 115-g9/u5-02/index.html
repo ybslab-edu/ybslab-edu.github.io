@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI 說的就對嗎｜第 3 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.card-ref{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:10px;padding:10px 14px;font-size:16px}
+.card-ref li{margin:2px 0}
+.bubble{background:var(--cu-soft);border-radius:14px;padding:10px 14px;font-size:16px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// TITLE:AI 說的就對嗎
+// TERMWEEK:3
+// 第 5 單元第 2 站：AI 倫理（偏見、隱私、著作權、造假）、合適的使用、查證 AI 的回答
+const ISSUE=['偏見','隱私','著作權','造假'];
+const ETH=[
+ ['公司用 AI 篩履歷，AI 學了過去的資料，比較常刷掉女生',0],['臉部辨識系統對膚色較深的人，比較常認錯',0],['學校用 AI 推薦社團，只因為過去學長都選籃球社，就把男生全推去籃球社',0],
+ ['把全班的照片和姓名，上傳到來路不明的 AI 修圖 App',1],['把同學的聊天截圖丟給 AI，叫它分析他喜歡誰',1],['App 偷偷收集你的位置，拿去訓練 AI',1],
+ ['用 AI 畫出一模一樣的知名卡通角色，印成貼紙拿去賣',2],['把別人的小說整本丟給 AI 改寫，說是自己寫的',2],['用 AI 把別人的歌改幾個字，上傳說是自己的作品',2],
+ ['用 AI 做出「校長宣布明天停課」的假影片',3],['用 AI 把同學的臉換到搞笑影片上，傳到群組',3],['用 AI 生成「颱風把校門吹倒」的假照片，假裝是新聞',3]];
+const USE=[
+ ['用 AI 幫忙想報告大綱，再自己查資料、自己寫',1],['用 AI 翻譯英文網站，再對照原文確認意思',1],['請 AI 出 5 題數學練習，自己寫完再對答案',1],
+ ['海報用了 AI 生成的圖，並標示「AI 生成」',1],['用 AI 檢查自己英文作文的文法，再自己決定怎麼改',1],
+ ['把 AI 寫的作文整篇交出去，說是自己寫的',0],['考試時偷用 AI 查答案',0],['用 AI 把同學的照片改成醜照，貼到群組',0],
+ ['把同學的電話、地址交給 AI，叫它整理成「調查報告」',0],['AI 給的資料沒查證，直接寫進報告當事實',0]];
+// 查證：資料卡上的事實；AI 的回答會照抄、改錯，或多講資料卡沒寫的事
+const FACT=[
+ {t:'台灣最高的山是玉山',bad:'台灣最高的山是雪山'},
+ {t:'玉山大約 3,952 公尺高',bad:'玉山大約 3,886 公尺高'},
+ {t:'在一大氣壓下，水在 100°C 沸騰',bad:'在一大氣壓下，水在 90°C 沸騰'},
+ {t:'光每秒大約跑 30 萬公里',bad:'光每秒大約跑 3 萬公里'},
+ {t:'台灣面積大約 3.6 萬平方公里',bad:'台灣面積大約 36 萬平方公里'},
+ {t:'一般的年有 365 天，閏年有 366 天',bad:'一般的年有 365 天，閏年有 364 天'},
+ {t:'地球繞太陽一圈大約要一年',bad:'地球繞太陽一圈大約要一個月'},
+ {t:'人的正常體溫大約是 37°C',bad:'人的正常體溫大約是 33°C'}];
+const EXTRA=['玉山上週末下了今年第一場雪','光速是愛因斯坦在 1920 年量出來的','台灣有超過 300 座 3,000 公尺以上的高山','水沸騰時一定會冒出藍色的泡泡','2028 年是閏年'];
+const CLUE=[
+ ['照片裡的人有六根手指',0],['找不到原始出處，只在群組裡一直被轉傳',0],['用圖片搜尋，找到 2019 年就有同一張照片',0],['影片裡的人嘴型和聲音對不起來',0],['檔案的內容憑證寫著「由 AI 生成」',0],['發文的帳號是三天前才申請的',0],
+ ['畫面非常清楚、看起來很逼真',1],['已經有幾千人按讚、分享',1],['影片角落有新聞台的標誌',1],['轉傳的人說「這是我朋友親眼看到的」',1],['影片很長，一路拍到底沒有剪接',1]];
+const ROUNDS=[
+ {lv:1,name:'哪裡出了問題',
+  now:'林老師說：做攤位前，先看看別人用 AI 闖了哪些禍。',
+  goal:'每一件事，主要是哪一種問題？',
+  tip:'偏見：對某些人不公平。隱私：別人的個人資料被亂用。著作權：拿別人的作品當自己的。造假：做出假的東西騙人。',
+  learn:'AI 從資料學，資料裡的偏見會被學進去；AI 也讓造假、侵犯隱私和著作權變得很容易。用 AI 的人要負責：不傷害別人、不冒用別人的作品。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,ETH,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),ISSUE,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：是對誰不公平、誰的資料被亂用、誰的作品被拿走，還是在騙人？')},
+ {lv:1,name:'可以這樣用嗎',
+  now:'會考快到了，班上很多人開始用 AI 讀書、寫作業。',
+  goal:'判斷每一種用法合不合適。',
+  tip:'合適的用法：自己仍然在思考、會查證、有標示。不合適：冒充是自己做的、作弊、傷害別人、亂給個資。',
+  learn:'AI 可以當幫手，但不能代替你思考：自己的作業要自己完成，用了 AI 要說清楚，AI 給的資料要查證，也不能拿 AI 傷害別人。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,USE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不合適','合適'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：自己有沒有在思考？有沒有查證、標示？會不會傷害別人？')},
+ {lv:2,name:'幫 AI 查證',
+  now:'小安請 AI 幫忙整理理化和地理的重點，AI 回答得很有自信。可是 AI 有時會一本正經地講錯（這叫「幻覺」）。',
+  goal:'用右邊課本整理的資料卡，檢查 AI 的每一句話。',
+  tip:'一句一句對照資料卡：一樣的打「對得上」，數字或名稱不一樣的打「對不上」，資料卡根本沒寫的，打「資料卡沒寫」。',
+  learn:'AI 是猜「最可能的下一個字」，不是查資料庫，所以會講錯，而且講得很有自信。重要的事要找可靠的來源查證；資料卡沒寫的，不代表錯，但要再查。',
+  gen(rnd){
+    const ref=SAMPLE(rnd,FACT,5);let claims;
+    do{claims=SAMPLE(rnd,ref,4).map(f=>rnd()<.5?[f.t,0]:[f.bad,1])}while(new Set(claims.map(x=>x[1])).size<2);
+    claims.push([PICK(rnd,EXTRA),2]);
+    return {ref:ref.map(f=>f.t),items:SHUF(rnd,claims)};
+  },
+  view(inst,el,api){
+    el.innerHTML='<div class="two"><div><div class="bubble"><b>AI 的回答</b></div></div><div class="card-ref"><b>資料卡（課本整理）</b><ul>'+inst.ref.map(t=>'<li>'+t+'</li>').join('')+'</ul></div></div>';
+    const box=el.querySelector('.two>div');const c=CLASSIFY(box,inst.items.map(x=>({html:x[0]})),['對得上','對不上','資料卡沒寫'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check:(inst,a)=>CHECKROWS(inst.items,a,'再對照一次資料卡：數字、名稱有沒有一樣？資料卡有沒有寫到這件事？')},
+ {lv:2,name:'這是真的嗎',
+  now:'群組裡傳來一支「隔壁班在園遊會攤位打架」的影片，大家都在轉。小禾說：「先別轉，查一下再說。」',
+  goal:'每一個線索，是「值得懷疑」的線索，還是「不能證明是真的」？',
+  tip:'看起來很逼真、很多人轉、有新聞台標誌，都可以造假，所以不能證明是真的。找不到出處、細節怪怪的、以前就有這張圖，才是值得懷疑的線索。',
+  learn:'AI 讓假照片、假影片看起來很逼真，「看起來很真」和「很多人轉」都不能當證據。要追出處、找原始檔、看細節、查內容憑證；不確定就先不要轉。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,CLUE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['值得懷疑','不能證明是真的'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：這一點能不能被造假？它有沒有讓你更懷疑？')}
+];
+const APP=SHELL({week:17,termWeek:3,title:'AI 說的就對嗎',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：寫給學弟妹的繪本，換你指揮生成式 AI。'});
+</script>
+</body>
+</html>

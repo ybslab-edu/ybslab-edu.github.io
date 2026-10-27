@@ -3,103 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>後援會問卷｜第 13 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-/* 第 13 週：資料與資訊、問卷設計。題目卡模仿表單的樣子 */
-.form-q{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:10px;padding:10px 14px;font-size:17px}
-.form-q .opts{color:var(--muted);font-size:15px;margin-top:4px}
-.row .q .form-q{margin:0}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u2-05/">
+<meta http-equiv="refresh" content="0; url=../u2-05/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u2-05/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-const fq=(q,o)=>'<div class="form-q">'+q+(o?'<div class="opts">'+o+'</div>':'')+'</div>';
-const DI=[
- ['第 3 題收到的 128 個回答',0],['表單後台的一列：「901 班 12 號，選〈Starlight〉」',0],['每個人填的集合縣市（台北、台中……）',0],
- ['每一份回覆的送出時間',0],['大家寫的應援口號，一共 86 則',0],['每個人選的應援棒顏色清單',0],
- ['62% 的人想聽〈Starlight〉當安可曲',1],['住台中的人最多，集合點設在台中最方便',1],['大部分人 6 點後才有空，集合時間訂 6 點半',1],
- ['八年級的回覆最少，要再提醒一次',1],['最多人選紫色，應援棒要多訂紫色',1],['平均每人想買 2.3 支應援棒，要訂 300 支',1]];
-const FLAWS=['選項重疊','選項不完整','引導作答','一題問兩件事','題型不對'];
-const BAD=[
- [fq('你一個月花多少錢在追星？','○ 100 元以下　○ 100～500 元　○ 500～1000 元　○ 1000 元以上'),0],
- [fq('你幾點能到集合點？','○ 5 點以前　○ 5～6 點　○ 6～7 點　○ 7 點以後'),0],
- [fq('你住哪個縣市？','○ 台北　○ 台中　○ 高雄'),1],
- [fq('你最喜歡哪位成員？','○ 阿晴　○ 米米　○ 海海'),1],
- [fq('大家都說〈Starlight〉最好聽，你也想聽它當安可曲嗎？','○ 想　○ 不想'),2],
- [fq('你不覺得應援棒太貴了嗎？','○ 是　○ 否'),2],
- [fq('你對應援棒的顏色和價格滿意嗎？','○ 滿意　○ 不滿意'),3],
- [fq('你會搭高鐵和客運去跨年嗎？','○ 會　○ 不會'),3],
- [fq('你想買哪些周邊？（只能選一個）','○ 毛巾　○ 手幅　○ 應援棒　○ T 恤'),4],
- [fq('想比較全體會員對跨年場的期待程度、畫成分布圖：你有多期待跨年場？（簡答）','＿＿＿＿＿＿'),4]];
-const FIX=[
- {q:fq('你一個月花多少錢在追星？','○ 100 元以下　○ 100～500 元　○ 500～1000 元　○ 1000 元以上'),o:[fq('','○ 99 元以下　○ 100～499 元　○ 500～999 元　○ 1000 元以上'),fq('','○ 很少　○ 普通　○ 很多'),fq('','○ 100 元以下　○ 100～500 元　○ 500 元以上')]},
- {q:fq('你住哪個縣市？','○ 台北　○ 台中　○ 高雄'),o:[fq('','（下拉選單）列出全部 22 個縣市'),fq('','○ 台北　○ 台中　○ 高雄　○ 台南'),fq('','○ 北部　○ 南部')]},
- {q:fq('大家都說〈Starlight〉最好聽，你也想聽它當安可曲嗎？','○ 想　○ 不想'),o:[fq('你最想聽哪一首當安可曲？','○ 〈Starlight〉　○ 〈六連星〉　○ 〈跨年夜〉　○ 其他：＿＿'),fq('〈Starlight〉這麼好聽，你想聽嗎？','○ 想　○ 不想'),fq('你也覺得〈Starlight〉最好聽嗎？','○ 是　○ 否')]},
- {q:fq('你對應援棒的顏色和價格滿意嗎？','○ 滿意　○ 不滿意'),o:[fq('拆成兩題：「顏色滿意嗎？」「價格滿意嗎？」','各用 1～5 分'),fq('你對應援棒滿意嗎？','○ 滿意　○ 不滿意'),fq('你對應援棒的顏色和價格非常滿意嗎？','○ 是　○ 否')]},
- {q:fq('你想買哪些周邊？（只能選一個）','○ 毛巾　○ 手幅　○ 應援棒　○ T 恤'),o:[fq('你想買哪些周邊？（可以選很多個）','☐ 毛巾　☐ 手幅　☐ 應援棒　☐ T 恤　☐ 都不買'),fq('你想買哪些周邊？（簡答）','＿＿＿＿＿＿'),fq('你最想買毛巾嗎？','○ 是　○ 否')]},
- {q:fq('你不覺得應援棒太貴了嗎？','○ 是　○ 否'),o:[fq('你覺得應援棒的價格？','○ 太便宜　○ 剛好　○ 有點貴　○ 太貴'),fq('應援棒是不是太貴了？','○ 是　○ 否'),fq('你同意應援棒很貴嗎？','○ 同意　○ 非常同意')]}];
-const TYPES=['單選題','核取方塊（可複選）','簡答題','線性刻度（1～5 分）'];
-const NEED=[
- ['跨年要坐哪一台遊覽車（1～3 號車選一台）',0],['你是幾年級',0],['你哪一個縣市出發',0],
- ['你想買哪些周邊（可以選很多個）',1],['你哪幾天可以來做燈牌',1],
- ['想對六連星說的一句話',2],['你的應援口號提案',2],
- ['想比較大家有多期待跨年場（要畫分布圖）',3],['想比較大家對上次應援活動有多滿意',3]];
-const ROUNDS=[
- {lv:1,name:'資料還是資訊',
-  now:'後援會用問卷問大家跨年的事，表單後台收回一大堆東西。',
-  goal:'分出每一項是「資料」（原始的紀錄）還是「資訊」（整理過、能幫忙做決定的）。',
-  tip:'問自己：看到這一項，能不能直接做決定？能的話多半是資訊。',
-  learn:'資料是一筆一筆的原始紀錄；把資料整理、計算、比較之後，能幫我們做決定的，才是資訊。同一份問卷，要經過整理才會變成資訊。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,DI,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['資料','資訊'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：這是一筆一筆的紀錄，還是已經整理出結論了？':true}},
-
- {lv:1,name:'爛問卷找毛病',
-  now:'幹部寫好問卷初稿，請小安幫忙檢查。',
-  goal:'每一題都有一個毛病，選出是哪一種。',
-  tip:'看選項有沒有重疊或缺漏、題目有沒有偷偷帶答案、是不是一次問兩件事、題型適不適合。',
-  learn:'好問卷的條件：選項不重疊、選項要完整（不確定就加「其他」）、不引導作答、一題只問一件事、題型要配合想知道的事。',
-  gen(rnd){return {items:SAMPLE(rnd,BAD,3)}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FLAWS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 題的毛病選錯了。':true}},
-
- {lv:2,name:'修好它',
-  now:'找到毛病之後，幹部寫了幾種改法。',
-  goal:'每一題選出改得最好的版本。',
-  tip:'改完的版本不能有新的毛病：選項重疊、缺漏、引導、問兩件事、題型不對。',
-  learn:'修問卷時，常用的方法是：區間的邊界不要重複、加上「其他」、把引導的話拿掉、一題拆成兩題、換成適合的題型。',
-  gen(rnd){const it=SAMPLE(rnd,FIX,3).map(f=>{const order=SHUF(rnd,[0,1,2]);return {q:f.q,o:order.map(k=>f.o[k]),ans:order.indexOf(0)}});return {items:it}},
-  view(inst,el,api){
-    el.innerHTML='<div class="rows">'+inst.items.map((it,i)=>'<div class="panel"><div class="small">原本的題目</div>'+it.q+'<div class="small" style="margin-top:6px">改成：</div><div class="picks" data-i="'+i+'" style="flex-direction:column">'+it.o.map((o,j)=>'<button type="button" class="pk" data-j="'+j+'" aria-pressed="false">'+o+'</button>').join('')+'</div></div>').join('')+'</div>';
-    const ans=inst.items.map(()=>null);
-    const sync=()=>el.querySelectorAll('.picks[data-i]').forEach(p=>p.querySelectorAll('.pk').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.j===ans[+p.dataset.i])));
-    el.querySelectorAll('.picks[data-i]').forEach(p=>p.querySelectorAll('.pk').forEach(b=>b.onclick=()=>{ans[+p.dataset.i]=+b.dataset.j;sync();api.changed()}));
-    return {get:()=>[...ans],fill:()=>{inst.items.forEach((it,i)=>ans[i]=it.ans);sync()},ready:()=>ans.every(v=>v!=null)};
-  },
-  check(inst,a){const w=inst.items.map((it,i)=>a[i]===it.ans?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 題選的版本還有毛病。':true}},
-
- {lv:2,name:'選題型',
-  now:'問卷內容定好了，接下來要在表單裡選題型。',
-  goal:'每一個想知道的事，選最適合的題型。',
-  tip:'只能選一個用單選；可以選很多個用核取方塊；要讓大家自由寫用簡答；想比較「有多……」的程度用線性刻度。題型要看你想拿資料做什麼：想聽理由用簡答，想比較程度用刻度。',
-  learn:'題型決定收回來的資料長什麼樣子：單選、複選好統計；簡答能收到意見，但很難整理；線性刻度能比較程度。下一週就要整理這些回覆。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,NEED,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),TYPES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項的題型不太適合。':true}}
-];
-const APP=SHELL({week:7,termWeek:13,title:'後援會問卷',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！問卷發出去了。下一站：回覆收回來一團亂，要先整理才能變成資訊。'});
-</script>
+<p><a href="../u2-05/">這個活動已搬到新網址</a></p>
 </body>
 </html>

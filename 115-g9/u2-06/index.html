@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>問卷回來一團亂｜第 14 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+/* 第 14 週：資料清理與分析。回覆表模仿試算表 */
+.sheet-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table.sheet{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+.sheet th,.sheet td{border-bottom:1px solid var(--line);padding:6px 10px;text-align:left;white-space:nowrap}
+.sheet th{background:var(--bg);font-weight:700;color:var(--muted);font-size:13.5px;position:sticky;top:0}
+.sheet td.mono{font-family:var(--f-mono)}
+.sheet tr.del td{text-decoration:line-through;color:var(--muted);background:var(--warn-soft)}
+.sheet tr.del td:last-child{text-decoration:none}
+.sheet .x{font:inherit;font-size:13.5px;font-weight:700;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:3px 10px;cursor:pointer}
+.sheet tr.del .x{background:var(--warn);color:#fff;border-color:var(--warn)}
+.counts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.counts label{display:flex;flex-direction:column;gap:4px;font-weight:700}
+.stat{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.bar{display:grid;grid-template-columns:7em minmax(0,1fr) 3em;gap:8px;align-items:center;font-size:15px}
+.bar i{height:14px;border-radius:7px;background:var(--a)}
+.bar b{font-family:var(--f-mono);text-align:right}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+const CITY={台北市:['台北','臺北','台北市','taipei','Taipei','北市'],台中市:['台中','臺中','台中市','taichung','Taichung','中市'],高雄市:['高雄','高雄市','kaohsiung','Kaohsiung'],新竹市:['新竹市','竹市','Hsinchu City','hsinchu city']};
+const CITIES=Object.keys(CITY);
+const SONGS=['Starlight','六連星','跨年夜'];
+const tm=m=>{const h=19+Math.floor(m/60),mm=m%60;return '11/30 '+h+':'+String(mm).padStart(2,'0')};
+// 產生一份回覆表：people 個有效的人，再加入重複填寫、座號不合理、沒填安可曲的列
+function survey(rnd,{people,dups,bad,blank,songW}){
+  const used=new Set(),rows=[];let t=RINT(rnd,0,20);
+  const person=()=>{let k;do{k=PICK(rnd,[901,902,903,904,905])+'-'+RINT(rnd,1,32)}while(used.has(k));used.add(k);return k.split('-').map(Number)};
+  for(let i=0;i<people;i++){const [c,s]=person(),city=PICK(rnd,CITIES);rows.push({c,s,city,raw:PICK(rnd,CITY[city]),song:songW?songW(i):PICK(rnd,SONGS)})}
+  for(let i=0;i<dups;i++){const o=PICK(rnd,rows.filter(r=>!r.dupOf&&!r.dupped));o.dupped=true;rows.push({...o,raw:PICK(rnd,CITY[o.city]),dupOf:o,song:o.dupSong||o.song})}
+  for(let i=0;i<bad;i++){const city=PICK(rnd,CITIES);rows.push({c:PICK(rnd,[901,902,903]),s:PICK(rnd,[0,77,99,64]),city,raw:PICK(rnd,CITY[city]),song:PICK(rnd,SONGS),why:'座號'})}
+  for(let i=0;i<blank;i++){const [c,s]=person(),city=PICK(rnd,CITIES);rows.push({c,s,city,raw:PICK(rnd,CITY[city]),song:'',why:'空白'})}
+  // 依送出時間排；重複填寫的那一列一定在原本那一列之後
+  const order=SHUF(rnd,rows.filter(r=>!r.dupOf));
+  rows.filter(r=>r.dupOf).forEach(d=>{const i=order.indexOf(d.dupOf);order.splice(RINT(rnd,i+1,order.length),0,d)});
+  order.forEach(r=>{t+=RINT(rnd,1,9);r.t=tm(t)});
+  // 要刪哪幾列，只看表上看得到的欄位重新判定（不沿用產生資料時的暫存標記）
+  const keep=cleanKeep(order);order.forEach((r,i)=>{r.del=!keep[i]});
+  return order;
+}
+// 清理規則：座號不在 1～60 刪、安可曲空白刪；同一班同一座號只留送出時間最晚的那一列
+const tmin=t=>{const m=String(t).match(/(\d+):(\d+)$/);return +m[1]*60+ +m[2]};
+function cleanKeep(rows){
+  const ok=r=>Number.isInteger(r.s)&&r.s>=1&&r.s<=60&&r.song!=='';
+  const last={};
+  rows.forEach((r,i)=>{if(!ok(r))return;const k=r.c+'-'+r.s;if(!(k in last)||tmin(r.t)>=tmin(rows[last[k]].t))last[k]=i});
+  return rows.map((r,i)=>ok(r)&&last[r.c+'-'+r.s]===i);
+}
+function sheet(rows,{toggle,raw=true},api){
+  let h='<div class="sheet-wrap"><table class="sheet"><tr><th>送出時間</th><th>班級</th><th>座號</th><th>從哪個縣市出發</th><th>安可曲</th>'+(toggle?'<th>處理</th>':'')+'</tr>';
+  rows.forEach((r,i)=>h+='<tr data-r="'+i+'"><td class="mono">'+r.t+'</td><td class="mono">'+r.c+'</td><td class="mono">'+r.s+'</td><td>'+(raw?r.raw:r.city)+'</td><td>'+(r.song||'')+'</td>'+(toggle?'<td><button type="button" class="x" data-x="'+i+'" aria-pressed="false">刪除</button></td>':'')+'</tr>');
+  return h+'</table></div>';
+}
+const ROUNDS=[
+ {lv:1,name:'統一寫法',
+  now:'後援會的跨年問卷收回來了，「從哪個縣市出發」那一題大家寫得五花八門。',
+  goal:'把每一種寫法歸到正確的縣市，統計時才不會被算成不同的地方。',
+  tip:'這一題只有四個選項，都是「市」。「臺」和「台」是同一個字；英文拼音、加不加「市」、簡稱，都是同一個地方。',
+  learn:'同一個東西有好幾種寫法，電腦會當成不同的值，統計就會分散。整理的第一步是把寫法統一，問卷也可以改用選項或下拉選單，從源頭避免。',
+  gen(rnd){const all=CITIES.flatMap(c=>CITY[c].map(v=>[v,CITIES.indexOf(c)]));let p;do{p=SAMPLE(rnd,all,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b style="font-size:20px">'+x[0]+'</b>'})),CITIES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 個寫法歸錯了。':true}},
+
+ {lv:1,name:'刪掉不能用的',
+  now:'回覆表裡有些列不能用。後援會的規則：同一個人填了兩次，只留最後一次；座號不合理（不在 1～60）的刪掉；安可曲沒填的刪掉。',
+  goal:'把不能用的列標成「刪除」。',
+  tip:'先找班級、座號一模一樣的兩列，比一比送出時間。',
+  learn:'資料清理就是把重複、錯誤、缺漏的資料找出來處理。刪之前要先訂好規則（例如「重複填寫留最後一次」），每一列都照同一個規則處理。',
+  gen(rnd){return {rows:survey(rnd,{people:7,dups:2,bad:1,blank:1})}},
+  view(inst,el,api){
+    el.innerHTML=sheet(inst.rows,{toggle:true},api);
+    const del=inst.rows.map(()=>false);
+    const sync=()=>el.querySelectorAll('[data-x]').forEach(b=>{const i=+b.dataset.x;b.setAttribute('aria-pressed',del[i]);b.textContent=del[i]?'已刪除':'刪除';b.closest('tr').classList.toggle('del',del[i])});
+    el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{del[+b.dataset.x]^=1;sync();api.changed()});
+    return {get:()=>[...del],fill:()=>{inst.rows.forEach((r,i)=>del[i]=r.del);sync()}};
+  },
+  check(inst,d){
+    const miss=inst.rows.filter((r,i)=>r.del&&!d[i]).length, over=inst.rows.filter((r,i)=>!r.del&&d[i]);
+    if(over.length)return '有 '+over.length+' 列不該刪：'+over.map(r=>r.c+' 班 '+r.s+' 號（'+r.t+'）').join('、')+'。重複填寫的要留「最後一次」。';
+    if(miss)return '還有 '+miss+' 列不能用的沒刪。';
+    return true;
+  }},
+
+ {lv:2,name:'清完再數',
+  now:'要決定安可曲了。有人說：「直接數回覆表就好啦。」',
+  goal:'照上一關的規則先清理，再數每一首歌的有效票數。',
+  tip:'重複填寫只算最後一次；座號不合理、沒填的不算。清理前後，第一名可能不一樣。',
+  learn:'沒清理就統計，同一個人灌票、亂填的資料都會被算進去，結論可能完全相反。垃圾進、垃圾出：資料不乾淨，分析得再認真也沒用。',
+  gen(rnd){
+    for(;;){
+      const rows=survey(rnd,{people:RINT(rnd,10,12),dups:3,bad:1,blank:1});
+      // 讓重複填寫的人都投同一首，造成「沒清理時的第一名」和清理後不同
+      const spam=PICK(rnd,SONGS);rows.filter(r=>r.dupped||r.dupOf).forEach(r=>r.song=spam);rows.filter(r=>r.why==='座號').forEach(r=>r.song=spam);
+      const cnt=rs=>SONGS.map(s=>rs.filter(r=>r.song===s).length);
+      const clean=cnt(rows.filter(r=>!r.del)),raw=cnt(rows);
+      const top=a=>{const m=Math.max(...a);return a.filter(x=>x===m).length>1?-1:a.indexOf(m)};
+      if(top(clean)>=0&&top(raw)>=0&&top(clean)!==top(raw))return {rows,clean,raw};
+    }
+  },
+  view(inst,el,api){
+    el.innerHTML=sheet(inst.rows,{toggle:false},api)+'<div class="counts" style="margin-top:12px">'+SONGS.map((s,i)=>'<label>〈'+s+'〉有效票數<input class="num-in" data-c="'+i+'" inputmode="numeric" autocomplete="off"></label>').join('')+'</div>';
+    const ins=[...el.querySelectorAll('[data-c]')];ins.forEach(x=>x.oninput=()=>{x.value=x.value.replace(/\D/g,'');api.changed()});
+    return {get:()=>ins.map(x=>x.value===''?null:+x.value),fill:()=>ins.forEach((x,i)=>x.value=inst.clean[i]),ready:()=>ins.every(x=>x.value!=='')};
+  },
+  check(inst,a){
+    if(a.every((v,i)=>v===inst.raw[i]))return '這是「沒清理」直接數的票數。先把重複、座號不合理、沒填的列拿掉再數。';
+    const w=a.map((v,i)=>v===inst.clean[i]?0:i+1).filter(Boolean);
+    return w.length?'〈'+w.map(i=>SONGS[i-1]).join('〉〈')+'〉的票數不對。重複填寫的人只算一票。':true;
+  },
+  peek:(i,a)=>{const done=a.every(v=>v!=null);if(!done)return '<p class="small">三首歌的票數都填好後，這裡會畫出長條圖。</p>';const m=Math.max(1,...a);return '<section class="panel"><div class="ptitle"><h3>你數出來的結果</h3></div>'+SONGS.map((s,k)=>'<div class="bar"><span>〈'+s+'〉</span><i style="width:'+(a[k]/m*100)+'%"></i><b>'+a[k]+'</b></div>').join('')+'</section>'}},
+
+ {lv:2,name:'哪個結論站得住',
+  now:i=>'清理完了：後援會共 '+i.members+' 人，有效回覆 '+i.n+' 份。幹部寫了幾句結論要貼到群組。',
+  goal:'判斷每一句結論，根據這份資料站不站得住。',
+  tip:'問卷只代表「有回覆的人」；兩件事一起出現，不代表一個造成另一個。',
+  learn:'從資料下結論要小心：只能說「回覆的人」怎麼樣，不能推到所有人；相關不等於因果；差距很小時不能說得太肯定。這就是從資訊到決定的最後一步。',
+  gen(rnd){
+    const x=RINT(rnd,16,24),y=RINT(rnd,9,14),z=RINT(rnd,2,y-1),v=SHUF(rnd,[x,y,z]),n=x+y+z,members=RINT(rnd,110,160);
+    const top=v.indexOf(Math.max(...v)),low=v.indexOf(Math.min(...v));
+    const S=[
+      ['在有回覆的人裡，想聽〈'+SONGS[top]+'〉的最多。',1],
+      ['有效回覆中，想聽〈'+SONGS[low]+'〉的人最少。',1],
+      ['大約有 '+Math.round(n/members*100)+'% 的會員回覆了問卷。',1],
+      ['全台灣的六連星粉絲，最想聽的都是〈'+SONGS[top]+'〉。',0],
+      ['沒回覆問卷的人，都不想參加跨年應援。',0],
+      ['〈'+SONGS[top]+'〉票數最多，所以它一定是六連星最紅的歌。',0],
+      ['所有會員都同意安可曲選〈'+SONGS[top]+'〉。',0]];
+    let p;do{p=SAMPLE(rnd,S,4)}while(new Set(p.map(x=>x[1])).size<2);
+    return {n,members,v,items:p};
+  },
+  view(inst,el,api){
+    const m=Math.max(...inst.v);
+    el.innerHTML='<section class="panel"><div class="ptitle"><h3>有效回覆 '+inst.n+' 份：安可曲</h3><span class="small">後援會共 '+inst.members+' 人</span></div>'+SONGS.map((s,k)=>'<div class="bar"><span>〈'+s+'〉</span><i style="width:'+(inst.v[k]/m*100)+'%"></i><b>'+inst.v[k]+'</b></div>').join('')+'</section><div style="height:10px"></div>';
+    const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['站得住','站不住'],api);
+    return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]?0:1))};
+  },
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===(x[1]?0:1)?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 句再想想：這份資料真的能說到這麼多嗎？':true}}
+];
+const APP=SHELL({week:8,termWeek:14,title:'問卷回來一團亂',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！資料變成了資訊，也做出了決定。最後一站：跨年影片傳到群組，為什麼變糊了？'});
+</script>
+</body>
+</html>

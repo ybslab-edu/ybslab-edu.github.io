@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>馬祖斷線了｜第 16 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+/* 第 16 週：網際網路與傳輸媒介。線路圖是示意圖，不是真實位置 */
+.netmap{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px;max-width:640px}
+.netmap svg{width:100%;height:auto;display:block}
+.netmap .e{stroke-width:3;fill:none}
+.netmap .e.sea{stroke:#3B82C4}.netmap .e.land{stroke:#8A93A0}.netmap .e.mw{stroke:#D9822B;stroke-dasharray:8 5}.netmap .e.sat{stroke:#8E5BC7;stroke-dasharray:2 5;stroke-linecap:round}
+.netmap .e.cut{stroke:#B3261E;opacity:.35}
+.netmap .e.on{stroke:#F2B705;stroke-width:7;opacity:1}
+.netmap .x{fill:#B3261E;font:700 18px var(--f-body);text-anchor:middle;dominant-baseline:central}
+.netmap .nd circle.hit{fill:transparent;stroke:none}
+.netmap .nd circle:not(.hit){fill:var(--surface);stroke:var(--ink);stroke-width:2.5}
+.netmap .nd text{fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round;font:500 15px var(--f-body);text-anchor:middle}
+.netmap .nd.click{cursor:pointer}
+.netmap .nd.click:hover circle:not(.hit),.netmap .nd:focus-visible circle:not(.hit){stroke:var(--a);stroke-width:4}
+.netmap .nd:focus{outline:none}
+.netmap .nd.end circle:not(.hit){fill:#F2B705;stroke:#7a5c00}
+.netmap .nd.in circle:not(.hit){fill:#FBE6A3}
+.netmap .nd.off circle:not(.hit){fill:#B3261E;stroke:#7d1712}
+.netmap .nd.off text{fill:#B3261E;font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:26px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+.pathtxt{font-size:18px;font-weight:700;min-height:1.6em}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// ===== 示意線路圖（位置、線路都是簡化過的，不是真實地圖） =====
+const NODES={'衛星':[210,24],'南竿':[150,72],'東京':[388,60],'淡水':[268,98],'台北':[306,116],'頭城':[348,132],'金門':[72,168],'台中':[262,180],'澎湖':[168,218],'高雄':[248,262],'枋山':[288,296],'香港':[40,292],'美國':[392,236]};
+const EDGES=[['南竿','淡水','sea'],['南竿','台北','mw'],['金門','台中','sea'],['金門','高雄','sea'],['澎湖','高雄','sea'],['澎湖','台中','sea'],
+ ['淡水','台北','land'],['台北','頭城','land'],['台北','台中','land'],['台中','高雄','land'],['高雄','枋山','land'],
+ ['頭城','東京','sea'],['頭城','美國','sea'],['淡水','香港','sea'],['枋山','香港','sea'],['枋山','美國','sea'],['東京','美國','sea'],['香港','東京','sea'],
+ ['衛星','南竿','sat'],['衛星','金門','sat'],['衛星','台北','sat']];
+const TYPE={sea:'海纜',land:'陸上光纖',mw:'微波',sat:'衛星'};
+const ekey=(a,b)=>[a,b].sort().join('|');
+const edgeOf=(a,b,edges)=>edges.find(e=>ekey(e[0],e[1])===ekey(a,b));
+function bfs(from,edges,cut){const seen={[from]:null},q=[from];while(q.length){const u=q.shift();for(const e of edges){if(cut.has(ekey(e[0],e[1])))continue;const v=e[0]===u?e[1]:e[1]===u?e[0]:null;if(v&&!(v in seen)){seen[v]=u;q.push(v)}}}return seen}
+function route(a,b,edges,cut){const s=bfs(a,edges,cut);if(!(b in s))return null;const p=[b];while(p[0]!==a)p.unshift(s[p[0]]);return p}
+function MAP(el,{edges,cut,click,state}){
+  const box=document.createElement('div');box.className='netmap';el.appendChild(box);
+  const draw=()=>{const st=state();
+    let s='<svg viewBox="0 0 430 320" role="img" aria-label="網路線路示意圖">';
+    for(const [a,b,t] of edges){const [x1,y1]=NODES[a],[x2,y2]=NODES[b],k=ekey(a,b),c=cut.has(k);
+      s+='<line class="e '+t+(c?' cut':'')+(st.on&&st.on.has(k)?' on':'')+'" x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"/>';
+      if(c)s+='<text class="x" x="'+(x1+x2)/2+'" y="'+(y1+y2)/2+'">✕</text>'}
+    for(const n of Object.keys(NODES)){if(!edges.some(e=>e[0]===n||e[1]===n))continue;const [x,y]=NODES[n],cls=(st.cls&&st.cls[n])||'',can=click&&(!st.lock||!st.lock.has(n));
+      s+='<g class="nd'+(can?' click':'')+' '+cls+'" data-n="'+n+'"'+(can?' role="button" tabindex="0" aria-label="'+n+'"':'')+'><circle class="hit" cx="'+x+'" cy="'+y+'" r="22"/><circle cx="'+x+'" cy="'+y+'" r="11"/><text x="'+x+'" y="'+(y>280?y-17:y+28)+'">'+n+'</text></g>'}
+    box.innerHTML=s+'</svg>';
+    if(click)box.querySelectorAll('.nd.click').forEach(g=>{g.onclick=()=>click(g.dataset.n);g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();click(g.dataset.n)}}});
+  };
+  draw();return draw;
+}
+const legend=edges=>'<div class="legend">'+[...new Set(edges.map(e=>e[2]))].map(t=>'<span><i style="border-color:'+{sea:'#3B82C4',land:'#8A93A0',mw:'#D9822B',sat:'#8E5BC7'}[t]+';border-top-style:'+(t==='mw'?'dashed':t==='sat'?'dotted':'solid')+'"></i>'+TYPE[t]+'</span>').join('')+'<span><b style="color:#B3261E">✕</b> 斷了</span><span>（示意圖，不是真實位置）</span></div>';
+
+const PAIRS=[['台北','南竿'],['高雄','東京'],['金門','美國'],['台中','香港'],['南竿','美國'],['澎湖','東京'],['金門','台北'],['南竿','香港'],['澎湖','美國']];
+const WHO={'南竿':'馬祖的副會長小澄','金門':'金門的粉絲','澎湖':'澎湖的粉絲','東京':'東京的粉絲','美國':'美國的粉絲','香港':'香港的粉絲','台北':'台北的小安','台中':'台中的幹部','高雄':'高雄的幹部'};
+const WIRED=EDGES.filter(e=>e[2]==='sea'||e[2]==='land');
+
+const MEDIA=['光纖海纜','微波','衛星','網路線'];
+const MED=[
+ ['台灣和日本之間，每秒要傳非常大量的資料',0],['台灣連到美國的國際網路',0],['從台灣本島把網路送到金門，路線在海底',0],['六連星的直播要同步送到東南亞，流量超大',0],
+ ['馬祖海纜斷了，從台北的山頂對準馬祖，用電波直接傳過去',1],['兩座山頂看得到彼此，中間不方便挖地埋線',1],['電信公司在兩棟高樓的樓頂架天線互傳',1],
+ ['遠洋漁船開到太平洋中間，也要上網',2],['大地震後地面線路全斷，救災隊在深山裡要連線',2],['搭飛機時，機上的 Wi-Fi 要連回地面',2],
+ ['教室電腦接到牆上的網路孔',3],['家裡的電視盒接到旁邊的數據機',3],['網咖每台電腦接到同一台交換器',3]];
+
+const DEST=[['日本',2000,3000],['新加坡',3000,4000],['澳洲',7000,9000],['美國西岸',11000,14000]];
+const ROUNDS=[
+ {lv:1,name:'幫訊息找路',
+  now:i=>'有幾條線斷了。'+WHO[i.a]+'要傳訊息給'+WHO[i.b]+'。',
+  goal:i=>'從「'+i.a+'」開始，一站一站點出一條還通的路，最後到「'+i.b+'」。',
+  tip:'只能走沒有 ✕ 的線。點最後一站可以退回一步；繞遠路也可以。',
+  learn:'網際網路是「網路的網路」：很多城市、很多國家的網路用線路接在一起，一條斷了，訊息可以改走別條。線路越多條，越不容易整個斷掉。',
+  gen(rnd){
+    for(let t=0;t<200;t++){
+      const [a,b]=PICK(rnd,PAIRS),cut=new Set(),p=route(a,b,EDGES,cut);
+      const onP=[];for(let k=1;k<p.length;k++){const e=edgeOf(p[k-1],p[k],EDGES);if(e[2]!=='sat')onP.push(ekey(p[k-1],p[k]))}
+      if(!onP.length)continue;cut.add(PICK(rnd,onP));
+      const n=RINT(rnd,1,3);for(const e of SAMPLE(rnd,EDGES.filter(e=>e[2]!=='sat'),n))cut.add(ekey(e[0],e[1]));
+      if(route(a,b,EDGES,cut))return {a,b,cut:[...cut]};
+    }
+    return {a:'台北',b:'南竿',cut:[ekey('南竿','淡水')]};
+  },
+  view(inst,el,api){
+    const cut=new Set(inst.cut);let path=[inst.a];
+    el.insertAdjacentHTML('beforeend',legend(EDGES));
+    const txt=document.createElement('p');txt.className='pathtxt';
+    const st=()=>{const on=new Set();for(let k=1;k<path.length;k++)on.add(ekey(path[k-1],path[k]));const cls={};path.forEach(n=>cls[n]='in');cls[inst.a]='end';cls[inst.b]=path.includes(inst.b)?'in end':'end';return {on,cls}};
+    const draw=MAP(el,{edges:EDGES,cut,state:st,click:n=>{if(n===path[path.length-1]&&path.length>1)path.pop();else if(!path.includes(n))path.push(n);draw();upd();api.changed()}});
+    el.appendChild(txt);
+    el.insertAdjacentHTML('beforeend','<div class="btns"><button type="button" class="btn" id="m-back">退一步</button><button type="button" class="btn" id="m-reset">重來</button></div>');
+    const upd=()=>{txt.textContent='走法：'+path.join(' → ')};
+    el.querySelector('#m-back').onclick=()=>{if(path.length>1)path.pop();draw();upd();api.changed()};
+    el.querySelector('#m-reset').onclick=()=>{path=[inst.a];draw();upd();api.changed()};
+    upd();
+    return {get:()=>[...path],fill:()=>{path=route(inst.a,inst.b,EDGES,cut);draw();upd()},ready:()=>path.length>1};
+  },
+  check(inst,p){
+    const cut=new Set(inst.cut);
+    if(p[0]!==inst.a)return '要從「'+inst.a+'」出發。';
+    for(let k=1;k<p.length;k++){const e=edgeOf(p[k-1],p[k],EDGES);
+      if(!e)return p[k-1]+' 和 '+p[k]+' 之間沒有線，訊息跳不過去。';
+      if(cut.has(ekey(p[k-1],p[k])))return p[k-1]+' 到 '+p[k]+' 這條'+TYPE[e[2]]+'斷了，換一條。'}
+    if(p[p.length-1]!==inst.b)return '還沒走到「'+inst.b+'」。';
+    if(new Set(p).size!==p.length)return '同一站走了兩次，繞回頭了。';
+    return true;
+  },
+  peek(inst,p){const used=[];for(let k=1;k<p.length;k++){const e=edgeOf(p[k-1],p[k],EDGES);if(e)used.push(TYPE[e[2]])}
+    return '<section class="panel"><div class="ptitle"><h3>這一路經過的線</h3></div><p>'+(used.length?used.join('、'):'還沒開始走')+'</p><p class="small">每一段可能是不同公司、不同國家的網路，用的媒介也不一樣，接起來就成了網際網路。</p></section>'}},
+
+ {lv:1,name:'斷了會影響誰',
+  now:'颱風夜加上地震，好幾條海纜和光纖同時斷了。這一題只看「有線」的線路。',
+  goal:'點出所有「再也連不到台北」的地方。',
+  tip:'從台北出發，沿著還通的線一站一站往外走，走得到的就還連得上；走不到的才要點。',
+  learn:'一個地方如果只靠一兩條線連出去，線一斷就整個失聯，就像 2023 年馬祖的兩條海纜都斷了。所以重要的地方都會準備備援：多拉幾條、換一條路線，或用微波、衛星頂著。',
+  gen(rnd){
+    for(let t=0;t<400;t++){
+      const cut=new Set(SAMPLE(rnd,WIRED,RINT(rnd,3,6)).map(e=>ekey(e[0],e[1])));
+      const s=bfs('台北',WIRED,cut),off=Object.keys(NODES).filter(n=>n!=='衛星'&&!(n in s));
+      if(off.length>=1&&off.length<=4)return {cut:[...cut],off};
+    }
+    return {cut:[ekey('南竿','淡水')],off:['南竿']};
+  },
+  view(inst,el,api){
+    const cut=new Set(inst.cut),mark=new Set();
+    el.insertAdjacentHTML('beforeend',legend(WIRED));
+    const st=()=>{const cls={'台北':'end'};mark.forEach(n=>cls[n]='off');return {cls,lock:new Set(['台北'])}};
+    const draw=MAP(el,{edges:WIRED,cut,state:st,click:n=>{mark.has(n)?mark.delete(n):mark.add(n);draw();api.changed()}});
+    el.insertAdjacentHTML('beforeend','<p class="small">點一下標成紅色＝連不到；再點一下取消。</p>');
+    return {get:()=>[...mark].sort(),fill:()=>{mark.clear();inst.off.forEach(n=>mark.add(n));draw()}};
+  },
+  check(inst,m){
+    const off=new Set(inst.off),cut=new Set(inst.cut);
+    const wrong=m.filter(n=>!off.has(n));
+    if(wrong.length){const p=route('台北',wrong[0],WIRED,cut);if(!p)return '有地方標錯了。';return '「'+wrong[0]+'」其實還連得到：'+p.join(' → ')+'。'}
+    const miss=inst.off.filter(n=>!m.includes(n));
+    if(miss.length)return '還有 '+miss.length+' 個地方也連不到台北，再找找看。';
+    return true;
+  }},
+
+ {lv:2,name:'選傳輸媒介',
+  now:'訊息不只走海纜。後援會的小澄問：「那馬祖斷線那時候，訊息是怎麼傳過來的？」',
+  goal:'每一個情境，選最適合的傳輸媒介。',
+  tip:'光纖海纜：量最大、最穩，但要埋線。微波：兩個高點要互相看得到。衛星：哪裡都到得了，但量小、比較貴。網路線：短距離、室內。',
+  learn:'光纖用光傳訊號，量大又穩，國際網路幾乎都靠海纜；微波和衛星不用拉線，適合當備援或到不了的地方；網路線（雙絞線）用在室內短距離。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,MED,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),MEDIA,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：要不要拉線？距離多遠？量有多大？':true}},
+
+ {lv:2,name:'訊號要跑多久',
+  now:i=>i.kind==='fiber'?'訊息走海纜，從台灣到'+i.dest+'，海纜大約長 '+FMT(i.L)+' 公里。':i.kind==='geo'?'遠洋漁船上的人傳訊息回台灣，走的是「同步衛星」：衛星在 36,000 公里高的地方。':'馬祖用「低軌衛星」當備援：衛星在 '+FMT(i.h)+' 公里高，訊號從馬祖上去、下來到台灣的地面站，再走 '+FMT(i.L)+' 公里的光纖到台北。',
+  goal:'估算訊號在路上「傳播」單程大約要幾毫秒（1 秒＝1000 毫秒）。這裡只算在線路和空中跑的時間，不含機器處理、排隊等待。',
+  tip:'光在光纖裡，每 1 毫秒大約跑 200 公里；電波在空中，每 1 毫秒大約跑 300 公里。走衛星要「上去」再「下來」。',
+  learn:'這只是傳播時間，真正的網路回應還要加上路由器、伺服器處理和排隊的時間，所以實際會更久。同步衛星太高，上去再下來就要將近四分之一秒，視訊會一直慢半拍；低軌衛星低很多，延遲小，但要很多顆一起繞才能一直有訊號。海纜延遲小、量又大，所以還是國際網路的主力。',
+  gen(rnd){
+    const kind=PICK(rnd,['fiber','fiber','geo','leo','leo']);let o;
+    if(kind==='fiber'){const [dest,lo,hi]=PICK(rnd,DEST),L=200*RINT(rnd,lo/200,hi/200);o={kind,dest,L,ans:L/200,bad:[L/300,L/100,L/200*2,L*200/1000]}}
+    else if(kind==='geo')o={kind,ans:240,bad:[120,360,480,72]};
+    else{const h=PICK(rnd,[600,750,900,1200]),L=200*RINT(rnd,1,4);o={kind,h,L,ans:2*h/300+L/200,bad:[h/300+L/200,2*h/200+L/200,2*h/300,2*h/300+L/300]}}
+    const opts=[o.ans];for(const b of o.bad){const v=Math.round(b*10)/10;if(v>0&&!opts.includes(v)&&opts.length<4)opts.push(v)}
+    o.opts=SHUF(rnd,opts);o.ansIdx=o.opts.indexOf(o.ans);return o;
+  },
+  view(inst,el,api){
+    el.insertAdjacentHTML('beforeend','<div class="picks">'+inst.opts.map((v,j)=>'<button type="button" class="pk" data-o="'+j+'" aria-pressed="false" style="font-family:var(--f-mono);font-size:20px">約 '+v+' 毫秒</button>').join('')+'</div>');
+    let v=null;const sync=()=>el.querySelectorAll('[data-o]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===v));
+    el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{v=+b.dataset.o;sync();api.changed()});
+    return {get:()=>v,fill:()=>{v=inst.ansIdx;sync()},ready:()=>v!=null};
+  },
+  check(inst,v){
+    if(v===inst.ansIdx)return true;
+    const x=inst.opts[v];
+    if(inst.kind==='fiber')return x===inst.L/300?'光在光纖裡比在空氣中慢，每毫秒約 200 公里，不是 300。':'用「距離 ÷ 每毫秒跑的距離」再算一次：'+FMT(inst.L)+' ÷ 200。';
+    if(inst.kind==='geo')return x===120?'只算了上去。訊號要上到衛星、再下來，距離要乘 2。':x===480?'題目問單程，不用算回來的路。':'電波在空中每毫秒約跑 300 公里，距離是上去＋下來。';
+    return '分兩段算：衛星上去＋下來（'+FMT(inst.h)+' × 2 ÷ 300），再加上光纖（'+FMT(inst.L)+' ÷ 200）。';
+  }}
+];
+const APP=SHELL({week:10,termWeek:16,title:'馬祖斷線了',course:'115-g9',unit:4,rounds:ROUNDS,finale:'全部完成！下一站：差一個字母的網站。訊息在線路上是怎麼「寄」的？'});
+</script>
+</body>
+</html>

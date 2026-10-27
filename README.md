@@ -19,7 +19,7 @@
 | `assets/teacher.js` | 教師模式通行碼（只存雜湊）。活動頁載入後，起始畫面有「教師登入」：可一鍵顯示答案、暫停播放、上一步／下一步、點步驟跳過去；教師模式不產生成績碼。通行碼只防學生隨手點開，不是帳號安全機制 |
 | `assets/login.js` | 學生以帳號密碼登入，每過一關寫一筆紀錄到 ClassScore 的 Firebase（`class-score-86020`，結構見 class-score repo 的 `docs/YBS_FIRESTORE.md`）；`on` 為 false 時不啟用（維持班級座號＋成績碼） |
 | `assets/vendor/` | 第三方程式庫的固定版本（教師專區匯出 Excel 用的 SheetJS），不從 CDN 載入 |
-| `115-g9/w01/` … | 115 學年九年級的每週活動頁（`115-g9/index.html` 只是轉回首頁） |
+| `115-g9/uU-NN/` | 115 學年九年級活動頁，資料夾＝單元＋該單元第幾個活動（`115-g9/index.html` 只是轉回首頁） |
 | `115-g9/teacher/` | 該課程的教師成績彙整，入口在關於頁頁尾（資料只存在老師自己的瀏覽器） |
 | `115-df/` | 數理資優班專題研究（七、八年級）：`a/` 是 A 版學生頁（單檔，第二批與揭露內容加密），`teacher/` 是老師彙整台（讀本機報告檔及雲端交件）。教材生成原始檔、密碼明碼與教師解答版不放這個公開儲存庫 |
 
@@ -31,8 +31,8 @@
 
 ## 每週新增一課
 
-1. 在課程資料夾新增 `w02/`，放入 `index.html`，頁面開頭設定 `const WEEK=2;`，並載入 `../../assets/codec.js`。`w02`、`WEEK`、activities.js 的 `week` 都是「第幾個活動」（成績碼用）；分頁標題寫學期週次（例如第 8 週），首頁與教師專區會依 `date` 自動換算週次。
-2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處），再執行 `node tools/activities-json.mjs` 更新 `assets/activities.json`：課綱代碼 `codes`、上課日期 `date`、週次 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
+1. 在九年級課程資料夾依 `uU-NN/` 新增活動，例如 `u1-06/` 表示第 1 單元第 6 個活動；第 3 單元目前沒有活動，保留 `u3` 給之後的畢業影片。放入 `index.html` 並載入 `../../assets/codec.js`。`WEEK`／activities.js 的 `week` 仍是活動序號（成績碼用），與資料夾的單元、單元內順序無關，不能因改名而改動（例如 `u1-06/` 仍為 `const WEEK=2;`、`week: 2`）。分頁標題寫學期週次（例如第 8 週），首頁與教師專區會依 `date` 自動換算週次。舊 wNN/ 是轉址頁，勿刪。
+2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處），再執行 `node tools/activities-json.mjs` 更新 `assets/activities.json`：課綱代碼 `codes`、上課日期 `date`、活動序號 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
 3. 每週開放活動時，更新 `assets/lock.js` 的 `OPEN` 並同步 `tools/dev/check-pages.py` 的開放預期。完成本機測試後開 Draft PR，經老師核准合併至 `main` 才會上線。
 
 ## 成績碼

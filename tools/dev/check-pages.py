@@ -21,8 +21,8 @@ REDIRECTS = dict(pair.split(':') for pair in (
     'w22:u5-07 w23:u5-08 w24:u5-09 w25:u5-10'
 ).split())
 ACTIVITY_DIRS = {int(old[1:]): new for old, new in REDIRECTS.items()}
-OPEN = {'115-g9/u1-05/', '115-g9/u1-06/', '115-g9/u2-01/', '115-df/a/'}  # 和 assets/lock.js 一致
-PAGES = ['115-g9/u1-05/', '115-g9/u1-06/', '115-g9/u2-01/', '115-g9/u2-03/', '115-g9/u0-01/', '115-g9/', '115-g9/teacher/',
+OPEN = {'115-g9/u1-05/', '115-g9/u1-06/', '115-g9/u2-01/', '115-g9/u2-02/', '115-df/a/'}  # 和 assets/lock.js 一致
+PAGES = ['115-g9/u1-05/', '115-g9/u1-06/', '115-g9/u2-01/', '115-g9/u2-02/', '115-g9/u2-03/', '115-g9/u0-01/', '115-g9/', '115-g9/teacher/',
          '115-df/', '115-df/a/', '115-df/teacher/', '', 'about/', 'map/']
 LOCKED_EXPECT = lambda p: p.startswith(('115-g9/u', '115-df/a')) and p not in OPEN
 

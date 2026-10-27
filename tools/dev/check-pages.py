@@ -11,7 +11,7 @@ from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('YBS_BASE', 'http://localhost:8765/')
 MOCK = (Path(__file__).parent / 'firebase-mock.js').read_text(encoding='utf-8')
-OPEN = {'115-g9/w01/', '115-g9/w02/'}          # 要和 assets/lock.js 的 OPEN 一致
+OPEN = {'115-g9/w01/', '115-g9/w02/', '115-g9/w03/'}          # 要和 assets/lock.js 的 OPEN 一致
 PAGES = ['115-g9/w01/', '115-g9/w02/', '115-g9/w03/', '115-g9/w05/', '115-g9/w30/', '115-g9/', '115-g9/teacher/',
          '115-df/', '115-df/a/', '115-df/teacher/', '', 'about/', 'map/']
 LOCKED_EXPECT = lambda p: p.startswith('115-g9/w') and p not in OPEN or p == '115-df/a/'

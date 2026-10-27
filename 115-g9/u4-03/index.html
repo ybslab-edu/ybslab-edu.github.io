@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wi-Fi 死角在哪裡｜第 18 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+/* 第 18 週：無線網路技術與應用。活動中心平面圖：一格約 3 公尺，粗線是牆 */
+.floor{display:grid;gap:0;background:var(--surface);border:3px solid var(--ink);border-radius:6px;max-width:640px;overflow:hidden}
+.floor .c{position:relative;aspect-ratio:1;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:clamp(10px,2.3vw,14px);color:var(--ink);background:var(--surface);padding:0;min-width:0}
+.floor button.c{cursor:pointer}
+.floor .c.wr{border-right:4px solid var(--ink)}.floor .c.wb{border-bottom:4px solid var(--ink)}
+.floor .c.dead{background:#B3261E;color:#fff;font-weight:700}
+.floor .c.ap::after{content:"📶";position:absolute;top:1px;right:2px;font-size:clamp(9px,2vw,13px)}
+.floor .c.cand{font-family:var(--f-body);font-weight:700;font-size:clamp(13px,3vw,18px);background:var(--bg)}
+.floor .c.cand[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.floor .c.h0{background:#2B7A4C;color:#fff}.floor .c.h1{background:#8CC79F;color:#13301d}.floor .c.h2{background:#F4D58D;color:#3a2c00}.floor .c.h3{background:#E8A49C;color:#3d0d09}
+.scale{display:flex;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.scale span{border-radius:6px;padding:2px 8px}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+const TECH=['Wi-Fi','藍牙','NFC','行動網路（4G／5G）'];
+const USE=[
+ ['手機刷一下感應區，就付好飲料錢',2],['應援手環碰一下入口的機器就入場',2],['悠遊卡貼近手機查餘額',2],
+ ['無線耳機連到手機聽六連星新歌',1],['手機把歌放到旁邊的藍色小喇叭',1],['智慧手錶把心跳傳到手機',1],
+ ['活動中心裡十幾台筆電一起上網看練習影片',0],['在家用筆電看串流重播',0],['教室的投影機無線連到老師的電腦',0],
+ ['在公車上滑短影音',3],['在戶外廣場用手機直播應援練習',3],['爬山時用地圖 App 查路線',3]];
+// 一般情況的參考距離（實際會因為牆、干擾、設備而不同）
+const DIST=[['NFC','2 公分',1],['NFC','3 公分',1],['NFC','30 公分',0],['NFC','1 公尺',0],
+ ['藍牙','3 公尺',1],['藍牙','5 公尺',1],['藍牙','50 公尺',0],['藍牙','100 公尺',0],
+ ['Wi-Fi','10 公尺',1],['Wi-Fi','20 公尺',1],['Wi-Fi','500 公尺',0],['Wi-Fi','2 公里',0],
+ ['行動網路','離基地台 1 公里',1],['行動網路','離基地台 2 公里',1]];
+
+// ===== 平面圖與訊號 =====
+const W=8,H=6;
+function walls(rnd){ // 隨機一道直牆、一道橫牆，各留一個門
+  const vx=RINT(rnd,2,5),hy=RINT(rnd,1,3),vd=RINT(rnd,0,H-1),hd=RINT(rnd,0,W-1);
+  return {vx,hy,vd,hd};
+}
+const wallsBetween=(w,x0,y0,x1,y1)=>{ // 從格子中心連線，穿過幾道牆（門的那一格不算）
+  let n=0;const cx=x=>x+.5,cy=y=>y+.5;
+  if((cx(x0)<=w.vx)!==(cx(x1)<=w.vx)){const t=(w.vx-cx(x0))/(cx(x1)-cx(x0)),y=cy(y0)+t*(cy(y1)-cy(y0));if(Math.floor(y)!==w.vd)n++}
+  if((cy(y0)<=w.hy)!==(cy(y1)<=w.hy)){const t=(w.hy-cy(y0))/(cy(y1)-cy(y0)),x=cx(x0)+t*(cx(x1)-cx(x0));if(Math.floor(x)!==w.hd)n++}
+  return n;
+};
+function signal(w,ap){const g=[];for(let y=0;y<H;y++)for(let x=0;x<W;x++){const d=Math.hypot(x-ap[0],y-ap[1]);g.push(Math.max(-90,Math.round(-34-7*d-13*wallsBetween(w,ap[0],ap[1],x,y))))}return g}
+const heat=v=>v>=-55?'h0':v>=-65?'h1':v>=-70?'h2':'h3';
+function FLOOR(el,{w,cls,txt,click,pressed}){
+  const box=document.createElement('div');box.className='floor';box.style.gridTemplateColumns='repeat('+W+',minmax(0,1fr))';el.appendChild(box);
+  const draw=()=>{box.innerHTML=[...Array(W*H).keys()].map(i=>{const x=i%W,y=Math.floor(i/W);
+    const b=(x===w.vx-1&&y!==w.vd?' wr':'')+(y===w.hy-1&&x!==w.hd?' wb':'');
+    const c=cls(i),t=txt(i),can=click&&click.ok(i);
+    return can?'<button type="button" class="c'+b+' '+c+'" data-i="'+i+'"'+(pressed?' aria-pressed="'+pressed(i)+'"':'')+' aria-label="第 '+(y+1)+' 列第 '+(x+1)+' 格 '+t+'">'+t+'</button>':'<span class="c'+b+' '+c+'">'+t+'</span>'}).join('');
+    if(click)box.querySelectorAll('button.c').forEach(b=>b.onclick=()=>click.on(+b.dataset.i));
+  };draw();return draw;
+}
+const scaleHTML='<div class="scale"><span style="background:#2B7A4C;color:#fff">-55 以上 很強</span><span style="background:#8CC79F;color:#13301d">-56～-65 好</span><span style="background:#F4D58D;color:#3a2c00">-66～-70 勉強</span><span style="background:#E8A49C;color:#3d0d09">比 -70 弱 死角</span></div>';
+
+const ROUNDS=[
+ {lv:1,name:'選無線技術',
+  now:'後援會借了社區活動中心練應援。一個下午，大家用了好幾種無線連線。',
+  goal:'每一件事，選它用的無線技術。',
+  tip:'NFC：幾公分內，碰一下。藍牙：身邊 10 公尺左右，連自己的小東西。Wi-Fi：一個屋子裡，連到路由器上網。行動網路：走到哪都能上網，靠電信公司的基地台。',
+  learn:'無線網路用電波傳資料，差別在距離和用途：NFC 最近、碰一下就好；藍牙連身邊的裝置；Wi-Fi 涵蓋一個屋子；行動網路靠基地台，走到哪都能用。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,USE,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),TECH,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：距離多遠？連的是身邊的小東西，還是要上網？':true}},
+
+ {lv:1,name:'收得到嗎',
+  now:'小安拿著手機在活動中心裡走來走去，藍牙喇叭走遠就斷了。',
+  goal:'在一般情況下，這個距離收得到嗎？',
+  tip:'本題假設的參考距離：NFC 約 4 公分內、藍牙約 10 公尺、Wi-Fi 約 40 公尺（室內、穿牆會變差）、行動網路離基地台幾公里都可以。真實距離會因設備、牆和干擾而不同。',
+  learn:'電波離得越遠越弱，穿過牆也會變弱。NFC 故意設計得很短，碰一下才會動作，比較安全；藍牙省電、範圍小；Wi-Fi 範圍大一點、速度快；行動網路靠一座座基地台接力。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,DIST,5)}while(new Set(p.map(x=>x[2])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b>　距離 '+x[1]})),['收得到','收不到'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>1-x[2]))}},
+  check(inst,a){const w=inst.items.map((x,i)=>a[i]===1-x[2]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項：對照提示裡的參考距離。':true}},
+
+ {lv:2,name:'找出 Wi-Fi 死角',
+  now:'小安用手機的訊號測量 App，在活動中心每一格（約 3 公尺）量了一次 Wi-Fi 訊號（數字是本題的模擬值）。📶 是路由器，粗線是牆。',
+  goal:'點出所有「死角」：訊號比 -70 還弱的格子。',
+  tip:'單位是 dBm，都是負數：越接近 0 越強。-75 比 -70 弱，-65 比 -70 強；剛好 -70 不算死角。',
+  learn:'Wi-Fi 訊號離路由器越遠越弱，每穿過一道牆又會掉一截。測出整間的訊號，就能畫出「訊號地圖」，找出死角，再決定路由器要搬到哪裡、或多加一台。',
+  gen(rnd){for(let t=0;t<200;t++){const w=walls(rnd),ap=[RINT(rnd,0,W-1),RINT(rnd,0,H-1)],g=signal(w,ap),dead=g.map((v,i)=>v<-70?i:-1).filter(i=>i>=0);if(dead.length>=5&&dead.length<=16)return {w,ap,g,dead}}},
+  view(inst,el,api){const m=new Set(),api_=api;
+    const draw=FLOOR(el,{w:inst.w,cls:i=>(m.has(i)?'dead':'')+(i===inst.ap[1]*W+inst.ap[0]?' ap':''),txt:i=>inst.g[i],pressed:i=>m.has(i),click:{ok:()=>true,on:i=>{m.has(i)?m.delete(i):m.add(i);draw();api_.changed()}}});
+    el.insertAdjacentHTML('beforeend','<p class="small">點一下標成死角（紅色），再點一下取消。</p>');
+    return {get:()=>[...m].sort((a,b)=>a-b),fill:()=>{m.clear();inst.dead.forEach(i=>m.add(i));draw()}}},
+  check(inst,a){const d=new Set(inst.dead),wrong=a.filter(i=>!d.has(i)),miss=inst.dead.filter(i=>!a.includes(i));
+    if(wrong.length){const v=inst.g[wrong[0]];return '有 '+wrong.length+' 格不是死角，例如 '+v+(v===-70?' 剛好達到門檻（-70 不算死角）。':' 比 -70 強（比較接近 0）。')}
+    if(miss.length)return '還漏了 '+miss.length+' 格死角。';return true},
+  peek(inst,a){if(!a.length)return '';const box=document.createElement('div');FLOOR(box,{w:inst.w,cls:i=>heat(inst.g[i])+(i===inst.ap[1]*W+inst.ap[0]?' ap':''),txt:i=>inst.g[i]});return '<section class="panel"><div class="ptitle"><h3>訊號地圖</h3><span class="small">標了一格以後才會出現</span></div>'+scaleHTML+'<div class="floor" style="grid-template-columns:repeat('+W+',minmax(0,1fr))">'+box.querySelector('.floor').innerHTML+'</div><p class="small">看看死角都在哪裡：離路由器很遠，或隔著牆。</p></section>'}},
+
+ {lv:2,name:'路由器放哪裡',
+  now:'死角太多了。後援會決定把路由器搬家，候選位置有 A、B、C、D 四個。',
+  goal:'選出「能讓最多格收得到（-70 或更強）」的位置。',
+  tip:'點一個位置，下面會模擬那個位置的訊號地圖和收得到的格數。每個都試試看，再選最好的送出。',
+  learn:'路由器放在中間、少隔幾道牆、放高一點，訊號才會均勻。工程師也是先模擬、比較幾個方案，再決定。真的不夠時，可以加一台延伸器或用多台組成「網狀網路」。',
+  gen(rnd){for(let t=0;t<300;t++){const w=walls(rnd),cells=SAMPLE(rnd,[...Array(W*H).keys()],4);const cov=cells.map(i=>signal(w,[i%W,Math.floor(i/W)]).filter(v=>v>=-70).length);const s=[...cov].sort((a,b)=>b-a);if(s[0]-s[1]>=2&&s[0]<W*H)return {w,cells,cov,best:cov.indexOf(s[0])}}},
+  view(inst,el,api){let v=null;const L='ABCD';
+    const draw=FLOOR(el,{w:inst.w,cls:i=>inst.cells.includes(i)?'cand':'',txt:i=>inst.cells.includes(i)?L[inst.cells.indexOf(i)]:'',pressed:i=>inst.cells.indexOf(i)===v,click:{ok:i=>inst.cells.includes(i),on:i=>{v=inst.cells.indexOf(i);draw();api.changed()}}});
+    return {get:()=>v,fill:()=>{v=inst.best;draw()},ready:()=>v!=null}},
+  check(inst,v){if(v===inst.best)return true;if(inst.cov[v]==null)return '先選一個位置。';return '放在 '+'ABCD'[v]+' 只有 '+inst.cov[v]+' 格收得到，還有更好的位置。'},
+  peek(inst,v){if(v==null)return '';const i=inst.cells[v],g=signal(inst.w,[i%W,Math.floor(i/W)]),box=document.createElement('div');FLOOR(box,{w:inst.w,cls:k=>heat(g[k])+(k===i?' ap':''),txt:k=>g[k]});
+    return '<section class="panel"><div class="ptitle"><h3>模擬：路由器放在 '+'ABCD'[v]+'</h3><span class="tag">收得到 '+g.filter(x=>x>=-70).length+' / '+W*H+' 格</span></div>'+scaleHTML+'<div class="floor" style="grid-template-columns:repeat('+W+',minmax(0,1fr))">'+box.querySelector('.floor').innerHTML+'</div></section>'}}
+];
+const APP=SHELL({week:12,termWeek:18,title:'Wi-Fi 死角在哪裡',course:'115-g9',unit:4,rounds:ROUNDS,finale:'全部完成！下一站：短影音怎麼猜中我。連上網以後，我們都在用哪些服務？'});
+</script>
+</body>
+</html>

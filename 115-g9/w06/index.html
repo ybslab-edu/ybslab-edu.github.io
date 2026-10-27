@@ -3,114 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>傳給阿嬤的方塊｜第 12 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-/* 第 12 週：文字編碼與字型。關卡：查表解碼、查表編碼、認亂碼、方塊還是亂碼 */
-.codes{display:flex;flex-wrap:wrap;gap:8px}
-.codes span{font-family:var(--f-mono);font-size:22px;font-weight:700;background:var(--a-soft);color:var(--a);border-radius:8px;padding:4px 10px}
-.table{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px;font-family:var(--f-mono);font-size:14px}
-.table span{background:var(--bg);border-radius:6px;padding:3px 6px;display:flex;justify-content:space-between;gap:6px}
-.table b{color:var(--ink)} .table i{font-style:normal;color:var(--muted)}
-.msg{font-size:22px;line-height:1.6;background:#fffdf5;color:#2b2620;border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-wrap:anywhere;font-family:"Noto Sans TC","Noto Sans JP","Noto Sans SC",sans-serif}
-.dex{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:6px 14px;font-size:15px;align-items:baseline}
-.dex .m{font-size:18px;overflow-wrap:anywhere}
-.bin{font-family:var(--f-mono);font-size:15px;line-height:1.8}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u2-04/">
+<meta http-equiv="refresh" content="0; url=../u2-04/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u2-04/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-// 亂碼樣本：用 Python 的 big5／utf-8／shift_jis／gbk 實際編碼、解碼產生（不是手打的）
-const MOJI={"跨年集合時間改到晚上七點": ["頝典僑��������������孵�唳��銝�銝�暺�", "��~���X�ɶ����ߤW�C�I", "霍ｨ蟷ｴ髮�蜷域凾髢捺隼蛻ｰ譎壻ｸ贋ｸ�鮟�", "阁�~栋�X�啥¨铷毂撙W�C翴"], "後援會公告：應援棒請自備電池": ["敺���湔����砍��嚗������湔��隢���芸����餅��", "�ᴩ�|���i�G�����νЦ۳ƹq��", "蠕梧抄譛�蜈ｬ蜻奇ｼ壽�画抄譽定ｫ玖�ｪ蛯咎崕豎�", "�岽┓|そ�i�G莱穿次叫�鄢乒q��"], "六連星跨年演唱會": ["��剝�����頝典僑瞍���望��", "���s�P��~�t�۷|", "蜈ｭ騾｣譏溯ｷｨ蟷ｴ貍泌罰譛�", "せ硈琍阁�~簍佰穦"], "安可曲投票明天截止": ["摰���舀�脫��蟡冽��憭拇�芣迫", "�w�i���벼���ѺI��", "螳牙庄譖ｲ謚慕･ｨ譏主､ｩ謌ｪ豁｢", "�w�iΡщ布��ぱ篒ゎ"], "請大家穿應援色集合": ["隢�憭批振蝛踵����渲�脤�����", "�Фj�a�������ⶰ�X", "隲句､ｧ螳ｶ遨ｿ諛画抄濶ｲ髮�蜷�", "叫�j產�锢炒│舛唉X"], "資訊科技課": ["鞈�閮�蝘����隤�", "��T��޽�", "雉�險顔ｧ第橿隱ｲ", "戈癟�歆藿�"]};
-const PAIRS=['存檔用 UTF-8，打開時當成 Big5','存檔用 Big5，打開時當成 UTF-8','存檔用 UTF-8，打開時當成日文 Shift_JIS','存檔用 Big5，打開時當成簡體 GBK'];
-const DEX='資訊科技課';
-const WORDS=['LOVE','ENCORE','SIX STAR','NEW YEAR','HAPPY 2027','GO GO GO','SEE YOU','STARLIGHT','HI GRANDMA'];
-const asciiTable='<div class="table">'+[...' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(c=>'<span><b>'+(c===' '?'空格':c)+'</b><i>'+c.charCodeAt(0)+'</i></span>').join('')+'</div>';
-const bin8=n=>n.toString(2).padStart(8,'0');
-const codesOf=s=>[...s].map(c=>c.charCodeAt(0));
-const parseNums=s=>String(s).trim().split(/[^0-9]+/).filter(Boolean).map(Number);
-const CASES=[
- ['阿嬤的舊手機收到小安傳的新 emoji，只看到一個方塊 □。',0],
- ['後援會網頁上，有位成員名字裡的罕見字變成一個空白方塊。',0],
- ['小安用一款特別的藝術字型做字幕，有幾個中文字變成方塊。',0],
- ['今年新增的 emoji 在學校的舊電腦上顯示成方塊。',0],
- ['打開後援會的 txt 公告，整份變成「嚙踝蕭」這種看不懂的字。',1],
- ['用 Excel 打開學長存的 CSV 名單，中文全變成一堆怪字。',1],
- ['一個 Big5 的老網頁被瀏覽器當成 UTF-8，畫面一堆 �。',1],
- ['收到的 Email 附件，中文檔名變成「ä¸­æ–‡」。',1]];
-const ROUNDS=[
- {lv:1,name:'用編碼表解密',
-  now:'後援會的老前輩用數字傳暗號給小安，附上一張編碼表。',
-  goal:'用編碼表把數字換回英文字母，打出這句暗號。',
-  tip:'每個數字對到表裡的一個字母或數字，32 是空格。',
-  learn:'電腦裡的每個字都有一個編號。英文字母、數字、空格這套編號叫 ASCII，一個字只要 1 個位元組（8 個 0 和 1）。',
-  gen(rnd){return {w:PICK(rnd,WORDS)}},
-  view(inst,el,api){
-    el.innerHTML='<div class="codes">'+codesOf(inst.w).map(n=>'<span>'+n+'</span>').join('')+'</div><section class="panel" style="margin-top:12px"><div class="ptitle"><h3>編碼表</h3><span class="tag">ASCII</span></div>'+asciiTable+'</section>';
-    el.insertAdjacentHTML('beforeend','<label style="display:flex;flex-direction:column;gap:6px;font-size:18px;margin-top:12px">暗號是：<input class="txt-in" id="t-w" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>');
-    const inp=el.querySelector('#t-w');inp.oninput=()=>api.changed();
-    return {get:()=>inp.value,fill:()=>{inp.value=inst.w},ready:()=>inp.value.trim()!==''};
-  },
-  check(inst,v){const a=v.toUpperCase().replace(/\s+/g,' ').trim();if(a===inst.w)return true;
-    const i=[...inst.w].findIndex((c,k)=>a[k]!==c);return i<0?'前面都對了，但後面多打了字。':'第 '+(i+1)+' 個字不對，再查一次表（記得 32 是空格）。'},
-  peek:i=>'<section class="panel"><div class="ptitle"><h3>電腦真正存的</h3><span class="tag">每個字 1 個位元組</span></div><div class="bin">'+codesOf(i.w).map(n=>n+' → '+bin8(n)).join('<br>')+'</div><p class="small">上一週的燈牌：8 顆燈剛好存一個英文字。</p></section>'},
-
- {lv:1,name:'換成編碼',
-  now:'小安要回暗號給前輩。',
-  goal:i=>'把「<b>'+i.w+'</b>」換成編碼表上的數字，數字之間空一格。',
-  tip:'一個字母一個數字，空格也要換成 32。',
-  learn:'把字換成編號叫「編碼」，把編號換回字叫「解碼」。傳訊息、存檔，其實都是在存這些編號。',
-  gen(rnd){return {w:PICK(rnd,WORDS)}},
-  view(inst,el,api){
-    el.innerHTML='<section class="panel"><div class="ptitle"><h3>編碼表</h3><span class="tag">ASCII</span></div>'+asciiTable+'</section>';
-    el.insertAdjacentHTML('beforeend','<label style="display:flex;flex-direction:column;gap:6px;font-size:18px;margin-top:12px">編碼：<input class="txt-in" id="t-c" inputmode="numeric" autocomplete="off" placeholder="例如 72 73"></label>');
-    const inp=el.querySelector('#t-c');inp.oninput=()=>api.changed();
-    return {get:()=>parseNums(inp.value),fill:()=>{inp.value=codesOf(inst.w).join(' ')},ready:()=>parseNums(inp.value).length>0};
-  },
-  check(inst,a){const t=codesOf(inst.w);if(a.length!==t.length)return '數字的個數不對：「'+inst.w+'」有 '+t.length+' 個字（空格也算）。';
-    const i=t.findIndex((n,k)=>a[k]!==n);return i<0?true:'第 '+(i+1)+' 個數字不對，再查一次「'+(inst.w[i]===' '?'空格':inst.w[i])+'」。'},
-  peek:(i,a)=>'<section class="panel"><div class="ptitle"><h3>你存了這些位元</h3></div><div class="bin">'+(a.length?a.map(n=>n<256?n+' → '+bin8(n):n+' → 超過 1 個位元組').join('<br>'):'—')+'</div></section>'},
-
- {lv:2,name:'亂碼是怎麼來的',
-  now:'後援會幹部把跨年公告存成檔案傳到群組，小安打開卻是一堆亂碼。',
-  goal:'對照「亂碼圖鑑」，判斷這份公告是怎麼變成亂碼的。',
-  tip:'中文有好幾套編碼：台灣舊系統常用 Big5，現在多半用 UTF-8（Unicode）。存檔和打開用不同的編碼，就會解錯。',
-  learn:'同一串位元，用不同的編碼表去解，就會變成完全不同的字。亂碼不是檔案壞掉，是「存的編碼」和「讀的編碼」不一樣；改用正確的編碼打開就好了。',
-  gen(rnd){const keys=Object.keys(MOJI).filter(k=>k!==DEX);const p=PICK(rnd,keys),k=RINT(rnd,0,3);return {p,k,s:MOJI[p][k]}},
-  view(inst,el,api){
-    el.innerHTML='<div class="msg">'+api.esc(inst.s)+'</div>';
-    el.insertAdjacentHTML('beforeend','<div style="font-weight:700;margin-top:12px">這份公告是：</div>');
-    const c=CLASSIFY(el,PAIRS.map(p=>({html:p})),['是'],api);
-    // 單選：只能選一列
-    const rows=[...el.querySelectorAll('.picks[data-i]')];let v=null;
-    const sync=()=>rows.forEach((r,i)=>r.querySelector('.pk').setAttribute('aria-pressed',i===v));
-    rows.forEach((r,i)=>r.querySelector('.pk').onclick=()=>{v=v===i?null:i;sync();api.changed()});
-    return {get:()=>v,fill:()=>{v=inst.k;sync()},ready:()=>v!=null};
-  },
-  check(inst,v){return v===inst.k?true:'不是這一種。比對亂碼圖鑑：有沒有一堆 �？有沒有日文假名？是不是簡體字？'},
-  peek:()=>'<section class="panel"><div class="ptitle"><h3>亂碼圖鑑：「'+DEX+'」被解錯會變成</h3></div><div class="dex">'+PAIRS.map((p,i)=>'<span>'+p+'</span><span class="m">'+MOJI[DEX][i]+'</span>').join('')+'</div></section>'},
-
- {lv:2,name:'方塊還是亂碼',
-  now:'群組裡大家回報各種「字壞掉」的情況。',
-  goal:'判斷每一種情況，是字型裡沒有這個字（顯示方塊），還是編碼不同（變成亂碼）。',
-  tip:'編碼決定「這個編號是哪個字」，字型決定「這個字長什麼樣子」。',
-  learn:'方塊 □：電腦知道是哪個字，但字型裡沒有畫這個字（新 emoji、罕見字）。亂碼：電腦用錯了編碼表，整段都解成別的字。Unicode 每年會新增 emoji，舊手機的字型沒有，就只能顯示方塊。',
-  gen(rnd){let pick;do{pick=SAMPLE(rnd,CASES,4)}while(new Set(pick.map(x=>x[1])).size<2);return {items:pick}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['字型缺字（方塊）','編碼不同（亂碼）'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項判斷錯了。整段都變怪字，還是只有一兩個字變方塊？':true}}
-];
-const APP=SHELL({week:6,termWeek:12,title:'傳給阿嬤的方塊',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！數字、文字都能存成 0 和 1 了。下一站：後援會問卷，把一堆資料變成有用的資訊。'});
-</script>
+<p><a href="../u2-04/">這個活動已搬到新網址</a></p>
 </body>
 </html>

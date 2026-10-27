@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>跟誰最像｜第 8 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+.plot svg{width:100%;height:auto;display:block}
+.plot .ax{stroke:var(--line);stroke-width:1}
+.plot text{fill:var(--muted);font:12px var(--f-body)}
+.legend{display:flex;gap:14px;font-size:15px;flex-wrap:wrap}
+.perc{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;line-height:1.8}
+.perc b{font-family:var(--f-mono)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// TITLE:跟誰最像
+// TERMWEEK:8
+// 第 5 單元第 6 站（選修）：最近鄰居 KNN、線性迴歸、感知器。故事：園遊會攤位要準備飲料和排隊動線
+const C2=[['奶茶派','#2C67AE','●'],['果茶派','#BD6216','▲']];
+const plotSVG=(pts,opt={})=>{const S=36,O=30,W=O+10*S+10,H=O+10*S+10,px=x=>O+x*S,py=y=>H-O-y*S+10;let s='<svg viewBox="0 0 '+W+' '+(H+10)+'" role="img" aria-label="'+(opt.label||'散布圖')+'">';
+  for(let i=0;i<=10;i++){s+='<line class="ax" x1="'+px(i)+'" y1="'+py(0)+'" x2="'+px(i)+'" y2="'+py(10)+'"/><line class="ax" x1="'+px(0)+'" y1="'+py(i)+'" x2="'+px(10)+'" y2="'+py(i)+'"/>';if(i%2===0)s+='<text x="'+px(i)+'" y="'+(py(0)+16)+'" text-anchor="middle">'+i*(opt.xs||1)+'</text><text x="'+(px(0)-6)+'" y="'+(py(i)+4)+'" text-anchor="end">'+i*(opt.ys||1)+'</text>'}
+  (opt.lines||[]).forEach(l=>{s+='<line x1="'+px(0)+'" y1="'+py(l.b/(opt.ys||1))+'" x2="'+px(10)+'" y2="'+py((l.a*10*(opt.xs||1)+l.b)/(opt.ys||1))+'" stroke="'+l.c+'" stroke-width="3"/><text x="'+(px(10)-4)+'" y="'+(py((l.a*10*(opt.xs||1)+l.b)/(opt.ys||1))-6)+'" text-anchor="end" style="fill:'+l.c+';font-weight:700">'+l.n+'</text>'});
+  pts.forEach(p=>{const x=px(p.x),y=py(p.y);if(p.c==null)s+='<text x="'+x+'" y="'+(y+8)+'" text-anchor="middle" style="font-size:24px;fill:#D4A100">★</text>';else if(p.c===0)s+='<circle cx="'+x+'" cy="'+y+'" r="8" fill="'+C2[0][1]+'"/>';else if(p.c===1)s+='<path d="M'+x+' '+(y-9)+' L'+(x+9)+' '+(y+7)+' L'+(x-9)+' '+(y+7)+'Z" fill="'+C2[1][1]+'"/>';else s+='<circle cx="'+x+'" cy="'+y+'" r="5" fill="#5D6670"/>'});
+  return '<div class="plot">'+s+'</svg></div>'};
+const legend='<div class="legend"><span style="color:#2C67AE">● 奶茶派</span><span style="color:#BD6216">▲ 果茶派</span><span style="color:#D4A100">★ 新同學</span></div>';
+const d2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
+function knnInst(rnd,k){
+  for(;;){const pts=[],used=new Set();const add=(x,y,c)=>{const key=x+','+y;if(used.has(key))return;used.add(key);pts.push({x,y,c})};
+    for(let i=0;i<12;i++){const c=i%2;const cx=c?7:3,cy=c?6:4;add(Math.max(0,Math.min(10,cx+RINT(rnd,-3,3))),Math.max(0,Math.min(10,cy+RINT(rnd,-3,3))),c)}
+    const q={x:RINT(rnd,2,8),y:RINT(rnd,2,8),c:null};if(used.has(q.x+','+q.y))continue;
+    const ds=pts.map(p=>d2(p,q)).sort((a,b)=>a-b);if(ds[k-1]===ds[k])continue;
+    const near=pts.filter(p=>d2(p,q)<=ds[k-1]),v=[0,0];near.forEach(p=>v[p.c]++);if(v[0]===v[1])continue;
+    return {pts,q,ans:v[0]>v[1]?0:1,near}}}
+const ROUNDS=[
+ {lv:1,name:'最近的鄰居',
+  now:'園遊會攤位要準備飲料。小禾調查了全班：每個人喜歡的「甜度」和「冰塊量」（0～10），還有他是奶茶派還是果茶派。轉學生小晴只填了甜度和冰塊。',
+  goal:'找出離星星（小晴）最近的那一個同學，猜小晴是哪一派。',
+  tip:'用眼睛量距離：橫的格數和直的格數都算進去，最靠近星星的那一點是誰？',
+  learn:'這就是「最近鄰居」：跟你最像的人喜歡什麼，就猜你也喜歡什麼。它不用先學規則，每次都直接去找最像的例子。',
+  gen(rnd){return knnInst(rnd,1)},
+  view(inst,el,api){el.innerHTML=legend+plotSVG([...inst.pts,inst.q],{label:'甜度與冰塊的散布圖'})+'<p class="small">橫軸：甜度　直軸：冰塊量</p>';return PICKONE(el,C2.map(c=>c[2]+' '+c[0]),api,inst.ans)},
+  check:(inst,v)=>v===inst.ans?true:'離星星最近的那一點不是這一派，再量一次：橫的、直的格數都要算。'},
+ {lv:1,name:'找 3 個鄰居投票',
+  now:'只看最近的一個人，萬一他剛好比較特別呢？小禾決定找最近的 3 個人來投票。',
+  goal:'找出離星星最近的 3 個同學，多數是哪一派，就猜小晴是哪一派。',
+  tip:'先找最近的，再找第二近、第三近。三個裡面哪一派比較多？',
+  learn:'K 個最近鄰居（KNN）：找最像的 K 個例子投票。K 太小容易被特例影響，K 太大又會被遠方的人拉走，K 要自己試著挑。',
+  gen(rnd){return knnInst(rnd,3)},
+  view(inst,el,api){el.innerHTML=legend+plotSVG([...inst.pts,inst.q],{label:'甜度與冰塊的散布圖'})+'<p class="small">橫軸：甜度　直軸：冰塊量</p>';return PICKONE(el,C2.map(c=>c[2]+' '+c[0]),api,inst.ans)},
+  check:(inst,v)=>v===inst.ans?true:'最近的 3 個裡，多數不是這一派。再找一次最近的 3 個點。',
+  peek:(inst,v)=>v==null?'':'<section class="panel"><div class="ptitle"><h3>最近的 3 個</h3></div><p>'+inst.near.map(p=>C2[p.c][2]+'（'+p.x+', '+p.y+'）').join('、')+'</p></section>'},
+ {lv:2,name:'畫一條線來預測',
+  now:'攤位試營運時，小安記錄了「排隊人數」和「要等幾分鐘」。他想畫一條線，用來預測人多的時候要等多久。',
+  goal:'先選出最貼近這些點的那條線，再用它預測：排隊人數到了題目給的數字，大約要等幾分鐘？',
+  tip:'最貼近的線，點會平均分布在線的兩邊，而且離線都不遠。預測時，從橫軸找到人數，往上碰到線，再看左邊是幾分鐘。',
+  learn:'線性迴歸：找一條最貼近資料的直線，用它來預測沒看過的情況。電腦會算每個點離線多遠，挑「總誤差最小」的那條。',
+  gen(rnd){
+    for(;;){const a=PICK(rnd,[0.5,1,1.5]),b=RINT(rnd,1,4)*2;const xs=SAMPLE(rnd,[2,4,6,8,10,12,14,16],7);
+      const pts=xs.map(x=>({x:x/2,y:(a*x+b+RINT(rnd,-2,2))/2,c:2}));if(pts.some(p=>p.y<0||p.y>10))continue;
+      const cand=SHUF(rnd,[{a,b},{a:a+0.5,b:b-4},{a:Math.max(0,a-0.5),b:b+5}]);if(cand.some(l=>l.b<0||l.a*20+l.b>20))continue;
+      const err=l=>pts.reduce((s,p)=>s+Math.abs(p.y*2-(l.a*p.x*2+l.b)),0),e=cand.map(err),best=e.indexOf(Math.min(...e));if(e.filter(v=>v-e[best]<6).length>1)continue;
+      const qx=PICK(rnd,[6,10,14,18].filter(x=>!xs.includes(x))),qy=cand[best].a*qx+cand[best].b;if(!Number.isInteger(qy))continue;
+      return {pts,cand,best,qx,qy}}},
+  view(inst,el,api){const cols=['#2C67AE','#BD6216','#1E7570'],L='ABC';
+    el.innerHTML=plotSVG(inst.pts,{xs:2,ys:2,label:'排隊人數與等待時間',lines:inst.cand.map((l,i)=>({...l,c:cols[i],n:L[i]}))})+'<p class="small">橫軸：排隊人數　直軸：等待分鐘</p><p>哪一條線最貼近？</p>';
+    const h=PICKONE(el,['A 線','B 線','C 線'],api,inst.best);
+    el.insertAdjacentHTML('beforeend','<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:18px;flex-wrap:wrap">用這條線預測：排 '+inst.qx+' 人時，大約要等 <input class="num-in" id="qy" inputmode="numeric" autocomplete="off"> 分鐘</label>');
+    const i=el.querySelector('#qy');i.oninput=()=>api.changed();
+    return {get:()=>({line:h.get(),y:NUMOK(i.value)}),fill:()=>{h.fill();i.value=inst.qy},ready:()=>h.ready()&&i.value.trim()!==''}},
+  check(inst,a){if(a.line!==inst.best)return '這條線離很多點太遠，或點都在同一邊。找點平均分在兩邊的那條。';if(a.y==null)return '預測的分鐘數要填整數。';if(Math.abs(a.y-inst.qy)>1)return '線選對了！預測再看一次：從橫軸 '+inst.qx+' 人往上碰到線，再往左看。';return true}},
+ {lv:2,name:'感知器要不要開攤',
+  now:'園遊會當天，攤位要不要開「AI 猜拳」？小禾用一個「感知器」來決定：每個條件有一個分數（權重），加起來達到門檻就開。',
+  goal:'算一算每一種情況的總分，判斷開還是不開。',
+  tip:'條件成立（是）就加上它的權重，不成立就不加。總分 ≥ 門檻 → 開；小於門檻 → 不開。',
+  learn:'感知器是最簡單的「神經元」：每個輸入乘上權重、加起來，超過門檻就輸出 1。AI 學習時，就是一直調整這些權重和門檻，讓答案越來越準。',
+  gen(rnd){const names=['天氣晴朗','排隊的人很多','平板有電','班上有人顧攤'];let w,th,rows;
+    for(let t=0;;t++){w=names.map(()=>RINT(rnd,1,5));th=RINT(rnd,4,Math.max(4,w.reduce((a,b)=>a+b,0)-1));
+      rows=Array.from({length:4},()=>names.map(()=>RINT(rnd,0,1)));
+      if(new Set(rows.map(r=>r.reduce((s,v,i)=>s+v*w[i],0)>=th)).size===2&&new Set(rows.map(r=>r.join())).size===4)break}
+    return {names,w,th,rows,ans:rows.map(r=>r.reduce((s,v,i)=>s+v*w[i],0)>=th?1:0)}},
+  view(inst,el,api){el.innerHTML='<div class="perc">'+inst.names.map((n,i)=>n+'：權重 <b>'+inst.w[i]+'</b>').join('　｜　')+'<br>門檻：總分 ≥ <b>'+inst.th+'</b> 就開攤</div>';
+    const c=CLASSIFY(el,inst.rows.map(r=>({html:inst.names.map((n,i)=>(r[i]?'✔ ':'✘ ')+n).join('　')})),['不開','開'],api);return {...c,fill:()=>c.fill(inst.ans)}},
+  check(inst,a){const w=inst.ans.map((v,i)=>a[i]===v?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 種情況再算一次：打勾的權重加起來，和門檻比。':true}}
+];
+const APP=SHELL({week:21,termWeek:8,title:'跟誰最像',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：讓資料自己分組，這次連答案都沒有。'});
+</script>
+</body>
+</html>

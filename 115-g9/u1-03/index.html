@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>為了演唱會換手機｜第 5 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
+.tblwrap{overflow-x:auto;max-width:100%}
+.row .q small{color:var(--muted)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// TITLE:為了演唱會換手機
+// TERMWEEK:5
+// 第 1 單元第 3 站：電腦硬體的發展（真空管 → 電晶體 → 積體電路 → 超大型積體電路）、晶片供應鏈與台灣、摩爾定律。故事：小安想換一支拍得清楚的手機去看演唱會
+const EV=[
+ [1946,'ENIAC 完成：占滿一整個房間，用了一萬七千多支真空管'],
+ [1947,'電晶體發明：比真空管小、省電，又不容易燒壞'],
+ [1958,'積體電路誕生：好幾個零件第一次做在同一片晶片上'],
+ [1971,'第一顆微處理器：整個 CPU 縮進一片指甲大的晶片'],
+ [1981,'個人電腦開始走進辦公室和家庭'],
+ [1987,'台灣成立全世界第一家專門幫別人製造晶片的公司'],
+ [2007,'觸控螢幕智慧型手機上市，手機變成口袋裡的電腦'],
+ [2017,'手機晶片多了專門算 AI 的 NPU']];
+const GEN=['真空管','電晶體','積體電路','超大型積體電路'];
+const GD=[
+ ['零件像小燈泡，會發燙，常常燒壞要換',0],
+ ['一台電腦占滿整個房間，耗電量驚人',0],
+ ['ENIAC 用的主要零件',0],
+ ['半導體做的小開關，一個就能取代一支燈泡',1],
+ ['比上一代省電、不容易壞，電腦縮小到幾個衣櫃大',1],
+ ['把好幾個電晶體和線路做在同一片矽晶片上',2],
+ ['電腦縮小到冰箱大，更多公司買得起',2],
+ ['一片晶片裝下幾百萬到幾百億個電晶體',3],
+ ['整顆 CPU 做在一片晶片上，個人電腦和手機才出現',3],
+ ['手機裡一片晶片就有 CPU、GPU 和 NPU',3]];
+// 晶片的旅程：每一站有幾個可能的地點
+const PLACE={design:['美國加州','台灣新竹'],fab:['台灣新竹','台灣台南','台灣台中','美國亞利桑那'],pack:['台灣高雄','台灣台中','馬來西亞檳城'],asm:['印度','越南','中國']};
+const REG=p=>p.startsWith('台灣')?'台灣':p.startsWith('美國')?'美國':p.startsWith('馬來西亞')?'馬來西亞':p;
+const XY={'美國':[700,96],'台灣':[372,150],'馬來西亞':[250,236],'印度':[88,166],'越南':[262,150],'中國':[300,84]};
+const CR=(items,a,h)=>Array.isArray(a)?CHECKROWS(items,a,h):'每一項都要選好。';
+const ROUNDS=[
+ {lv:1,name:'倒帶時間軸',
+  now:'新手機發表會上，主持人說：「這支手機比 1946 年那台占滿整個房間的電腦還強幾百萬倍。」小安想知道中間發生了什麼事。',
+  goal:'把這些事件由早到晚排好。',
+  tip:'先找最大、最耗電的那一個；零件越做越小，電腦就越來越小。',
+  learn:'電腦硬體一路從真空管、電晶體、積體電路走到超大型積體電路。零件越小，電腦就越小、越快、越便宜，最後整台電腦放進口袋。',
+  gen(rnd){const p=SAMPLE(rnd,EV,5);return {items:p,sol:p.map((_,i)=>i).sort((a,b)=>p[a][0]-p[b][0])}},
+  view(inst,el,api){const ob=ORDERBOX(el,inst.items.map(x=>x[1]),api,{pool:'事件卡',slots:'時間軸',first:'最早',last:'最近'});return {...ob,fill:()=>ob.fill(inst.sol)}},
+  check(inst,a){if(!Array.isArray(a)||a.some(v=>v==null||!inst.items[v]))return '每一格都要放一張事件卡。';const y=a.map(v=>inst.items[v][0]);const w=y.findIndex((v,i)=>i&&v<y[i-1]);return w<0?true:'第 '+w+' 格和第 '+(w+1)+' 格的順序反了，哪一個比較早？'}},
+ {lv:1,name:'它是哪一代',
+  now:'小安在科技館看到一面「電腦的四個世代」展示牆，說明牌被風吹亂了。',
+  goal:'把每一張說明牌放回它屬於的世代。',
+  tip:'真空管像燈泡；電晶體是單獨一顆的小開關；積體電路把幾個零件做在同一片；超大型積體電路一片就裝下整顆 CPU 甚至更多。',
+  learn:'每一代都是同一件事：把開關做得更小、放得更多。今天手機晶片裡的電晶體，小到要用奈米來量。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,GD,6)}while(new Set(p.map(x=>x[1])).size<4);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),GEN,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'放錯世代了。想想那時候的零件長什麼樣子、電腦有多大。')}},
+ {lv:2,name:'晶片環遊世界',
+  now:'小安的新手機裡那顆晶片，在送到他手上之前，已經繞了大半個地球。',
+  goal:'照晶片真正經過的順序，排出它的旅程。',
+  tip:'先要有設計圖，才能做出晶片；晶片要先包好、測試過，才能裝進手機。',
+  learn:'一顆晶片要經過設計、晶圓製造、封裝測試、組裝，才到你手上，每一站常在不同國家。台灣在晶圓製造和封裝測試都是全世界最重要的地方之一，所以全世界的手機、電腦和 AI 伺服器都需要台灣的晶片。',
+  gen(rnd){const d=PICK(rnd,PLACE.design),f=PICK(rnd,PLACE.fab),p=PICK(rnd,PLACE.pack),a=PICK(rnd,PLACE.asm);
+    const steps=[[d,d+'的工程師，用電腦畫出晶片的電路設計圖'],[f,f+'的晶圓廠，把電路一層一層做在矽晶圓上'],[p,p+'的工廠，把晶圓切成一顆顆晶片，包上外殼、測試好不好'],[a,a+'的工廠，把晶片和螢幕、電池一起裝進手機'],['台灣','手機運到台灣的門市，小安拿到新手機']];
+    const order=SHUF(rnd,[0,1,2,3,4]);return {cards:order.map(i=>steps[i]),sol:[0,1,2,3,4].map(i=>order.indexOf(i))}},
+  view(inst,el,api){const ob=ORDERBOX(el,inst.cards.map(x=>x[1]),api,{pool:'旅程卡',slots:'晶片的旅程',first:'第一站',last:'最後一站'});return {...ob,fill:()=>ob.fill(inst.sol)}},
+  check(inst,a){if(!Array.isArray(a)||a.some(v=>v==null||!inst.cards[v]))return '每一站都要放一張旅程卡。';const w=a.findIndex((v,i)=>v!==inst.sol[i]);return w<0?true:'從第 '+(w+1)+' 站開始順序不對。這一步需要上一步先做好什麼？'},
+  peek(inst,a){const pts=(a||[]).filter(v=>v!=null&&inst.cards[v]).map(v=>REG(inst.cards[v][0]));if(!pts.length)return '';
+    let s='<svg viewBox="0 0 800 280" style="width:100%;height:auto;display:block" role="img" aria-label="晶片旅程地圖"><text x="540" y="200" font-size="22" fill="var(--muted)">太平洋</text>';
+    for(let i=1;i<pts.length;i++){const [x1,y1]=XY[pts[i-1]],[x2,y2]=XY[pts[i]];if(pts[i]===pts[i-1])continue;const mx=(x1+x2)/2,my=Math.min(y1,y2)-40;s+='<path d="M'+x1+' '+y1+' Q'+mx+' '+my+' '+x2+' '+y2+'" fill="none" stroke="var(--b)" stroke-width="3" stroke-dasharray="6 5"/>'}
+    for(const k in XY){const [x,y]=XY[k],on=pts.includes(k);s+='<circle cx="'+x+'" cy="'+y+'" r="'+(on?9:5)+'" fill="'+(on?'var(--b)':'var(--line)')+'"/><text x="'+x+'" y="'+(y+30)+'" text-anchor="middle" font-size="18" fill="'+(on?'var(--ink)':'var(--muted)')+'">'+k+'</text>'}
+    pts.forEach((k,i)=>{const [x,y]=XY[k],dup=pts.slice(0,i).filter(q=>q===k).length;s+='<text x="'+(x+14+dup*18)+'" y="'+(y-12)+'" font-size="18" font-weight="700" fill="var(--b)">'+(i+1)+'</text>'});
+    return '<section class="panel"><div class="ptitle"><h3>照你排的順序，晶片這樣跑</h3><span class="tag">'+pts.join(' → ')+'</span></div>'+s+'</svg></section>'}},
+ {lv:2,name:'每兩年翻一倍',
+  now:e=>'發表會說：晶片裡的電晶體數量，大約每兩年就增加一倍。'+e.y1+' 年的一顆晶片有 '+e.n+' 億個電晶體。',
+  goal:e=>e.q==='x'?'照「每兩年翻一倍」算，到 '+e.y2+' 年，電晶體數量會變成 '+e.y1+' 年的幾倍？':'照「每兩年翻一倍」算，到 '+e.y2+' 年，一顆晶片大約會有幾億個電晶體？',
+  tip:'先算經過幾個「兩年」，就乘幾次 2。',
+  learn:'「每兩年翻一倍」叫作摩爾定律。翻倍看起來不多，連續翻幾十年就是幾百萬倍，這就是手機一年比一年強的原因。現在電晶體已經小到接近原子的大小，翻倍越來越難，所以工程師改用把晶片疊起來、包在一起的先進封裝繼續變強。',
+  gen(rnd){const y1=2*RINT(rnd,995,1006),k=RINT(rnd,2,7),n=PICK(rnd,[1,2,3,5]),q=rnd()<0.5?'x':'n';return {y1,y2:y1+2*k,n,q,ans:q==='x'?2**k:n*2**k}},
+  view(inst,el,api){el.innerHTML='<label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:18px">'+(inst.q==='x'?'變成':'大約')+' <input class="num-in" id="ans" inputmode="numeric" autocomplete="off"> '+(inst.q==='x'?'倍':'億個')+'</label>';
+    const i=el.querySelector('#ans');i.oninput=()=>api.changed();return {get:()=>NUMOK(i.value),fill:()=>{i.value=inst.ans},ready:()=>i.value.trim()!==''}},
+  check(inst,v){if(v==null)return '填一個整數。';if(v===inst.ans)return true;const k=(inst.y2-inst.y1)/2;if(inst.q==='n'&&v===2**k)return '這是變成幾倍，題目問的是幾億個：再乘上原本的 '+inst.n+' 億。';if(v===2*k||v===inst.n*2*k)return '翻倍是乘以 2，不是加 2：'+k+' 個兩年，要乘 '+k+' 次 2。';return '從 '+inst.y1+' 年到 '+inst.y2+' 年，經過幾個「兩年」？每經過一個就乘以 2。'}}
+];
+const APP=SHELL({week:28,termWeek:5,title:'為了演唱會換手機',course:'115-g9',unit:1,rounds:ROUNDS,finale:'全部完成！下一站：演唱會倒數直播，那些設備怎麼分工？'});
+</script>
+</body>
+</html>

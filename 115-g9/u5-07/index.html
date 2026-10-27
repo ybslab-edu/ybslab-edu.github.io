@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>讓資料自己分組｜第 10 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.line1d{max-width:640px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+.line1d svg{width:100%;height:auto;display:block}
+.line1d text{fill:var(--muted);font:12px var(--f-body)}
+.ctr{font-size:17px;display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
+.ctr b{font-family:var(--f-mono)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// TITLE:讓資料自己分組
+// TERMWEEK:10
+// 第 5 單元第 7 站：非監督式學習、K 平均分群（一維）。故事：林老師要依「每天讀書分鐘數」把全班自動分成兩組讀書會
+const SUP=[
+ ['用標好「貓」「狗」的照片，訓練 AI 認貓狗',0],['用阿哲分好類的回收物，訓練回收分類機',0],['用標好「詐騙」「正常」的訊息，訓練詐騙過濾器',0],['用過去的坪數和成交價，訓練 AI 預測房價',0],['用標好「石頭、剪刀、布」的手勢照片，訓練猜拳 AI',0],
+ ['把顧客依購買習慣，自動分成幾群',1],['把一堆沒有分類的新聞，自動分成幾種主題',1],['把全班的讀書時間，自動分成兩組',1],['從一大堆刷卡紀錄裡，找出和大家都不一樣的異常紀錄',1],['把園遊會來客的位置自動分群，看哪裡人最多',1]];
+const NAMES=['小安','小禾','阿哲','小晴','阿凱','小美','阿翔','小恩','阿宏','小芸','阿德','小琪'];
+const lineSVG=(vals,cs=[])=>{const W=600,H=70,px=v=>20+v/150*(W-40);let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="數線"><line x1="20" y1="40" x2="'+(W-20)+'" y2="40" stroke="#999"/>';
+  for(let t=0;t<=150;t+=30)s+='<line x1="'+px(t)+'" y1="36" x2="'+px(t)+'" y2="44" stroke="#999"/><text x="'+px(t)+'" y="60" text-anchor="middle">'+t+'</text>';
+  vals.forEach(v=>s+='<circle cx="'+px(v)+'" cy="40" r="6" fill="#5D6670"/>');cs.forEach((c,i)=>s+='<text x="'+px(c)+'" y="26" text-anchor="middle" style="font-size:18px;font-weight:700;fill:'+(i?'#BD6216':'#2C67AE')+'">'+(i?'B':'A')+'</text>');
+  return '<div class="line1d">'+s+'</svg></div>'};
+const nearest=(v,c)=>Math.abs(v-c[0])<=Math.abs(v-c[1])?0:1;
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+function kmeans(vals,c){let it=0;for(;;){const g=vals.map(v=>nearest(v,c)),n=[mean(vals.filter((_,i)=>g[i]===0)),mean(vals.filter((_,i)=>g[i]===1))];it++;if(n[0]===c[0]&&n[1]===c[1])return {c:n,it};c=n;if(it>20)return null}}
+const ROUNDS=[
+ {lv:1,name:'有沒有標準答案',
+  now:'林老師想把全班分成兩組讀書會，可是她不想自己訂標準，想讓資料自己分組。這種 AI 跟上次的回收分類機不一樣。',
+  goal:'判斷每一件事，是監督式學習（有標準答案的例子），還是非監督式學習（沒有答案，讓 AI 自己分組）。',
+  tip:'監督式：訓練資料已經標好答案。非監督式：資料沒有答案，AI 自己找出「誰跟誰比較像」。',
+  learn:'監督式學習要有標好答案的例子（像分類機）；非監督式學習沒有答案，讓電腦自己把相像的資料分成一群（分群），常用來發現原本沒想到的分組。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,SUP,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['監督式','非監督式'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：訓練資料有沒有先標好答案？')},
+ {lv:1,name:'靠近哪一個中心',
+  now:'K 平均分群的第一步：先隨便放兩個「中心」A 和 B，每個人加入離自己比較近的那一個中心。',
+  goal:'每位同學每天讀書的分鐘數，離 A 近就分到 A 組，離 B 近就分到 B 組。',
+  tip:'算距離：讀書分鐘數和中心相差多少？差得少的那一組就是答案。',
+  learn:'K 平均分群的「指派」：每一筆資料都去找最近的中心。K 是要分成幾群，這裡 K＝2。',
+  gen(rnd){for(;;){const c=[RINT(rnd,2,6)*10,RINT(rnd,9,13)*10],names=SAMPLE(rnd,NAMES,8),vals=names.map(()=>RINT(rnd,1,29)*5);if(vals.some(v=>Math.abs(v-c[0])===Math.abs(v-c[1])))continue;const g=vals.map(v=>nearest(v,c));if(new Set(g).size<2)continue;return {c,names,vals,g}}},
+  view(inst,el,api){el.innerHTML=lineSVG(inst.vals,inst.c)+'<div class="ctr"><span>中心 A：<b>'+inst.c[0]+'</b> 分鐘</span><span>中心 B：<b>'+inst.c[1]+'</b> 分鐘</span></div>';
+    const c=CLASSIFY(el,inst.names.map((n,i)=>({html:n+'：<b>'+inst.vals[i]+'</b> 分鐘'})),['A 組','B 組'],api);return {...c,fill:()=>c.fill(inst.g)}},
+  check(inst,a){const w=inst.g.map((v,i)=>a[i]===v?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 位分錯了：算一算離 A、離 B 各差幾分鐘。':true}},
+ {lv:2,name:'把中心搬到中間',
+  now:'K 平均分群的第二步：每一組分好之後，把中心搬到這一組的「平均」位置。',
+  goal:'算出 A 組和 B 組新的中心（這一組所有人的平均分鐘數）。',
+  tip:'平均＝這一組的分鐘數加起來 ÷ 人數。',
+  learn:'K 平均分群會一直重複兩件事：①每個人找最近的中心，②中心搬到組員的平均位置。重複到中心不再移動，就分好了。',
+  gen(rnd){for(;;){const names=SAMPLE(rnd,NAMES,8),g=SHUF(rnd,[0,0,0,0,1,1,1,1]),vals=g.map(k=>k?RINT(rnd,16,29)*5:RINT(rnd,2,14)*5);const m=[mean(vals.filter((_,i)=>g[i]===0)),mean(vals.filter((_,i)=>g[i]===1))];if(m.every(Number.isInteger))return {names,g,vals,m}}},
+  view(inst,el,api){el.innerHTML=lineSVG(inst.vals);const c=CLASSIFY(el,inst.names.map((n,i)=>({html:n+'：<b>'+inst.vals[i]+'</b> 分鐘'})),['A 組','B 組'],api);c.fill(inst.g);el.querySelectorAll('.pk').forEach(b=>b.disabled=true);
+    el.insertAdjacentHTML('beforeend','<div class="ctr" style="margin-top:12px"><label>新的中心 A：<input class="num-in" data-k="0" inputmode="numeric" autocomplete="off"> 分鐘</label><label>新的中心 B：<input class="num-in" data-k="1" inputmode="numeric" autocomplete="off"> 分鐘</label></div>');
+    const I=[...el.querySelectorAll('input[data-k]')];I.forEach(i=>i.oninput=()=>api.changed());
+    return {get:()=>I.map(i=>NUMOK(i.value,{dec:true})),fill:()=>I.forEach((i,k)=>i.value=inst.m[k]),ready:()=>I.every(i=>i.value.trim()!=='')}},
+  check(inst,a){const w=[0,1].filter(k=>a[k]!==inst.m[k]);return w.length?w.map(k=>'ABC'[k]).join('、')+' 組的平均再算一次：加起來 ÷ 人數。':true}},
+ {lv:2,name:'跑到不動為止',
+  now:'林老師給了起始的兩個中心，請你一直重複「指派 → 搬中心」，直到中心不再移動。',
+  goal:'最後兩組的中心分別是幾分鐘？',
+  tip:'每一輪：先把每個人分到最近的中心，再算兩組的平均當新中心。新中心和上一輪一樣，就停。',
+  learn:'K 平均分群一定會停下來，但起點不同，結果可能不一樣；所以實際使用時，常常換幾個起點多跑幾次，挑分得最好的。',
+  gen(rnd){for(;;){const names=SAMPLE(rnd,NAMES,8),vals=names.map(()=>RINT(rnd,2,29)*5),c=[RINT(rnd,1,6)*10,RINT(rnd,7,14)*10];
+    if(vals.some(v=>Math.abs(v-c[0])===Math.abs(v-c[1])))continue;const r=kmeans(vals,[...c]);if(!r||r.it<3||!r.c.every(Number.isInteger)||r.c[0]===r.c[1])continue;
+    let ok=true,cc=[...c];for(let k=0;k<r.it;k++){if(vals.some(v=>Math.abs(v-cc[0])===Math.abs(v-cc[1]))){ok=false;break}const g=vals.map(v=>nearest(v,cc));if(new Set(g).size<2){ok=false;break}cc=[mean(vals.filter((_,i)=>g[i]===0)),mean(vals.filter((_,i)=>g[i]===1))]}
+    if(ok)return {names,vals,c,fin:r.c}}},
+  view(inst,el,api){el.innerHTML=lineSVG(inst.vals,inst.c)+'<div class="ctr"><span>起始中心 A：<b>'+inst.c[0]+'</b></span><span>起始中心 B：<b>'+inst.c[1]+'</b></span></div><p>'+inst.names.map((n,i)=>n+' <b>'+inst.vals[i]+'</b>').join('、')+'（分鐘）</p>'+
+    '<div class="ctr"><label>最後的中心 A：<input class="num-in" data-k="0" inputmode="decimal" autocomplete="off"></label><label>最後的中心 B：<input class="num-in" data-k="1" inputmode="decimal" autocomplete="off"></label></div>';
+    const I=[...el.querySelectorAll('input[data-k]')];I.forEach(i=>i.oninput=()=>api.changed());
+    return {get:()=>I.map(i=>NUMOK(i.value,{dec:true})),fill:()=>I.forEach((i,k)=>i.value=inst.fin[k]),ready:()=>I.every(i=>i.value.trim()!=='')}},
+  check(inst,a){if(a.some(v=>v==null))return '填數字。';if(a[0]===inst.fin[0]&&a[1]===inst.fin[1])return true;return '還沒跑到不動，或某一輪的平均算錯了。每一輪都要重新指派，再算平均。'}}
+];
+const APP=SHELL({week:22,termWeek:10,title:'讓資料自己分組',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：園遊會攤位放哪裡，分群搬到平面上。'});
+</script>
+</body>
+</html>

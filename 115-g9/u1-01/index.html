@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>開賣倒數十秒｜第 3 週</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=2">
+<style>
+.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
+.tblwrap{overflow-x:auto;max-width:100%}
+.row .q small{color:var(--muted)}
+</style>
+</head>
+<body>
+<script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261027"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
+<script src="../../assets/curriculum.js?v=20261015c"></script>
+<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=12"></script>
+<script>
+// TITLE:開賣倒數十秒
+// TERMWEEK:3
+// 第 1 單元第 1 站：系統平台的類別、硬體／作業系統／應用程式三層、新興系統平台。故事：小安搶六連星第一場演唱會的門票
+const PF=['個人電腦','行動裝置','伺服器（雲端）','嵌入式系統'];
+const DEV=[
+ ['家裡的桌上型電腦','放在書桌上，接螢幕、鍵盤、滑鼠',0],
+ ['哥哥的筆記型電腦','可以帶著走，打開放在桌上用',0],
+ ['學校電腦教室的電腦','一人一台，上課時用',0],
+ ['小安的手機','隨身帶、用電池，可以自己裝 App',1],
+ ['媽媽的平板','隨身帶、用電池，可以自己裝 App',1],
+ ['售票網站的主機','放在機房，同時回應幾十萬人搶票',2],
+ ['直播平台的主機','放在資料中心，把影片傳給全世界的人',2],
+ ['雲端相簿的主機','放在資料中心，幫很多人保存照片',2],
+ ['捷運進站閘門','刷卡就開門，一輩子只做這件事',3],
+ ['家裡的微波爐','按鈕設定時間，只會加熱',3],
+ ['電梯的樓層按鈕面板','按幾樓就去幾樓',3],
+ ['便利商店的自動門','有人走近就打開',3]];
+const LAY=['硬體','作業系統','應用程式'];
+const KIT={
+ '小安的手機':{hw:['觸控螢幕','電池','處理器晶片','相機鏡頭'],os:['Android','iOS'],app:['售票 App','LINE','相機 App','音樂 App']},
+ '哥哥的筆電':{hw:['鍵盤','觸控板','處理器晶片','螢幕'],os:['Windows','macOS'],app:['瀏覽器','文書處理軟體','簡報軟體','修圖軟體']},
+ '小安的智慧手錶':{hw:['心跳感測器','小螢幕','震動馬達','電池'],os:['Wear OS','watchOS'],app:['鬧鐘','運動紀錄','訊息通知','計時器']}};
+const NEW=['穿戴裝置','智慧家庭','無人載具','虛擬實境'];
+const NEWDEV=[
+ ['智慧手錶','戴在手腕上，時間到就震動叫小安起床搶票',0],
+ ['智慧戒指','戴在手指上，記錄睡了多久',0],
+ ['運動手環','戴在手上，算今天走了幾步',0],
+ ['掃地機器人','人在外面，用手機 App 叫家裡的它開始打掃',1],
+ ['智慧插座','人在外面，用手機關掉家裡忘了關的電風扇',1],
+ ['智慧門鈴','有人按門鈴，人在外面的手機也馬上看到畫面',1],
+ ['空拍機','沒有人坐在上面，飛到天上拍演唱會場外的排隊人龍',2],
+ ['自動駕駛計程車','沒有司機，自己開到目的地',2],
+ ['送貨機器人','沒有人推，自己沿著人行道走到你家門口',2],
+ ['VR 頭戴裝置','戴上之後，眼前像坐在演唱會第一排',3],
+ ['VR 參觀博物館','戴上之後，眼前出現一座遠在國外的博物館',3]];
+const SYM=[
+ ['手機摔到地上，螢幕裂開，摸了沒反應',0],
+ ['電池用了三年，充飽只撐半天',0],
+ ['相機鏡頭刮傷，拍什麼都霧霧的',0],
+ ['系統更新到一半失敗，手機開機進不了主畫面',1],
+ ['系統語言被改成英文，每一個 App 的選單都變英文',1],
+ ['系統更新後，每一個 App 的字都變得特別大',1],
+ ['只有售票 App 一打開就閃退，其他 App 都正常',2],
+ ['LINE 的版本太舊，跳出「請更新 App」才能登入',2],
+ ['音樂 App 的播放清單不見了，其他 App 都沒事',2]];
+const card=(a,b)=>'<b>'+a+'</b><br><small>'+b+'</small>';
+const allIn=(p,k,n)=>new Set(p.map(x=>x[k])).size===n;
+const CR=(items,a,h)=>Array.isArray(a)?CHECKROWS(items,a,h):'每一項都要選好。';
+const ROUNDS=[
+ {lv:1,name:'這是哪一種電腦',
+  now:'六連星第一場演唱會今晚 8 點開賣。小安從起床到搶票，碰到好多台「電腦」，它們長得一點都不像。',
+  goal:'把每一台電腦分到它的平台類別。',
+  tip:'問自己三件事：放在桌上用、還是隨身帶？是一個人用、還是在機房同時服務很多人？是什麼都能做，還是一輩子只做一件事？',
+  learn:'系統平台可以分成個人電腦、行動裝置、伺服器（雲端）和嵌入式系統。嵌入式系統藏在電器和機器裡，只做一件事，數量其實是最多的。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,DEV,6)}while(!allIn(p,2,4));return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:card(x[0],x[1])})),PF,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[2]))}},
+  check(inst,a){return CR(inst.items.map(x=>[x,x[2]]),a,'分錯了。想想它是放在桌上、隨身帶、在機房，還是藏在機器裡？')}},
+ {lv:1,name:'拆成三層',
+  now:e=>'搶票前，小安把「'+e.dev+'」拆開來看：有摸得到的零件，也有看不到的軟體。',
+  goal:'把每一張卡片放進它屬於的那一層。',
+  tip:'摸得到的是硬體；開機後第一個跑起來、管理整台機器的是作業系統；你自己點開來用的是應用程式。',
+  learn:'每一台電腦都分三層：最下面是硬體，中間是作業系統，最上面是應用程式。應用程式不直接碰硬體，要透過作業系統幫忙。',
+  gen(rnd){const dev=PICK(rnd,Object.keys(KIT)),k=KIT[dev];const items=SHUF(rnd,[...SAMPLE(rnd,k.hw,2).map(t=>[t,0]),[PICK(rnd,k.os),1],...SAMPLE(rnd,k.app,2).map(t=>[t,2])]);return {dev,items}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b>'})),LAY,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'放錯層了。摸得到嗎？是管整台機器的，還是你點開來用的？')}},
+ {lv:2,name:'新的電腦平台',
+  now:'這幾年出現了很多新的電腦平台，它們不像電腦，裡面卻都有處理器和軟體。',
+  goal:'把每一個新裝置分到它屬於的新興平台。',
+  tip:'戴在身上的？放在家裡、用網路遠端控制的？沒有人駕駛、自己會移動的？戴上去眼前出現另一個世界的？',
+  learn:'穿戴裝置、智慧家庭、無人載具、虛擬實境都是新興系統平台。它們多半很小、隨時連網，而且一直在蒐集你的資料。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,NEWDEV,6)}while(!allIn(p,2,4));return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:card(x[0],x[1])})),NEW,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[2]))}},
+  check(inst,a){return CR(inst.items.map(x=>[x,x[2]]),a,'分錯了。它是戴在身上、放在家裡、自己會移動，還是讓你看到另一個世界？')}},
+ {lv:2,name:'哪一層出問題',
+  now:'搶票前一晚，班上同學的手機一個比一個怪。小安想幫大家找出是哪一層出了問題。',
+  goal:'判斷每一個狀況，是硬體、作業系統，還是應用程式出了問題。',
+  tip:'摸得到的零件壞了是硬體；每一個 App 一起受影響是作業系統；只有一個 App 有事是應用程式。',
+  learn:'分層的好處：哪一層壞了就修哪一層。零件壞了送修，系統壞了重灌或更新系統，只有一個 App 壞了就更新或重裝那個 App。',
+  gen(rnd){let p;do{p=SAMPLE(rnd,SYM,6)}while(!allIn(p,1,3));return {items:p}},
+  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),LAY,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
+  check(inst,a){return CR(inst.items,a,'判斷錯了。是零件壞了、所有 App 一起出事，還是只有一個 App 有事？')}}
+];
+const APP=SHELL({week:26,termWeek:3,title:'開賣倒數十秒',course:'115-g9',unit:1,rounds:ROUNDS,finale:'全部完成！下一站：加場開賣，搶票 App 怎麼被踢出來了？'});
+</script>
+</body>
+</html>

@@ -3,88 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>教 AI 認手勢｜第 12 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-.cm{border-collapse:collapse;font-size:17px;margin:6px 0}.cm th,.cm td{border:1px solid var(--line);padding:6px 12px;text-align:center}.cm th{background:var(--bg)}.cm td.d{background:var(--out-soft);font-weight:700}
-.ctr{font-size:17px;display:flex;gap:16px;flex-wrap:wrap;margin:8px 0;align-items:center}
-.tblwrap{overflow-x:auto}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u5-09/">
+<meta http-equiv="refresh" content="0; url=../u5-09/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u5-09/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-// TITLE:教 AI 認手勢
-// TERMWEEK:12
-// 第 5 單元第 9 站：影像資料收集、模型訓練與測試、混淆矩陣、改進模型。故事：猜拳 AI 要學會認石頭、剪刀、布
-const DATA=[
- ['石頭、剪刀、布各 300 張，有不同的人、光線、背景和角度',0],['每種手勢 300 張，全班 30 個人輪流拍，白天晚上都有',0],
- ['每種手勢只拍了 5 張',1],['只拍了 12 張，就急著按「訓練」',1],
- ['300 張全部在教室白牆前、同一個人的右手',2],['石頭拍了 500 張，布只有 20 張',2],['全部都是白天窗邊拍的，沒有暗一點的照片',2],
- ['有 40 張「布」被放進了「剪刀」的資料夾',3],['整理時手滑，把一批石頭的照片標成了布',3]];
-const DQ=['夠好了','數量太少','情況太單一或不平均','有照片標錯'];
-const SPLIT=[
- ['用訓練過的同一批照片來測試，準確率 100%，表示模型很棒',0],['訓練越久越好，就算測試的準確率開始往下掉也一樣',0],['測試準確率太低，就把測試照片也拿去訓練，再用同一批測試',0],['測試照片全部挑最清楚、最標準的手勢',0],
- ['留下 20% 模型沒看過的照片當測試資料',1],['測試照片也要有不同的人、光線和背景',1],['測試時發現「布」常認錯，就回去多收集「布」的照片',1],['正式上線前，請別班同學來試玩，看看會不會認錯',1]];
-const G=['石頭','剪刀','布'];
-const FIXQ=[
- ['光線暗的時候，「布」常被認成「剪刀」',0],['昏暗的走廊上，AI 幾乎都猜錯',0],
- ['換成小學生的小手，就認不太準',1],['戴手錶、戴手環的人一出拳就認錯',1],
- ['背景有人走過，AI 就亂猜',2],['在熱鬧的園遊會現場，認錯的次數變多',2],
- ['「剪刀」總是被認成「布」，原來有一批剪刀被標成布',3],['檢查資料夾，發現有好幾張石頭放在布的資料夾裡',3]];
-const FIX=['多收集光線暗的照片','多收集不同的人和手','多收集背景複雜的照片','檢查並修正標籤'];
-const ROUNDS=[
- {lv:1,name:'這批照片夠好嗎',
-  now:'猜拳 AI 要先學會認「石頭、剪刀、布」。全班分組拍照片當訓練資料，林老師一組一組檢查。',
-  goal:'每一組的照片，夠好嗎？如果不夠好，問題出在哪？',
-  tip:'好的訓練資料：數量夠多、各種情況都有（人、光線、背景、角度）、每一類差不多多、標籤正確。',
-  learn:'影像 AI 學到的，就是你給它看的照片。照片太少學不會；情況太單一，換個環境就認不出；標錯了，它就學錯。收集資料是做 AI 最花時間、也最重要的一步。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,DATA,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),DQ,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：照片夠不夠多？情況夠不夠多樣？有沒有標錯？')},
- {lv:1,name:'訓練和測試要分開',
-  now:'模型訓練好了。小禾說：「用剛剛的照片測一次，100% 都對耶！」林老師搖搖頭。',
-  goal:'判斷每一種做法對不對。',
-  tip:'就像考試：考卷題目如果早就給你看過，考 100 分也不代表你真的會。',
-  learn:'測試資料一定要是模型「沒看過」的，才知道它遇到新的手會不會認。也不能為了分數好看，偷偷把測試照片拿去訓練。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,SPLIT,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不對','對'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：測試的照片，模型是不是已經看過了？')},
- {lv:2,name:'讀懂混淆矩陣',
-  now:'用沒看過的照片測試後，電腦給了一張「混淆矩陣」：每一列是真正的手勢，每一欄是 AI 猜的手勢。',
-  goal:'算出準確率，再找出 AI 最常把哪一種認成哪一種。',
-  tip:'對角線（綠色）是猜對的。準確率＝對角線加起來 ÷ 全部 × 100%。不在對角線上、數字最大的格子，就是最常認錯的。',
-  learn:'混淆矩陣不只告訴你準不準，還告訴你「錯在哪裡」：知道 AI 常把布認成剪刀，就知道該多收集哪一種照片。',
-  gen(rnd){for(;;){const m=G.map((_,r)=>G.map((_,c)=>r===c?0:RINT(rnd,0,4)));const tot=PICK(rnd,[50,100]);let off=m.flat().reduce((a,b)=>a+b,0);const rest=tot-off;if(rest<30)continue;
-    const d=[Math.floor(rest/3),Math.floor(rest/3)];d.push(rest-d[0]-d[1]);d.forEach((v,i)=>m[i][i]=v);
-    const offs=[];m.forEach((row,r)=>row.forEach((v,c)=>{if(r!==c)offs.push([v,r,c])}));offs.sort((a,b)=>b[0]-a[0]);if(offs[0][0]===offs[1][0]||offs[0][0]===0)continue;
-    const pairs=offs.map(o=>[o[1],o[2]]);const opts=SHUF(rnd,SAMPLE(rnd,pairs.slice(1),3).concat([pairs[0]]));
-    return {m,tot,acc:Math.round((d[0]+d[1]+d[2])/tot*100),opts,ans:opts.findIndex(p=>p[0]===pairs[0][0]&&p[1]===pairs[0][1])}}},
-  view(inst,el,api){el.innerHTML='<div class="tblwrap"><table class="cm"><tr><th>真正 ＼ AI 猜</th>'+G.map(g=>'<th>'+g+'</th>').join('')+'</tr>'+inst.m.map((r,i)=>'<tr><th>'+G[i]+'</th>'+r.map((v,j)=>'<td'+(i===j?' class="d"':'')+'>'+v+'</td>').join('')+'</tr>').join('')+'</table></div><p class="small">一共測試了 '+inst.tot+' 張照片。</p>'+
-    '<label class="ctr">準確率 <input class="num-in" id="acc" inputmode="numeric" autocomplete="off"> %</label><p>AI 最常認錯的是：</p>';
-    const i=el.querySelector('#acc');i.oninput=()=>api.changed();const h=PICKONE(el,inst.opts.map(p=>'把'+G[p[0]]+'認成'+G[p[1]]),api,inst.ans);
-    return {get:()=>({acc:NUMOK(i.value),pair:h.get()}),fill:()=>{i.value=inst.acc;h.fill()},ready:()=>i.value.trim()!==''&&h.ready()}},
-  check(inst,a){if(a.acc!==inst.acc)return '準確率再算一次：綠色格子加起來，除以 '+inst.tot+'，再乘 100。';if(a.pair!==inst.ans)return '準確率對了！最常認錯的，是不在綠色對角線上、數字最大的那一格。';return true}},
- {lv:2,name:'怎麼改進',
-  now:'園遊會前試玩，大家發現 AI 在某些情況常常認錯。',
-  goal:'每一個問題，最該怎麼改進？',
-  tip:'先找出 AI 在「哪種情況」錯，再補那種情況的照片；如果是標籤錯了，再多照片也沒用，要先改標籤。',
-  learn:'改進模型的關鍵在資料：哪裡錯就補哪種資料，標籤錯就先修正，再重新訓練、重新測試。這個「收集 → 訓練 → 測試 → 改進」的循環會一直重複。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,FIXQ,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FIX,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：AI 是在什麼情況下錯的？缺的是哪一種照片，還是標籤本身錯了？')}
-];
-const APP=SHELL({week:24,termWeek:12,title:'教 AI 認手勢',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：猜拳贏 AI，把整個單元組成一個遊戲。'});
-</script>
+<p><a href="../u5-09/">這個活動已搬到新網址</a></p>
 </body>
 </html>

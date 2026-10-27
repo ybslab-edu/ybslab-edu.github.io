@@ -3,125 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>差一個字母的網站｜第 17 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-/* 第 17 週：封包、IP、網域名稱。封包卡上面是「標頭」，下面是內容 */
-.pkt{display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:left}
-.pkt .hd{font-family:var(--f-mono);font-size:12px;opacity:.75}
-.pkt .bd{font-size:18px}
-.url{font-family:var(--f-mono);font-size:16px;overflow-wrap:anywhere;word-break:break-all}
-.dns{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;font-size:15px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.dns>*{padding:6px 10px;border-bottom:1px solid var(--line);font-family:var(--f-mono);overflow-wrap:anywhere}
-.dns>:nth-child(even){white-space:nowrap}
-.dns .h{font-family:var(--f-body);font-weight:700;background:var(--bg)}
-.urlbar{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-family:var(--f-mono);font-size:17px;overflow-wrap:anywhere;word-break:break-all}
-.urlbar::before{content:"🔒";font-size:14px}
-.urlparts{font-family:var(--f-mono);font-size:17px;overflow-wrap:anywhere;word-break:break-all}
-.urlparts .host{background:#F2B705;color:#2a2000;border-radius:4px;padding:0 3px}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u4-02/">
+<meta http-equiv="refresh" content="0; url=../u4-02/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u4-02/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-// 「星票網 tixstar.com.tw」是虛構的購票網站，題目裡的網址都不能點
-const OFFICIAL='tixstar.com.tw';
-const hostOf=u=>u.replace(/^https?:\/\//,'').split(/[\/?#]/)[0];
-const markHost=u=>{const m=u.match(/^(https?:\/\/)?([^\/?#]+)(.*)$/);return (m[1]||'')+'<span class="host">'+m[2]+'</span>'+m[3]};
-
-const MSGS=['小澄，加場的票明晚八點開賣','記得先登入，八點準時按購票','票價有一千八和兩千八兩種','集合地點改在體育館東邊三號門','應援棒是紫色的，不要帶錯顏色','米米生日燈牌由台中的幹部保管','有人在群組貼購票網址，先別點'];
-function chop(rnd,s,n){const cuts=SAMPLE(rnd,[...Array(s.length-1).keys()].map(i=>i+1),n-1).sort((a,b)=>a-b);const out=[];let p=0;for(const c of [...cuts,s.length]){out.push(s.slice(p,c));p=c}return out}
-const IPS=['61.220.43.18','203.74.120.9','168.95.1.1','122.116.55.201','211.72.9.88'];
-function ORDER(el,labels,api,title){
-  const n=labels.length, slots=Array(n).fill(null);
-  el.innerHTML='<div class="two"><section class="panel"><div class="ptitle"><h3>收到的封包</h3><span class="small">點一下放進右邊下一格</span></div><div class="picks" id="o-pool"></div></section>'+
-    '<section class="panel"><div class="ptitle"><h3>'+title+'</h3><span class="small">點格子裡的封包拿回去</span></div><div class="slots" id="o-slots"></div></section></div>';
-  const draw=()=>{
-    el.querySelector('#o-pool').innerHTML=labels.map((l,i)=>slots.includes(i)?'':'<button type="button" class="pk" data-i="'+i+'">'+l+'</button>').join('')||'<p class="small">都排好了，按「送出」。</p>';
-    el.querySelector('#o-slots').innerHTML=slots.map((k,j)=>'<div class="slot"><span class="n">'+(j+1)+'</span>'+(k==null?'<span class="empty">　</span>':'<button type="button" class="pk" data-s="'+j+'">'+labels[k]+'</button>')+'</div>').join('');
-    el.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{slots[slots.indexOf(null)]=+b.dataset.i;draw();api.changed()});
-    el.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{slots[+b.dataset.s]=null;draw();api.changed()});
-  };
-  draw();
-  return {get:()=>[...slots],fill:a=>{a.forEach((v,i)=>slots[i]=v);draw()},ready:()=>slots.every(v=>v!=null)};
-}
-const pktHTML=(p,src,dst,n)=>'<span class="pkt"><span class="hd">第 '+p.seq+'/'+n+' 號｜'+src+' → '+dst+'</span><span class="bd">'+p.text+'</span></span>';
-function pickOne(el,labels,api,ans,mono){
-  el.insertAdjacentHTML('beforeend','<div class="picks" style="margin-top:10px">'+labels.map((o,j)=>'<button type="button" class="pk" data-o="'+j+'" aria-pressed="false"'+(mono?' style="font-family:var(--f-mono)"':'')+'>'+o+'</button>').join('')+'</div>');
-  let v=null;const sync=()=>el.querySelectorAll('[data-o]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===v));
-  el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{v=+b.dataset.o;sync();api.changed()});
-  return {get:()=>v,fill:()=>{v=ans;sync()},ready:()=>v!=null};
-}
-
-// 網址：官方（主機名稱的結尾是 tixstar.com.tw）或冒充
-const PATHS=['/event/1231','/login','/ticket?id=88','/zh-tw/news','/member/order','/event/1231/seat'];
-const REAL=['tixstar.com.tw','www.tixstar.com.tw','m.tixstar.com.tw','event.tixstar.com.tw','www.tixstar.com.tw'];
-const FAKE=[['tixstar.com.tw.paygo.cc','真正的網域是最後面的 paygo.cc，前面的 tixstar.com.tw 只是裝飾'],['tixstars.com.tw','多了一個 s'],['tlxstar.com.tw','把 i 換成很像的 l'],['tixstar.co','少了 .tw，是不同的網域'],['tixstar-com.tw','點換成了 -，變成另一個網域'],['tix-star.com.tw','多了一個 -'],['tixstar.com.tw-login.net','真正的網域是 tw-login.net（「tw-login」是一整段，連字號不是點）'],['login-tixstar.com','結尾是 .com，不是 .com.tw'],['www.tixstar.com.tw.verify.cc','真正的網域是 verify.cc'],['tixstarr.com.tw','多了一個 r'],['paygo.cc/tixstar.com.tw','斜線後面是路徑，主機其實是 paygo.cc']];
-const mkUrl=(rnd,host)=>'https://'+host+(host.includes('/')?'/login':PICK(rnd,PATHS));
-
-const ROUNDS=[
- {lv:1,name:'把封包組回來',
-  now:'小安傳一則訊息到馬祖給小澄。訊息被拆成好幾個封包，各走各的路，到的順序全亂了。',
-  goal:'照封包上的編號，把訊息組回原來的樣子。',
-  tip:'看每個封包上面那一行（標頭）的編號，不用看內容猜。',
-  learn:'訊息會被拆成一個個「封包」，每包貼上編號、寄件和收件的 IP 位址，各自找路走。到了以後，電腦照編號組回去。這套約定就是 TCP/IP：IP 負責送到對的地址，TCP 負責編號、組回去、確認沒漏掉。',
-  gen(rnd){const s=PICK(rnd,MSGS),n=RINT(rnd,5,7),parts=chop(rnd,s,n),[src,dst]=SAMPLE(rnd,IPS,2);let order;do{order=SHUF(rnd,[...Array(n).keys()])}while(order.every((v,i)=>v===i));return {s,n,src,dst,cards:order.map(k=>({seq:k+1,text:parts[k]}))}},
-  view(inst,el,api){const h=ORDER(el,inst.cards.map(p=>pktHTML(p,inst.src,inst.dst,inst.n)),api,'組回來的訊息');const sol=inst.cards.map((p,i)=>i).sort((a,b)=>inst.cards[a].seq-inst.cards[b].seq);return {...h,fill:()=>h.fill(sol)}},
-  check(inst,a){if(a.some(k=>!inst.cards[k]))return '還有空格沒放封包。';for(let i=0;i<a.length;i++){if(inst.cards[a[i]].seq!==i+1)return '第 '+(i+1)+' 格放的是第 '+inst.cards[a[i]].seq+' 號封包，不是第 '+(i+1)+' 號。'}return true},
-  peek(inst,a){const t=a.map(k=>k==null?'□':inst.cards[k].text).join('');return '<section class="panel"><div class="ptitle"><h3>組起來的訊息</h3></div><p style="font-size:20px">'+t+'</p></section>'}},
-
- {lv:1,name:'網址的真名',
-  now:'六連星宣布加場！群組裡一下子貼了好多購票網址。官方購票網站是 tixstar.com.tw。',
-  goal:'判斷每一個網址，是不是真的官方網站。',
-  tip:'先去掉開頭的 https://，再看第一個「/」前面那一段（主機名稱），從右邊讀回來：結尾一定要剛好是「.tixstar.com.tw」或就是「tixstar.com.tw」。',
-  learn:'去掉 https:// 之後，第一個「/」前面那段是主機名稱，從右往左讀：tw 是台灣、com 是公司、tixstar 才是網站自己的名字。冒充的網站會多一個字母、換一個很像的字，或把官方名字放在前面當裝飾。網址列的鎖頭（HTTPS）只代表傳輸有加密，不代表對方就是官方。',
-  gen(rnd){let it;do{it=[];for(let k=0;k<5;k++){if(rnd()<.45)it.push({u:mkUrl(rnd,PICK(rnd,REAL)),ok:0});else{const f=PICK(rnd,FAKE);it.push({u:mkUrl(rnd,f[0]),ok:1,why:f[1]})}}}while(new Set(it.map(x=>x.ok)).size<2||new Set(it.map(x=>x.u)).size<5);return {items:it}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<span class="url">'+x.u+'</span>'})),['官方','冒充'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x.ok))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x.ok?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 個再看一次：只看第一個「/」前面那段，從右邊讀。':true},
-  peek(inst){return '<section class="panel"><div class="ptitle"><h3>主機名稱標出來</h3></div>'+inst.items.map(x=>'<p class="urlparts">'+markHost(x.u)+'</p>').join('')+'</section>'}},
-
- {lv:2,name:'少了哪一包',
-  now:'小澄那邊的網路還不太穩，有一個封包在路上掉了，還有一個封包重複寄到兩次。',
-  goal:'找出掉了的是第幾號，請對方重送。',
-  tip:'標頭寫了「第幾號／一共幾號」。把收到的編號一個一個點名，重複的只算一次。',
-  learn:'TCP 會檢查每一個編號：掉了就請對方重送，重複的就丟掉一份。所以就算網路不穩，收到的訊息也不會少字或多字。',
-  gen(rnd){const s=PICK(rnd,MSGS),n=RINT(rnd,6,8),parts=chop(rnd,s,n),[src,dst]=SAMPLE(rnd,IPS,2),lost=RINT(rnd,1,n);
-    const keep=[...Array(n).keys()].map(k=>k+1).filter(k=>k!==lost),dup=PICK(rnd,keep);
-    const cards=SHUF(rnd,[...keep,dup]).map(k=>({seq:k,text:parts[k-1]}));return {n,src,dst,lost,cards}},
-  view(inst,el,api){el.innerHTML='<div class="picks">'+inst.cards.map(p=>'<span class="pk" style="cursor:default">'+pktHTML(p,inst.src,inst.dst,inst.n)+'</span>').join('')+'</div><p style="margin-top:12px">要請對方重送第幾號？</p>';
-    return pickOne(el,[...Array(inst.n).keys()].map(k=>'第 '+(k+1)+' 號'),api,inst.lost-1)},
-  check(inst,v){if(v===inst.lost-1)return true;return inst.cards.some(p=>p.seq===v+1)?'第 '+(v+1)+' 號已經收到了。把 1 到 '+inst.n+' 號一個一個點名。':'再數一次。'}},
-
- {lv:2,name:'名字換門牌',
-  now:'網址是給人看的名字；電腦真正要的是 IP 位址（門牌號碼）。瀏覽器會先去查「網路電話簿」（DNS）。',
-  goal:'點了這個網址，瀏覽器實際會連到哪一個 IP 位址？',
-  tip:'先找出網址裡的主機名稱（第一個「/」前面那段），再到電話簿找一模一樣的那一列。',
-  learn:'DNS 把好記的網域名稱換成 IP 位址，瀏覽器再照 IP 位址把封包送過去。冒充的網址就算看起來很像，查出來的 IP 是另一台電腦，你輸入的帳號密碼就送到別人手上了。',
-  gen(rnd){
-    const realIP='203.66.'+RINT(rnd,10,250)+'.'+RINT(rnd,2,250);
-    const fakes=SAMPLE(rnd,FAKE.filter(f=>!f[0].includes('/')),3).map(f=>f[0]);
-    const rows=[[OFFICIAL,realIP],['www.'+OFFICIAL,realIP],...fakes.map(h=>[h,RINT(rnd,40,190)+'.'+RINT(rnd,1,250)+'.'+RINT(rnd,1,250)+'.'+RINT(rnd,2,250)]),['paygo.cc','45.'+RINT(rnd,10,250)+'.'+RINT(rnd,1,250)+'.'+RINT(rnd,2,250)]];
-    const which=PICK(rnd,['real','fake','fake','path']);
-    let url;if(which==='real')url='https://'+PICK(rnd,[OFFICIAL,'www.'+OFFICIAL])+PICK(rnd,PATHS);else if(which==='fake')url='https://'+PICK(rnd,fakes)+PICK(rnd,PATHS);else url='https://paygo.cc/'+OFFICIAL+'/login';
-    const host=hostOf(url),ips=[...new Set(rows.map(r=>r[1]))],ans=rows.find(r=>r[0]===host)[1];
-    return {rows:SHUF(rnd,rows),url,host,ips:SHUF(rnd,ips),ans};
-  },
-  view(inst,el,api){el.innerHTML='<p class="urlbar">'+inst.url+'</p><div class="ptitle" style="margin-top:12px"><h3>網路電話簿（DNS）</h3></div><div class="dns"><span class="h">名稱</span><span class="h">IP 位址</span>'+inst.rows.map(r=>'<span>'+r[0]+'</span><span>'+r[1]+'</span>').join('')+'</div><p style="margin-top:12px">瀏覽器會連到：</p>';
-    return pickOne(el,inst.ips,api,inst.ips.indexOf(inst.ans),true)},
-  check(inst,v){if(inst.ips[v]===inst.ans)return true;return '主機名稱是「'+inst.host+'」，在電話簿找跟它一模一樣的那一列。'},
-  peek(inst){return '<section class="panel"><div class="ptitle"><h3>拆開這個網址</h3></div><p class="urlparts">'+markHost(inst.url)+'</p><p class="small">黃色那段是主機名稱，DNS 只查這一段，而且要一模一樣。</p></section>'}}
-];
-const APP=SHELL({week:11,termWeek:17,title:'差一個字母的網站',course:'115-g9',unit:4,rounds:ROUNDS,finale:'全部完成！下一站：Wi-Fi 死角在哪裡。封包最後那一段路，是怎麼飛進手機的？'});
-</script>
+<p><a href="../u4-02/">這個活動已搬到新網址</a></p>
 </body>
 </html>

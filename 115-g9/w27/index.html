@@ -3,120 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>加場搶票被踢出來｜第 4 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
-.tblwrap{overflow-x:auto;max-width:100%}
-.row .q small{color:var(--muted)}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u1-02/">
+<meta http-equiv="refresh" content="0; url=../u1-02/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u1-02/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-// TITLE:加場搶票被踢出來
-// TERMWEEK:4
-// 第 1 單元第 2 站：作業系統分配 CPU 時間與記憶體、看懂系統運作情形。故事：六連星加場開賣，小安的搶票 App 被手機強制關掉
-const APPN=['搶票 App','音樂','LINE','直播','相機','地圖','遊戲更新'];
-// 依截止格由小到大做（同截止看誰先到），得到一個一定成功的順序
-const EDF=t=>{const left=t.map(x=>x.need),seq=[],T=left.reduce((a,b)=>a+b,0);
-  for(let s=1;s<=T;s++){let b=-1;t.forEach((x,i)=>{if(left[i]>0&&(x.rel||1)<=s&&(b<0||x.dl<t[b].dl||(x.dl===t[b].dl&&(x.rel||1)<(t[b].rel||1))))b=i});if(b<0)return null;seq.push(b);left[b]--}return seq};
-const VALID=(t,seq)=>{if(!seq||seq.some(v=>v==null||!t[v]))return false;const cnt=t.map(()=>0);for(let s=0;s<seq.length;s++){const x=t[seq[s]];if((x.rel||1)>s+1)return false;cnt[seq[s]]++;if(cnt[seq[s]]===x.need&&s+1>x.dl)return false}return cnt.every((c,i)=>c===t[i].need)};
-// 卡片：每個 App 要幾格就有幾張
-const CARDS=t=>{const c=[];t.forEach((x,i)=>{for(let k=0;k<x.need;k++)c.push(i)});return c};
-const TCOL=['var(--a)','var(--b)','var(--c)','var(--cu)'];
-const tCard=(t,i)=>'<span style="color:'+TCOL[i]+';font-weight:700">■</span> '+t[i].n;
-const taskTable=(t,rel)=>'<div class="tblwrap"><table class="tbl"><tr><th>App</th>'+(rel?'<th>從第幾格開始有工作</th>':'')+'<th>要用 CPU 幾格</th><th>最晚第幾格要做完</th></tr>'+t.map((x,i)=>'<tr><td>'+tCard(t,i)+'</td>'+(rel?'<td>第 '+(x.rel||1)+' 格</td>':'')+'<td>'+x.need+' 格</td><td>第 '+x.dl+' 格</td></tr>').join('')+'</table></div>';
-// 照表格由上往下，一個做完再做下一個
-const NAIVE=t=>{const s=[];t.forEach((x,i)=>{for(let k=0;k<x.need;k++)s.push(i)});return s};
-function schedGen(rnd,n,withRel){
-  for(;;){const names=SAMPLE(rnd,APPN,n),need=names.map(()=>RINT(rnd,1,3)),T=need.reduce((a,b)=>a+b,0);
-    if(T<n+2||T>9)continue;
-    // 隨機排一個順序，照它定出開始格與截止格，保證有解
-    const seq=SHUF(rnd,CARDS(names.map((_,i)=>({need:need[i]})))),first=names.map(()=>0),last=names.map(()=>0);
-    seq.forEach((v,s)=>{if(!first[v])first[v]=s+1;last[v]=s+1});
-    const t=names.map((nm,i)=>({n:nm,need:need[i],dl:Math.min(T,last[i]+(rnd()<0.3?1:0)),rel:1}));
-    if(withRel){const cand=t.map((_,i)=>i).filter(i=>first[i]>1);if(!cand.length)continue;const k=PICK(rnd,cand);t[k].rel=first[k]}
-    if(t.filter(x=>x.dl<T).length<2)continue;
-    const e=EDF(t);if(!VALID(t,e)||VALID(t,NAIVE(t)))continue;
-    // 有人插隊時，不看開始格直接照時限排會出錯，才算真的要考慮插隊
-    if(withRel&&VALID(t,EDF(t.map(x=>({...x,rel:1})))))continue;
-    return {t,cards:SHUF(rnd,CARDS(t)),sol:e}}
-}
-function schedView(inst,el,api,rel){
-  el.innerHTML=taskTable(inst.t,rel)+'<p class="small" style="margin-top:8px">CPU 一次只能做一件事。一格是很短的一段時間，每一格只能給一個 App。</p>';
-  const ob=ORDERBOX(el,inst.cards.map(i=>tCard(inst.t,i)),api,{pool:'要用 CPU 的工作',slots:'CPU 的時間格',first:'第 1 格',last:'最後一格'});
-  return {get:()=>ob.get().map(k=>k==null?null:inst.cards[k]),ready:ob.ready,
-    fill:()=>{const used=inst.cards.map(()=>false);ob.fill(inst.sol.map(v=>{const k=inst.cards.findIndex((c,j)=>c===v&&!used[j]);used[k]=true;return k}))}};
-}
-function schedCheck(inst,seq){
-  const t=inst.t;if(!Array.isArray(seq)||seq.length!==CARDS(t).length||seq.some(v=>v==null||!t[v]))return '每一格都要排一個 App。';
-  const cnt=t.map(()=>0);
-  for(let s=0;s<seq.length;s++){const x=t[seq[s]];if((x.rel||1)>s+1)return '第 '+(s+1)+' 格排了「'+x.n+'」，可是它第 '+x.rel+' 格才有工作要做，那時候還沒出現。';
-    cnt[seq[s]]++;if(cnt[seq[s]]===x.need&&s+1>x.dl)return '「'+x.n+'」到第 '+(s+1)+' 格才做完，超過時限（第 '+x.dl+' 格），App 卡住了。誰的時限比較早，就該先輪到誰。'}
-  return true}
-const MEMAPP=['音樂','LINE','直播','相機','地圖','遊戲','修圖','瀏覽器','計算機','行事曆'];
-const ROUNDS=[
- {lv:1,name:'輪流用 CPU',
-  now:'加場開賣前，小安手機裡有幾個 App 同時要用 CPU。手機裡有一個看不見的「管家」，負責決定這一格時間給誰。',
-  goal:'把每一格時間排給一個 App，讓每個 App 都在時限內做完。',
-  tip:'時限最早的先做。排好之後，數一數每個 App 最後一格是第幾格，有沒有超過時限。',
-  learn:'作業系統把 CPU 的時間切成很短的一格一格，輪流分給每個程式，切換快到你以為它們同時在跑。排得不好，就會有程式卡住、來不及做完。',
-  gen(rnd){return schedGen(rnd,3,false)},
-  view(inst,el,api){return schedView(inst,el,api,false)},
-  check:schedCheck},
- {lv:1,name:'看懂工作管理員',
-  now:'手機開始發燙、變卡。小安打開「工作管理員」，看每個 App 正在用多少 CPU 和記憶體。',
-  goal:e=>e.q==='cpu'?'現在最吃 CPU（讓手機發燙）的是哪一個 App？':'現在占用記憶體最多的是哪一個 App？',
-  tip:'看清楚題目問的是哪一欄，再比大小。',
-  learn:'工作管理員是作業系統給你看的「管家帳本」：每個程式用了多少 CPU、多少記憶體。電腦卡住時，先看這裡找兇手。手機在設定的「電池」或「記憶體」裡也看得到類似的資料。',
-  gen(rnd){for(;;){const n=SAMPLE(rnd,['搶票 App',...MEMAPP],5),cpu=n.map(()=>RINT(rnd,1,40)),mem=n.map(()=>RINT(rnd,1,15)*100);
-    const am=a=>a.indexOf(Math.max(...a)),uniq=a=>a.filter(v=>v===Math.max(...a)).length===1;
-    if(cpu.reduce((a,b)=>a+b,0)>95||!uniq(cpu)||!uniq(mem)||am(cpu)===am(mem))continue;
-    const q=rnd()<0.5?'cpu':'mem';return {n,cpu,mem,q,ans:q==='cpu'?am(cpu):am(mem)}}},
-  view(inst,el,api){el.innerHTML='<div class="tblwrap"><table class="tbl"><tr><th>App</th><th>CPU</th><th>記憶體</th></tr>'+inst.n.map((a,i)=>'<tr><td>'+a+'</td><td>'+inst.cpu[i]+'%</td><td>'+FMT(inst.mem[i])+' MB</td></tr>').join('')+'</table></div>';
-    return PICKONE(el,inst.n,api,inst.ans)},
-  check(inst,v){if(v===inst.ans)return true;if(v==null||!inst.n[v])return '選一個 App。';return inst.q==='cpu'?'「'+inst.n[v]+'」的 CPU 不是最高。看 CPU 那一欄，百分比最大的是誰？':'「'+inst.n[v]+'」的記憶體不是最多。看記憶體那一欄，MB 最大的是誰？'}},
- {lv:2,name:'有人插隊',
-  now:'開賣倒數中，有一個 App 晚一點才有工作要做（例如 LINE 第幾格才跳出新訊息）。管家要邊做邊調整。',
-  goal:'把每一格時間排給一個 App：還沒出現的工作不能先做，每個 App 都要在時限內做完。',
-  tip:'每一格都問：現在已經出現、還沒做完的 App 裡，誰的時限最早？就給它。',
-  learn:'作業系統隨時都在重新排隊：新工作插進來，就重新比較誰最急。手機切換 App、通知跳出來的瞬間，管家已經重排好幾次了。',
-  gen(rnd){return schedGen(rnd,4,true)},
-  view(inst,el,api){return schedView(inst,el,api,true)},
-  check:schedCheck},
- {lv:2,name:'記憶體不夠了',
-  now:e=>'手機記憶體（RAM）共 '+e.cap+' GB，作業系統自己用掉 2 GB，其他 App 用掉的如下表。小安正在用「'+e.fg+'」，現在要打開「搶票 App」，它需要 '+e.need+' GB。',
-  goal:'像管家一樣，決定要關掉哪些背景 App，空出夠用的記憶體。',
-  tip:'正在用的（前景）不能關。從最久沒用的開始關，空間夠了就停，不要多關。',
-  learn:'記憶體不夠時，作業系統會先關掉最久沒用的背景 App。所以切回很久沒用的 App，常常要重新載入；手機的 RAM 越大，能留在背景的 App 越多。',
-  gen(rnd){for(;;){const cap=PICK(rnd,[6,8]),fg=PICK(rnd,['直播','音樂','LINE']),bg=SAMPLE(rnd,MEMAPP.filter(a=>a!==fg),4),size=bg.map(()=>RINT(rnd,1,2)),fgs=RINT(rnd,1,2);
-    const used=2+fgs+size.reduce((a,b)=>a+b,0);if(used>cap)continue;const free=cap-used,need=RINT(rnd,free+1,free+4);
-    const mins=SHUF(rnd,[3,8,15,30,60,120]).slice(0,4);
-    const order=bg.map((_,i)=>i).sort((a,b)=>mins[b]-mins[a]);let got=free;const close=new Set();for(const i of order){if(got>=need)break;close.add(i);got+=size[i]}
-    if(got<need||close.size===bg.length||close.size<1)continue;
-    const rows=SHUF(rnd,[{n:fg,s:fgs,m:-1,fg:1},...bg.map((n,i)=>({n,s:size[i],m:mins[i],c:close.has(i)}))]);
-    return {cap,fg,need,rows}}},
-  view(inst,el,api){el.innerHTML='<div class="tblwrap"><table class="tbl"><tr><th>App</th><th>占用記憶體</th><th>上次使用</th></tr>'+inst.rows.map(r=>'<tr><td>'+r.n+'</td><td>'+r.s+' GB</td><td>'+(r.fg?'<b>正在用（前景）</b>':r.m>=60?(r.m/60)+' 小時前':r.m+' 分鐘前')+'</td></tr>').join('')+'</table></div><p class="small" style="margin-top:8px">剩下的空間：'+(inst.cap-2-inst.rows.reduce((a,r)=>a+r.s,0))+' GB</p>';
-    const c=CLASSIFY(el,inst.rows.map(r=>({html:'<b>'+r.n+'</b>'})),['留著','關掉'],api);return {...c,fill:()=>c.fill(inst.rows.map(r=>r.c?1:0))}},
-  check(inst,a){if(!Array.isArray(a))return '每一個 App 都要決定留著或關掉。';const r=inst.rows;
-    if(r.some((x,i)=>x.fg&&a[i]===1))return '「'+inst.fg+'」小安正在用，管家不會關掉前景的 App。';
-    const free=inst.cap-2-r.reduce((s,x)=>s+x.s,0)+r.reduce((s,x,i)=>s+(a[i]===1?x.s:0),0);
-    if(free<inst.need)return '關完只空出 '+free+' GB，還不夠 '+inst.need+' GB。';
-    if(r.some((x,i)=>!!x.c!==(a[i]===1)))return '空間夠了，可是關錯了：管家要從最久沒用的開始關，夠了就停。';
-    return true}}
-];
-const APP=SHELL({week:27,termWeek:4,title:'加場搶票被踢出來',course:'115-g9',unit:1,rounds:ROUNDS,finale:'全部完成！下一站：為了演唱會換新手機，跟著一顆晶片環遊世界。'});
-</script>
+<p><a href="../u1-02/">這個活動已搬到新網址</a></p>
 </body>
 </html>

@@ -3,80 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>倒數一百天的 AI｜第 2 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u5-01/">
+<meta http-equiv="refresh" content="0; url=../u5-01/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u5-01/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-// TITLE:倒數一百天的 AI
-// TERMWEEK:2
-// 第 5 單元第 1 站：AI 是什麼、生活中的 AI、AI 從資料學。故事：九年三班畢業倒數，園遊會要擺「猜拳贏 AI」攤位
-const ISAI=[
- ['手機用你的臉解鎖',1],['相簿自動把同一個人的照片放在一起',1],['翻譯 App 把英文菜單翻成中文',1],['信箱自動把詐騙信丟進垃圾郵件',1],
- ['短影音自動推薦下一支',1],['導航預測哪條路等一下會塞車',1],['語音助理聽懂你說「明天會下雨嗎」',1],
- ['計算機算 25 × 4',0],['鬧鐘每天 6:30 響',0],['微波爐倒數 2 分鐘',0],['自動門有人靠近就打開',0],
- ['電梯按 5 樓就停在 5 樓',0],['販賣機投 20 元就掉出飲料',0],['冷氣溫度到 26 度就停',0]];
-const TASK=['辨識','預測','生成','推薦'];
-const DOWHAT=[
- ['拍一張照片，查這是什麼植物',0],['手機認出照片裡的人是你',0],['掃地機器人認出地上那團是襪子',0],['把老師說的話即時變成字幕',0],
- ['天氣 App 說明天下雨的機率 70%',1],['導航算出你 7:42 會到學校',1],['預測合作社這週哪一種麵包賣最快',1],
- ['輸入一句話，AI 畫出一張圖',2],['AI 幫你寫一份畢業卡草稿',2],['AI 做出一段 30 秒的背景音樂',2],
- ['購物網站顯示「你可能也喜歡」',3],['音樂 App 自動排好下一首歌',3],['影音平台首頁替你挑出 10 部影片',3]];
-const WHY=['資料太少','資料偏一邊','標籤標錯了','沒學過這種東西'];
-const BADDATA=[
- ['只用 5 張照片教 AI 認貓，結果常常認錯',0],['回收分類 AI 只看過 10 個寶特瓶，換個形狀就認不出來',0],['只錄了 3 句話教 AI 認班長的聲音，常常認錯人',0],
- ['教 AI 認貓的照片全是白貓，看到黑貓就說「不是貓」',1],['認手寫數字的 AI 只學過同一個人的字，換人寫就認錯',1],['語音助理只用大人的聲音訓練，聽不太懂小孩說話',1],
- ['整理照片時，一堆狗的照片被標成「貓」，AI 學亂了',2],['標註的同學把鋁罐都標成「塑膠」，AI 跟著分錯',2],
- ['水果 AI 只學過蘋果和香蕉，看到芭樂硬說是蘋果',3],['只教過貓和狗，拿一張兔子照片給它，它說是狗',3]];
-const STEPS=['決定要 AI 做什麼事','收集很多資料','替資料加上正確的標籤（答案）','用資料訓練模型','用沒看過的資料測試','放進 App 給大家用','收集使用回饋，再改進'];
-const ROUNDS=[
- {lv:1,name:'是不是 AI',
-  now:'寒假結束，林老師宣布：九年三班要在畢業園遊會擺一個「猜拳贏 AI」攤位。小安心想：AI 到底是什麼？我身邊有哪些東西用了 AI？',
-  goal:'判斷每一件事，是 AI 在做，還是一般的程式照固定規則做。',
-  tip:'問自己：它是照人寫好的固定規則做事（按 5 就到 5 樓），還是從很多例子學會，遇到沒看過的情況也能判斷？',
-  learn:'一般程式照人寫好的規則做事；AI（人工智慧）是讓電腦從大量資料裡「學」出規則，所以能處理沒看過的照片、聲音和句子。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,ISAI,6)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['一般程式','AI'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：是固定規則，還是從例子學來的？')},
- {lv:1,name:'AI 在做哪一種事',
-  now:'小安列出生活中的 AI，發現它們做的事不太一樣。',
-  goal:'把每一個 AI 的工作，分到辨識、預測、生成、推薦。',
-  tip:'辨識：認出「這是什麼」。預測：猜「接下來會怎樣」。生成：做出「新的東西」。推薦：從很多選項裡「幫你挑」。',
-  learn:'AI 常做的四種事：辨識（看懂、聽懂）、預測（猜未來）、生成（做出新的文字、圖片、聲音）、推薦（幫你挑）。同一個 App 可能同時用好幾種。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,DOWHAT,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),TASK,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：它是在認、在猜、在做新東西，還是在幫你挑？')},
- {lv:2,name:'資料出了什麼問題',
-  now:'小禾試著教 AI 認東西，結果一直出錯。AI 是從資料學的，資料有問題，AI 就學歪。',
-  goal:'每一個失敗的例子，找出資料出了什麼問題。',
-  tip:'太少：例子不夠多。偏一邊：例子都長得很像，少了某些情況。標錯：答案寫錯了。沒學過：根本沒教過這一類。',
-  learn:'AI 學得好不好，看資料：要夠多、要涵蓋各種情況、標籤要正確；沒教過的東西，AI 也只能硬猜。這就是「垃圾進、垃圾出」。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,BADDATA,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),WHY,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check:(inst,a)=>CHECKROWS(inst.items,a,'再想想：是例子不夠、例子太像、答案寫錯，還是根本沒教過？')},
- {lv:2,name:'一個 AI 怎麼做出來',
-  now:'園遊會的猜拳 AI 要從零開始做。小安上網查，整理出做一個 AI 的步驟，但順序亂掉了。',
-  goal:'把做出一個 AI 的步驟排好。',
-  tip:'先想清楚要做什麼，再準備資料、訓練、測試，最後才給大家用。',
-  learn:'做 AI 的流程：定義問題 → 收集資料 → 標註 → 訓練 → 測試 → 上線 → 回饋改進。這學期我們會一站一站走過，最後做出猜拳 AI。',
-  gen(rnd){const pick=[0,...SAMPLE(rnd,[1,2,3,4,5],4).sort((a,b)=>a-b),6];let o;do{o=SHUF(rnd,pick.map((_,i)=>i))}while(o.every((v,i)=>v===i));return {cards:o.map(i=>pick[i])}},
-  view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>STEPS[k]),api,{pool:'步驟卡',slots:'做 AI 的順序',first:'最先',last:'最後'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},
-  check(inst,a){if(a.some(k=>k==null))return '還有空格。';for(let i=1;i<a.length;i++)if(inst.cards[a[i-1]]>inst.cards[a[i]])return '第 '+i+' 格和第 '+(i+1)+' 格的順序不對：「'+STEPS[inst.cards[a[i]]]+'」應該更早。';return true}}
-];
-const APP=SHELL({week:16,termWeek:2,title:'倒數一百天的 AI',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：AI 說的就對嗎？'});
-</script>
+<p><a href="../u5-01/">這個活動已搬到新網址</a></p>
 </body>
 </html>

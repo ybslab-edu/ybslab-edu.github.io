@@ -3,114 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>影片住在哪個國家｜第 20 週</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=2">
-<style>
-/* 第 20 週：物聯網應用、雲端運算與服務模式 */
-.layers{display:flex;flex-direction:column-reverse;gap:6px;max-width:460px}
-.layers .pk{text-align:left;display:flex;justify-content:space-between;gap:10px}
-.layers .pk small{opacity:.75}
-.sites{width:100%;border-collapse:collapse;font-size:15px}
-.sites th,.sites td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
-.sites th{background:var(--bg)}
-.sites .bad{color:var(--warn);font-weight:700}
-.tblwrap{overflow-x:auto;max-width:100%}
-</style>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ybslab-edu.github.io/115-g9/u4-05/">
+<meta http-equiv="refresh" content="0; url=../u4-05/">
+<title>活動已搬移｜YBS Lab</title>
+<script>location.replace('../u4-05/'+location.search+location.hash)</script>
 </head>
 <body>
-<script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261019"></script>
-<script src="../../assets/lock.js?v=20261019b"></script>
-<script src="../../assets/login.js?v=20261019u"></script>
-<script src="../../assets/curriculum.js?v=20261015c"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=12"></script>
-<script>
-const WHERE=[
- ['把跨年影片備份到雲端相簿',1],['和幹部一起線上編輯同一份企劃書',1],['用網頁版信箱收信',1],['用線上表單收後援會問卷',1],['問聊天機器人一個問題，它要到很遠的機房去算',1],['在不同電腦上，打開同一個雲端硬碟資料夾',1],
- ['用手機內建的計算機算團購金額',0],['搭飛機時看事先下載好的影片',0],['用相機 App 拍一張照片',0],['用手機裡的記事本寫草稿（沒開同步）',0],['把照片從手機傳到插著的隨身碟',0]];
-const MODEL=['IaaS 基礎設施','PaaS 平台','SaaS 軟體'];
-const SVCS=[
- ['後援會租一台雲端虛擬主機，自己安裝作業系統和網站程式',0],['租雲端的 AI 運算主機，自己裝好環境來訓練模型',0],['租雲端的儲存空間和網路，自己架整套售票系統',0],
- ['幹部寫好後援會網站的程式，上傳到平台，平台自動架好，人多時自動加機器',1],['在雲端平台上開發 App 的後端，不用管伺服器和作業系統',1],['用平台提供的資料庫和程式環境，只寫自己的程式',1],
- ['用線上文件一起寫企劃',2],['用雲端相簿存跨年影片',2],['用網頁版信箱寄信',2],['用線上表單做問卷',2],['用線上簡報做成果發表',2]];
-const LAYERS=['硬體（機器、網路、儲存）','作業系統','執行環境（資料庫、程式語言）','應用程式','資料'];
-// 每一種做法，後援會自己要管哪幾層（索引同 LAYERS）
-const OWN={0:[0,1,2,3,4],1:[1,2,3,4],2:[3,4],3:[4]};
-const SCN=[
- [0,'後援會買了一台伺服器放在社辦，自己架售票網站'],[0,'幹部把舊電腦改成伺服器，放在家裡跑後援會網站'],
- [1,'後援會向雲端公司租了一台虛擬主機，自己裝系統、架網站'],[1,'租雲端的機器，自己安裝作業系統和資料庫來跑售票系統'],
- [2,'把寫好的網站程式上傳到雲端平台，平台負責系統和資料庫'],[2,'用雲端平台開發 App 後端，只寫自己的程式'],
- [3,'直接用線上表單收報名資料'],[3,'用雲端相簿分享跨年照片']];
-const MLABEL=['自己架（不用雲端）','IaaS','PaaS','SaaS'];
-
-const ROUNDS=[
- {lv:1,name:'在手機上還是雲端',
-  now:'小安先確認跨年影片已經完整備份到雲端相簿，才把手機裡的那一份刪掉。（有些相簿是「同步」，在手機刪了雲端也會跟著刪，一定要先搞清楚。）那影片現在在哪裡？',
-  goal:'每一件事，主要是在你自己的手機（電腦）上做的，還是在雲端做的？',
-  tip:'想一想：拔掉網路還做得到嗎？換一台電腦還找得到嗎？這只是線索（有些雲端服務會先存一份在手機裡），但大多數情況可以這樣判斷。',
-  learn:'雲端運算就是「用網路租別人的電腦」：資料存在、程式跑在雲端公司的資料中心，你只要連得上網，換哪一台裝置都能用。代價是沒有網路就不能用，資料也放在別人家。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,WHERE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['自己的裝置','雲端'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：拔掉網路還做得到嗎？':true}},
-
- {lv:1,name:'租哪一種雲',
-  now:'後援會要做一個售票和報名的網站，大家提出好幾種用雲端的方法。',
-  goal:'每一種用法，是 IaaS、PaaS 還是 SaaS？',
-  tip:'像開店：IaaS 是租一間空店面，裝潢、設備自己來；PaaS 是租裝潢好、有廚房的店，只要專心做菜；SaaS 是直接去別人的店吃，什麼都不用管。',
-  learn:'IaaS 租的是機器（基礎設施），系統和程式自己裝；PaaS 租的是平台，只要寫自己的程式；SaaS 直接用做好的軟體，開瀏覽器就能用。越往 SaaS，自己要管的越少，能改的也越少。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,SVCS,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),MODEL,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：後援會要自己裝系統嗎？要自己寫程式嗎？':true}},
-
- {lv:2,name:'誰管哪一層',
-  now:i=>i.text+'。',
-  goal:'這樣做的話，後援會自己要管哪幾層？把要自己管的都點起來。',
-  tip:'還記得第 1 單元的三層嗎？硬體 → 作業系統 → 應用程式。雲端再多切兩層：執行環境、資料。不管哪一種，資料都是自己的責任。',
-  learn:'自己架：五層全部自己管。IaaS：雲端公司管硬體，系統以上自己管。PaaS：連作業系統和執行環境都交給平台，只管程式和資料。SaaS：只剩資料要自己顧。這就是第 1 單元那張分層圖，被切給不同的人管。',
-  gen(rnd){const [m,text]=PICK(rnd,SCN);return {m,text,own:OWN[m]}},
-  view(inst,el,api){const on=new Set();
-    el.insertAdjacentHTML('beforeend','<div class="layers">'+LAYERS.map((l,j)=>'<button type="button" class="pk" data-j="'+j+'" aria-pressed="false"><span>'+l+'</span><small></small></button>').join('')+'</div><p class="small">由下往上：最下面是硬體。點一下＝後援會自己管，再點一下取消。</p>');
-    const sync=()=>el.querySelectorAll('[data-j]').forEach(b=>{const k=on.has(+b.dataset.j);b.setAttribute('aria-pressed',k);b.querySelector('small').textContent=k?'自己管':'別人管'});
-    el.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const j=+b.dataset.j;on.has(j)?on.delete(j):on.add(j);sync();api.changed()});sync();
-    return {get:()=>[...on].sort(),fill:()=>{on.clear();inst.own.forEach(j=>on.add(j));sync()}}},
-  check(inst,a){const own=new Set(inst.own);
-    if(!a.includes(4))return '不管用哪一種，資料都是後援會自己的責任。';
-    const extra=a.filter(j=>!own.has(j)),miss=inst.own.filter(j=>!a.includes(j));
-    if(extra.length)return '「'+LAYERS[extra[0]]+'」這一層，這樣做的話是別人在管。';
-    if(miss.length)return '「'+LAYERS[miss[0]]+'」這一層，還是要後援會自己管。';return true}},
-
- {lv:2,name:'資料中心蓋在哪',
-  now:'雲端相簿的公司要在台灣蓋一座新的資料中心，候選地點有四個。',
-  goal:'依照公司的條件，選出最適合的地點。',
-  tip:'先刪掉不符合「一定要」的地點：電力要夠、不能在斷層帶上、離海纜登陸站 50 公里內。剩下的選年均溫最低的（冷卻比較省電）。',
-  learn:'資料中心裡成千上萬台電腦日夜不停，要大量的電，也要很多電來冷卻；它要靠海纜和世界連線，也怕地震。所以選地點就像地理考題：電力、氣候、交通（網路）、地質都要一起考慮。',
-  gen(rnd){
-    for(let t=0;t<500;t++){
-      const s=['甲','乙','丙','丁'].map(n=>({n,pw:rnd()<.7,km:5*RINT(rnd,2,24),fault:rnd()<.3,temp:RINT(rnd,19,25),land:PICK(rnd,['便宜','普通','貴'])}));
-      const ok=s.filter(x=>x.pw&&!x.fault&&x.km<=50);if(ok.length<2||ok.length>3)continue;
-      const m=Math.min(...ok.map(x=>x.temp));if(ok.filter(x=>x.temp===m).length!==1)continue;
-      if(s.some(x=>!ok.includes(x)&&x.temp<m)){const best=s.indexOf(ok.find(x=>x.temp===m));return {s,best}}
-    }
-  },
-  view(inst,el,api){
-    el.innerHTML='<div class="tblwrap"><table class="sites"><tr><th>地點</th><th>電力供應</th><th>離海纜登陸站</th><th>斷層帶</th><th>年均溫</th><th>地價</th></tr>'+inst.s.map(x=>'<tr><td><b>'+x.n+'</b></td><td>'+(x.pw?'夠':'不夠')+'</td><td>'+x.km+' 公里</td><td>'+(x.fault?'在斷層帶上':'沒有')+'</td><td>'+x.temp+' °C</td><td>'+x.land+'</td></tr>').join('')+'</table></div><p style="margin-top:12px">選哪裡？</p>';
-    el.insertAdjacentHTML('beforeend','<div class="picks">'+inst.s.map((x,j)=>'<button type="button" class="pk" data-o="'+j+'" aria-pressed="false">地點'+x.n+'</button>').join('')+'</div>');
-    let v=null;const sync=()=>el.querySelectorAll('[data-o]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===v));
-    el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{v=+b.dataset.o;sync();api.changed()});
-    return {get:()=>v,fill:()=>{v=inst.best;sync()},ready:()=>v!=null};
-  },
-  check(inst,v){const x=inst.s[v];if(v===inst.best)return true;if(!x)return '先選一個地點。';
-    if(!x.pw)return '地點'+x.n+'的電力不夠，資料中心一天到晚都要用大量的電。';
-    if(x.fault)return '地點'+x.n+'在斷層帶上，地震可能讓整座資料中心停擺。';
-    if(x.km>50)return '地點'+x.n+'離海纜登陸站太遠，要拉很長的線才連得到國外。';
-    return '地點'+x.n+'符合條件，但還有更涼快的地點，冷卻可以省更多電。'}}
-];
-const APP=SHELL({week:14,termWeek:20,title:'影片住在哪個國家',course:'115-g9',unit:4,rounds:ROUNDS,finale:'全部完成！下一站：問 AI 一個問題。把一整學期學的東西串成一條路。'});
-</script>
+<p><a href="../u4-05/">這個活動已搬到新網址</a></p>
 </body>
 </html>

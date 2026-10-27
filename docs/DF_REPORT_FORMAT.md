@@ -1,6 +1,6 @@
 # DF 報告格式 v1（DF-3A）
 
-共用程式：`assets/df-report.js`，一般 script 載入後使用 `DFReport`；Node 以 `require` 載入。無外部套件、網路、登入或儲存副作用。學生頁只讓本機 `reportHTML` 使用共用 serializer，原 `importReport` 不變。本階段沒有上傳按鈕、Firestore 或完成時自動交件；這些由 DF-3C 接續。
+共用程式：`assets/df-report.js`，一般 script 載入後使用 `DFReport`；Node 以 `require` 載入。無外部套件、網路、登入或儲存副作用。學生頁的雲端交件使用白名單格式；本機 `reportHTML` 維持既有完整狀態格式並排除兩處密碼欄位，原 `importReport` 不變。雲端交件由 `assets/login.js` 與學生頁處理，教師讀取由 `assets/df-teacher-cloud.js` 處理；共用 serializer 本身不負責上傳。
 
 ## API 與版本
 
@@ -12,7 +12,7 @@
 
 `schemaVersion` 為雲端 envelope 版本，與教材 `version`、應用程式 `appVersion` 分開。未支援版本直接拒絕。
 
-後續文件仍依設計使用 `ybsCourses/115-df/reports/{uid}_s{session}`（session 1～3），每堂覆寫最新一份。`uid`、roster 驗證的整數 `cls/seat`、伺服器 `createdAt/updatedAt` 由 DF-3B／3C 處理，serializer 不採信匯入檔的登入身分，也不產生這些 envelope 欄位。本人及 owner 的讀取權限由 Rules 負責，編碼不代表加密或授權。
+雲端文件使用 `ybsCourses/115-df/reports/{uid}_s{session}`（session 1～3），每堂覆寫最新一份。`uid`、roster 驗證的整數 `cls/seat`、伺服器 `createdAt/updatedAt` 由 ClassScore 的 Rules 與 YBS 交件流程處理，serializer 不採信匯入檔的登入身分，也不產生這些 envelope 欄位。本人及 owner 的讀取權限由 Rules 負責，編碼不代表加密或授權。
 
 ## 白名單與相容性
 
@@ -23,14 +23,14 @@
 | 頂層 | app、appVersion、version、cls、seat、started、briefed、round2、problem |
 | 第一堂 | susp 的 text/ev/want/conf、pred、s2.unlockedAt、l01、第一批六項證據的 fact/interp/exif、九個固定時間線槽、h1 |
 | 第二堂 | b2 的 unlockedAt、四項第二批證據的 key/rel/why/exif、hints.level/at、h2、concl |
-| 第三堂 | gallery 的 comments.seat/stance/ev/text/at 與 after、reveal 的 unlockedAt/finalAt/tlnote/r1～r4/calc |
+| 第三堂 | gallery 的 comments.seat/stance/ev/text/at、after、done、reveal 的 unlockedAt/finalAt/tlnote/r1～r4/calc |
 | 過程 | exports 時間、log.t/e/d（d 僅允許純量，不接收物件） |
 
 每層只複製已知欄位；排除 `b2.pw`、`reveal.pw`、姓名、email、帳密、Token、UID、教材、影像、解密包、未知匯入欄位，以及本機連線識別 `cid`／解答模式 `ansMode`。`cid` 在原 `boot` 會重新產生，不影響恢復作答。舊證據 `interp` 仍保留；舊檔缺少選填欄位時不擅自填值。未修改既有 `importReport` 的版本／班座檢查及舊資料補值流程。
 
-班座、操作時間、自由作答及留言仍可能識別學生；此模組只排除結構性個人欄位，無法辨識自由文字內自行輸入的姓名或聯絡資料。後續介面仍需提醒勿填這些資料。
+班座、操作時間、自由作答及留言仍可能識別學生；此模組只排除結構性個人欄位，無法辨識自由文字內自行輸入的姓名或聯絡資料。介面需提醒勿填這些資料。
 
-解碼端在 JSON 大小界限外另檢查欄位型別及陣列上限：證據引用 100、自我檢核 4、疑點／留言各 1,000、提示／下載時間／log 各 20,000 筆。這些是讀取端防護上限，不是頁面宣稱的最大作答量。encode 使用相同防護；超過則改下載。serialize 的本機下載不套用容量或筆數上限，保留全部白名單作答及紀錄。
+解碼端在 JSON 大小界限外另檢查欄位型別及陣列上限：證據引用 100、自我檢核 4、疑點／留言各 1,000、提示／下載時間／log 各 20,000 筆。這些是讀取端防護上限，不是頁面宣稱的最大作答量。encode 使用相同防護；超過則改下載。`serialize(state)` 預設不套用容量或筆數上限；本機下載使用既有 `reportHTML`，保留完整作答及紀錄，不受雲端容量限制。
 
 ## 容量與編碼
 
@@ -39,7 +39,7 @@
 3. ASCII 超限才對原 UTF-8 JSON 使用 `CompressionStream('gzip')`，標準 base64 編碼成 `gzip-base64`。依 **base64 後** 的大小檢查相同 512 KiB 上限；gzip byte 數不足以判斷能否交件。缺少壓縮／解壓 API、壓縮失敗或超限皆改下載。
 4. 解碼先檢查 payload 容量及可列印 ASCII，嚴格驗證 base64，再以 `DecompressionStream('gzip')` 串流讀取。累計輸出超過 2 MiB 即取消 reader，不等到完整解壓或 JSON.parse。UTF-8 非法、損壞 gzip、JSON 錯誤或型別不符均拒絕。
 
-Firestore 文件上限為 1 MiB；512 KiB payload 預留其餘 envelope、文件名稱等開銷，但不是完整文件大小計算器。後續 Rules 必須限制 envelope 欄位，並設定 payload 索引豁免。此模組不變更 Rules、索引或雲端設定。
+Firestore 文件上限為 1 MiB；512 KiB payload 預留其餘 envelope、文件名稱等開銷，但不是完整文件大小計算器。ClassScore 維護的 Rules 須限制 envelope 欄位，並設定 payload 索引豁免。此模組不變更 Rules、索引或雲端設定。
 
 ## 本機驗證
 

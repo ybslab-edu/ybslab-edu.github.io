@@ -187,7 +187,7 @@ body.teacher .slot .card{cursor:pointer}
 
 <section class="gate" id="gate">
   <h1>打王前記得存檔</h1>
-  <div id="g-login" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
+  <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
     <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
     <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
     <div class="gerr" id="g-lerr" role="alert"></div>
@@ -197,7 +197,7 @@ body.teacher .slot .card{cursor:pointer}
     <p id="g-whotext" style="color:var(--ink);font-size:20px"></p>
     <div class="btns" style="justify-content:center" id="g-whobtns"><button class="btn" id="g-notme" type="button">不是我</button><button class="btn primary" id="g-isme" type="button">對，開始</button></div>
   </div>
-  <div id="g-form" style="display:flex;flex-direction:column;gap:14px">
+  <div id="g-form" hidden style="display:flex;flex-direction:column;gap:14px">
   <p id="g-me" class="g-me" hidden></p>
   <p>開始前先填班級和座號，只能填數字。</p>
   <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
@@ -739,11 +739,11 @@ function start(id){
   try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
   done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
   $('who').textContent=id.cls+' 班 '+id.seat+' 號'+(id.name?' '+id.name:'');
-  if(YBS.enabled()&&YBS.profile()){try{sessionStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
+  if(loginEnabled()&&YBS.profile()){try{sessionStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
   $('gate').hidden=true;$('main').hidden=false;
   setLevel(1);renderReport();
 }
-$('b-swap').onclick=()=>{if(teacher){stopPlayback();teacher=false;TEACHER.remember(false);document.body.classList.remove('teacher');$('tbar').hidden=true;$('report').hidden=false;$('b-swap').textContent='不是我？換人';$('who').textContent=''}else if(running)return;ident=null;if(YBS.enabled()){YBS.logout();showLogin()}$('sync').hidden=true;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
+$('b-swap').onclick=()=>{if(teacher){stopPlayback();teacher=false;TEACHER.remember(false);document.body.classList.remove('teacher');$('tbar').hidden=true;$('report').hidden=false;$('b-swap').textContent='不是我？換人';$('who').textContent=''}else if(running)return;ident=null;if(loginEnabled()){YBS.logout();showLogin()}$('sync').hidden=true;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
 // ===== 教師模式 =====
 function enterTeacher(){
   teacher=true;TEACHER.remember(true);ident=null;done.clear();
@@ -779,6 +779,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='ArrowRight')$('tb-next').click();
 });
 // ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
+const loginEnabled=()=>typeof YBS!=='undefined'&&YBS.enabled();
 function showLogin(){
   $('g-login').hidden=false;$('g-form').hidden=true;$('g-lerr').textContent='';
   $('g-who').hidden=true;
@@ -808,11 +809,11 @@ function showLogin(){
 $('g-notme').onclick=()=>{YBS.logout();showLogin()};
 $('g-manual').onclick=()=>{YBS.logout();$('g-login').hidden=true;$('g-who').hidden=true;$('g-form').hidden=false;$('g-me').hidden=false;$('g-me').textContent='這次不登入：過關後請把成績碼交給老師。';$('in-cls').focus()};
 function upload(r){
-  if(!YBS.enabled()||!ident)return;
+  if(!loginEnabled()||!ident)return;
   YBS.submit({course:COURSE,activity:WEEK,termWeek:TERM_WEEK,title:TITLE,round:r,roundName:ROUNDS[r].name,level:ROUNDS[r].lv===1?'基礎':'進階',rounds:ROUNDS.map(x=>x.name),
     tries:prog.tries[r],mask:prog.mask,cls:ident.cls,seat:ident.seat,code:$('code').textContent,at:new Date().toISOString()});
 }
-YBS.status(st=>{
+if(typeof YBS!=='undefined')YBS.status(st=>{
   const el=$('sync');if(!ident)return;
   el.className='sync'+(st==='ok'?' ok':st==='sending'?'':' warn');
   if(st==='relogin'){
@@ -822,6 +823,6 @@ YBS.status(st=>{
 });
 (()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
 if(TEACHER.remembered())enterTeacher();
-else if(YBS.enabled())showLogin();
-else $('in-cls').focus();
+else if(loginEnabled())showLogin();
+else { $('g-login').hidden=true; $('g-form').hidden=false; $('in-cls').focus(); }
 </script>

@@ -119,11 +119,26 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 .prog span{font-size:14px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
 .prog span.ok{background:var(--out-soft);border-color:var(--out);color:var(--ink);font-weight:700}
 .copied{font-size:14px;color:var(--out)}
+.g-me{margin:0;text-align:center;color:var(--ink)!important;font-size:15px}
+.sync{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.sync.ok{color:var(--out);border-color:var(--out)} .sync.warn{color:var(--warn);border-color:var(--warn)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <section class="gate" id="gate">
   <h1>深夜手搖店 CPU</h1>
+  <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
+    <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
+    <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
+    <div class="gerr" id="g-lerr" role="alert"></div>
+    <button class="linkbtn" id="g-manual" type="button">登入不了？改填班級座號</button>
+  </div>
+  <div id="g-who" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
+    <p id="g-whotext" style="color:var(--ink);font-size:20px"></p>
+    <div class="btns" style="justify-content:center" id="g-whobtns"><button class="btn" id="g-notme" type="button">不是我</button><button class="btn primary" id="g-isme" type="button">對，開始</button></div>
+  </div>
+  <div id="g-form" hidden style="display:flex;flex-direction:column;gap:14px">
+  <p id="g-me" class="g-me" hidden></p>
   <p>開始前先填班級和座號，只能填數字。</p>
   <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
   <div class="field"><label for="in-seat">座號</label><input id="in-seat" inputmode="numeric" autocomplete="off" maxlength="2" placeholder="例如 12"><span class="hint">1～60</span></div>
@@ -133,13 +148,14 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
     <p style="color:var(--ink);font-size:20px" id="g-confirm"></p>
     <div class="btns" style="justify-content:center"><button class="btn" id="g-back">我填錯了</button><button class="btn primary" id="g-go">對，開始</button></div>
   </div>
+  </div>
 </section>
 
 <div class="wrap" id="main" hidden>
   <header>
     <div style="display:flex;flex-direction:column;gap:4px">
       <h1>深夜手搖店 CPU</h1>
-      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button></div>
+      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
     </div>
     <div class="tabs" role="tablist" aria-label="等級">
       <button id="tab-1" role="tab" aria-selected="true">基礎關</button>
@@ -200,14 +216,19 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
     <span class="code" id="code"></span>
     <button class="btn" id="b-copy" type="button">複製成績碼</button>
     <span class="copied" id="copied"></span>
-    <p class="small" style="width:100%">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
+    <p class="small" id="rep-note" style="width:100%">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
+    <p class="sync" id="sync2" hidden style="margin:0"></p>
   </section>
   <p class="small" style="text-align:center">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
 </div>
 
 <script src="../../assets/codec.js"></script>
+<script src="../../assets/teacher.js?v=20261019"></script>
+<script src="../../assets/lock.js?v=20261019b"></script>
+<script src="../../assets/login.js?v=20261019u"></script>
 <script>
 const WEEK=1;
+const TERM_WEEK=7, TITLE='深夜手搖店 CPU', COURSE='115-g9';
 
 const ROUNDS=[
  {lv:1,name:'第 1 單',says:'我要 1 杯紅茶（25 元），加珍珠（10 元）。',
@@ -360,7 +381,7 @@ function verdict(res){
     const t2=R.tests[1], e2=expect(t2), ok2=same(run(slots,t2).outs,e2);
     ok=ok1&&ok2;
     if(ok){
-      done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg();
+      done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg(); upload(ri);
       const cu=res.steps.length, alu=res.steps.filter(s=>s.alu&&!s.bad&&R.cards[s.k].op!=='store').length;
       h='<h3>過關！</h3><p>出餐：'+fmt(res.outs)+'。換另一位客人（'+Object.entries(t2).filter(([c])=>c!=='10').map(([c,x])=>R.wall[c]+' '+x).join('、')+'）也對：'+fmt(e2)+'。</p>'+
         '<p>店長看了 '+cu+' 張單、搖飲師動手 '+alu+' 次。真的手機處理器不用一單一單慢慢來：它的時脈一秒有幾十億次（這是粗略的比喻，不是每秒剛好做幾次這種事）。</p>';
@@ -422,9 +443,55 @@ function start(id){
   try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
   done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
   $('who').textContent=id.cls+' 班 '+id.seat+' 號';
+  if(loginEnabled()&&YBS.profile()){try{sessionStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
   $('gate').hidden=true;$('main').hidden=false;
   setLevel(1);renderReport();
 }
-$('b-swap').onclick=()=>{if(running)return;ident=null;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
-$('in-cls').focus();
+$('b-swap').onclick=()=>{if(running)return;ident=null;if(loginEnabled()){YBS.logout();showLogin()}$('sync').hidden=true;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
+// ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
+const loginEnabled=()=>typeof YBS!=='undefined'&&YBS.enabled();
+function showLogin(){
+  $('g-login').hidden=false;$('g-form').hidden=true;$('g-lerr').textContent='';
+  $('g-who').hidden=true;
+  YBS.button($('g-gbtn'),async me=>{
+    $('g-login').hidden=true;$('g-who').hidden=false;$('g-whobtns').hidden=true;
+    $('g-whotext').textContent='正在確認你的身分…';
+    const r=await YBS.whoami();
+    if(r.ok&&r.student){            // 名單上有：直接帶出，不用填
+      const st=r.student;
+      $('g-whotext').textContent='你是 '+st.cls+' 班 '+st.seat+' 號，對嗎？';
+      $('g-whobtns').hidden=false;$('g-isme').focus();
+      $('g-isme').onclick=()=>start({cls:st.cls,seat:st.seat,name:st.name});
+      return;
+    }
+    if(!r.ok&&r.error==='not-listed'){
+      $('g-who').hidden=true;YBS.logout();showLogin();
+      $('g-lerr').textContent='名單上找不到這個帳號（'+(me.account||me.email)+'），請改用自己的帳號，或告訴老師。';
+      return;
+    }
+    // 不在名單（但是本校帳號）或暫時連不上試算表：自己填班級座號
+    $('g-who').hidden=true;$('g-form').hidden=false;
+    $('g-me').hidden=false;$('g-me').textContent='已登入：'+(me.account||me.email)+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
+    try{const s=JSON.parse(sessionStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
+    $('in-cls').focus();
+  },msg=>{$('g-lerr').textContent=msg});
+}
+$('g-notme').onclick=()=>{YBS.logout();showLogin()};
+$('g-manual').onclick=()=>{YBS.logout();$('g-login').hidden=true;$('g-who').hidden=true;$('g-form').hidden=false;$('g-me').hidden=false;$('g-me').textContent='這次不登入：過關後請把成績碼交給老師。';$('in-cls').focus()};
+function upload(r){
+  if(!loginEnabled()||!ident)return;
+  YBS.submit({course:COURSE,activity:WEEK,termWeek:TERM_WEEK,title:TITLE,round:r,roundName:ROUNDS[r].name,level:ROUNDS[r].lv===1?'基礎':'進階',rounds:ROUNDS.map(x=>x.name),
+    tries:prog.tries[r],mask:prog.mask,cls:ident.cls,seat:ident.seat,code:$('code').textContent,at:new Date().toISOString()});
+}
+if(typeof YBS!=='undefined')YBS.status(st=>{
+  const el=$('sync');if(!ident)return;
+  el.className='sync'+(st==='ok'?' ok':st==='sending'?'':' warn');
+  if(st==='relogin'){
+    el.innerHTML='登入過期，重新登入才能上傳 <span id="sync-btn"></span>';
+    YBS.button($('sync-btn'),()=>{},msg=>{el.textContent=msg});
+  }else el.textContent=st==='ok'?'✓ 紀錄已上傳給老師':st==='sending'?'上傳中…':'還沒上傳成功，會自動重試';
+});
+(()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
+if(loginEnabled())showLogin();
+else { $('g-login').hidden=true; $('g-form').hidden=false; $('in-cls').focus(); }
 </script>

@@ -84,7 +84,7 @@ const ROUNDS=[
     return {get:()=>I.map(i=>NUMOK(i.value,{dec:true})),fill:()=>I.forEach((i,k)=>i.value=inst.fin[k]),ready:()=>I.every(i=>i.value.trim()!=='')}},
   check(inst,a){if(a.some(v=>v==null))return '填數字。';if(a[0]===inst.fin[0]&&a[1]===inst.fin[1])return true;return '還沒跑到不動，或某一輪的平均算錯了。每一輪都要重新指派，再算平均。'}}
 ];
-const APP=SHELL({week:22,termWeek:10,title:'讓資料自己分組',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：園遊會攤位放哪裡，分群搬到平面上。'});
+const APP=SHELL({week:22,termWeek:10,title:'讓資料自己分組',course:'115-g9',unit:5,rounds:ROUNDS,finale:'全部完成！下一站：服務台放哪裡，分群搬到平面上。'});
 </script>
 </body>
 </html>

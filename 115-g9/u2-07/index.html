@@ -48,7 +48,8 @@ function BOARD(el,{locked=false,init=null},api){
   return {get:()=>[...b],set:a=>{a.forEach((v,i)=>b[i]=v);sync()}};
 }
 const rleHTML=r=>'<div class="rle">'+r.map((k,i)=>'<span class="'+(i%2?'off':'on')+'">'+(i%2?'暗':'亮')+' '+k+'</span>').join('')+'</div>';
-const parseNums=s=>String(s).trim().split(/[^0-9]+/).filter(Boolean).map(Number);
+// 只接受非負整數串，避免負號、文字或小數被當成分隔符號而誤判答對。
+const parseNums=s=>{const t=String(s).trim();return /^\d+(?:[\s,，、]+\d+)*$/.test(t)?t.split(/[\s,，、]+/).map(Number):[]};
 const cmpHTML=(b,r)=>{const before=b.length,after=r.length*CB,v=after<before?'變小了，省下 '+(before-after)+' 個位元':after>before?'反而變大了，多了 '+(after-before)+' 個位元':'一樣大，沒有省到';
   return '<section class="panel"><div class="ptitle"><h3>壓縮前後比一比（都用位元算）</h3><span class="tag">無失真</span></div><div class="cmp"><span>原本</span><span><b>'+b.join('')+'</b><br><small>每顆燈 1 位元，共 '+before+' 位元</small></span><span>壓縮後</span><span><b>'+(r.length?r.join(' '):'—')+'</b><br><small>'+r.length+' 個數字 × 每個 '+CB+' 位元＝'+after+' 位元</small></span></div><p><b>'+v+'</b></p><p class="small">暗號裡每個數字固定用 '+CB+' 個位元存（最大到 31）。一段連續一樣的越長，一個數字就能代替越多顆燈；段數太多的話，壓縮後反而比原本大。</p></section>'};
 

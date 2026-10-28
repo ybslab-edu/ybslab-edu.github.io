@@ -39,7 +39,8 @@ const WORDS=['LOVE','ENCORE','SIX STAR','NEW YEAR','HAPPY 2027','GO GO GO','SEE 
 const asciiTable='<div class="table">'+[...' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(c=>'<span><b>'+(c===' '?'空格':c)+'</b><i>'+c.charCodeAt(0)+'</i></span>').join('')+'</div>';
 const bin8=n=>n.toString(2).padStart(8,'0');
 const codesOf=s=>[...s].map(c=>c.charCodeAt(0));
-const parseNums=s=>String(s).trim().split(/[^0-9]+/).filter(Boolean).map(Number);
+// 只接受非負整數串，避免負號、文字或小數被當成分隔符號而誤判答對。
+const parseNums=s=>{const t=String(s).trim();return /^\d+(?:[\s,，、]+\d+)*$/.test(t)?t.split(/[\s,，、]+/).map(Number):[]};
 const CASES=[
  ['阿嬤的舊手機收到小安傳的新 emoji，只看到一個方塊 □。',0],
  ['後援會網頁上，有位成員名字裡的罕見字變成一個空白方塊。',0],

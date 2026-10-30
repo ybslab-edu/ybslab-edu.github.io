@@ -9,6 +9,7 @@ import os, sys, re
 from urllib.parse import urlsplit
 from html import unescape
 from pathlib import Path
+from time import monotonic, sleep
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('YBS_BASE', 'http://localhost:8765/')
@@ -60,13 +61,25 @@ def pass_round(pg):
     assert '過關！' in pg.inner_text('#verdict')
 
 
+def wait_evaluate(pg, expression, *, arg=None, timeout=30000):
+    """由 Python 輪詢，避免頁面 CSP 阻擋 wait_for_function 內部的 eval。"""
+    deadline = monotonic() + timeout / 1000
+    while True:
+        if pg.evaluate(expression, arg=arg):
+            return
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f'等待條件逾時（{timeout} ms）：{expression}')
+        sleep(min(0.05, remaining))
+
+
 def wait_queue(pg, count):
-    pg.wait_for_function("n => JSON.parse(sessionStorage.getItem('ybslab:fq') || '[]').length === n", arg=count)
+    wait_evaluate(pg, "n => JSON.parse(sessionStorage.getItem('ybslab:fq') || '[]').length === n", arg=count)
 
 
 def wait_sync(pg, state):
     text = {'sending': '上傳中', 'pending': '還沒上傳成功', 'ok': '已上傳給老師'}[state]
-    pg.wait_for_function("text => ['sync', 'sync2'].every(id => { const el = document.getElementById(id); return el && !el.hidden && el.textContent.includes(text); })", arg=text)
+    wait_evaluate(pg, "text => ['sync', 'sync2'].every(id => { const el = document.getElementById(id); return el && !el.hidden && el.textContent.includes(text); })", arg=text)
     assert pg.locator('#sync').is_visible() and pg.locator('#sync2').is_visible()
 
 
@@ -105,7 +118,7 @@ def weaknet_case(b, name, run):
 def weaknet_concurrent(c, pg):
     pg.evaluate('__firebaseMock.plan.push({hold:true}, {hold:true, delayMs:200})')
     pass_round(pg)
-    pg.wait_for_function('__firebaseMock.attempts.length === 1')
+    wait_evaluate(pg, '__firebaseMock.attempts.length === 1')
     wait_queue(pg, 1)
     wait_sync(pg, 'sending')
     pg.click('#b-next')
@@ -114,11 +127,11 @@ def weaknet_concurrent(c, pg):
     assert pg.evaluate('prog.mask === 3 && __writes.length === 0 && __firebaseMock.attempts.length === 1')
     wait_sync(pg, 'sending')
     pg.evaluate('__firebaseMock.release(0)')
-    pg.wait_for_function('__writes.length === 1 && __firebaseMock.attempts.length === 2')
+    wait_evaluate(pg, '__writes.length === 1 && __firebaseMock.attempts.length === 2')
     wait_queue(pg, 1)
     wait_sync(pg, 'sending')
     pg.evaluate('__firebaseMock.release(1)')
-    pg.wait_for_function('__writes.length === 2')
+    wait_evaluate(pg, '__writes.length === 2')
     check_records(pg, [0, 1])
     assert pg.evaluate('__firebaseMock.attempts.every(x => x.state === "written")')
 
@@ -132,12 +145,12 @@ def weaknet_retry(c, pg, trigger):
     if trigger == 'online':
         # 觸發真實 Chromium 的 offline → online 事件；所有請求仍經 mock 攔截。
         c.set_offline(True)
-        pg.wait_for_function('!navigator.onLine')
+        wait_evaluate(pg, '!navigator.onLine')
         c.set_offline(False)
-        pg.wait_for_function('navigator.onLine')
+        wait_evaluate(pg, 'navigator.onLine')
     else:
         pg.evaluate('YBS.flush()')
-    pg.wait_for_function('__writes.length === 1')
+    wait_evaluate(pg, '__writes.length === 1')
     check_records(pg, [0])
     assert pg.evaluate('__firebaseMock.attempts.length === 2')
 
@@ -153,11 +166,11 @@ def weaknet_reload(c, pg):
     pg.reload()
     assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
     login_student(pg)
-    pg.wait_for_function('__firebaseMock.attempts.length === 1')
+    wait_evaluate(pg, '__firebaseMock.attempts.length === 1')
     assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
     assert pg.evaluate('__writes.length === 0')
     pg.evaluate('__firebaseMock.release(0)')
-    pg.wait_for_function('__writes.length === 1')
+    wait_evaluate(pg, '__writes.length === 1')
     check_records(pg, [0])
 
 
@@ -170,7 +183,7 @@ def weaknet_permission(c, pg, exists):
         })""")
     pg.evaluate('__firebaseMock.plan.push({code:"permission-denied"})')
     pass_round(pg)
-    pg.wait_for_function('__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
+    wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
     if exists:
         wait_queue(pg, 0)
         wait_sync(pg, 'ok')
@@ -180,7 +193,7 @@ def weaknet_permission(c, pg, exists):
         wait_queue(pg, 1)
         assert pg.evaluate('__writes.length === 0')
         pg.evaluate('YBS.flush()')
-        pg.wait_for_function('__writes.length === 1')
+        wait_evaluate(pg, '__writes.length === 1')
         check_records(pg, [0])
 
 

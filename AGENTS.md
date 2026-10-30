@@ -41,6 +41,7 @@
 - 活動邏輯變更須驗證有解、錯答不會通過、產生器不會無限迴圈；測試只用合成資料。
 
 ## 維護規則與部署
+- 共用資源版本以 `node tools/set-asset-version.mjs login.js 版本號` 統一全站 HTML 的 `?v=`；加 `--check` 僅列出不一致（有差異時結束碼為 1），再執行 `node --test tests/asset-versions.test.mjs` 驗證。
 - 活動 `week` 須與活動頁的 `WEEK` 活動序號一致（成績碼用），與資料夾 `uU-NN/` 無關，改名不能改動；學期週次依 `date` 計算，不可混用。舊 `wNN/` 是轉址頁，勿刪。
 - 每週開放活動須修改 `assets/lock.js` 的 `OPEN`，並同步 `tools/dev/check-pages.py` 的開放預期；前端鎖不具授權保護能力。
 - 新增外部字型、CDN、iframe 或 API 時，須同步檢查各頁 CSP；更換教師通行碼雜湊時同步更新引用的快取版本。

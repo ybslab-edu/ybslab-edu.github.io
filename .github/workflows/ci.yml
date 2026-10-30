@@ -21,11 +21,17 @@ jobs:
         shell: bash
     env:
       PLAYWRIGHT_VERSION: '1.64.1'
-      PLAYWRIGHT_MODULE: ${{ runner.temp }}/playwright-node/node_modules/playwright/index.mjs
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/playwright-browsers
-      npm_config_cache: ${{ runner.temp }}/npm-cache
 
     steps:
+      # job 層的 env 不能用 runner context，暫存路徑在執行時才寫入。
+      - name: Set temporary paths
+        run: |
+          {
+            echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/playwright-node/node_modules/playwright/index.mjs"
+            echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/playwright-browsers"
+            echo "npm_config_cache=$RUNNER_TEMP/npm-cache"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v6
         with:
           persist-credentials: false

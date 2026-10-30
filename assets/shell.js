@@ -3,7 +3,7 @@
 // 每一關：{ name, lv:1|2, now, goal, tip（字串或 inst=>字串）, learn（過關說明）,
 //   gen(rnd) → inst（一組題目資料，rnd() 回傳 0～1）,
 //   view(inst, el, api) → { get()（學生目前的答案）, fill()（教師：填好答案）, ready()（可以送出了嗎，可省略） },
-//   check(inst, ans) → true 或 一句「哪裡不對」的提示,
+//   check(inst, ans) → true 或 一句「哪裡不對」的純文字提示（不解析 HTML）,
 //   peek(inst, ans)（可省略）→ 第 3 部分「電腦裡發生的」HTML }
 // 過關規則：連續答對兩組不同的資料。答錯留在同一組讓學生修正，答對才換新的一組。
 const SHELL = (cfg) => {
@@ -96,9 +96,9 @@ const SHELL = (cfg) => {
     const list = ACTIVITIES.filter(a => a.course === cfg.course && a.unit === cfg.unit).sort((a, b) => a.date.localeCompare(b.date));
     if (list.length > 1) {
       $('unit').hidden = false;
-      $('unit').innerHTML = '<span class="lbl">第 ' + cfg.unit + ' 單元</span>' + list.map(a => {
+      $('unit').innerHTML = '<span class="lbl">第 ' + esc(cfg.unit) + ' 單元</span>' + list.map(a => {
         const w = typeof termWeekOf === 'function' ? termWeekOf(a) : null, now = a.week === cfg.week;
-        return '<' + (now ? 'span class="now" aria-current="page"' : 'a href="../../' + esc(a.href) + '"') + '><b>' + esc(a.title) + '</b>' + (w ? '第 ' + w + ' 週' : '') + (a.track === '選修' ? '・選修' : '') + '</' + (now ? 'span' : 'a') + '>';
+        return '<' + (now ? 'span class="now" aria-current="page"' : 'a href="../../' + esc(a.href) + '"') + '><b>' + esc(a.title) + '</b>' + (w ? '第 ' + esc(w) + ' 週' : '') + (a.track === '選修' ? '・選修' : '') + '</' + (now ? 'span' : 'a') + '>';
       }).join('');
     }
   }
@@ -132,7 +132,8 @@ const SHELL = (cfg) => {
     if (!teacher && !done.has(ri)) { prog.tries[ri] = Math.min(15, prog.tries[ri] + 1); saveProg(); }
     if (res !== true) {
       streak = 0; renderStreak();
-      v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p>' + res + '</p><p class="small">修改後再送出一次。</p>'; v.hidden = false; return;
+      v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">修改後再送出一次。</p>';
+      v.querySelector('p').textContent = res; v.hidden = false; return;
     }
     streak++;
     if (streak < NEED) {
@@ -142,7 +143,7 @@ const SHELL = (cfg) => {
     if (!teacher) { done.add(ri); prog.mask |= 1 << ri; prog.time = Date.now(); saveProg(); upload(ri); }
     const next = R.findIndex((x, i) => i > ri && x.lv === level);
     v.className = 'verdict ok';
-    v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + r.learn + '</p>' : '') + '<div class="btns">' +
+    v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + '<div class="btns">' +
       (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : level === 1 ? '<button class="btn primary" id="b-lv2">挑戰進階關</button>' : endMsg()) + '</div>';
     v.hidden = false; renderRounds();
     if ($('b-next')) $('b-next').onclick = () => load(next);

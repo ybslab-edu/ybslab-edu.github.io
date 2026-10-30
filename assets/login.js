@@ -93,32 +93,56 @@ const YBS = (() => {
 
   // 待送佇列只放在這個分頁（sessionStorage），不把帳號留在共用電腦上
   const QKEY = 'ybslab:fq';
-  const getQ = () => { try { return JSON.parse(sessionStorage.getItem(QKEY) || '[]'); } catch (e) { return []; } };
-  const setQ = a => { try { sessionStorage.setItem(QKEY, JSON.stringify(a)); } catch (e) {} };
-  const docId = x => profile.uid + '_' + x.activity + '_' + x.round;
+  // 首次讀取後以分頁記憶體為準；儲存空間受限時也不會丟掉待送紀錄。
+  let queue = null;
+  const getQ = () => {
+    if (queue === null) {
+      try { queue = JSON.parse(sessionStorage.getItem(QKEY) || '[]'); }
+      catch (e) { queue = []; }
+    }
+    return queue;
+  };
+  const setQ = a => {
+    queue = a;
+    try { sessionStorage.setItem(QKEY, JSON.stringify(a)); } catch (e) {}
+  };
   let busy = false;
   async function flush() {
     if (!enabled() || !profile || busy) return;
-    const mine = getQ().filter(x => x.uid === profile.uid);
-    if (!mine.length) { onStatus('ok'); return; }
-    if (!fb.auth.currentUser) { onStatus('relogin'); return; }
-    busy = true; onStatus('sending');
-    const left = [];
-    for (const x of mine) {
-      const ref = fb.db.doc('ybsCourses/' + courseId() + '/attempts/' + docId(x));
-      const data = { uid: profile.uid, email: profile.email, activity: x.activity, round: x.round, level: x.level, tries: x.tries, passedAt: firebase.firestore.FieldValue.serverTimestamp(), app: 'ybs' };
-      if (x.termWeek) data.termWeek = x.termWeek;
-      try { await ref.set(data); }
-      catch (e) {
-        // 一關只能有一筆：已經有紀錄（例如重做同一關）就算完成
-        let done = false;
-        if (e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) {} }
-        if (!done) left.push(x);
+    if (!getQ().some(x => x.uid === profile.uid)) { onStatus('ok'); return; }
+    if (!fb.auth.currentUser || fb.auth.currentUser.uid !== profile.uid) { onStatus('relogin'); return; }
+    busy = true;
+    // 每筆在本次 flush 最多嘗試一次；失敗留給 60 秒／online 重試。
+    const attempted = new Set();
+    try {
+      onStatus('sending');
+      while (enabled() && profile) {
+        const me = profile;
+        if (!fb.auth.currentUser || fb.auth.currentUser.uid !== me.uid) break;
+        const x = getQ().find(x => x.uid === me.uid && !attempted.has(x));
+        if (!x) break;
+        attempted.add(x);
+        let ref, done = false;
+        try {
+          ref = fb.db.doc('ybsCourses/' + courseId() + '/attempts/' + me.uid + '_' + x.activity + '_' + x.round);
+          const data = { uid: me.uid, email: me.email, activity: x.activity, round: x.round, level: x.level, tries: x.tries, passedAt: firebase.firestore.FieldValue.serverTimestamp(), app: 'ybs' };
+          if (x.termWeek) data.termWeek = x.termWeek;
+          await ref.set(data);
+          done = true;
+        } catch (e) {
+          // 一關只能有一筆：已經有紀錄（例如重做同一關）就算完成
+          if (ref && e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) {} }
+        }
+        // 只刪除實際完成的物件，保留途中新增（包含同關重新提交）的項目。
+        if (done) setQ(getQ().filter(y => y !== x));
+      }
+    } finally {
+      busy = false;
+      if (profile) {
+        const pending = getQ().some(x => x.uid === profile.uid);
+        onStatus(pending ? (!fb.auth.currentUser || fb.auth.currentUser.uid !== profile.uid ? 'relogin' : 'pending') : 'ok');
       }
     }
-    setQ(getQ().filter(x => x.uid !== profile.uid || left.some(l => l.key === x.key)));
-    busy = false;
-    onStatus(left.length ? 'pending' : 'ok');
   }
   const int = (v, lo, hi) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo; };
   function submit(item) {

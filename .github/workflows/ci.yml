@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      PLAYWRIGHT_VERSION: '1.64.1'
+
+    steps:
+      # job 層的 env 不能用 runner context，暫存路徑在執行時才寫入。
+      - name: Set temporary paths
+        run: |
+          {
+            echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/playwright-node/node_modules/playwright/index.mjs"
+            echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/playwright-browsers"
+            echo "npm_config_cache=$RUNNER_TEMP/npm-cache"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Playwright in runner temporary directories
+        run: |
+          npm install --prefix "$RUNNER_TEMP/playwright-node" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund "playwright@$PLAYWRIGHT_VERSION"
+          python3 -m venv "$RUNNER_TEMP/playwright-python"
+          "$RUNNER_TEMP/playwright-python/bin/python" -m pip install --no-cache-dir "playwright==$PLAYWRIGHT_VERSION"
+          # Both bindings use the same version and Chromium installation.
+          "$RUNNER_TEMP/playwright-python/bin/python" -m playwright install --with-deps chromium
+          echo "$RUNNER_TEMP/playwright-python/bin" >> "$GITHUB_PATH"
+
+      - name: Run Node acceptance tests
+        run: node --test tests/*.test.mjs
+
+      - name: Run report format tests
+        run: node tests/df-report.test.cjs
+
+      - name: Run teacher cloud tests
+        run: node tests/df-teacher-cloud.test.cjs
+
+      - name: Run full-site regression with Firebase mock
+        env:
+          YBS_BASE: http://127.0.0.1:8765/
+          YBS_TEACHER_CODE: ''
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/http-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=false
+          for attempt in {1..30}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/http-server.log"
+              exit 1
+            fi
+            if curl --fail --silent --max-time 1 "$YBS_BASE" > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" != true ]]; then
+            echo 'HTTP server did not become ready within 30 attempts.' >&2
+            cat "$RUNNER_TEMP/http-server.log"
+            exit 1
+          fi
+
+          python3 tools/dev/check-pages.py

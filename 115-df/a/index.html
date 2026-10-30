@@ -13,7 +13,7 @@
   --paper:#E9EDF0; --sheet:#FFFFFF; --sheet-2:#F5F7F9; --ink:#17222D; --muted:#56636F; --line:#C9D2DA;
   --tag:#F2C230; --tag-ink:#1C1A10; --accent:#1E5B86; --accent-soft:#DCE9F3; --ok:#2C7A4B; --ok-soft:#DFF1E6;
   --warn:#B0432C; --warn-soft:#F8E3DD; --lock:#8793A0;
-  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",Consolas,"Microsoft JhengHei",monospace;
   --fs:16px;
   color-scheme:light;
@@ -1285,7 +1285,7 @@ function reportHTML(){
   const logRows=S.log.map(l=>`<tr><td class="t">${hm(l.t)}</td><td>${esc(({start:'開始',open:'打開證物',zoom:'放大照片',download:'下載照片',l01check:'檢查練習',h1submit:'送出 H1',unlock2:'解鎖第二批',unlock2fail:'第二批密碼錯誤',hint:'使用提示',concldone:'完成第二堂',comment:'收到留言',unlock3:'解鎖揭露',unlock3fail:'揭露密碼錯誤',calc:'數資挑戰檢查',import:'匯入報告檔',export:'下載報告檔'})[l.e]||l.e)}</td><td>${esc(l.d??'')}</td></tr>`).join('');
   const data=JSON.stringify({...S, b2:{...S.b2,pw:undefined}, reveal:{...S.reveal,pw:undefined}}).replace(/<\//g,'<\\/');   // 下載報告維持原格式；DFReport 只用於之後的交件
   return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(S.cls)}班${esc(S.seat)}號 專題研究報告</title>
-<style>body{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color:#17222D;background:#fff;max-width:900px;margin:0 auto;padding:24px 20px 60px;line-height:1.65;font-size:15px}
+<style>body{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#17222D;background:#fff;max-width:900px;margin:0 auto;padding:24px 20px 60px;line-height:1.65;font-size:15px}
 h1{font-size:24px;margin:0}h2{font-size:18px;margin:28px 0 8px;padding-bottom:4px;border-bottom:2px solid #17222D}
 table{border-collapse:collapse;width:100%;margin:6px 0}th,td{border:1px solid #C9D2DA;padding:5px 8px;text-align:left;vertical-align:top}th{background:#F1F4F6;width:11em;font-weight:700}
 .t{font-family:Consolas,monospace;white-space:nowrap}.na{color:#9AA4AE}.meta{color:#56636F}.tag{background:#F2C230;padding:0 6px;font-family:Consolas,monospace;font-weight:700}

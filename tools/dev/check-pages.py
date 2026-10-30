@@ -1,4 +1,4 @@
-"""YBS 本機回歸測試：上鎖狀態、帳號密碼登入、上傳、教師解鎖。
+"""YBS 本機回歸測試：上鎖狀態、帳號密碼登入、弱網上傳、教師解鎖。
 用法：在 repo 根目錄 `python3 -m http.server 8765`，另開終端機
       `python3 tools/dev/check-pages.py`（需要 playwright + Chromium）。
 Firebase 用 tools/dev/firebase-mock.js 假的物件，不連正式專案。
@@ -6,11 +6,17 @@ Firebase 用 tools/dev/firebase-mock.js 假的物件，不連正式專案。
 教師解鎖需要通行碼：以環境變數 YBS_TEACHER_CODE 提供（不要寫進 repo）。
 """
 import os, sys, re
+from urllib.parse import urlsplit
 from html import unescape
 from pathlib import Path
+from time import monotonic, sleep
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('YBS_BASE', 'http://localhost:8765/')
+# 拒絕遠端入口，避免測試頁或資料誤連正式網站。
+_base_url = urlsplit(BASE)
+if _base_url.scheme != 'http' or _base_url.hostname not in ('localhost', '127.0.0.1', '::1'):
+    raise SystemExit('YBS_BASE 必須是本機 HTTP 網址')
 MOCK = (Path(__file__).parent / 'firebase-mock.js').read_text(encoding='utf-8')
 # 舊名稱僅供轉址驗證；活動序號與新資料夾順序互相獨立。
 REDIRECTS = dict(pair.split(':') for pair in (
@@ -30,11 +36,166 @@ def ctx_of(b):
     c = b.new_context()
     def rt(r):
         u = r.request.url
-        if 'gstatic.com/firebasejs' in u:
+        if urlsplit(u).hostname == 'www.gstatic.com' and urlsplit(u).path.startswith('/firebasejs/'):
             return r.fulfill(body=MOCK if 'app-compat' in u else '//', content_type='application/javascript')
         return r.continue_() if u.startswith(BASE) else r.abort()
     c.route('**/*', rt)
     return c
+
+
+def login_student(pg):
+    """只使用 mock 的合成帳號，透過頁面登入並確認班座。"""
+    pg.fill('#g-gbtn input[name=a]', '1100123')
+    pg.fill('#g-gbtn input[name=p]', 'CGJHa123456789')
+    pg.click('#g-gbtn button')
+    pg.wait_for_selector('#g-whobtns', state='visible')
+    assert '917 班 5 號' in pg.inner_text('#g-whotext')
+    pg.click('#g-isme')
+    pg.wait_for_selector('#main', state='visible')
+
+
+def pass_round(pg):
+    # 指定正解卡片後仍走原 play()、兩組資料判定、進度與 upload()，不代呼叫 submit。
+    pg.evaluate('async () => { slots = [...ROUNDS[ri].sol]; await play(); }')
+    assert pg.locator('#verdict').is_visible()
+    assert '過關！' in pg.inner_text('#verdict')
+
+
+def wait_evaluate(pg, expression, *, arg=None, timeout=30000):
+    """由 Python 輪詢，避免頁面 CSP 阻擋 wait_for_function 內部的 eval。"""
+    deadline = monotonic() + timeout / 1000
+    while True:
+        if pg.evaluate(expression, arg=arg):
+            return
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f'等待條件逾時（{timeout} ms）：{expression}')
+        sleep(min(0.05, remaining))
+
+
+def wait_queue(pg, count):
+    wait_evaluate(pg, "n => JSON.parse(sessionStorage.getItem('ybslab:fq') || '[]').length === n", arg=count)
+
+
+def wait_sync(pg, state):
+    text = {'sending': '上傳中', 'pending': '還沒上傳成功', 'ok': '已上傳給老師'}[state]
+    wait_evaluate(pg, "text => ['sync', 'sync2'].every(id => { const el = document.getElementById(id); return el && !el.hidden && el.textContent.includes(text); })", arg=text)
+    assert pg.locator('#sync').is_visible() and pg.locator('#sync2').is_visible()
+
+
+def check_records(pg, rounds):
+    # 同時驗證路徑、筆數、每筆內容與佇列，避免只看到成功文字就算通過。
+    writes = pg.evaluate('__writes')
+    assert len(writes) == len(rounds), '成功寫入筆數不符'
+    assert [x[0] for x in writes] == [f'ybsCourses/115-g9/attempts/U1_1_{r}' for r in rounds]
+    for (_, data), r in zip(writes, rounds):
+        assert data == dict(uid='U1', email='cgjh1100123@cgjh.hcc.edu.tw', activity=1,
+                            round=r, level=1, tries=1, passedAt='TS', app='ybs', termWeek=7)
+    wait_queue(pg, 0)
+    wait_sync(pg, 'ok')
+
+
+def weaknet_case(b, name, run):
+    c = ctx_of(b)
+    pg = c.new_page()
+    pg.emulate_media(reduced_motion='reduce')
+    errors = []
+    pg.on('pageerror', lambda e: errors.append(str(e)[:150]))
+    try:
+        pg.goto(BASE + '115-g9/u1-05/')
+        login_student(pg)
+        run(c, pg)
+        assert not errors, str(errors)
+        print('OK  ', 'weaknet/' + name)
+        return 0
+    except Exception as e:
+        print('FAIL', 'weaknet/' + name, str(e)[:300], errors[:1])
+        return 1
+    finally:
+        c.close()
+
+
+def weaknet_concurrent(c, pg):
+    pg.evaluate('__firebaseMock.plan.push({hold:true}, {hold:true, delayMs:200})')
+    pass_round(pg)
+    wait_evaluate(pg, '__firebaseMock.attempts.length === 1')
+    wait_queue(pg, 1)
+    wait_sync(pg, 'sending')
+    pg.click('#b-next')
+    pass_round(pg)
+    wait_queue(pg, 2)
+    assert pg.evaluate('prog.mask === 3 && __writes.length === 0 && __firebaseMock.attempts.length === 1')
+    wait_sync(pg, 'sending')
+    pg.evaluate('__firebaseMock.release(0)')
+    wait_evaluate(pg, '__writes.length === 1 && __firebaseMock.attempts.length === 2')
+    wait_queue(pg, 1)
+    wait_sync(pg, 'sending')
+    pg.evaluate('__firebaseMock.release(1)')
+    wait_evaluate(pg, '__writes.length === 2')
+    check_records(pg, [0, 1])
+    assert pg.evaluate('__firebaseMock.attempts.every(x => x.state === "written")')
+
+
+def weaknet_retry(c, pg, trigger):
+    pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})')
+    pass_round(pg)
+    wait_sync(pg, 'pending')
+    wait_queue(pg, 1)
+    assert pg.evaluate('__writes.length === 0 && __firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
+    if trigger == 'online':
+        # 觸發真實 Chromium 的 offline → online 事件；所有請求仍經 mock 攔截。
+        c.set_offline(True)
+        wait_evaluate(pg, '!navigator.onLine')
+        c.set_offline(False)
+        wait_evaluate(pg, 'navigator.onLine')
+    else:
+        pg.evaluate('YBS.flush()')
+    wait_evaluate(pg, '__writes.length === 1')
+    check_records(pg, [0])
+    assert pg.evaluate('__firebaseMock.attempts.length === 2')
+
+
+def weaknet_reload(c, pg):
+    pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})')
+    pass_round(pg)
+    wait_sync(pg, 'pending')
+    before = pg.evaluate('sessionStorage.getItem("ybslab:fq")')
+    assert len(pg.evaluate('JSON.parse(sessionStorage.getItem("ybslab:fq"))')) == 1
+    # 重新整理後 mock 也重建；登入自動 flush 先卡住，以驗證未送內容沒有消失。
+    c.add_init_script('window.__firebaseWritePlan = [{hold:true}];')
+    pg.reload()
+    assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
+    login_student(pg)
+    wait_evaluate(pg, '__firebaseMock.attempts.length === 1')
+    assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
+    assert pg.evaluate('__writes.length === 0')
+    pg.evaluate('__firebaseMock.release(0)')
+    wait_evaluate(pg, '__writes.length === 1')
+    check_records(pg, [0])
+
+
+def weaknet_permission(c, pg, exists):
+    if exists:
+        # 同一路徑已有紀錄：拒絕覆寫後，login.js 讀回 exists 才能移除待送項目。
+        pg.evaluate("""__firebaseMock.documents.set("ybsCourses/115-g9/attempts/U1_1_0", {
+            uid:"U1", email:"cgjh1100123@cgjh.hcc.edu.tw", activity:1, round:0,
+            level:1, tries:1, passedAt:"TS", app:"ybs", termWeek:7
+        })""")
+    pg.evaluate('__firebaseMock.plan.push({code:"permission-denied"})')
+    pass_round(pg)
+    wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
+    if exists:
+        wait_queue(pg, 0)
+        wait_sync(pg, 'ok')
+        assert pg.evaluate('__writes.length === 0 && __firebaseMock.documents.get("ybsCourses/115-g9/attempts/U1_1_0").round === 0')
+    else:
+        wait_sync(pg, 'pending')
+        wait_queue(pg, 1)
+        assert pg.evaluate('__writes.length === 0')
+        pg.evaluate('YBS.flush()')
+        wait_evaluate(pg, '__writes.length === 1')
+        check_records(pg, [0])
+
 
 fail = 0
 with sync_playwright() as p:
@@ -127,6 +288,17 @@ with sync_playwright() as p:
         pg.fill('#in-cls', '917'); pg.fill('#in-seat', '5'); pg.click('#g-next'); pg.click('#g-go')
         ok = ok and pg.locator('#main').is_visible() and not pg.locator('#sync').is_visible()
         fail += not ok; print(('OK  ' if ok else 'FAIL'), f'{ACTIVITY_DIRS[week]} swap/manual'); c.close()
+
+    # 弱網情境各用獨立 context；全部由活動實際過關產生紀錄。
+    for name, run in (
+        ('concurrent', weaknet_concurrent),
+        ('failure-online', lambda c, pg: weaknet_retry(c, pg, 'online')),
+        ('failure-retry', lambda c, pg: weaknet_retry(c, pg, 'retry')),
+        ('reload', weaknet_reload),
+        ('permission-missing', lambda c, pg: weaknet_permission(c, pg, False)),
+        ('permission-existing', lambda c, pg: weaknet_permission(c, pg, True)),
+    ):
+        fail += weaknet_case(b, name, run)
 
     # login.js 載入失敗或停用時，仍可用班座開始，且初始化不能拋出例外。
     for week in (1, 2, 3, 5):

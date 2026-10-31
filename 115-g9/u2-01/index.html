@@ -139,12 +139,12 @@ body.showorig .frame .orig{opacity:1}
 </head>
 <body>
 <script src="../../assets/codec.js"></script>
-<script src="../../assets/teacher.js?v=20261031c"></script>
+<script src="../../assets/teacher.js?v=20261031e"></script>
 <script src="../../assets/lock.js?v=20261027b"></script>
-<script src="../../assets/login.js?v=20261031c"></script>
+<script src="../../assets/login.js?v=20261031e"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=16"></script>
+<script src="../../assets/shell.js?v=20261031a"></script>
 <script>
 const WEEK=3, TERM_WEEK=9, TITLE='看台最後一排', COURSE='115-g9';
 // ===== 照片產生器：全部用程式畫，不用真人照片 =====
@@ -261,7 +261,6 @@ const ROUNDS=[
   kind:'sat',ask:['count'],fixDep:24,startRes:0,sol:{res:32,dep:24}}
 ];
 const resList=R=>R.kind==='sat'?SAT.map(m=>GROUND/m):RES;
-const SOLDEP=R=>R.sol.dep;
 
 let teacher=false, activityApi, ri=0, setRes=0, setDep=4, photos=[], answers=[], showOrig=false;
 const $=id=>document.getElementById(id);

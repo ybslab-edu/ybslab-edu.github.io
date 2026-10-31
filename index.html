@@ -259,12 +259,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 const $=id=>document.getElementById(id);
 /* 頁首動畫：whY Because So 依序亮起 */
 requestAnimationFrame(()=>setTimeout(()=>$('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));
-const trk=a=>a.track==='選修'?'<span class="trk opt" title="進度落後的班級可以跳過">選修</span>':'<span class="trk req">必修</span>';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const courseOf=id=>COURSES.find(c=>c.id===id)||{name:id,path:'#'};
-const byCode={};
-ACTIVITIES.forEach(a=>a.codes.forEach(c=>(byCode[c]=byCode[c]||[]).push(a)));
-const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網址 #S-IV-2
 
 /* 舊網址 #S-IV-2 之類的課綱連結改到學習地圖頁 */
 if(/^#[A-Za-z]+-(IV|V)-\d+$/.test(location.hash))location.replace('map/'+location.hash);

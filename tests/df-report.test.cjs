@@ -157,10 +157,12 @@ test('解碼檢查型別、文字／陣列上界並排除未知欄位',async()=>
 
 async function importInPage(report) {
   const context = vm.createContext({ VERSION:pub.version, impWho:{cls:'999',seat:'99'},
-    S:null, recOn:false, now:()=>fixedTime, save:()=>{}, toast:()=>{}, boot:()=>{} });
+    PUB:pub, APPV:pub.appVersion, DFReport:R, TextEncoder, newCid:()=>'synthetic-cid',
+    recOn:false, now:()=>fixedTime, save:()=>{}, toast:()=>{}, boot:()=>{} });
+  vm.runInContext(source('function newSusp()', '/* ---------- network'), context);
   vm.runInContext(source('async function importReport(', 'async function boot('), context);
-  await context.importReport({target:{files:[{name:'synthetic.html',text:async()=>report}],value:''}});
-  return JSON.parse(JSON.stringify(context.S));
+  await context.importReport({target:{files:[{size:Buffer.byteLength(report),name:'synthetic.html',text:async()=>report}],value:''}});
+  return JSON.parse(JSON.stringify(vm.runInContext('S',context)));
 }
 test('原 importReport 可匯入舊 HTML 報告與新序列化報告',async()=>{
   const state = full(3,1);
@@ -174,6 +176,8 @@ test('原 importReport 可匯入舊 HTML 報告與新序列化報告',async()=>{
 
 test('下載報告維持原格式（保留 cid、gallery.done 等全部欄位），可再匯入且維持既有答案',async()=>{
   const state = full(3,1); state.cid = 'cid-test'; state.gallery.done = true;
+  state.problem = '文'.repeat(R.MAX_JSON_BYTES/2);
+  state.log = Array.from({length:20001},()=>({t:fixedTime,e:'open',d:'E01'}));
   const context = vm.createContext({S:state,PUB:pub,B2:null,VERSION:pub.version,
     TL_SLOTS:pub.timeline,DFReport:R,hm:()=>'',esc:s=>String(s??'')});
   vm.runInContext(source('function reportHTML()', 'function exportReport('), context);
@@ -182,7 +186,10 @@ test('下載報告維持原格式（保留 cid、gallery.done 等全部欄位）
   assert.equal(saved.cid,'cid-test');
   assert.equal(saved.gallery.done,true);
   assert.equal(saved.b2.pw,undefined);
-  assert.equal((await importInPage(report)).reveal.r1,state.reveal.r1);
+  const restored = await importInPage(report);
+  assert.equal(restored.reveal.r1,state.reveal.r1);
+  assert.deepEqual({...restored,log:restored.log.slice(0,-1)},saved);
+  assert.equal(restored.log.at(-1).e,'import');
   assert.ok(html.indexOf('assets/df-report.js') < html.indexOf('function reportHTML()'));
 });
 

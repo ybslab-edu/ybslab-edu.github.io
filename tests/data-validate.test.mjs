@@ -39,7 +39,8 @@ function dfSetup(){
   run(c,df.slice(df.indexOf('async function importReport('),df.indexOf('async function boot(')));
   const valid=()=>plain(run(c,"blankState('999','1')"));
   const importData=async(data,extra={})=>{
-    c.event={target:{value:'synthetic-file',files:[{size:100,name:'synthetic.html',text:async()=>'<script id="df-report" type="application/json">'+JSON.stringify(data)+'</script>',...extra}]}};
+    const report='<script id="df-report" type="application/json">'+JSON.stringify(data)+'</script>';
+    c.event={target:{value:'synthetic-file',files:[{size:Buffer.byteLength(report),name:'synthetic.html',text:async()=>report,...extra}]}};
     await run(c,'importReport(event)');
   };
   return {c,notices,stored,valid,importData,state:()=>plain(run(c,'S'))};
@@ -62,7 +63,7 @@ test('學生匯入：缺必要欄位、錯型別、壞陣列項目與容量過�
     d=>d.h1.checks=[false],d=>d.h1.ev=[{}],d=>d.gallery.comments=[{seat:1}],
     d=>d.ev.E01.fact=5,d=>d.b2.hints=[null],d=>d.b2.ev.E05={why:'incomplete'},
     d=>d.pred=[],d=>d.susp={},d=>d.cls={},d=>d.started=3,
-    d=>d.exports=Array(20001).fill(''),d=>d.problem='文'.repeat(DFReport.MAX_JSON_BYTES/2),
+    d=>d.exports=[{}],d=>d.problem='文'.repeat(32*1024*1024/3),
   ];
   for(const mutate of mutations){const d=h.valid();mutate(d);await h.importData(d);assert.deepEqual(h.state(),before);assert.match(h.notices.at(-1),/不接受/);}
   for(const data of [null,[],{},5]){await h.importData(data);assert.deepEqual(h.state(),before);}
@@ -80,6 +81,34 @@ test('專題 localStorage：損毀回預設，換人不沿用前人的記憶體�
   const data=h.valid();data.problem='合成舊作答';delete data.cid;
   h.stored.set(key,JSON.stringify(data));run(h.c,"startAs('999','1')");assert.equal(h.state().problem,'合成舊作答');
   run(h.c,"startAs('998','2')");assert.equal(h.state().cls,'998');assert.equal(h.state().problem,'');
+});
+test('學生匯入：超過雲端容量與筆數的合法下載報告完整保留',async()=>{
+  for(const text of ['a'.repeat(DFReport.MAX_JSON_BYTES+1),'文'.repeat(DFReport.MAX_JSON_BYTES/2)]){
+    const h=dfSetup(),data=h.valid();data.problem=text;
+    data.log=Array.from({length:20001},()=>({t:'synthetic-time',e:'open',d:null}));
+    data.exports=Array(20001).fill('synthetic-time');
+    assert.ok(new TextEncoder().encode(JSON.stringify(data)).length>DFReport.MAX_JSON_BYTES);
+    const before=plain(data);
+    await h.importData(data);
+    const restored=h.state();
+    assert.equal(restored.log.at(-1).e,'import');
+    restored.log.pop();assert.deepEqual(restored,before);
+    assert.match(h.notices.at(-1),/已匯入/);
+    assert.equal((await DFReport.encode(data)).action,'download');
+  }
+});
+test('專題 localStorage：大型舊進度與 20,001 筆 log 可接續，異常容量仍拒絕',()=>{
+  const h=dfSetup(),data=h.valid(),key='df-synthetic-v1-999-1';
+  delete data.cid;delete data.susp;delete data.pred;delete data.concl.can;
+  data.problem='文'.repeat(DFReport.MAX_JSON_BYTES/2);
+  data.log=Array.from({length:20001},()=>({t:'synthetic-time',e:'open',d:null}));
+  h.stored.set(key,JSON.stringify(data));run(h.c,"startAs('999','1')");
+  assert.deepEqual(h.state(),{...data,cid:'synthetic-cid'});
+  assert.match(h.notices.at(-1),/已接續/);
+  data.problem='文'.repeat(32*1024*1024/3);
+  h.stored.set(key,JSON.stringify(data));run(h.c,"startAs('999','1')");
+  assert.equal(h.state().problem,'');assert.equal(h.state().log[0].e,'start');
+  assert.match(h.notices.at(-1),/損毀/);
 });
 function queueSetup(value){
   const sent=[],stored=new Map([['ybslab:fq',value]]);

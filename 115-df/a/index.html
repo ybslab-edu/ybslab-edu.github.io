@@ -319,13 +319,15 @@ function blankState(cls, seat){
     reveal:{unlockedAt:null,tlnote:'',r1:'',r2:'',r3:'',r4:'',calc:{t:'',i:'',s:'',ok:false}},
     exports:[], log:[] };
 }
-// 沿用報告白名單的型別／陣列上限；此處另驗證繼續作答所需的完整結構。
+// 本機只沿用報告白名單的型別檢查，不套用雲端容量／筆數限制。
+// 獨立的 32 MiB 防護避免異常檔案耗盡記憶體，並保留大型下載報告與舊進度。
+const MAX_LOCAL_STATE_BYTES=32*1024*1024;
 const MAX_REPORT_FILE_BYTES=32*1024*1024;
 function validateState(data){
   const bad=()=>{throw new Error('報告資料不完整、型別錯誤或超過容量上限');};
   if(!data || typeof data!=='object' || Array.isArray(data)) bad();
   const json=JSON.stringify(data);
-  if(json.length>DFReport.MAX_JSON_BYTES || new TextEncoder().encode(json).length>DFReport.MAX_JSON_BYTES) bad();
+  if(json.length>MAX_LOCAL_STATE_BYTES || new TextEncoder().encode(json).length>MAX_LOCAL_STATE_BYTES) bad();
   if(data.app!=='DF-investigation'||data.version!==VERSION
     || !/^[0-9]{3,4}$/.test(String(data.cls)) || !/^[0-9]{1,2}$/.test(String(data.seat))
     || !['string','number'].includes(typeof data.cls) || !['string','number'].includes(typeof data.seat)) bad();
@@ -337,7 +339,7 @@ function validateState(data){
     for(const k of keys) parent=parent?.[k];
     if(parent && parent[key]===null) delete parent[key];
   }
-  DFReport.select(checked,true);
+  DFReport.select(checked);
   function required(value,model,path=''){
     if(legacy.has(path) && value==null) return;
     if(value===undefined) bad();
@@ -502,7 +504,7 @@ function startAs(cls, seat){
   S=null;
   const raw=lsGet(`df-${VERSION}-${cls}-${seat}`);
   if(raw){ try{
-    if(raw.length>DFReport.MAX_JSON_BYTES) throw new Error('too large');
+    if(raw.length>MAX_LOCAL_STATE_BYTES) throw new Error('too large');
     const data=validateState(JSON.parse(raw));
     if(String(data.cls)!==String(cls)||String(data.seat)!==String(seat)) throw new Error('identity');
     S=data; toast('已接續你上次的進度');
@@ -585,7 +587,7 @@ async function importReport(ev){
   if(txt.length>MAX_REPORT_FILE_BYTES){toast('報告檔過大，不接受匯入');return;}
   const m=txt.match(/<script id="df-report" type="application\/json">([\s\S]*?)<\/script>/);
   if(!m){ toast('這不是調查站產生的報告檔'); return; }
-  if(m[1].length>DFReport.MAX_JSON_BYTES){toast('報告資料過大，不接受匯入');return;}
+  if(m[1].length>MAX_LOCAL_STATE_BYTES){toast('報告資料過大，不接受匯入');return;}
   let data; try{ data=JSON.parse(m[1].replace(/<\\\//g,'</')); }catch(e){ toast('報告檔損毀，無法讀取'); return; }
   if(!data || data.app!=='DF-investigation'){ toast('這不是調查站產生的報告檔'); return; }
   if(data.version!==VERSION){ toast('這份報告屬於另一個案件版本，請找老師'); return; }

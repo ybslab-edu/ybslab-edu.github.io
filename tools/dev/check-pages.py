@@ -268,18 +268,15 @@ with sync_playwright() as p:
         who = pg.inner_text('#g-whotext')
         confirmed = pg.locator('#g-who').is_visible() and not pg.locator('#main').is_visible() and pg.evaluate('__writes.length === 0')
         pg.click('#g-isme'); pg.wait_for_timeout(300)
-        if week == 1:
-            # 走原本出餐與雙組判定，確認過關自動呼叫 submit，而非測試直接代送。
-            pg.evaluate('async () => { APP.handle.fill(); await play(); }')
-        else:
-            pg.evaluate("YBS.submit({activity:2,round:1,level:'進階',tries:2,termWeek:8})")
+        # 兩頁均走活動實際播放與雙組判定，確認過關自動呼叫 submit。
+        pg.evaluate('() => { APP.handle.fill(); play(); }')
+        pg.wait_for_selector('#verdict.ok', timeout=15000)
         pg.wait_for_timeout(400)
         w = pg.evaluate('__writes'); up = pg.inner_text('#sync2')
         ok = bool(wrong and confirmed and '917 班 5 號' in who and w
                   and w[-1][1]['email'] == 'cgjh1100123@cgjh.hcc.edu.tw'
                   and w[-1][1]['activity'] == week and w[-1][1]['termWeek'] == week + 6 and '已上傳' in up)
-        if week == 1:
-            ok = ok and w[-1][1]['round'] == 0 and w[-1][1]['tries'] == 1 and pg.evaluate("JSON.parse(localStorage.getItem('it9:w1:917-5')).mask === 1")
+        ok = ok and w[-1][1]['round'] == 0 and w[-1][1]['tries'] == 1 and pg.evaluate(f"JSON.parse(localStorage.getItem('it9:w{week}:917-5')).mask === 1")
         fail += not ok; print(('OK  ' if ok else 'FAIL'), f'{ACTIVITY_DIRS[week]} login/upload', who, w[-1][0] if w else None, up)
         pg.click('#b-swap')
         ok = pg.locator('#g-login').is_visible() and not pg.locator('#g-form').is_visible() and pg.evaluate('YBS.profile() === null')

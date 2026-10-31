@@ -95,6 +95,7 @@ nav a{color:var(--accent)}
       <button class="btn" id="b-x2">下載本週全部班級</button>
       <button class="btn" id="b-x3">下載本班學期總表</button>
     </div>
+    <p class="msg no" id="cache-msg" role="alert" hidden></p>
     <p class="msg" id="dlmsg" role="status"></p>
   </section>
 
@@ -109,14 +110,45 @@ const COURSE='115-g9';   // 這個教師專區對應的課程
 const W=Object.fromEntries(ACTIVITIES.filter(a=>a.course===COURSE).map(a=>[a.week,a]));
 const roundsOf=w=>(W[w]&&W[w].rounds)||['第1關','第2關','第3關','第4關'];
 let recs={}, sizes={}, curW=null, curC=null;
-try{recs=JSON.parse(localStorage.getItem('it9:grades')||'{}');sizes=JSON.parse(localStorage.getItem('it9:sizes')||'{}')}catch(e){}
-const save=()=>{try{localStorage.setItem('it9:grades',JSON.stringify(recs));localStorage.setItem('it9:sizes',JSON.stringify(sizes));return true}catch(e){return false}};
+// 壞項目不參與顯示／計算；另存原值，後續儲存也不悄悄刪掉它們。
+let rejectedRecs={}, unreadableGrades=false, cacheIssues=0;
+const cacheObject=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+const cacheInt=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi;
+function validGrade(r,k){
+  return cacheObject(r)&&cacheInt(r.week,1,63)&&cacheInt(r.cls,100,999)&&cacheInt(r.seat,1,60)
+    && k===r.week+'-'+r.cls+'-'+r.seat && cacheInt(r.mask,0,63)
+    && Array.isArray(r.tries)&&r.tries.length>=4&&r.tries.length<=6
+    && r.tries.every(n=>cacheInt(n,0,15))
+    && Number.isFinite(r.time)&&r.time>=0&&r.time<=8640000000000000
+    && typeof r.code==='string'&&r.code.length<=19&&!!CODEC.decode(r.code);
+}
+try{
+  const data=JSON.parse(localStorage.getItem('it9:grades')||'{}');
+  if(!cacheObject(data)){unreadableGrades=true;cacheIssues++;}
+  else for(const [k,r] of Object.entries(data)){
+    if(validGrade(r,k))recs[k]=r;
+    else {Object.defineProperty(rejectedRecs,k,{value:r,enumerable:true});cacheIssues++;}
+  }
+}catch(e){unreadableGrades=true;cacheIssues++;}
+try{
+  const data=JSON.parse(localStorage.getItem('it9:sizes')||'{}');
+  if(!cacheObject(data))cacheIssues++;
+  else for(const [k,n] of Object.entries(data)){
+    if(/^[1-9]\d{2}$/.test(k)&&cacheInt(n,1,60))sizes[k]=n;else cacheIssues++;
+  }
+}catch(e){cacheIssues++;}
+if(cacheIssues){$('cache-msg').hidden=false;$('cache-msg').textContent='已略過 '+cacheIssues+' 筆損毀或超出範圍的快取；其他成績仍可使用。原始成績快取保留，請先匯出可讀成績備份，再請老師處理損毀資料。';}
+const save=()=>{try{
+  if(unreadableGrades)return false; // 無法判讀整份快取時，不覆蓋老師原始資料。
+  localStorage.setItem('it9:grades',JSON.stringify({...rejectedRecs,...recs}));
+  localStorage.setItem('it9:sizes',JSON.stringify(sizes));return true;
+}catch(e){return false}};
 function reportSave(saved){
   const m=$('save-msg');m.hidden=saved;
   m.textContent=saved?'':'這台電腦沒有存下來。請老師立刻用下方既有的下載／匯出方式備份各班各週成績；資料仍留在目前畫面可匯出，保存前請勿關閉或重新整理。';
   if(!saved){$('msg').className='msg no';$('msg').textContent=''}
 }
-const n1=m=>{let c=0;while(m){c+=m&1;m>>=1}return c};
+const n1=m=>{let c=0;m=m>>>0;while(m){c+=m&1;m>>>=1}return c};
 const p2=n=>String(n).padStart(2,'0');
 const fmtTime=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+p2(d.getHours())+':'+p2(d.getMinutes())};
 const all=()=>Object.values(recs);

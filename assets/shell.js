@@ -207,7 +207,10 @@ const SHELL = (cfg) => {
   $('g-go').onclick = () => start({ cls: +$('in-cls').value, seat: +$('in-seat').value });
   function start(id) {
     ident = id; prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
-    try { const p = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (p && Array.isArray(p.tries)) prog = p } catch (e) { }
+    try { const p = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (p && Number.isInteger(p.mask) && p.mask >= 0 && p.mask < 2 ** R.length
+      && Array.isArray(p.tries) && p.tries.length >= R.length && p.tries.length <= 6
+      && p.tries.every(n => Number.isInteger(n) && n >= 0 && n <= 15)
+      && Number.isFinite(p.time) && p.time >= 0 && p.time <= 8640000000000000) prog = p } catch (e) { }
     done.clear(); for (let i = 0; i < R.length; i++) if (prog.mask & (1 << i)) done.add(i);
     $('who').textContent = id.cls + ' 班 ' + id.seat + ' 號' + (id.name ? ' ' + id.name : '');
     if (loginEnabled() && YBS.profile()) { try { sessionStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; $('rep-note').innerHTML = '每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。'; YBS.flush() }

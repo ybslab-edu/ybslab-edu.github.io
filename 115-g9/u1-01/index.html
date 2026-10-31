@@ -22,7 +22,7 @@
 <script src="../../assets/login.js?v=20261031b"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=16"></script>
+<script src="../../assets/shell.js?v=20261031a"></script>
 <script>
 // TITLE:開賣倒數十秒
 // TERMWEEK:3
@@ -71,6 +71,15 @@ const SYM=[
  ['音樂 App 的播放清單不見了，其他 App 都沒事',2]];
 const card=(a,b)=>'<b>'+a+'</b><br><small>'+b+'</small>';
 const allIn=(p,k,n)=>new Set(p.map(x=>x[k])).size===n;
+// 保留原本的拒絕抽樣；亂數異常時也能在有限次數內取得完整類別。
+function sampleAll(rnd,items,k,n){
+  for(let attempt=0;attempt<128;attempt++){
+    const p=SAMPLE(rnd,items,6);
+    if(allIn(p,k,n))return p;
+  }
+  const p=[...new Set(items.map(x=>x[k]))].map(c=>items.find(x=>x[k]===c));
+  return p.concat(items.filter(x=>!p.includes(x))).slice(0,6);
+}
 const CR=(items,a,h)=>Array.isArray(a)?CHECKROWS(items,a,h):'每一項都要選好。';
 const ROUNDS=[
  {lv:1,name:'這是哪一種電腦',
@@ -78,7 +87,7 @@ const ROUNDS=[
   goal:'把每一台電腦分到它的平台類別。',
   tip:'問自己三件事：放在桌上用、還是隨身帶？是一個人用、還是在機房同時服務很多人？是什麼都能做，還是一輩子只做一件事？',
   learn:'系統平台可以分成個人電腦、行動裝置、伺服器（雲端）和嵌入式系統。嵌入式系統藏在電器和機器裡，只做一件事，數量其實是最多的。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,DEV,6)}while(!allIn(p,2,4));return {items:p}},
+  gen(rnd){return {items:sampleAll(rnd,DEV,2,4)}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:card(x[0],x[1])})),PF,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[2]))}},
   check(inst,a){return CR(inst.items.map(x=>[x,x[2]]),a,'分錯了。想想它是放在桌上、隨身帶、在機房，還是藏在機器裡？')}},
  {lv:1,name:'拆成三層',
@@ -94,7 +103,7 @@ const ROUNDS=[
   goal:'把每一個新裝置分到它屬於的新興平台。',
   tip:'戴在身上的？放在家裡、用網路遠端控制的？沒有人駕駛、自己會移動的？戴上去眼前出現另一個世界的？',
   learn:'穿戴裝置、智慧家庭、無人載具、虛擬實境都是新興系統平台。它們多半很小、隨時連網，而且一直在蒐集你的資料。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,NEWDEV,6)}while(!allIn(p,2,4));return {items:p}},
+  gen(rnd){return {items:sampleAll(rnd,NEWDEV,2,4)}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:card(x[0],x[1])})),NEW,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[2]))}},
   check(inst,a){return CR(inst.items.map(x=>[x,x[2]]),a,'分錯了。它是戴在身上、放在家裡、自己會移動，還是讓你看到另一個世界？')}},
  {lv:2,name:'哪一層出問題',
@@ -102,7 +111,7 @@ const ROUNDS=[
   goal:'判斷每一個狀況，是硬體、作業系統，還是應用程式出了問題。',
   tip:'摸得到的零件壞了是硬體；每一個 App 一起受影響是作業系統；只有一個 App 有事是應用程式。',
   learn:'分層的好處：哪一層壞了就修哪一層。零件壞了送修，系統壞了重灌或更新系統，只有一個 App 壞了就更新或重裝那個 App。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,SYM,6)}while(!allIn(p,1,3));return {items:p}},
+  gen(rnd){return {items:sampleAll(rnd,SYM,1,3)}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),LAY,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){return CR(inst.items,a,'判斷錯了。是零件壞了、所有 App 一起出事，還是只有一個 App 有事？')}}
 ];

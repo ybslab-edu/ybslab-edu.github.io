@@ -35,7 +35,7 @@ for(const dir of dirs){
         h.fill();const answer=h.get();
         const good=r.check(inst,answer)===true;
         // 排序改成反向排列；其他答案改為負值／錯字。集合題移除一項，避免只是換序仍正確。
-        const wrong=v=>Array.isArray(v)?(v.length>1&&new Set(v).size===v.length?[...v].reverse():v.map(wrong)):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,wrong(x)])):typeof v==='number'?-999999:typeof v==='boolean'?!v:'明顯錯答';
+        const wrong=v=>Array.isArray(v)?(v.length>1&&new Set(v).size===v.length?[...v].reverse():v.map(wrong)):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,k==='powerOff'?x:wrong(x)])):typeof v==='number'?-999999:typeof v==='boolean'?!v:'明顯錯答';
         const badAnswer=(('${dir}'==='u4-01'&&index===1)||('${dir}'==='u4-03'&&index===2)||('${dir}'==='u4-05'&&index===2))?answer.slice(1):wrong(answer);
         return {good,bad:r.check(inst,badAnswer)===true,ready:!h.ready||h.ready(),calls};
       })()`);

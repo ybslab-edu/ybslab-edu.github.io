@@ -31,7 +31,7 @@ function setup(){
     localStorage:{getItem:key=>stored.get(key)??null,setItem(key,value){if(key===failKey)throw new Error('synthetic storage failure');stored.set(key,value);}},
     Blob,URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic';},revokeObjectURL(){}},setTimeout:()=>0,
   });
-  for(const path of ['assets/vendor/xlsx-0.18.5.full.min.js','assets/codec.js','assets/curriculum.js','assets/activities.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
+  for(const path of ['assets/vendor/xlsx-0.20.3.full.min.js','assets/codec.js','assets/curriculum.js','assets/activities.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
   vm.runInContext(scripts,context,{filename:'115-g9/teacher/index.html',timeout:1000});
   const evaluate=source=>vm.runInContext(source,context,{timeout:1000});
   const get=id=>elements.get(id);
@@ -97,4 +97,43 @@ test('寫入成功：回傳 true、原有 key 與成績成功提示不變，班�
   t.clear();assert.deepEqual(JSON.parse(t.stored.get('it9:grades')),{});
   assert.deepEqual([...t.stored.keys()].sort(),['it9:grades','it9:sizes']);
   assert.equal(t.get('save-msg').hidden,true);
+});
+
+test('SheetJS 0.20.3：三種教師匯出保留欄位、成績、缺交、日期、欄寬及工作表順序',async()=>{
+  const t=setup();t.add();t.size('3');
+  assert.equal(t.evaluate('XLSX.version'),'0.20.3');
+  assert.equal(t.evaluate('typeof XLSX.writeFile'),'function');
+  for(const data of [
+    '{week:1,cls:998,seat:2,mask:5,tries:[2,0,3,0,0,0],time:Date.UTC(2026,9,2)}',
+    '{week:2,cls:999,seat:1,mask:1,tries:[4,0,0,0,0,0],time:Date.UTC(2026,9,3)}'
+  ]){t.get('paste').value=t.evaluate('CODEC.encode('+data+')');t.get('b-add').onclick();}
+  t.evaluate('curW=1;curC=999');
+  const roundHead=['第1單','第2單','錢夠不夠','班級團購'];
+  const header=['班級','座號',...roundHead.map(x=>x+'（1=過）'),'過關數',...roundHead.map(x=>x+' 嘗試次數'),'總嘗試次數','最後更新','成績碼','備註'];
+  const termHeader=['班級','座號','第7週 過關數（共4關）','第8週 過關數（共4關）','合計過關數','合計關卡數'];
+  for(const [button,names] of [
+    ['b-x1',['999班']],['b-x2',['998班','999班']],['b-x3',['總表','第7週','第8週']]
+  ]){
+    t.get(button).onclick();
+    assert.match(t.downloads.at(-1).name,/^資訊科技_.*\.xlsx$/);
+    const bytes=Array.from(new Uint8Array(await t.blobs.at(-1).arrayBuffer()));
+    const book=t.evaluate('XLSX.read('+JSON.stringify(bytes)+',{type:"array",cellStyles:true})');
+    assert.deepEqual(Array.from(book.SheetNames),names);
+    const weekly=book.Sheets[button==='b-x3'?'第7週':'999班'];
+    assert.deepEqual(Array.from({length:15},(_,i)=>weekly[String.fromCharCode(65+i)+'1'].v),header);
+    assert.deepEqual(Array.from({length:12},(_,i)=>weekly[String.fromCharCode(65+i)+'2'].v),[999,1,1,1,0,0,2,1,2,0,0,3]);
+    assert.equal(weekly.N2.v,t.code);assert.equal(weekly.O3.v,'未交');assert.equal(weekly.O4.v,'未交');
+    assert.equal(weekly.M2.t,'n');assert.equal(weekly.M2.z,'yyyy/mm/dd hh:mm');
+    const date=new Date(Date.UTC(2026,9,1));
+    assert.ok(Math.abs(weekly.M2.v-(25569+(date.getTime()-date.getTimezoneOffset()*60000)/86400000))<1e-8);
+    assert.deepEqual(Array.from(weekly['!cols'],x=>x.wch),header.map(h=>Math.max(8,Math.min(20,h.length*2))));
+    if(button==='b-x2')assert.deepEqual(['A2','B2','C2','D2','E2','F2','G2','H2','I2','J2','K2','L2'].map(k=>book.Sheets['998班'][k].v),[998,2,1,0,1,0,2,2,0,3,0,5]);
+    if(button==='b-x3'){
+      const total=book.Sheets['總表'];
+      assert.deepEqual(Array.from({length:6},(_,i)=>total[String.fromCharCode(65+i)+'1'].v),termHeader);
+      assert.deepEqual(Array.from({length:6},(_,i)=>total[String.fromCharCode(65+i)+'2'].v),[999,1,2,1,3,8]);
+      assert.equal(total.E3.v,0);assert.equal(total.F3.v,8);
+      assert.equal(book.Sheets['第8週'].H2.v,4);
+    }
+  }
 });

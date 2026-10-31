@@ -9,7 +9,7 @@ const TEACHER = (() => {
     return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('') === HASH;
   }
   const KEY = 'ybslab:teacher';
-  const remember = on => { try { on ? sessionStorage.setItem(KEY, '1') : sessionStorage.removeItem(KEY) } catch (e) {} };
-  const remembered = () => { try { return sessionStorage.getItem(KEY) === '1' } catch (e) { return false } };
+  const remember = on => { try { on ? sessionStorage.setItem(KEY, '1') : sessionStorage.removeItem(KEY) } catch (e) { /* 僅記憶本分頁的解鎖，失敗可重新輸入通行碼。 */ } };
+  const remembered = () => { try { return sessionStorage.getItem(KEY) === '1' } catch (e) { return false /* 無法讀取時維持鎖定，重新輸入即可。 */ } };
   return { check, remember, remembered };
 })();

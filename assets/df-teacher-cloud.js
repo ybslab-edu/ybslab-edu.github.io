@@ -19,10 +19,10 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
   }
   async function checkOwner() {
     const user = auth.currentUser;
-    if (!user) throw { code: 'permission-denied' };
+    if (!user) throw Object.assign(new Error('無權限：僅課程 owner 本人可以讀取或刪除。'), { code: 'permission-denied' });
     const course = await db.doc('ybsCourses/' + courseId).get({ source: 'server' });
     if (!course.exists || course.data().ownerUid !== user.uid || auth.currentUser?.uid !== user.uid) {
-      throw { code: 'permission-denied' };
+      throw Object.assign(new Error('無權限：僅課程 owner 本人可以讀取或刪除。'), { code: 'permission-denied' });
     }
     return user.uid;
   }

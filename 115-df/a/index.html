@@ -493,8 +493,8 @@ function renderLogin(){
     else $('#tmsg').textContent=r.status===429?'錯誤太多次，請等一分鐘':'PIN 不對'; });
   $('#lf').addEventListener('submit', ev=>{ ev.preventDefault();
     const cls=$('#lf-cls').value.normalize('NFKC').trim(), seat=$('#lf-seat').value.normalize('NFKC').trim().replace(/^0+(?=\d)/,'');
-    if(!/^\d{3,4}$/.test(cls)){toast('班級請輸入數字，例如 701');return;}
-    if(!/^\d{1,2}$/.test(seat)){toast('座號請輸入 1–2 位數字');return;}
+    if(!/^[1-9]\d{2,3}$/.test(cls)){toast('班級請輸入數字，例如 701');return;}
+    if(!/^\d{1,2}$/.test(seat) || +seat<1 || (+seat>60 && !(ANS && cls==='777' && seat==='77'))){toast('座號請輸入 1–2 位數字');return;}
     startAs(cls, seat);
   });
   $('#imp').addEventListener('change', importReport);
@@ -1279,7 +1279,7 @@ function pGallery(){
   bind($('#main'));
   $('#cf').addEventListener('submit',ev=>{ ev.preventDefault();
     const seat=$('#c-seat').value.normalize('NFKC').trim().replace(/^0+(?=\d)/,''), tx=$('#c-tx').value.trim(), e=$('#c-ev').value;
-    if(!/^\d{1,2}$/.test(seat)){toast('請填你的座號');return;}
+    if(!/^\d{1,2}$/.test(seat) || +seat<1 || +seat>60){toast('請填你的座號');return;}
     if(seat===String(S.seat)){toast('這是你自己的卡，請去看同學的卡');return;}
     if(!e){toast('請選一項你根據的證據');return;}
     if(tx.length<4){toast('理由請至少寫一句話');return;}

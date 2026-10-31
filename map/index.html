@@ -287,7 +287,8 @@ const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網�
 const pref=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 const keep=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 let cur=CURRICULA.find(c=>c.id===pref('ybs:cur'))||CURRICULA[0];
-let view=pref('ybs:view')||(innerWidth>=760?'radial':'lines');
+const savedView=pref('ybs:view');
+let view=['radial','lines'].includes(savedView)?savedView:(innerWidth>=760?'radial':'lines');
 const lvOf=(c,g)=>c.levels.find(l=>l.g===g)||{mark:'',label:''};
 const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(const it of s.items)if(it.code===code)return {c,s,it};return null};
 
@@ -374,6 +375,7 @@ function buildMap(){
 }
 
 function setView(v){
+  if(!['radial','lines'].includes(v))return;
   view=v; keep('ybs:view',v);
   $('radial-box').hidden=v!=='radial'; $('lines').hidden=v!=='lines';
   document.querySelectorAll('.views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
@@ -424,7 +426,7 @@ function open(code,scroll){
   if(scroll)pn.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
 }
 buildMap(); setView(view);
-const h=decodeURIComponent(location.hash.slice(1));
+const h=(()=>{try{return decodeURIComponent(location.hash.slice(1))}catch(e){return ''}})();
 if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
 
 /* 等高線底圖：用固定亂數畫幾組不規則同心線，跟深淺色主題都搭 */

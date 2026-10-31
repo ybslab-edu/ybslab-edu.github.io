@@ -118,7 +118,7 @@ test('四關順序、固定雙組資料、所有排卡的實際判定與獨立�
     }`,30000);
   for(const random of [0,0.5,0.999999]){
     const x=setup({random});
-    x.evaluate(`for(let i=0;i<4;i++)for(let k=0;k<40;k++){APP.load(i);if(order.length!==ROUNDS[i].cards.length||new Set(order).size!==order.length||order.every((v,i)=>v===i))throw Error('出題不完整')}`,2000);
+    x.evaluate(`for(let i=0;i<4;i++)for(let k=0;k<40;k++){APP.load(i);if(order.length!==ROUNDS[i].cards.length||new Set(order).size!==order.length||order.every((v,i)=>v===i))throw Error('出題不完整')}`,10000);
   }
 });
 

@@ -30,7 +30,7 @@
 <script src="../../assets/login.js?v=20261030a"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=14"></script>
+<script src="../../assets/shell.js?v=15"></script>
 <script>
 const toBits=(v,n)=>v.toString(2).padStart(n,'0').split('').map(Number);
 const val=b=>b.reduce((s,x)=>s*2+x,0);
@@ -66,8 +66,8 @@ const ROUNDS=[
   view(inst,el,api){
     BOARD(el,6,{locked:true,init:toBits(inst.t,6)});
     el.insertAdjacentHTML('beforeend','<label style="display:flex;gap:10px;align-items:center;font-size:18px;margin-top:12px;flex-wrap:wrap">燈牌上的數字是 <input class="num-in" id="n-v" inputmode="numeric" autocomplete="off"></label>');
-    const inp=el.querySelector('#n-v');inp.oninput=()=>{inp.value=inp.value.replace(/\D/g,'');api.changed()};
-    return {get:()=>inp.value===''?null:+inp.value,fill:()=>{inp.value=inst.t},ready:()=>inp.value!==''};
+    const inp=el.querySelector('#n-v');inp.oninput=()=>api.changed();
+    return {get:()=>NUMOK(inp.value),fill:()=>{inp.value=inst.t},ready:()=>inp.value!==''};
   },
   check(inst,v){return v===inst.t?true:'不對喔。把亮著的燈下面的數字一個一個加起來，暗的不要加。'},
   peek:i=>peekBits(toBits(i.t,6),false)},
@@ -90,8 +90,8 @@ const ROUNDS=[
   gen(rnd){let n;do{n=RINT(rnd,9,999)}while(Number.isInteger(Math.log2(n+1)));const b=Math.ceil(Math.log2(n+1));return {n,b,max:2**b-1,what:PICK(rnd,['跨年倒數的秒數','排隊的號碼牌','應援棒的編號','座位號碼'])}},
   view(inst,el,api){
     el.insertAdjacentHTML('beforeend','<div class="rows"><div class="row"><div class="q">最少要幾顆燈？</div><input class="num-in" id="n-b" inputmode="numeric" autocomplete="off"></div><div class="row"><div class="q">用這麼多顆燈，最大能顯示到？</div><input class="num-in" id="n-m" inputmode="numeric" autocomplete="off"></div></div>');
-    const a=el.querySelector('#n-b'),m=el.querySelector('#n-m');[a,m].forEach(x=>x.oninput=()=>{x.value=x.value.replace(/\D/g,'');api.changed()});
-    return {get:()=>({b:+a.value,m:+m.value}),fill:()=>{a.value=inst.b;m.value=inst.max},ready:()=>a.value!==''&&m.value!==''};
+    const a=el.querySelector('#n-b'),m=el.querySelector('#n-m');[a,m].forEach(x=>x.oninput=()=>api.changed());
+    return {get:()=>({b:NUMOK(a.value),m:NUMOK(m.value)}),fill:()=>{a.value=inst.b;m.value=inst.max},ready:()=>a.value!==''&&m.value!==''};
   },
   check(inst,a){
     if(a.b<inst.b)return a.b+' 顆燈最大只能到 '+(2**a.b-1)+'，放不下 '+inst.n+'。';

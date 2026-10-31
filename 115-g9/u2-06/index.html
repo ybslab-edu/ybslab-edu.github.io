@@ -35,7 +35,7 @@ table.sheet{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
 <script src="../../assets/login.js?v=20261030a"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
-<script src="../../assets/shell.js?v=14"></script>
+<script src="../../assets/shell.js?v=15"></script>
 <script>
 const CITY={台北市:['台北','臺北','台北市','taipei','Taipei','北市'],台中市:['台中','臺中','台中市','taichung','Taichung','中市'],高雄市:['高雄','高雄市','kaohsiung','Kaohsiung'],新竹市:['新竹市','竹市','Hsinchu City','hsinchu city']};
 const CITIES=Object.keys(CITY);
@@ -118,8 +118,8 @@ const ROUNDS=[
   },
   view(inst,el,api){
     el.innerHTML=sheet(inst.rows,{toggle:false},api)+'<div class="counts" style="margin-top:12px">'+SONGS.map((s,i)=>'<label>〈'+s+'〉有效票數<input class="num-in" data-c="'+i+'" inputmode="numeric" autocomplete="off"></label>').join('')+'</div>';
-    const ins=[...el.querySelectorAll('[data-c]')];ins.forEach(x=>x.oninput=()=>{x.value=x.value.replace(/\D/g,'');api.changed()});
-    return {get:()=>ins.map(x=>x.value===''?null:+x.value),fill:()=>ins.forEach((x,i)=>x.value=inst.clean[i]),ready:()=>ins.every(x=>x.value!=='')};
+    const ins=[...el.querySelectorAll('[data-c]')];ins.forEach(x=>x.oninput=()=>api.changed());
+    return {get:()=>ins.map(x=>NUMOK(x.value)),fill:()=>ins.forEach((x,i)=>x.value=inst.clean[i]),ready:()=>ins.every(x=>x.value!=='')};
   },
   check(inst,a){
     if(a.every((v,i)=>v===inst.raw[i]))return '這是「沒清理」直接數的票數。先把重複、座號不合理、沒填的列拿掉再數。';

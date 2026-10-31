@@ -95,9 +95,21 @@ const YBS = (() => {
   const QKEY = 'ybslab:fq';
   // 首次讀取後以分頁記憶體為準；儲存空間受限時也不會丟掉待送紀錄。
   let queue = null;
+  const queueInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+  const validQueueItem = x => x && typeof x === 'object' && !Array.isArray(x)
+    && typeof x.uid === 'string' && x.uid.length > 0 && x.uid.length <= 128 && !x.uid.includes('/')
+    && queueInt(x.activity, 1, 99) && queueInt(x.round, 0, 5)
+    && (x.level === 1 || x.level === 2) && queueInt(x.tries, 1, 999)
+    && (x.termWeek === undefined || queueInt(x.termWeek, 0, 30))
+    && (x.key === undefined || x.key === x.activity + '_' + x.round);
   const getQ = () => {
     if (queue === null) {
-      try { queue = JSON.parse(sessionStorage.getItem(QKEY) || '[]'); }
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(QKEY) || '[]');
+        queue = Array.isArray(stored) ? stored.filter(validQueueItem).map(x => ({
+          ...x, key: x.activity + '_' + x.round
+        })) : [];
+      }
       catch (e) { queue = []; }
     }
     return queue;

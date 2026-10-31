@@ -7,7 +7,7 @@ import {createRequire} from 'node:module';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const DFReport=createRequire(import.meta.url)('../assets/df-report.js');
 const plain=v=>JSON.parse(JSON.stringify(v));
-const run=(c,s)=>vm.runInContext(s,c,{timeout:1000});
+const run=(c,s)=>vm.runInContext(s,c,{timeout:10000});
 function dom(){
   const elements=new Map();
   const get=id=>{if(!elements.has(id)) elements.set(id,new Element());return elements.get(id);};

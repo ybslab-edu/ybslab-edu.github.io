@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>打王前記得存檔｜第 8 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=3">
 <style>
 /* Layout: 由上而下三段：① 任務說明 → ② 排出運作流程（可用的步驟／你的順序）→ ③ 播放（RAM、儲存空間、小安看到、觸控螢幕／CPU／螢幕畫面）；顏色與簡報一致 */
 :root{
@@ -51,6 +51,8 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 .rounds button .done{color:var(--out);font-weight:700}
 
 .order{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;flex-wrap:wrap}
+#stage{display:flex;flex-direction:column;gap:14px}
+#says{flex-direction:column;align-items:stretch;font-size:18px}
 .order .who{font-family:var(--f-display);font-size:20px;font-weight:700;white-space:nowrap}
 .order .says{font-size:18px;flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 .order .tk{display:flex;gap:10px;align-items:baseline}
@@ -137,10 +139,10 @@ body.dragging-now{user-select:none;cursor:grabbing}
 
 .stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:12px}
 @media (max-width:700px){.stage{grid-template-columns:minmax(0,1fr)}}
-.unit{border-left:6px solid var(--line);min-height:120px}
-.unit.inp{border-left-color:var(--in)} .unit.cpu{border-left-color:var(--cu)} .unit.outp{border-left-color:var(--out)}
-.unit.on.inp{background:var(--in-soft)} .unit.on.cpu{background:var(--cu-soft)} .unit.on.outp{background:var(--out-soft)}
-.unit .say{font-size:16px;min-height:3em}
+.cpu-unit{border-left:6px solid var(--line);min-height:120px}
+.cpu-unit.inp{border-left-color:var(--in)} .cpu-unit.cpu{border-left-color:var(--cu)} .cpu-unit.outp{border-left-color:var(--out)}
+.cpu-unit.on.inp{background:var(--in-soft)} .cpu-unit.on.cpu{background:var(--cu-soft)} .cpu-unit.on.outp{background:var(--out-soft)}
+.cpu-unit .say{font-size:16px;min-height:3em}
 .hand{font-family:var(--f-mono);font-size:22px;font-weight:700;color:var(--alu);line-height:1.2}
 .hand small{font-family:var(--f-body);font-size:13px;color:var(--muted);font-weight:500}
 .inv,.outv{font-size:22px;font-weight:700}
@@ -151,181 +153,21 @@ body.dragging-now{user-select:none;cursor:grabbing}
 .verdict.ok{background:var(--out-soft)} .verdict.no{background:var(--warn-soft)}
 .verdict h3{margin:0;font-family:var(--f-display);font-size:22px}
 .verdict p{margin:0}
-.gate{max-width:440px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px}
-.gate h1{text-align:center}
-.gate p{margin:0;color:var(--muted);text-align:center}
-.field{display:flex;flex-direction:column;gap:4px}
-.field label{font-weight:700}
-.field input{font-family:var(--f-mono);font-size:26px;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
-.field input:focus{outline:none;border-color:var(--mem)}
-.field .hint{font-size:13.5px;color:var(--muted)}
-.gerr{color:var(--warn);font-size:14.5px;min-height:1.4em;text-align:center}
-.who-bar{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted);flex-wrap:wrap}
-.who-bar b{font-family:var(--f-mono);color:var(--ink);font-size:17px}
-.linkbtn{font:inherit;font-size:14px;border:0;background:none;color:var(--mem);cursor:pointer;text-decoration:underline;padding:0}
-.report{background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
-.report h2{margin:0;font-family:var(--f-display);font-size:19px;width:100%}
-.code{font-family:var(--f-mono);font-size:clamp(20px,4.5vw,28px);font-weight:700;letter-spacing:.06em;user-select:all;overflow-wrap:anywhere}
-.prog{display:flex;gap:8px;flex-wrap:wrap;width:100%}
-.prog span{font-size:14px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
-.prog span.ok{background:var(--out-soft);border-color:var(--out);color:var(--ink);font-weight:700}
-.copied{font-size:14px;color:var(--out)}
-.tlogin{display:flex;flex-direction:column;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:12px}
-.tlogin .field{width:100%}
-.tbar{position:sticky;bottom:12px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--cu);border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
-.tbar .tlabel{font-weight:700;color:var(--cu);padding-right:4px}
 .tbar .tsep{width:1px;align-self:stretch;background:var(--line)}
 .tbar .tpos{font-family:var(--f-mono);font-weight:700;min-width:6em}
 .tbar .thint{width:100%;font-size:13px;color:var(--muted)}
 .tbar .btn{padding:7px 12px}
 body.teacher .slot .card{cursor:pointer}
-.g-me{margin:0;text-align:center;color:var(--ink)!important;font-size:15px}
-.sync{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
-.sync.ok{color:var(--out);border-color:var(--out)} .sync.warn{color:var(--warn);border-color:var(--warn)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<section class="gate" id="gate">
-  <h1>打王前記得存檔</h1>
-  <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
-    <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
-    <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
-    <div class="gerr" id="g-lerr" role="alert"></div>
-    <button class="linkbtn" id="g-manual" type="button">登入不了？改填班級座號</button>
-  </div>
-  <div id="g-who" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
-    <p id="g-whotext" style="color:var(--ink);font-size:20px"></p>
-    <div class="btns" style="justify-content:center" id="g-whobtns"><button class="btn" id="g-notme" type="button">不是我</button><button class="btn primary" id="g-isme" type="button">對，開始</button></div>
-  </div>
-  <div id="g-form" hidden style="display:flex;flex-direction:column;gap:14px">
-  <p id="g-me" class="g-me" hidden></p>
-  <p>開始前先填班級和座號，只能填數字。</p>
-  <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
-  <div class="field"><label for="in-seat">座號</label><input id="in-seat" inputmode="numeric" autocomplete="off" maxlength="2" placeholder="例如 12"><span class="hint">1～60</span></div>
-  <div class="gerr" id="gerr" role="alert"></div>
-  <div class="btns" id="g-step1"><button class="btn primary" id="g-next" style="width:100%">下一步</button></div>
-  <div id="g-step2" hidden style="display:flex;flex-direction:column;gap:10px">
-    <p style="color:var(--ink);font-size:20px" id="g-confirm"></p>
-    <div class="btns" style="justify-content:center"><button class="btn" id="g-back">我填錯了</button><button class="btn primary" id="g-go">對，開始</button></div>
-  </div>
-  </div>
-  <div class="tlogin">
-    <button class="linkbtn" id="t-open" type="button">教師登入</button>
-    <div id="t-box" hidden class="field">
-      <label for="in-tcode">教師通行碼</label>
-      <input id="in-tcode" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40">
-      <button class="linkbtn" id="t-show" type="button" style="align-self:flex-start">顯示通行碼</button>
-      <div class="btns"><button class="btn primary" id="t-go" type="button" style="width:100%">進入教師模式</button></div>
-      <span class="gerr" id="terr" role="alert"></span>
-    </div>
-  </div>
-</section>
-
-<div class="wrap" id="main" hidden>
-  <header>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <h1>打王前記得存檔</h1>
-      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
-    </div>
-    <div class="tabs" role="tablist" aria-label="等級">
-      <button id="tab-1" role="tab" aria-selected="true">基礎關</button>
-      <button id="tab-2" role="tab" aria-selected="false">進階關</button>
-    </div>
-  </header>
-  <div class="rounds" id="rounds"></div>
-
-  <section class="sec">
-    <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
-    <div class="order" aria-live="polite">
-      <span class="says" id="says"></span>
-      <span class="tip">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。不一定要從第 1 步開始：先點一個空格（例如最後一步），再點步驟，就能放進那一格。排錯了可以直接拖曳步驟（或按 ▲▼）調整，點一下步驟就拿回去。</span>
-    </div>
-  </section>
-
-  <section class="sec">
-    <h2 class="sec-h"><span class="num">2</span>排出運作流程</h2>
-    <div class="two">
-      <section class="panel">
-        <div class="ptitle"><h3>可用的步驟</h3><span class="small">點一下放進空格，或直接拖到某一格</span></div>
-        <div class="pool" id="pool"></div>
-      </section>
-      <section class="panel">
-        <div class="ptitle"><h3>你的順序</h3><span class="small">點空格選位置；拖曳或按 ▲▼ 調整</span></div>
-        <div class="slots" id="slots"></div>
-        <div class="btns">
-          <button class="btn primary" id="b-run">播放</button>
-          <button class="btn" id="b-clear">全部拿回來</button>
-        </div>
-      </section>
-    </div>
-  </section>
-
-  <section class="sec" id="sec3">
-    <h2 class="sec-h"><span class="num">3</span>播放：看電腦怎麼跑</h2>
-    <div class="two">
-      <section class="panel">
-        <div class="ptitle"><h3>RAM：正在玩的地方</h3><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">開機中</span><span class="tag t-mem">主記憶體</span></span></div>
-        <div class="sign" id="sign" hidden>ROM 裡的開機程式：<b>「先從儲存空間載入作業系統。」</b></div>
-        <div class="wall" id="wall"></div>
-        <p class="small">CPU 拿 RAM 裡的東西很快，但一沒電就全部清空。</p>
-      </section>
-      <section class="panel">
-        <div class="ptitle"><h3>儲存空間：遊戲住的地方</h3><span class="tag t-disk">輔助記憶體</span></div>
-        <div class="disk" id="disk"></div>
-        <p class="small">沒電也不會忘記，但每次載入或存檔都要等一下（本模擬固定算 3 秒，動畫故意放慢讓你看清楚）。</p>
-      </section>
-    </div>
-
-    <div class="pov" id="pov" aria-live="polite"><span class="lbl">小安看到：</span><span id="povt">—</span></div>
-
-    <div class="stage">
-      <section class="panel unit inp" id="u-in">
-        <div class="ptitle"><h3>觸控螢幕</h3><span class="tag t-in">輸入</span></div>
-        <div class="inv" id="inv">—</div>
-      </section>
-      <section class="panel unit cpu" id="u-cpu">
-        <div class="ptitle"><h3>CPU：電腦在做的</h3><span class="tag t-cu">中央處理器</span></div>
-        <div class="say" id="cu-say">等你排好順序。</div>
-        <div class="hand" id="hand"><small>正在算：</small>—</div>
-        <div class="clock" id="clock">已等 0 秒</div>
-      </section>
-      <section class="panel unit outp" id="u-out">
-        <div class="ptitle"><h3>螢幕畫面</h3><span class="tag t-out">輸出</span></div>
-        <div class="outv" id="outv">—</div>
-      </section>
-    </div>
-
-    <section class="verdict" id="verdict" hidden></section>
-  </section>
-
-  <div class="tbar" id="tbar" hidden role="toolbar" aria-label="教師播放控制">
-    <span class="tlabel">教師模式</span>
-    <button class="btn" id="tb-ans" type="button">顯示答案</button>
-    <span class="tsep"></span>
-    <button class="btn" id="tb-prev" type="button" aria-label="上一步">◀ 上一步</button>
-    <button class="btn primary" id="tb-play" type="button">▶ 播放</button>
-    <button class="btn" id="tb-next" type="button" aria-label="下一步">下一步 ▶</button>
-    <button class="btn" id="tb-stop" type="button">■ 停止</button>
-    <span class="tpos" id="tb-pos">—</span>
-    <span class="thint">點「你的順序」任一步可直接跳過去；空白鍵暫停、←→ 上下一步</span>
-  </div>
-
-  <section class="report" id="report" aria-live="polite">
-    <h2>我的成績碼</h2>
-    <div class="prog" id="prog"></div>
-    <span class="code" id="code"></span>
-    <button class="btn" id="b-copy" type="button">複製成績碼</button>
-    <span class="copied" id="copied"></span>
-    <p class="small" style="width:100%" id="rep-note">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
-    <p class="sync" id="sync2" hidden style="margin:0"></p>
-  </section>
-  <p class="small" style="text-align:center">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
-</div>
-
+</head>
+<body>
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js?v=20261019"></script>
 <script src="../../assets/lock.js?v=20261027b"></script>
 <script src="../../assets/login.js?v=20261030a"></script>
+<script src="../../assets/shell.js?v=14"></script>
 <script>
 const WEEK=2, TERM_WEEK=8, TITLE='打王前記得存檔', COURSE='115-g9';
 const GAME='遊戲', PROG='（程式）', CMD='這次指令';
@@ -360,18 +202,16 @@ const ROUNDS=[
 ];
 
 const DISK_T=3, WALL_T=0;
-let level=1, ri=0, slots=[], order=[], running=false;
-const done=new Set();
-// 只過了最後一關，不代表整個活動完成：依實際過了幾關顯示
-function endMsg(txt){const got=ROUNDS.filter((_,i)=>done.has(i)).length,t=(typeof teacher!=='undefined'&&teacher);return t||got===ROUNDS.length?'<p><strong>'+txt+'</strong></p>':'<p>這一關完成了！這個活動目前完成 '+got+'／'+ROUNDS.length+' 關，還沒過的：'+ROUNDS.filter((_,i)=>!done.has(i)).map(r=>r.name).join('、')+'。</p>'}
-
+let ri=0, slots=[], order=[], running=false;
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,'0');
 const fmtv=v=>v===PROG?'程式':(v&&typeof v==='object')?v.drink+' ×'+v.qty:String(v);
 
 function shuffle(n){
   const a=[...Array(n).keys()];
-  do{for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}while(n>1&&a.every((v,i)=>v===i));
+  for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+  // 常數亂數也必定終止，且不以原順序出題。
+  if(n>1&&a.every((v,i)=>v===i))a.push(a.shift());
   return a;
 }
 
@@ -474,11 +314,6 @@ function run(seq,t,R=ROUNDS[ri]){
     steps.push(snap(x));
   }
   return {steps,outs:st.outs,ram:wallObj(st.wall),disk:st.disk,err,time:st.time,diskTime:st.diskTime};
-}
-
-function renderRounds(){
-  $('rounds').innerHTML=ROUNDS.map((r,i)=>r.lv!==level?'':'<button type="button" data-i="'+i+'" aria-pressed="'+(i===ri)+'">'+r.name+(done.has(i)?' <span class="done">✓</span>':'')+'</button>').join('');
-  $('rounds').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(!running)load(+b.dataset.i)});
 }
 
 function renderMem(v,hitCell,hitFile){
@@ -598,12 +433,11 @@ function resetStage(){
   renderMem(startView());
 }
 
-function load(i){
+function loadRound(i){
   ri=i;const R=ROUNDS[i];
   slots=Array(R.sol.length).fill(null);selSlot=null;order=shuffle(R.cards.length);
-  $('says').innerHTML='<span class="tk"><b>現在</b>'+R.now+'</span><span class="tk"><b>要做到</b>'+R.goal+'</span>'+(R.tip?'<span class="tk tip"><b>提示</b>'+R.tip+'</span>':'');
   $('sign').hidden=!R.boot;
-  renderRounds();resetStage();renderCards();
+  resetStage();renderCards();
 }
 
 // ===== 播放：一步一步顯示；學生自動播完，教師可暫停、上下一步、點步驟跳過去 =====
@@ -636,9 +470,9 @@ function play(){
   if(running||filled()<ROUNDS[ri].sol.length)return;
   resetStage();
   const R=ROUNDS[ri];
-  if(!teacher&&!done.has(ri)){prog.tries[ri]=Math.min(15,prog.tries[ri]+1);saveProg()}
+  activityApi.attempt();
   pb={res:run(slots,R.tests[0]),i:-1,paused:false,done:false,timer:0};running=true;
-  $('sec3').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+  $('playback').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
   showStep(0);schedule();
 }
 function jumpTo(i){if(!pb||i<0||i>=pb.res.steps.length)return;clearTimeout(pb.timer);pb.paused=true;pb.done=false;running=true;showStep(i)}
@@ -657,9 +491,9 @@ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const sortObj=o=>Object.fromEntries(Object.entries(o).filter(([k])=>k!==CMD).sort(([a],[b])=>a<b?-1:1));
 const fmtOuts=o=>o.length?o.map(x=>typeof x==='number'?x+' 分':x).join('、'):'什麼都沒有';
 const fmtWall=o=>Object.keys(o).length?Object.entries(o).map(([k,v])=>k+(v===PROG?'':'（'+fmtv(v)+'）')).join('、'):'空的';
-function diff(got,exp){
+function diff(got,exp,R=ROUNDS[ri]){
   if(!same(got.outs,exp.outs))return '螢幕應該出現 '+fmtOuts(exp.outs)+'，你的順序出現 '+fmtOuts(got.outs)+'。';
-  if(ROUNDS[ri].only==='outs')return null;
+  if(R.only==='outs')return null;
   if(!same(sortObj(got.disk),sortObj(exp.disk))){
     const k=Object.keys(exp.disk).find(k=>got.disk[k]!==exp.disk[k]);
     return '儲存空間的「'+k+'」最後應該是 '+fmtv(exp.disk[k])+'，你的是 '+fmtv(got.disk[k])+'。';
@@ -669,6 +503,7 @@ function diff(got,exp){
 }
 function verdict(res){
   const R=ROUNDS[ri], v=$('verdict');
+  $('b-send').onclick();
   let ok=false,h='';
   if(res.err){
     h='<h3>卡住了</h3><p>第 '+res.steps.length+' 步「'+R.cards[res.err.k].t+'」：'+res.err.msg+'</p>';
@@ -680,149 +515,137 @@ function verdict(res){
     else if(d2) h='<h3>差一點！</h3><p>這次剛好對了，但換一個情況（'+fmtv(t2.order)+'）就錯：'+d2+'</p>';
     else ok=true;
     if(ok){
-      if(!teacher){done.add(ri); prog.mask|=1<<ri; prog.time=Date.now(); saveProg(); upload(ri);}
       h='<h3>過關！</h3><p>螢幕：'+fmtOuts(res.outs)+'。換一個情況（'+fmtv(t2.order)+'）也對：'+fmtOuts(g2.outs)+'。</p>'+
         '<p>這一輪一共等了 '+res.time+' 秒，全部花在儲存空間的載入和存檔；RAM 和 CPU 裡的動作幾乎不用等。</p>'+
         (R.risky!=null&&slots[0]!==R.risky?'<p>這樣也過關，不過剩 1% 時先打再存很冒險：萬一打到一半就沒電，剛剛的進度全沒了。先存檔比較保險。</p>':'')+
         (R.hdd?'<p>如果儲存空間是舊式硬碟（HDD），同樣的載入要慢好幾倍——這就是換一顆新硬碟（SSD），開機就快很多的原因。</p>':'');
-      const next=ROUNDS.findIndex((r,i)=>i>ri&&r.lv===level);
-      h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':endMsg('全部完成！從開機、載入、計算到存檔，你都慢動作看過一遍了。')))+'</div>';
-      renderRounds();
-      v.className='verdict ok';v.innerHTML=h;v.hidden=false;
-      if($('b-next'))$('b-next').onclick=()=>load(next);
-      if($('b-lv2'))$('b-lv2').onclick=()=>$('tab-2').click();
+      const controls=v.querySelector('.btns');
+      v.innerHTML=h+(controls?controls.outerHTML:'');v.hidden=false;
+      if($('b-next'))$('b-next').onclick=()=>APP.load(ri+1);
+      if($('b-lv2'))$('b-lv2').onclick=()=>APP.setLevel(2);
       return;
     }
   }
   v.className='verdict no';v.innerHTML=h;v.hidden=false;
 }
 
-$('b-run').onclick=play;
-$('b-clear').onclick=()=>{slots=Array(ROUNDS[ri].sol.length).fill(null);selSlot=null;resetStage();renderCards()};
-function setLevel(l){level=l;$('tab-1').setAttribute('aria-selected',l===1);$('tab-2').setAttribute('aria-selected',l===2);load(ROUNDS.findIndex(r=>r.lv===l))}
-$('tab-1').onclick=()=>{if(!running)setLevel(1)};
-$('tab-2').onclick=()=>{if(!running)setLevel(2)};
 
-// ===== 班級座號與進度 =====
-let ident=null, prog={mask:0,tries:[0,0,0,0],time:Date.now()};
-const KEY=()=>'it9:w'+WEEK+':'+ident.cls+'-'+ident.seat;
-function saveProg(){try{localStorage.setItem(KEY(),JSON.stringify(prog));localStorage.setItem('it9:last',JSON.stringify({cls:ident.cls,seat:ident.seat}))}catch(e){}renderReport()}
-function renderReport(){
-  if(!ident)return;
-  $('prog').innerHTML=ROUNDS.map((r,i)=>'<span class="'+(prog.mask&(1<<i)?'ok':'')+'">'+(r.lv===1?'基礎':'進階')+'・'+r.name+(prog.mask&(1<<i)?' ✓':'')+'</span>').join('');
-  $('code').textContent=CODEC.encode({week:WEEK,cls:ident.cls,seat:ident.seat,mask:prog.mask,tries:prog.tries,time:prog.time});
-  $('copied').textContent='';
+let activityApi;
+const STAGE_HTML=`    <div class="two">
+      <section class="panel">
+        <div class="ptitle"><h3>可用的步驟</h3><span class="small">點一下放進空格，或直接拖到某一格</span></div>
+        <div class="pool" id="pool"></div>
+      </section>
+      <section class="panel">
+        <div class="ptitle"><h3>你的順序</h3><span class="small">點空格選位置；拖曳或按 ▲▼ 調整</span></div>
+        <div class="slots" id="slots"></div>
+        <div class="btns">
+          <button class="btn primary" id="b-run">播放</button>
+          <button class="btn" id="b-clear">全部拿回來</button>
+        </div>
+      </section>
+    </div>
+  <section class="sec" id="playback">
+    <h2 class="sec-h"><span class="num">3</span>播放：看電腦怎麼跑</h2>
+    <div class="two">
+      <section class="panel">
+        <div class="ptitle"><h3>RAM：正在玩的地方</h3><span style="display:flex;gap:10px;align-items:center"><span class="light" id="light">開機中</span><span class="tag t-mem">主記憶體</span></span></div>
+        <div class="sign" id="sign" hidden>ROM 裡的開機程式：<b>「先從儲存空間載入作業系統。」</b></div>
+        <div class="wall" id="wall"></div>
+        <p class="small">CPU 拿 RAM 裡的東西很快，但一沒電就全部清空。</p>
+      </section>
+      <section class="panel">
+        <div class="ptitle"><h3>儲存空間：遊戲住的地方</h3><span class="tag t-disk">輔助記憶體</span></div>
+        <div class="disk" id="disk"></div>
+        <p class="small">沒電也不會忘記，但每次載入或存檔都要等一下（本模擬固定算 3 秒，動畫故意放慢讓你看清楚）。</p>
+      </section>
+    </div>
+
+    <div class="pov" id="pov" aria-live="polite"><span class="lbl">小安看到：</span><span id="povt">—</span></div>
+
+    <div class="stage">
+      <section class="panel cpu-unit inp" id="u-in">
+        <div class="ptitle"><h3>觸控螢幕</h3><span class="tag t-in">輸入</span></div>
+        <div class="inv" id="inv">—</div>
+      </section>
+      <section class="panel cpu-unit cpu" id="u-cpu">
+        <div class="ptitle"><h3>CPU：電腦在做的</h3><span class="tag t-cu">中央處理器</span></div>
+        <div class="say" id="cu-say">等你排好順序。</div>
+        <div class="hand" id="hand"><small>正在算：</small>—</div>
+        <div class="clock" id="clock">已等 0 秒</div>
+      </section>
+      <section class="panel cpu-unit outp" id="u-out">
+        <div class="ptitle"><h3>螢幕畫面</h3><span class="tag t-out">輸出</span></div>
+        <div class="outv" id="outv">—</div>
+      </section>
+    </div>
+  </section>
+
+`;
+const TOOLBAR_HTML=`    <span class="tlabel">教師模式</span>
+    <button class="btn" id="tb-ans" type="button">顯示答案</button>
+    <span class="tsep"></span>
+    <button class="btn" id="tb-prev" type="button" aria-label="上一步">◀ 上一步</button>
+    <button class="btn primary" id="tb-play" type="button">▶ 播放</button>
+    <button class="btn" id="tb-next" type="button" aria-label="下一步">下一步 ▶</button>
+    <button class="btn" id="tb-stop" type="button">■ 停止</button>
+    <span class="tpos" id="tb-pos">—</span>
+    <span class="thint">點「你的順序」任一步可直接跳過去；空白鍵暫停、←→ 上下一步</span>`;
+function bindControls(){
+  $('b-run').onclick=play;
+  $('b-clear').onclick=()=>{slots=Array(ROUNDS[ri].sol.length).fill(null);selSlot=null;resetStage();renderCards()};
+  $('tb-ans').onclick=()=>{stopPlayback();resetStage();slots=[...ROUNDS[ri].sol];renderCards()};
+  $('tb-play').onclick=()=>{
+    if(!pb||pb.done){running=false;play();return}
+    if(pb.paused){pb.paused=false;if(pb.i>=pb.res.steps.length-1)finish();else schedule()}
+    else{pb.paused=true;clearTimeout(pb.timer)}
+    tbarSync();
+  };
+  $('tb-prev').onclick=()=>{if(pb)jumpTo(Math.max(0,pb.i-1))};
+  $('tb-next').onclick=()=>{if(!pb||pb.done)return;clearTimeout(pb.timer);pb.paused=true;if(pb.i<pb.res.steps.length-1)showStep(pb.i+1);else finish()};
+  $('tb-stop').onclick=()=>{stopPlayback();resetStage();renderCards()};
 }
-$('b-copy').onclick=()=>{
-  const t=$('code').textContent;
-  const sel=()=>{const r=document.createRange();r.selectNodeContents($('code'));const s=getSelection();s.removeAllRanges();s.addRange(r);$('copied').textContent='已選取，按 Ctrl+C 複製'};
-  try{navigator.clipboard.writeText(t).then(()=>{$('copied').textContent='已複製'},sel)}catch(e){sel()}
-};
-const digits=el=>{const f=()=>{const v=el.value.replace(/\D/g,'');if(v!==el.value)el.value=v};el.addEventListener('input',f);el.addEventListener('compositionend',f);el.addEventListener('blur',f)};
-digits($('in-cls'));digits($('in-seat'));
-function check(){
-  const c=$('in-cls').value, s=$('in-seat').value;
-  if(!/^[1-9]\d{2}$/.test(c)) return '班級要填三位數字，例如 901。';
-  if(!/^\d{1,2}$/.test(s)||+s<1||+s>60) return '座號要填 1～60 的數字。';
-  return null;
-}
-$('g-next').onclick=()=>{
-  const e=check();$('gerr').textContent=e||'';if(e)return;
-  $('g-confirm').textContent='你是 '+$('in-cls').value+' 班 '+(+$('in-seat').value)+' 號，對嗎？';
-  $('g-step1').hidden=true;$('g-step2').hidden=false;$('in-cls').disabled=true;$('in-seat').disabled=true;$('g-go').focus();
-};
-['in-cls','in-seat'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('g-next').click()}));
-$('g-back').onclick=()=>{$('g-step1').hidden=false;$('g-step2').hidden=true;$('in-cls').disabled=false;$('in-seat').disabled=false;$('in-cls').focus()};
-$('g-go').onclick=()=>start({cls:+$('in-cls').value,seat:+$('in-seat').value});
-function start(id){
-  ident=id; prog={mask:0,tries:[0,0,0,0],time:Date.now()};
-  try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
-  done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
-  $('who').textContent=id.cls+' 班 '+id.seat+' 號'+(id.name?' '+id.name:'');
-  if(loginEnabled()&&YBS.profile()){try{sessionStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
-  $('gate').hidden=true;$('main').hidden=false;
-  setLevel(1);renderReport();
-}
-$('b-swap').onclick=()=>{if(teacher){stopPlayback();teacher=false;TEACHER.remember(false);document.body.classList.remove('teacher');$('tbar').hidden=true;$('report').hidden=false;$('b-swap').textContent='不是我？換人';$('who').textContent=''}else if(running)return;ident=null;if(loginEnabled()){YBS.logout();showLogin()}$('sync').hidden=true;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
-// ===== 教師模式 =====
-function enterTeacher(){
-  teacher=true;TEACHER.remember(true);ident=null;done.clear();
-  document.body.classList.add('teacher');
-  $('who').textContent='教師模式';$('b-swap').textContent='登出教師模式';
-  $('report').hidden=true;$('tbar').hidden=false;
-  $('gate').hidden=true;$('main').hidden=false;
-  setLevel(1);
-}
-$('t-show').onclick=()=>{const i=$('in-tcode'),s=i.type==='password';i.type=s?'text':'password';$('t-show').textContent=s?'隱藏通行碼':'顯示通行碼'};
-$('t-open').onclick=()=>{$('t-box').hidden=!$('t-box').hidden;if(!$('t-box').hidden)$('in-tcode').focus()};
-const tryTeacher=async()=>{
-  $('terr').textContent='';
-  if(await TEACHER.check($('in-tcode').value)){$('in-tcode').value='';enterTeacher()}
-  else $('terr').textContent='通行碼不對。';
-};
-$('t-go').onclick=tryTeacher;
-$('in-tcode').addEventListener('keydown',e=>{if(e.key==='Enter')tryTeacher()});
-$('tb-ans').onclick=()=>{stopPlayback();resetStage();slots=[...ROUNDS[ri].sol];renderCards()};
-$('tb-play').onclick=()=>{
-  if(!pb||pb.done){running=false;play();return}
-  if(pb.paused){pb.paused=false;if(pb.i>=pb.res.steps.length-1)finish();else schedule()}
-  else{pb.paused=true;clearTimeout(pb.timer)}
-  tbarSync();
-};
-$('tb-prev').onclick=()=>{if(pb)jumpTo(Math.max(0,pb.i-1))};
-$('tb-next').onclick=()=>{if(!pb||pb.done)return;clearTimeout(pb.timer);pb.paused=true;if(pb.i<pb.res.steps.length-1)showStep(pb.i+1);else finish()};
-$('tb-stop').onclick=()=>{stopPlayback();resetStage();renderCards()};
 document.addEventListener('keydown',e=>{
   if(!teacher||$('main').hidden||/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
   if(e.key===' '){e.preventDefault();$('tb-play').click()}
   else if(e.key==='ArrowLeft')$('tb-prev').click();
   else if(e.key==='ArrowRight')$('tb-next').click();
 });
-// ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
-const loginEnabled=()=>typeof YBS!=='undefined'&&YBS.enabled();
-function showLogin(){
-  $('g-login').hidden=false;$('g-form').hidden=true;$('g-lerr').textContent='';
-  $('g-who').hidden=true;
-  YBS.button($('g-gbtn'),async me=>{
-    $('g-login').hidden=true;$('g-who').hidden=false;$('g-whobtns').hidden=true;
-    $('g-whotext').textContent='正在確認你的身分…';
-    const r=await YBS.whoami();
-    if(r.ok&&r.student){            // 名單上有：直接帶出，不用填
-      const st=r.student;
-      $('g-whotext').textContent='你是 '+st.cls+' 班 '+st.seat+' 號，對嗎？';
-      $('g-whobtns').hidden=false;$('g-isme').focus();
-      $('g-isme').onclick=()=>start({cls:st.cls,seat:st.seat,name:st.name});
-      return;
+// 每次播放原本就檢查兩組資料；shell 負責進度、成績碼、登入上傳與教師身分。
+const APP=SHELL({week:WEEK,termWeek:TERM_WEEK,title:TITLE,course:COURSE,
+  progressLength:4,finale:'全部完成！從開機、載入、計算到存檔，你都慢動作看過一遍了。',
+  rounds:ROUNDS.map((r,i)=>({...r,confirmations:1,manualAttempt:true,
+    // shell 在 gen 後清空 stage；先保留判定節點，再於 view 放回播放區。
+    gen:()=>{$('main').append($('verdict'));return {round:i}},
+    view(inst,el,api){
+      activityApi=api;teacher=$('report').hidden;
+      document.body.classList.toggle('teacher',teacher);
+      el.innerHTML=STAGE_HTML;
+      $('playback').append($('verdict'));
+      $('tbar').innerHTML=TOOLBAR_HTML;
+      bindControls();loadRound(i);
+      return {get:()=>[...slots],fill:()=>{stopPlayback();resetStage();slots=[...r.sol];renderCards()},ready:()=>!running&&filled()===r.sol.length};
+    },
+    check(inst,seq){
+      for(const t of r.tests){
+        const got=run(seq,t,r),expected=run(r.sol,t,r);
+        if(got.err||diff(got,expected,r))return '調整順序再試一次。';
+      }
+      return true;
     }
-    if(!r.ok&&r.error==='not-listed'){
-      $('g-who').hidden=true;YBS.logout();showLogin();
-      $('g-lerr').textContent='名單上找不到這個帳號（'+(me.account||me.email)+'），請改用自己的帳號，或告訴老師。';
-      return;
-    }
-    // 不在名單（但是本校帳號）或暫時連不上試算表：自己填班級座號
-    $('g-who').hidden=true;$('g-form').hidden=false;
-    $('g-me').hidden=false;$('g-me').textContent='已登入：'+(me.account||me.email)+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
-    try{const s=JSON.parse(sessionStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
-    $('in-cls').focus();
-  },msg=>{$('g-lerr').textContent=msg});
-}
-$('g-notme').onclick=()=>{YBS.logout();showLogin()};
-$('g-manual').onclick=()=>{YBS.logout();$('g-login').hidden=true;$('g-who').hidden=true;$('g-form').hidden=false;$('g-me').hidden=false;$('g-me').textContent='這次不登入：過關後請把成績碼交給老師。';$('in-cls').focus()};
-function upload(r){
-  if(!loginEnabled()||!ident)return;
-  YBS.submit({course:COURSE,activity:WEEK,termWeek:TERM_WEEK,title:TITLE,round:r,roundName:ROUNDS[r].name,level:ROUNDS[r].lv===1?'基礎':'進階',rounds:ROUNDS.map(x=>x.name),
-    tries:prog.tries[r],mask:prog.mask,cls:ident.cls,seat:ident.seat,code:$('code').textContent,at:new Date().toISOString()});
-}
-if(typeof YBS!=='undefined')YBS.status(st=>{
-  const el=$('sync');if(!ident)return;
-  el.className='sync'+(st==='ok'?' ok':st==='sending'?'':' warn');
-  if(st==='relogin'){
-    el.innerHTML='登入過期，重新登入才能上傳 <span id="sync-btn"></span>';
-    YBS.button($('sync-btn'),()=>{},msg=>{el.textContent=msg});
-  }else el.textContent=st==='ok'?'✓ 紀錄已上傳給老師':st==='sending'?'上傳中…':'還沒上傳成功，會自動重試';
-});
-(()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
-if(TEACHER.remembered())enterTeacher();
-else if(loginEnabled())showLogin();
-else { $('g-login').hidden=true; $('g-form').hidden=false; $('in-cls').focus(); }
+  }))});
+$('b-send').hidden=true;$('streak').hidden=true;$('send-hint').hidden=true;
+$('stage').previousElementSibling.innerHTML='<span class="num">2</span>排出運作流程';
+$('says').insertAdjacentHTML('afterend','<p class="small">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。不一定要從第 1 步開始：先點一個空格（例如最後一步），再點步驟，就能放進那一格。排錯了可以直接拖曳步驟（或按 ▲▼）調整，點一下步驟就拿回去。</p>');
+// 學生播放時不可換關或換人；教師仍能用播放列、點步驟跳步或登出中止。
+$('main').addEventListener('click',e=>{
+  const b=e.target.closest('button');
+  if(!b)return;
+  if(teacher&&b.id==='b-swap'){stopPlayback();teacher=false;document.body.classList.remove('teacher');return}
+  if(running&&(b.id==='tab-1'||b.id==='tab-2'||b.id==='b-swap'||b.closest('#rounds'))){
+    e.preventDefault();e.stopImmediatePropagation();
+  }
+},true);
 </script>
+</body>
+</html>

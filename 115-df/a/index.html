@@ -1279,11 +1279,16 @@ function pReveal(){
 function reportHTML(){
   const ev1=PUB.batch1, ev2=B2?B2.batch2:[];
   const val=v=>v?esc(v):'<span class="na">（未填）</span>';
-  const evName=id=>({E07F:'E07 完整紀錄',SUP:'補充資料'})[id]||id;
-  const row=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
+  // 列舉只顯示介面允許的值；不修改匯入／儲存的原始作答。
+  const enumText=(v,allowed)=>allowed.find(x=>v===x || v===String(x))??'';
+  const time=iso=>esc(hm(iso));
+  const evName=id=>esc(id==='E07F'?'E07 完整紀錄':id==='SUP'?'補充資料':id);
+  // k 是純文字；html 僅接收已跳脫內容與本函式產生的標記。
+  const row=(k,html)=>`<tr><th>${esc(k)}</th><td>${html}</td></tr>`;
   const exifStr=x=>x?[x.time,x.make,x.model].map(val).join(' ｜ ')+(x.dim||x.ori?` ｜ 選填：${esc(x.dim)} ${esc(x.ori)}`:''):'';
-  const logRows=S.log.map(l=>`<tr><td class="t">${hm(l.t)}</td><td>${esc(({start:'開始',open:'打開證物',zoom:'放大照片',download:'下載照片',l01check:'檢查練習',h1submit:'送出 H1',unlock2:'解鎖第二批',unlock2fail:'第二批密碼錯誤',hint:'使用提示',concldone:'完成第二堂',comment:'收到留言',unlock3:'解鎖揭露',unlock3fail:'揭露密碼錯誤',calc:'數資挑戰檢查',import:'匯入報告檔',export:'下載報告檔'})[l.e]||l.e)}</td><td>${esc(l.d??'')}</td></tr>`).join('');
-  const data=JSON.stringify({...S, b2:{...S.b2,pw:undefined}, reveal:{...S.reveal,pw:undefined}}).replace(/<\//g,'<\\/');   // 下載報告維持原格式；DFReport 只用於之後的交件
+  const logRows=S.log.map(l=>`<tr><td class="t">${time(l.t)}</td><td>${esc(({start:'開始',open:'打開證物',zoom:'放大照片',download:'下載照片',l01check:'檢查練習',h1submit:'送出 H1',unlock2:'解鎖第二批',unlock2fail:'第二批密碼錯誤',hint:'使用提示',concldone:'完成第二堂',comment:'收到留言',unlock3:'解鎖揭露',unlock3fail:'揭露密碼錯誤',calc:'數資挑戰檢查',import:'匯入報告檔',export:'下載報告檔'})[l.e]||l.e)}</td><td>${esc(l.d??'')}</td></tr>`).join('');
+  // JSON 保留原欄位與版本；跳脫所有 <，避免結束標籤及 HTML 註解改變解析狀態。
+  const data=JSON.stringify({...S, b2:{...S.b2,pw:undefined}, reveal:{...S.reveal,pw:undefined}}).replace(/</g,'\\u003c');
   return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(S.cls)}班${esc(S.seat)}號 專題研究報告</title>
 <style>body{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#17222D;background:#fff;max-width:900px;margin:0 auto;padding:24px 20px 60px;line-height:1.65;font-size:15px}
 h1{font-size:24px;margin:0}h2{font-size:18px;margin:28px 0 8px;padding-bottom:4px;border-bottom:2px solid #17222D}
@@ -1291,15 +1296,15 @@ table{border-collapse:collapse;width:100%;margin:6px 0}th,td{border:1px solid #C
 .t{font-family:Consolas,monospace;white-space:nowrap}.na{color:#9AA4AE}.meta{color:#56636F}.tag{background:#F2C230;padding:0 6px;font-family:Consolas,monospace;font-weight:700}
 @media print{h2{break-after:avoid}table{break-inside:auto}tr{break-inside:avoid}}</style></head><body>
 <h1>消失的原始資料｜專題研究報告（${esc(VERSION)} 版）</h1>
-<p class="meta">${esc(S.cls)} 班 ${esc(S.seat)} 號 ｜ 開始 ${new Date(S.started).toLocaleString('zh-TW')} ｜ 下載 ${new Date().toLocaleString('zh-TW')}</p>
+<p class="meta">${esc(S.cls)} 班 ${esc(S.seat)} 號 ｜ 開始 ${esc(new Date(S.started).toLocaleString('zh-TW'))} ｜ 下載 ${esc(new Date().toLocaleString('zh-TW'))}</p>
 <h2>EXIF 練習與研究問題</h2><table>${row('EXIF 練習',S.l01.ok?'通過':'未通過')}${row('研究問題',val(S.problem))}</table>
-<h2>第一批：觀察</h2><table><tr><th>證據</th><th>EXIF／觀察</th></tr>${ev1.map(e=>{const x=S.ev[e.id]; return `<tr><td><span class="tag">${e.id}</span><br>${esc(e.title)}</td><td>${e.type==='photo'?`EXIF：${exifStr(x.exif)}<br>`:''}觀察：${val(x.fact)}${x.interp?`<br>解釋（舊版）：${esc(x.interp)}`:''}</td></tr>`}).join('')}</table>
-<h2>疑點清單與研究問題</h2><table>${(S.susp||[]).map((s,i)=>row(`疑點 ${i+1}`,`${val(s.text)}<br>相關證物：${esc((s.ev||[]).join('、'))}<br>想查：${val(s.want)}<br>信心：${val(s.conf)}`)).join('')}</table>
-<h2>初始時間線</h2><table>${TL_SLOTS.map(t=>`<tr><td class="t">${t}</td><td>${val(S.timeline[t].text)}</td><td>${esc(S.timeline[t].src.join('、'))}</td></tr>`).join('')}</table>
-<h2>H1（${S.h1.submittedAt?'送出於 '+hm(S.h1.submittedAt):'未送出'}）</h2><table>${row('H1',`我目前推測：${val(S.h1.cause)} 可能造成 ${val(S.h1.effect)}，因為證據 ${esc(S.h1.ev.join('、'))}`)}${row('還不能確定',val(S.h1.unsure))}</table>
-<h2>第二批：支持／反對／不確定（${S.b2.unlockedAt?'解鎖於 '+hm(S.b2.unlockedAt):'未解鎖'}）</h2><table>${ev2.map(e=>{const x=S.b2.ev[e.id]||{}; return `<tr><td>${evName(e.id)}<br>${esc(e.title)}</td><td>${e.type==='photo'&&x.exif&&(x.exif.time||x.exif.make)?`EXIF：${exifStr(x.exif)}<br>`:''}重點：${val(x.key)}<br>關係：<b>${val(x.rel)}</b><br>理由：${val(x.why)}</td></tr>`}).join('')}${row('使用提示',S.b2.hints.length?S.b2.hints.map(h=>`第 ${h.level} 級（${hm(h.at)}）`).join('、'):'沒有使用')}</table>
-<h2>H2 與最終結論（${S.concl.doneAt?'送出於 '+hm(S.concl.doneAt):'未完成'}）</h2><table>${row('決定',val(S.h2.decision))}${row('理由',val(S.h2.reason))}${row('H2',`原本我認為 ${val(S.h1.cause)} 可能造成 ${val(S.h1.effect)}；看到 ${esc(S.h2.ev.join('、'))} 之後，現在改為 ${val(S.h2.now)}`)}${row('我的預測',`對的話：${val(S.pred.t)}<br>錯的話：${val(S.pred.f)}`)}${row('新解釋',val(S.concl.best))}${row('最重要證據',esc(S.concl.ev.join('、')))}${row('我能證明',val(S.concl.can))}${row('我不能證明',`${val(S.concl.cannot)}<br>因為：${val(S.concl.cbecause)}`)}${row('最容易誤判（選填）',val(S.concl.misled))}${row('想新增的資料',`${val(S.concl.want)}；因為 ${val(S.concl.wantWhy)}`)}</table>
-<h2>證據畫廊</h2><table>${S.gallery.comments.map(c=>row(`${esc(c.seat)} 號 · ${esc(c.stance)}`,`${esc(c.ev)}｜${esc(c.text)}`)).join('')||row('留言','（沒有）')}${row('讀完留言後的補強',val(S.gallery.after))}</table>
+<h2>第一批：觀察</h2><table><tr><th>證據</th><th>EXIF／觀察</th></tr>${ev1.map(e=>{const x=S.ev[e.id]; return `<tr><td><span class="tag">${esc(e.id)}</span><br>${esc(e.title)}</td><td>${e.type==='photo'?`EXIF：${exifStr(x.exif)}<br>`:''}觀察：${val(x.fact)}${x.interp?`<br>解釋（舊版）：${esc(x.interp)}`:''}</td></tr>`}).join('')}</table>
+<h2>疑點清單與研究問題</h2><table>${(S.susp||[]).map((s,i)=>row(`疑點 ${i+1}`,`${val(s.text)}<br>相關證物：${esc((s.ev||[]).join('、'))}<br>想查：${val(s.want)}<br>信心：${val(enumText(s.conf,[1,2,3,4,5]))}`)).join('')}</table>
+<h2>初始時間線</h2><table>${TL_SLOTS.map(t=>`<tr><td class="t">${esc(t)}</td><td>${val(S.timeline[t].text)}</td><td>${esc(S.timeline[t].src.join('、'))}</td></tr>`).join('')}</table>
+<h2>H1（${S.h1.submittedAt?'送出於 '+time(S.h1.submittedAt):'未送出'}）</h2><table>${row('H1',`我目前推測：${val(S.h1.cause)} 可能造成 ${val(S.h1.effect)}，因為證據 ${esc(S.h1.ev.join('、'))}`)}${row('還不能確定',val(S.h1.unsure))}</table>
+<h2>第二批：支持／反對／不確定（${S.b2.unlockedAt?'解鎖於 '+time(S.b2.unlockedAt):'未解鎖'}）</h2><table>${ev2.map(e=>{const x=S.b2.ev[e.id]||{}; return `<tr><td>${evName(e.id)}<br>${esc(e.title)}</td><td>${e.type==='photo'&&x.exif&&(x.exif.time||x.exif.make)?`EXIF：${exifStr(x.exif)}<br>`:''}重點：${val(x.key)}<br>關係：<b>${val(enumText(x.rel,['支持','反對','不確定']))}</b><br>理由：${val(x.why)}</td></tr>`}).join('')}${row('使用提示',S.b2.hints.length?S.b2.hints.map(h=>`第 ${esc(enumText(h.level,[1,2,3])||'未知')} 級（${time(h.at)}）`).join('、'):'沒有使用')}</table>
+<h2>H2 與最終結論（${S.concl.doneAt?'送出於 '+time(S.concl.doneAt):'未完成'}）</h2><table>${row('決定',val(enumText(S.h2.decision,['維持 H1','修改 H1','否定 H1'])))}${row('理由',val(S.h2.reason))}${row('H2',`原本我認為 ${val(S.h1.cause)} 可能造成 ${val(S.h1.effect)}；看到 ${esc(S.h2.ev.join('、'))} 之後，現在改為 ${val(S.h2.now)}`)}${row('我的預測',`對的話：${val(S.pred.t)}<br>錯的話：${val(S.pred.f)}`)}${row('新解釋',val(S.concl.best))}${row('最重要證據',esc(S.concl.ev.join('、')))}${row('我能證明',val(S.concl.can))}${row('我不能證明',`${val(S.concl.cannot)}<br>因為：${val(S.concl.cbecause)}`)}${row('最容易誤判（選填）',val(S.concl.misled))}${row('想新增的資料',`${val(S.concl.want)}；因為 ${val(S.concl.wantWhy)}`)}</table>
+<h2>證據畫廊</h2><table>${S.gallery.comments.map(c=>row(`${c.seat??''} 號 · ${enumText(c.stance,['我同意','我想質疑','我有補充'])}`,`${esc(c.ev)}｜${esc(c.text)}`)).join('')||row('留言','（沒有）')}${row('讀完留言後的補強',val(S.gallery.after))}</table>
 <h2>揭露後反思</h2><table>${[1,2,3,4].map(i=>row(`反思 ${i}${i<2?'（必答）':'（選填）'}`,val(S.reveal['r'+i]))).join('')}${row('數資挑戰',S.reveal.calc.ok?'三組全對':S.reveal.calc.t||S.reveal.calc.i||S.reveal.calc.s?`作答 ${esc(S.reveal.calc.t)}／${esc(S.reveal.calc.i)}／${esc(S.reveal.calc.s)}（未全對）`:'未作答')}</table>
 <h2>過程紀錄</h2><table><tr><th>時間</th><th>動作</th><th>細節</th></tr>${logRows}</table>
 <script id="df-report" type="application/json">${data}<\/script>

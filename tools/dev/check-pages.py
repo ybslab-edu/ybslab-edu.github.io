@@ -56,7 +56,7 @@ def login_student(pg):
 
 def pass_round(pg):
     # 指定正解卡片後仍走原 play()、兩組資料判定、進度與 upload()，不代呼叫 submit。
-    pg.evaluate('async () => { slots = [...ROUNDS[ri].sol]; await play(); }')
+    pg.evaluate('async () => { APP.handle.fill(); await play(); }')
     assert pg.locator('#verdict').is_visible()
     assert '過關！' in pg.inner_text('#verdict')
 
@@ -124,7 +124,7 @@ def weaknet_concurrent(c, pg):
     pg.click('#b-next')
     pass_round(pg)
     wait_queue(pg, 2)
-    assert pg.evaluate('prog.mask === 3 && __writes.length === 0 && __firebaseMock.attempts.length === 1')
+    assert pg.evaluate("JSON.parse(localStorage.getItem('it9:w1:917-5')).mask === 3 && __writes.length === 0 && __firebaseMock.attempts.length === 1")
     wait_sync(pg, 'sending')
     pg.evaluate('__firebaseMock.release(0)')
     wait_evaluate(pg, '__writes.length === 1 && __firebaseMock.attempts.length === 2')
@@ -270,7 +270,7 @@ with sync_playwright() as p:
         pg.click('#g-isme'); pg.wait_for_timeout(300)
         if week == 1:
             # 走原本出餐與雙組判定，確認過關自動呼叫 submit，而非測試直接代送。
-            pg.evaluate('async () => { slots = [...ROUNDS[ri].sol]; await play(); }')
+            pg.evaluate('async () => { APP.handle.fill(); await play(); }')
         else:
             pg.evaluate("YBS.submit({activity:2,round:1,level:'進階',tries:2,termWeek:8})")
         pg.wait_for_timeout(400)
@@ -279,7 +279,7 @@ with sync_playwright() as p:
                   and w[-1][1]['email'] == 'cgjh1100123@cgjh.hcc.edu.tw'
                   and w[-1][1]['activity'] == week and w[-1][1]['termWeek'] == week + 6 and '已上傳' in up)
         if week == 1:
-            ok = ok and w[-1][1]['round'] == 0 and w[-1][1]['tries'] == 1 and pg.evaluate('prog.mask === 1')
+            ok = ok and w[-1][1]['round'] == 0 and w[-1][1]['tries'] == 1 and pg.evaluate("JSON.parse(localStorage.getItem('it9:w1:917-5')).mask === 1")
         fail += not ok; print(('OK  ' if ok else 'FAIL'), f'{ACTIVITY_DIRS[week]} login/upload', who, w[-1][0] if w else None, up)
         pg.click('#b-swap')
         ok = pg.locator('#g-login').is_visible() and not pg.locator('#g-form').is_visible() and pg.evaluate('YBS.profile() === null')

@@ -5,6 +5,9 @@
 //   view(inst, el, api) → { get()（學生目前的答案）, fill()（教師：填好答案）, ready()（可以送出了嗎，可省略） },
 //   check(inst, ans) → true 或 一句「哪裡不對」的純文字提示（不解析 HTML）,
 //   peek(inst, ans)（可省略）→ 第 3 部分「電腦裡發生的」HTML }
+// 相容既有演出型活動：round.confirmations=1 表示 check 已自行檢查兩組資料；
+// round.manualAttempt=true 時，由 view 的 api.attempt() 在演出開始時記次。
+// cfg.progressLength（預設 6）、rememberIdentity（預設 false）保留舊頁儲存形狀。
 // 過關規則：連續答對兩組不同的資料。答錯留在同一組讓學生修正，答對才換新的一組。
 const SHELL = (cfg) => {
   const $ = id => document.getElementById(id);
@@ -120,23 +123,27 @@ const SHELL = (cfg) => {
   function fresh() {
     const r = R[ri]; inst = r.gen(seed());
     $('says').innerHTML = '<span class="tk"><b>現在</b><span>' + txt(r.now, inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, inst) + '</span></span>' : '');
-    $('stage').innerHTML = ''; handle = r.view(inst, $('stage'), { changed: () => changed(), esc });
+    $('stage').innerHTML = ''; handle = r.view(inst, $('stage'), { changed: () => changed(), attempt, esc });
     renderStreak(); changed();
   }
   function load(i) { ri = i; streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
   function setLevel(l) { level = l; $('tab-1').setAttribute('aria-selected', l === 1); $('tab-2').setAttribute('aria-selected', l === 2); load(R.findIndex(r => r.lv === l)); }
   $('tab-1').onclick = () => setLevel(1); $('tab-2').onclick = () => setLevel(2);
 
+  // 自行演出的活動可在開始演出時記次；預設仍由送出按鈕記次。
+  function attempt() {
+    if (!teacher && !done.has(ri)) { prog.tries[ri] = Math.min(15, prog.tries[ri] + 1); saveProg(); }
+  }
   $('b-send').onclick = () => {
     const r = R[ri], res = r.check(inst, handle.get()), v = $('verdict');
-    if (!teacher && !done.has(ri)) { prog.tries[ri] = Math.min(15, prog.tries[ri] + 1); saveProg(); }
+    if (!r.manualAttempt) attempt();
     if (res !== true) {
       streak = 0; renderStreak();
       v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">修改後再送出一次。</p>';
       v.querySelector('p').textContent = res; v.hidden = false; return;
     }
     streak++;
-    if (streak < NEED) {
+    if (streak < (r.confirmations ?? NEED)) {
       v.className = 'verdict mid'; v.innerHTML = '<h3>答對了！再一組確認</h3><p>已經換成一組新的資料，再做一次，連續答對兩組就過關。</p>'; v.hidden = false;
       fresh(); return;
     }
@@ -157,9 +164,9 @@ const SHELL = (cfg) => {
     return '<p>這一關完成了！這個活動目前完成 ' + got + '／' + R.length + ' 關，還沒過的：' + R.filter((_, i) => !done.has(i)).map(r => esc(r.name)).join('、') + '。</p>';
   }
   // ===== 班級座號與進度 =====
-  let ident = null, prog = { mask: 0, tries: [0, 0, 0, 0, 0, 0], time: Date.now() };
+  let ident = null, prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
   const KEY = () => 'it9:w' + cfg.week + ':' + ident.cls + '-' + ident.seat;
-  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(prog)); localStorage.setItem('it9:last', JSON.stringify({ cls: ident.cls, seat: ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄會不見，請現在就把最新的成績碼抄下來交給老師。' } renderReport(); }
+  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? ident : { cls: ident.cls, seat: ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄會不見，請現在就把最新的成績碼抄下來交給老師。' } renderReport(); }
   function renderReport() {
     if (!ident) return;
     $('prog').innerHTML = R.map((r, i) => '<span class="' + (prog.mask & (1 << i) ? 'ok' : '') + '">' + (r.lv === 1 ? '基礎' : '進階') + '・' + esc(r.name) + (prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
@@ -188,7 +195,7 @@ const SHELL = (cfg) => {
   $('g-back').onclick = () => { $('g-step1').hidden = false; $('g-step2').hidden = true; $('in-cls').disabled = false; $('in-seat').disabled = false; $('in-cls').focus() };
   $('g-go').onclick = () => start({ cls: +$('in-cls').value, seat: +$('in-seat').value });
   function start(id) {
-    ident = id; prog = { mask: 0, tries: [0, 0, 0, 0, 0, 0], time: Date.now() };
+    ident = id; prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
     try { const p = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (p && Array.isArray(p.tries)) prog = p } catch (e) { }
     done.clear(); for (let i = 0; i < R.length; i++) if (prog.mask & (1 << i)) done.add(i);
     $('who').textContent = id.cls + ' 班 ' + id.seat + ' 號' + (id.name ? ' ' + id.name : '');

@@ -79,6 +79,7 @@ nav a{color:var(--accent)}
     <label for="paste"><strong>貼上成績碼</strong>　不同週、不同班混在一起也可以，夾雜其他文字也沒關係</label>
     <textarea id="paste" placeholder="E2K5-H7W2-FZFX-3M1A&#10;…"></textarea>
     <div class="row"><button class="btn primary" id="b-add">加入</button><span class="msg" id="msg" role="status"></span></div>
+    <p class="msg no" id="save-msg" role="alert" hidden></p>
   </section>
 
   <section class="panel">
@@ -109,7 +110,12 @@ const W=Object.fromEntries(ACTIVITIES.filter(a=>a.course===COURSE).map(a=>[a.wee
 const roundsOf=w=>(W[w]&&W[w].rounds)||['第1關','第2關','第3關','第4關'];
 let recs={}, sizes={}, curW=null, curC=null;
 try{recs=JSON.parse(localStorage.getItem('it9:grades')||'{}');sizes=JSON.parse(localStorage.getItem('it9:sizes')||'{}')}catch(e){}
-const save=()=>{try{localStorage.setItem('it9:grades',JSON.stringify(recs));localStorage.setItem('it9:sizes',JSON.stringify(sizes))}catch(e){}};
+const save=()=>{try{localStorage.setItem('it9:grades',JSON.stringify(recs));localStorage.setItem('it9:sizes',JSON.stringify(sizes));return true}catch(e){return false}};
+function reportSave(saved){
+  const m=$('save-msg');m.hidden=saved;
+  m.textContent=saved?'':'這台電腦沒有存下來。請老師立刻用下方既有的下載／匯出方式備份各班各週成績；資料仍留在目前畫面可匯出，保存前請勿關閉或重新整理。';
+  if(!saved){$('msg').className='msg no';$('msg').textContent=''}
+}
 const n1=m=>{let c=0;while(m){c+=m&1;m>>=1}return c};
 const p2=n=>String(n).padStart(2,'0');
 const fmtTime=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+p2(d.getHours())+':'+p2(d.getMinutes())};
@@ -129,12 +135,12 @@ $('b-add').onclick=()=>{
     else if(r.time>ex.time||(r.time===ex.time&&n1(r.mask)>n1(ex.mask))){recs[k]=r;upd++;last=r}
     else old++;
   }
-  save();
+  const saved=save();reportSave(saved);
   const m=$('msg');
   if(!found.length){m.className='msg no';m.textContent='沒有找到成績碼。';return}
-  m.className='msg '+(bad.length?'no':'ok');
-  m.textContent='新增 '+add+' 人、更新 '+upd+' 人'+(old?'、'+old+' 筆比現有的舊所以略過':'')+(bad.length?'；'+bad.length+' 筆驗證不過（打錯或被改過）：'+bad.join('、'):'')+'。';
-  if(!bad.length)$('paste').value='';
+  m.className='msg '+(!saved||bad.length?'no':'ok');
+  m.textContent=(saved?'新增 '+add+' 人、更新 '+upd+' 人'+(old?'、'+old+' 筆比現有的舊所以略過':''):'成績僅保留在目前畫面，尚未存妥')+(bad.length?'；'+bad.length+' 筆驗證不過（打錯或被改過）：'+bad.join('、'):'')+'。';
+  if(saved&&!bad.length)$('paste').value='';
   if(last){curW=last.week;curC=last.cls}
   render();
 };
@@ -173,7 +179,7 @@ function render(){
   $('tbl').innerHTML=h+'</tbody></table>';
 }
 
-$('size').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');e.target.value=v;if(curC!=null){if(v&&+v>=1&&+v<=60)sizes[curC]=+v;else delete sizes[curC];save();render();$('size').focus()}});
+$('size').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');e.target.value=v;if(curC!=null){if(v&&+v>=1&&+v<=60)sizes[curC]=+v;else delete sizes[curC];reportSave(save());render();$('size').focus()}});
 
 // ===== Excel =====
 function weekSheet(w,c){
@@ -226,7 +232,7 @@ function renderClear(){
   $('b-clear').onclick=()=>{
     row.innerHTML='<div class="confirm"><span>確定刪除'+wname(curW)+' '+curC+' 班的所有成績？刪了不能復原。</span><button class="btn danger" id="c-yes">刪除</button><button class="btn" id="c-no">取消</button></div>';
     $('c-no').onclick=renderClear;
-    $('c-yes').onclick=()=>{for(const k of Object.keys(recs))if(recs[k].week===curW&&recs[k].cls===curC)delete recs[k];save();render()};
+    $('c-yes').onclick=()=>{for(const k of Object.keys(recs))if(recs[k].week===curW&&recs[k].cls===curC)delete recs[k];reportSave(save());render()};
   };
 }
 render();

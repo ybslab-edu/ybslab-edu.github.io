@@ -1,3 +1,4 @@
+import {createRequire} from 'node:module';
 // 執行實際頁面的下載、匯入及 localStorage 還原函式；只用記憶體內合成資料，無網路／Firebase。
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const pageHTML=readFileSync(new URL('../115-df/a/index.html',import.meta.url),'utf8');
+const DFReport=createRequire(import.meta.url)('../assets/df-report.js');
 const publicData=JSON.parse(pageHTML.match(/<script id="pub" type="application\/json">(.*?)<\/script>/s)[1]);
 const pub={version:publicData.version,appVersion:publicData.appVersion,timeline:publicData.timeline,
   batch1:publicData.batch1.map(({id,title,type})=>({id,title,type}))};
@@ -42,7 +44,7 @@ function setPath(state,path,value){
 }
 function fixture(){
   const stored=new Map(),downloads=[];
-  const context=vm.createContext({PUB:pub,APPV:pub.appVersion,VERSION:pub.version,
+  const context=vm.createContext({DFReport,TextEncoder,PUB:pub,APPV:pub.appVersion,VERSION:pub.version,
     B2:{batch2},S:null,ANS:null,impWho:null,recOn:false,Blob,
     Date:class extends Date {
       constructor(...args){super(...(args.length?args:[fixedTime]));}
@@ -114,14 +116,18 @@ function assertSafe(report,state){
 for(const origin of ['作答','匯入','localStorage']) test(`${origin}：實際報告逐欄跳脫 img／script、中文、換行、引號`,async()=>{
   for(const sample of samples){
     const {context,state}=fixture();
-    for(const path of textPaths) setPath(state,path,`${path}：${sample.raw}`);
-    for(const path of ['b2.hints.0.level','susp.0.conf','b2.ev.E05.rel','h2.decision','gallery.comments.0.stance']) setPath(state,path,sample.raw);
+    // 匯入與本機進度的班座不合格式時整份拒絕，見下方專項測試。
+    const paths=origin==='作答'?textPaths:textPaths.filter(path=>path!=='cls'&&path!=='seat');
+    for(const path of paths) setPath(state,path,`${path}：${sample.raw}`);
+    // 匯入與本機進度的提示等級不合型別時整份拒絕，見下方專項測試。
+    for(const path of ['susp.0.conf','b2.ev.E05.rel','h2.decision','gallery.comments.0.stance']) setPath(state,path,sample.raw);
+    if(origin==='作答') setPath(state,'b2.hints.0.level',sample.raw);
     await load(context,state,origin);
     const before=JSON.stringify(context.S),report=context.reportHTML();
     assertSafe(report,context.S);
-    assert.ok(visibleHTML(report).includes('第 未知 級'),'匯入或儲存的惡意提示級別不能進入 HTML');
+    if(origin==='作答') assert.ok(visibleHTML(report).includes('第 未知 級'),'惡意提示級別不能進入 HTML');
     assert.equal(JSON.stringify(context.S),before,'產生報告不改寫作答');
-    for(const path of textPaths) assert.ok(visibleHTML(report).includes(`${path}：${sample.escaped}`),`${origin} ${path} 保留原文且跳脫`);
+    for(const path of paths) assert.ok(visibleHTML(report).includes(`${path}：${sample.escaped}`),`${origin} ${path} 保留原文且跳脫`);
   }
 });
 
@@ -150,6 +156,21 @@ test('提示級別等列舉只接受白名單；數字及字串級別相容，�
       assert.ok(visibleHTML(report).includes(spec.fallback),`${spec.path} 拒絕非白名單 ${JSON.stringify(value)}`);
     }
   }
+});
+
+for(const [name,path,value] of [['提示等級不是數字','b2.hints.0.level',samples[0].raw],['班級不合格式','cls',samples[0].raw]]) {
+  test(`匯入：${name}時整份不採用`,async()=>{
+    const {context,state}=fixture();
+    setPath(state,path,value);
+    await assert.rejects(load(context,state,'匯入'),/透過實際頁面函式取得作答/);
+    assert.equal(context.S,null);
+  });
+}
+test('localStorage：提示等級不是數字時回到預設進度',async()=>{
+  const {context,state}=fixture();
+  setPath(state,'b2.hints.0.level',samples[0].raw);
+  await load(context,state,'localStorage');
+  assert.equal(context.S.b2.hints.length,0);
 });
 
 test('匯入時間值經實際日期格式化及跳脫，不會成為 HTML',async()=>{

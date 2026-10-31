@@ -120,13 +120,24 @@ const SHELL = (cfg) => {
     $('b-send').disabled = !ok; $('send-hint').textContent = ok ? '' : '全部完成後才能送出。';
     if (R[ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[ri].peek(inst, handle.get()); } else $('sec3').hidden = true;
   }
+  // 在 view 可能改動資料前保存內容；物件鍵序不影響比對，陣列順序仍有意義。
+  const contentKey = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
+  let previousKey = null;
   function fresh() {
-    const r = R[ri]; inst = r.gen(seed());
+    const r = R[ri], rnd = seed();
+    let key;
+    // 最多抽 20 次；單一題庫或一直抽到同題時仍可繼續操作。
+    for (let draw = 0; draw < 20; draw++) {
+      inst = r.gen(rnd); key = contentKey(inst);
+      if (key !== previousKey) break;
+    }
+    previousKey = key;
     $('says').innerHTML = '<span class="tk"><b>現在</b><span>' + txt(r.now, inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, inst) + '</span></span>' : '');
     $('stage').innerHTML = ''; handle = r.view(inst, $('stage'), { changed: () => changed(), attempt, esc });
     renderStreak(); changed();
   }
-  function load(i) { ri = i; streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
+  function load(i) { if (ri !== i) previousKey = null; ri = i; streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
   function setLevel(l) { level = l; $('tab-1').setAttribute('aria-selected', l === 1); $('tab-2').setAttribute('aria-selected', l === 2); load(R.findIndex(r => r.lv === l)); }
   $('tab-1').onclick = () => setLevel(1); $('tab-2').onclick = () => setLevel(2);
 

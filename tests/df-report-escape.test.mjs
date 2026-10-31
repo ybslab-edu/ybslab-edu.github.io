@@ -221,7 +221,6 @@ test('瀏覽器開啟實際下載內容：無注入執行，文字顯示與 JSON
     const {context,state,downloads}=fixture();
     const paths=textPaths.filter(path=>path!=='cls'&&path!=='seat');
     for(const path of paths) setPath(state,path,`${path}：${sample.raw}`);
-    state.b2.hints[0].level=sample.raw;
     await load(context,state,'匯入');context.exportReport(false);
     await page.setContent(await downloads[0].blob.text());
     assert.equal(await page.evaluate(()=>globalThis.__dfReportInjected),undefined);

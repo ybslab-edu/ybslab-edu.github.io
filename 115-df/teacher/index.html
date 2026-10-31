@@ -235,8 +235,8 @@ function detail(d){
   <h3>反思</h3><dl>${[1,2,3,4].map(i=>`<dt>反思 ${i}</dt><dd>${v(d.reveal?.['r'+i])}</dd>`).join('')}<dt>數資挑戰</dt><dd>${d.reveal?.calc?.ok?'三組全對':'<span class="na">未全對／未作答</span>'}</dd></dl>
   <h3>過程紀錄</h3><dl>${d.log.map(l=>`<dt class="mono">${hm(l.t)}</dt><dd>${esc(l.e)} ${esc(l.d??'')}</dd>`).join('')}</dl>`;
   if(LIVE&&L.has(key(d))){ const a=document.createElement('p'); a.className='row'; a.innerHTML='<button class="btn sm" id="sf" type="button">釋放這個座位（學生換電腦時）</button><button class="btn sm" id="sd" type="button">刪除這位學生的資料</button>'; dr.appendChild(a);
-    $('#sf').onclick=async()=>{ await tapi('seat',{k:key(d),action:'free'}); toast2('已釋放，學生可以重新登入'); };
-    $('#sd').onclick=async()=>{ if(confirm(`確定刪除 ${d.cls}-${d.seat} 的全部資料？`)){ await tapi('seat',{k:key(d),action:'delete'}); dr.hidden=true; } }; }
+    $('#sf').onclick=async()=>{ try{ await tapi('seat',{k:key(d),action:'free'}); toast2('已釋放，學生可以重新登入'); }catch(e){ toast2('釋放失敗，請確認連線後重試'); } };
+    $('#sd').onclick=async()=>{ if(confirm(`確定刪除 ${d.cls}-${d.seat} 的全部資料？`)){ try{ await tapi('seat',{k:key(d),action:'delete'}); dr.hidden=true; }catch(e){ toast2('刪除失敗，請確認連線後重試'); } } }; }
   $('#dx').onclick=()=>{dr.hidden=true; OPEN=null;}; $('#dx').focus(); OPEN=key(d);
 }
 function csv(){
@@ -251,7 +251,11 @@ function csv(){
 
 /* ---------------- live mode ---------------- */
 function toast2(m){ const n=document.createElement('div'); n.className='empty'; n.textContent=m; n.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:60;padding:10px 18px'; document.body.append(n); setTimeout(()=>n.remove(),2500); }
-async function tapi(name,obj){ const r=await fetch('/api/t/'+name,{method:'POST',headers:{'Content-Type':'application/json','x-token':TOKEN},body:JSON.stringify(obj)}); return r.json().catch(()=>({})); }
+async function tapi(name,obj){
+  const r=await fetch('/api/t/'+name,{method:'POST',headers:{'Content-Type':'application/json','x-token':TOKEN},body:JSON.stringify(obj)});
+  if(!r.ok) throw new Error('教師 API 請求失敗（HTTP '+r.status+'）');
+  return r.json();
+}
 function stub(s){ return {app:'DF-investigation',version:'A',cls:s.cls,seat:s.seat,started:s.lastSeen,log:[],h1:{},h2:{},concl:{},b2:{},reveal:{},gallery:{comments:[]},ev:{},l01:{}}; }
 function onSnap(snap){
   SKEW=snap.now-Date.now(); REL=snap.release; L=new Map();
@@ -269,7 +273,7 @@ function liveUI(){
   $('#ctl').innerHTML=`<span><b>第二批證據</b></span>${btn('b2','第二批')}`+`<span style="flex-basis:100%"></span><span><b>案件揭露</b></span>${btn('rv','揭露')}`;
   $$('#ctl button').forEach(b=>b.onclick=async()=>{ const st=b.dataset.st, on=b.dataset.on==='1';
     if(on&&!b.dataset.cls){ const wait=seats.filter(([k,l])=>presence(k)?.[0]!=='off'&&l.cur<(st==='b2'?4:7)).length; if(wait&&!confirm(`還有 ${wait} 位線上學生尚未完成前面的步驟，仍要公布嗎？`)) return; }
-    await tapi('release',{stage:st,on,cls:b.dataset.cls||undefined}); });
+    try{ await tapi('release',{stage:st,on,cls:b.dataset.cls||undefined}); }catch(e){ toast2('公布／收回失敗，請確認連線後重試'); } });
   $('#flt').innerHTML=`<span>顯示班級</span><select id="cls" style="font:inherit;padding:.2em .5em"><option value="">全部（${seats.length} 人，線上 ${on}）</option>${classes.map(c=>`<option ${c===CLS?'selected':''}>${c}</option>`).join('')}</select>`;
   $('#cls').onchange=e=>{CLS=e.target.value;render();};
 }
@@ -283,7 +287,7 @@ async function goLive(tok){
   es.onerror=()=>{ $('#conn').textContent='● 連線中斷，自動重連…'; };
   setInterval(()=>{ if(L.size){ liveUI(); render(); } },10000);
   $('#out').onclick=()=>{ try{sessionStorage.removeItem('dft');}catch(e){} location.href='/'; };
-  $('#rst').onclick=async()=>{ if(prompt('這會清空所有學生的即時資料（會先自動備份）。輸入 RESET 確認')==='RESET'){ await tapi('reset',{confirm:'RESET'}); R.clear(); L.clear(); render(); } };
+  $('#rst').onclick=async()=>{ if(prompt('這會清空所有學生的即時資料（會先自動備份）。輸入 RESET 確認')==='RESET'){ try{ await tapi('reset',{confirm:'RESET'}); R.clear(); L.clear(); render(); }catch(e){ toast2('重設失敗，請確認連線後重試'); } } };
   return true;
 }
 (async function(){

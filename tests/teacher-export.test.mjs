@@ -56,7 +56,8 @@ test('每週資料列：座號排序、未交補列、實際關數遮罩、嘗�
   assert.deepEqual(Array.from(rows[1]),[999,1,...Array(12).fill(''),'未交']);
   assert.deepEqual(Array.from(rows[2].slice(0,12)),[999,2,1,0,1,0,2,2,3,4,5,14]);
   assert.deepEqual(Array.from(rows[3].slice(0,12)),[999,3,1,1,1,1,4,2,3,4,5,14]);
-  assert.equal(sheet.M4.t,'d');assert.equal(sheet.M4.v.getTime(),time);
+  // SheetJS 0.20 以 UTC 欄位保存本地時鐘；實際檔案值已比對與 0.18.5 相同。
+  assert.equal(sheet.M4.t,'d');assert.equal(sheet.M4.v.getTime(),time-new Date(time).getTimezoneOffset()*60000);
   assert.equal(rows[2][13],legacy);
   assert.equal(rows[4].at(-1),'未交');
   assert.match(h.get('stats').innerHTML,/已交 <b>2<\/b> \/ 4/);

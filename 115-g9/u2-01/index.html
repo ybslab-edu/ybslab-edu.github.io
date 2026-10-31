@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+
 <title>看台最後一排｜第 9 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="../../assets/shell.css?v=3">
 <style>
 /* Layout：由上而下三段，沿用 w02：① 任務說明 → ② 調設定、拍照、回答（兩張照片＝兩組資料）→ ③ 看電腦怎麼存（每格的數字與檔案大小）；顏色與簡報一致 */
 :root{
@@ -58,6 +59,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--samp);outline-o
 .order .tk.tip b{background:var(--line);color:var(--ink)}
 .order .tip{width:100%;color:var(--muted);font-size:14.5px}
 
+#stage{display:flex;flex-direction:column;gap:12px}
 .sec{display:flex;flex-direction:column;gap:12px}
 .sec-h{display:flex;align-items:center;gap:10px;margin:8px 0 0;font-family:var(--f-display);font-size:24px}
 .sec-h .num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-family:var(--f-mono);font-size:18px}
@@ -131,176 +133,20 @@ body.showorig .frame .orig{opacity:1}
 .verdict h3{margin:0;font-family:var(--f-display);font-size:22px}
 .verdict p{margin:0}
 
-.gate{max-width:440px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px}
-.gate h1{text-align:center}
-.gate p{margin:0;color:var(--muted);text-align:center}
-.field{display:flex;flex-direction:column;gap:4px}
-.field label{font-weight:700}
-.field input{font-family:var(--f-mono);font-size:26px;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
-.field input:focus{outline:none;border-color:var(--samp)}
-.field .hint{font-size:13.5px;color:var(--muted)}
-.gerr{color:var(--warn);font-size:14.5px;min-height:1.4em;text-align:center}
-.who-bar{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted);flex-wrap:wrap}
-.who-bar b{font-family:var(--f-mono);color:var(--ink);font-size:17px}
-.linkbtn{font:inherit;font-size:14px;border:0;background:none;color:var(--samp);cursor:pointer;text-decoration:underline;padding:0}
-.report{background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
-.report h2{margin:0;font-family:var(--f-display);font-size:19px;width:100%}
-.code{font-family:var(--f-mono);font-size:clamp(20px,4.5vw,28px);font-weight:700;letter-spacing:.06em;user-select:all;overflow-wrap:anywhere}
-.prog{display:flex;gap:8px;flex-wrap:wrap;width:100%}
-.prog span{font-size:14px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
-.prog span.ok{background:var(--out-soft);border-color:var(--out);color:var(--ink);font-weight:700}
-.copied{font-size:14px;color:var(--out)}
-.tlogin{display:flex;flex-direction:column;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:12px}
-.tlogin .field{width:100%}
-.tbar{position:sticky;bottom:12px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--cu);border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
-.tbar .tlabel{font-weight:700;color:var(--cu);padding-right:4px}
-.tbar .thint{width:100%;font-size:13px;color:var(--muted)}
-.tbar .btn{padding:7px 12px}
 .tbar .btn[aria-pressed="true"]{background:var(--cu);color:#fff;border-color:var(--cu)}
-.g-me{margin:0;text-align:center;color:var(--ink)!important;font-size:15px}
-.sync{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
-.sync.ok{color:var(--out);border-color:var(--out)} .sync.warn{color:var(--warn);border-color:var(--warn)}
-.unit{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
-.unit a,.unit span{flex:none;display:flex;flex-direction:column;text-decoration:none;color:var(--muted);font-size:13px;line-height:1.35;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
-.unit b{font-size:14px;color:var(--ink);font-weight:500}
-.unit .now{border-color:var(--ink);background:var(--ink);color:var(--bg)}
-.unit .now b{color:var(--bg);font-weight:700}
-.unit .lbl{border:0;background:transparent;justify-content:center;font-weight:700;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
-
-<section class="gate" id="gate">
-  <h1>看台最後一排</h1>
-  <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
-    <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
-    <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
-    <div class="gerr" id="g-lerr" role="alert"></div>
-    <button class="linkbtn" id="g-manual" type="button">登入不了？改填班級座號</button>
-  </div>
-  <div id="g-who" hidden style="display:flex;flex-direction:column;gap:12px;align-items:center">
-    <p id="g-whotext" style="color:var(--ink);font-size:20px"></p>
-    <div class="btns" style="justify-content:center" id="g-whobtns"><button class="btn" id="g-notme" type="button">不是我</button><button class="btn primary" id="g-isme" type="button">對，開始</button></div>
-  </div>
-  <div id="g-form" hidden style="display:flex;flex-direction:column;gap:14px">
-  <p id="g-me" class="g-me" hidden></p>
-  <p>開始前先填班級和座號，只能填數字。</p>
-  <div class="field"><label for="in-cls">班級</label><input id="in-cls" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="例如 901"><span class="hint">三位數字，例如 901</span></div>
-  <div class="field"><label for="in-seat">座號</label><input id="in-seat" inputmode="numeric" autocomplete="off" maxlength="2" placeholder="例如 12"><span class="hint">1～60</span></div>
-  <div class="gerr" id="gerr" role="alert"></div>
-  <div class="btns" id="g-step1"><button class="btn primary" id="g-next" style="width:100%">下一步</button></div>
-  <div id="g-step2" hidden style="display:flex;flex-direction:column;gap:10px">
-    <p style="color:var(--ink);font-size:20px" id="g-confirm"></p>
-    <div class="btns" style="justify-content:center"><button class="btn" id="g-back">我填錯了</button><button class="btn primary" id="g-go">對，開始</button></div>
-  </div>
-  </div>
-  <div class="tlogin">
-    <button class="linkbtn" id="t-open" type="button">教師登入</button>
-    <div id="t-box" hidden class="field">
-      <label for="in-tcode">教師通行碼</label>
-      <input id="in-tcode" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40">
-      <button class="linkbtn" id="t-show" type="button" style="align-self:flex-start">顯示通行碼</button>
-      <div class="btns"><button class="btn primary" id="t-go" type="button" style="width:100%">進入教師模式</button></div>
-      <span class="gerr" id="terr" role="alert"></span>
-    </div>
-  </div>
-</section>
-
-<div class="wrap" id="main" hidden>
-  <header>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <h1>看台最後一排</h1>
-      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
-    </div>
-    <div class="tabs" role="tablist" aria-label="等級">
-      <button id="tab-1" role="tab" aria-selected="true">基礎關</button>
-      <button id="tab-2" role="tab" aria-selected="false">進階關</button>
-    </div>
-  </header>
-  <nav class="unit" id="unit" aria-label="本單元進度" hidden></nav>
-  <div class="rounds" id="rounds"></div>
-
-  <section class="sec">
-    <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
-    <div class="order" aria-live="polite">
-      <span class="says" id="says"></span>
-      <span class="tip">拉動第 2 部分的設定，兩張照片會跟著變。找到「看得出來、檔案又最小」的設定，回答兩張照片的問題，再按「拍下來傳出去」。第 3 部分可以看到電腦把照片存成了哪些數字。</span>
-    </div>
-  </section>
-
-  <section class="sec">
-    <h2 class="sec-h"><span class="num">2</span>調設定，拍下來</h2>
-    <div class="knobs">
-      <section class="panel knob samp" id="k-res">
-        <div class="ptitle"><h3>格子數</h3><span class="tag t-samp">取樣</span></div>
-        <div class="kval" id="res-v"></div>
-        <div class="krow"><button class="step" type="button" id="res-dn" aria-label="格子少一點">−</button><input type="range" id="res" min="0" max="7" step="1" aria-label="格子數"><button class="step" type="button" id="res-up" aria-label="格子多一點">＋</button></div>
-        <p class="small" id="res-note"></p>
-      </section>
-      <section class="panel knob quant" id="k-dep">
-        <div class="ptitle"><h3>顏色數</h3><span class="tag t-quant">量化</span></div>
-        <div class="kval" id="dep-v"></div>
-        <div class="krow"><button class="step" type="button" id="dep-dn" aria-label="顏色少一點">−</button><input type="range" id="dep" min="0" max="4" step="1" aria-label="顏色數"><button class="step" type="button" id="dep-up" aria-label="顏色多一點">＋</button></div>
-        <p class="small" id="dep-note"></p>
-      </section>
-    </div>
-    <section class="panel sizebar">
-      <div class="sizeline" id="sizeline"><span>每張照片的大小</span><span class="big" id="size-v"></span><span class="small" id="size-cap"></span></div>
-      <div class="meter" id="meter" hidden><i id="meter-i"></i><b id="meter-b"></b></div>
-    </section>
-    <div class="photos" id="photos"></div>
-    <div class="btns"><button class="btn primary" id="b-shot" type="button">拍下來傳出去</button><span class="small" id="shot-hint"></span></div>
-    <section class="verdict" id="verdict" hidden aria-live="polite"></section>
-  </section>
-
-  <section class="sec">
-    <h2 class="sec-h"><span class="num">3</span>電腦怎麼存這張照片</h2>
-    <div class="store">
-      <section class="panel">
-        <div class="ptitle"><h3>照片 1 中間的一小塊</h3><span class="tag t-quant">每格一個數字</span></div>
-        <div class="nums" id="nums"></div>
-        <p class="small" id="nums-note"></p>
-      </section>
-      <section class="panel formula">
-        <div class="ptitle"><h3>檔案多大，這樣算</h3><span class="tag t-size">大小</span></div>
-        <div class="eq" id="eq"></div>
-        <p class="small">8 位元 = 1 位元組（Byte），1024 位元組 = 1 KB。真的手機照片有幾千萬格、每格 24 位元，所以一張就要好幾 MB（還會再壓縮）。</p>
-      </section>
-    </div>
-  </section>
-
-  <div class="tbar" id="tbar" hidden role="toolbar" aria-label="教師工具">
-    <span class="tlabel">教師模式</span>
-    <button class="btn" id="tb-ans" type="button">顯示答案</button>
-    <button class="btn" id="tb-orig" type="button" aria-pressed="false">對照原圖</button>
-    <button class="btn" id="tb-new" type="button">換一組照片</button>
-    <span class="thint">「顯示答案」把設定調到過關值並填好答案；「對照原圖」把照片換成還沒數位化的樣子（學生看不到）。</span>
-  </div>
-
-  <section class="report" id="report" aria-live="polite">
-    <h2>我的成績碼</h2>
-    <div class="prog" id="prog"></div>
-    <span class="code" id="code"></span>
-    <button class="btn" id="b-copy" type="button">複製成績碼</button>
-    <span class="copied" id="copied"></span>
-    <p class="small" style="width:100%" id="rep-note">每過一關成績碼都會更新。做完後把<strong>最新的</strong>成績碼交給老師。</p>
-    <p class="sync" id="sync2" hidden style="margin:0"></p>
-  </section>
-  <p class="small" style="text-align:center">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
-</div>
-
+</head>
+<body>
 <script src="../../assets/codec.js"></script>
 <script src="../../assets/teacher.js?v=20261019"></script>
 <script src="../../assets/lock.js?v=20261027b"></script>
 <script src="../../assets/login.js?v=20261030a"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/shell.js?v=14"></script>
 <script>
 const WEEK=3, TERM_WEEK=9, TITLE='看台最後一排', COURSE='115-g9';
-// 單元進度條（和第 2 單元其他週的活動頁一樣）
-(()=>{const list=ACTIVITIES.filter(a=>a.course===COURSE&&a.unit===2).sort((a,b)=>a.date.localeCompare(b.date));if(list.length<2)return;
-  const el=document.getElementById('unit');el.hidden=false;
-  el.innerHTML='<span class="lbl">第 2 單元</span>'+list.map(a=>{const w=termWeekOf(a),now=a.week===WEEK;return (now?'<span class="now" aria-current="page">':'<a href="../../'+a.href+'">')+'<b>'+a.title+'</b>第 '+w+' 週'+(a.track==='選修'?'・選修':'')+(now?'</span>':'</a>')}).join('')})();
-
 // ===== 照片產生器：全部用程式畫，不用真人照片 =====
 // 偶像團體「六連星」：每人一個應援色。顏色兩兩相近（紅／酒紅、黃／橘、藍／紫），只有 8 色時會被併成同一色，64 色才分得開。
 const MEMBERS=[
@@ -417,18 +263,15 @@ const ROUNDS=[
 const resList=R=>R.kind==='sat'?SAT.map(m=>GROUND/m):RES;
 const SOLDEP=R=>R.sol.dep;
 
-let level=1, ri=0, setRes=0, setDep=4, photos=[], answers=[], showOrig=false;
-const done=new Set();
-// 只過了最後一關，不代表整個活動完成：依實際過了幾關顯示
-function endMsg(txt){const got=ROUNDS.filter((_,i)=>done.has(i)).length,t=(typeof teacher!=='undefined'&&teacher);return t||got===ROUNDS.length?'<p><strong>'+txt+'</strong></p>':'<p>這一關完成了！這個活動目前完成 '+got+'／'+ROUNDS.length+' 關，還沒過的：'+ROUNDS.filter((_,i)=>!done.has(i)).map(r=>r.name).join('、')+'。</p>'}
-
+let teacher=false, activityApi, ri=0, setRes=0, setDep=4, photos=[], answers=[], showOrig=false;
 const $=id=>document.getElementById(id);
 const fmt=n=>n.toLocaleString('en-US');
 
 function newPhotos(){
   const R=ROUNDS[ri], seed=()=>1+Math.floor(Math.random()*2**30);
   if(R.kind==='sat'){
-    const a=2+Math.floor(Math.random()*4);let b;do{b=2+Math.floor(Math.random()*4)}while(b===a);
+    const a=2+Math.floor(Math.random()*4);
+    const others=[2,3,4,5].filter(n=>n!==a), b=others[Math.floor(Math.random()*others.length)];
     photos=[a,b].map(n=>({kind:'sat',seed:seed(),buses:n,plan:lotPlan(seed(),n)}));
   }else{
     const d=[...DIGITS].sort(()=>Math.random()-.5), ms=[...Array(6).keys()].sort(()=>Math.random()-.5);
@@ -443,10 +286,6 @@ function curDep(){const R=ROUNDS[ri];return R.fixDep||DEP[setDep]}
 const bitsOf=(n,d)=>n*n*d;
 function sizeText(bits){const B=bits/8;return fmt(bits)+' 位元 = '+fmt(B)+' 位元組'+(B>=1024?' ≈ '+(B/1024).toFixed(1)+' KB':'')}
 
-function renderRounds(){
-  $('rounds').innerHTML=ROUNDS.map((r,i)=>r.lv!==level?'':'<button type="button" data-i="'+i+'" aria-pressed="'+(i===ri)+'">'+r.name+(done.has(i)?' <span class="done">✓</span>':'')+'</button>').join('');
-  $('rounds').querySelectorAll('button').forEach(b=>b.onclick=()=>load(+b.dataset.i));
-}
 function renderKnobs(){
   const R=ROUNDS[ri], n=curRes(), d=curDep(), sat=R.kind==='sat';
   $('res').max=resList(R).length-1;$('res').value=setRes;
@@ -516,12 +355,11 @@ function renderNums(cells,n,d,p){
     (sat?'<br><span class="small">一格 '+(GROUND/n)+' 公尺，'+n+' 格剛好是 64 公尺寬的停車場</span>':'');
 }
 function render(){renderKnobs();renderPhotos()}
-function load(i){
+function loadRound(i){
   ri=i;const R=ROUNDS[i];
   setRes=R.startRes??0;setDep=R.startDep??DEP.indexOf(R.fixDep||24);
   if(R.fixDep)setDep=DEP.indexOf(R.fixDep);
-  $('says').innerHTML='<span class="tk"><b>現在</b>'+R.now+'</span><span class="tk"><b>要做到</b>'+R.goal+'</span>'+(R.tip?'<span class="tk tip"><b>提示</b>'+R.tip+'</span>':'');
-  $('verdict').hidden=true;newPhotos();renderRounds();render();
+  $('verdict').hidden=true;newPhotos();render();
 }
 function nudge(which,dv){
   const R=ROUNDS[ri];
@@ -529,11 +367,6 @@ function nudge(which,dv){
   else{if(R.fixDep)return;setDep=Math.max(0,Math.min(DEP.length-1,setDep+dv))}
   $('verdict').hidden=true;render();
 }
-$('res').oninput=e=>{setRes=+e.target.value;$('verdict').hidden=true;render()};
-$('dep').oninput=e=>{setDep=+e.target.value;$('verdict').hidden=true;render()};
-$('res-dn').onclick=()=>nudge('res',-1);$('res-up').onclick=()=>nudge('res',1);
-$('dep-dn').onclick=()=>nudge('dep',-1);$('dep-up').onclick=()=>nudge('dep',1);
-
 // ===== 檢查：答對兩張照片、設定看得出來（不低於過關值）、檔案不超過過關值 =====
 function judge(R,n,d,ans,ph){
   const bits=bitsOf(n,d), solBits=bitsOf(R.sol.res,R.sol.dep);
@@ -549,7 +382,7 @@ function check(){
   const R=ROUNDS[ri], n=curRes(), d=curDep(), v=$('verdict');
   photos.forEach((p,i)=>{const f=$('fl'+i);f.classList.remove('go');void f.offsetWidth;f.classList.add('go')});
   const r=judge(R,n,d,answers,photos);
-  if(!teacher&&!done.has(ri)){prog.tries[ri]=Math.min(15,prog.tries[ri]+1);saveProg()}
+  activityApi.attempt();
   const lowTxt=r.low==='res'?(R.kind==='sat'?'衛星圖一格代表的範圍太大，車子都糊在一起':'格子太少，數字的筆畫糊在一起'):'顏色太少，很像的顏色被併成同一個';
   let h='',cls='no',reshoot=false;
   if(r.k==='cap')h='<h3>傳不出去！</h3><p>這張照片要 '+sizeText(r.bits)+'，超過網路能傳的 '+fmt(R.cap/8)+' 位元組。把格子數或顏色數調低一點。</p>';
@@ -558,141 +391,110 @@ function check(){
   else if(r.k==='big'){cls='mid';h='<h3>看得很清楚！但還能更小</h3><p>這張要 '+sizeText(r.bits)+'。現場網路很塞，再往下調，找出還看得出來的最小設定。</p>'}
   else{
     cls='ok';
-    if(!teacher){done.add(ri);prog.mask|=1<<ri;prog.time=Date.now();saveProg();upload(ri)}
+    // 同一份雙照片判定交給 shell 記錄過關；頁面隨即恢復原有回饋。
+    $('b-send').onclick();
     const extra=[
       '每一格只存一個平均後的顏色：格子太少，背號的筆畫就被平均掉了。這叫<strong>取樣</strong>——把連續的畫面切成一格一格。',
       '8 色時，紅和酒紅都被存成同一個數字；64 色才分得開。把顏色變成有限幾個數字，這叫<strong>量化</strong>。',
       '背號需要 32 格、應援色需要 6 位元，32 × 32 × 6 = 6,144 位元，剛好等於上限。取樣和量化要一起想。',
       '一格 2 公尺時，遊覽車是一整條亮白色，三台白車中間看得到深色的車窗；一格 4 公尺就全糊成一團。衛星圖的「解析度」就是一格代表地面多大，跟照片的取樣是同一件事。'][ri];
     h='<h3>朋友回訊息：「看到了！」</h3><p>'+extra+'</p>';
-    const next=ROUNDS.findIndex((x,i)=>i>ri&&x.lv===level);
-    h+='<div class="btns">'+(next>=0?'<button class="btn primary" id="b-next">下一關</button>':(level===1?'<button class="btn primary" id="b-lv2">挑戰進階關</button>':endMsg('全部完成！放大不會變清楚，因為照片只存了那幾格的數字——新手機的 AI 是把看不到的細節「猜」回去的。')))+'</div>';
-    renderRounds();
-    v.className='verdict ok';v.innerHTML=h;v.hidden=false;
-    if($('b-next'))$('b-next').onclick=()=>load(next);
-    if($('b-lv2'))$('b-lv2').onclick=()=>$('tab-2').click();
+    const controls=v.querySelector('.btns');
+    v.innerHTML=h+(controls?controls.outerHTML:'');
+    v.className='verdict ok';v.hidden=false;
+    if($('b-next'))$('b-next').onclick=()=>APP.load(ri+1);
+    if($('b-lv2'))$('b-lv2').onclick=()=>APP.setLevel(2);
     return;
   }
   if(reshoot){newPhotos();renderPhotos()}
   v.className='verdict '+cls;v.innerHTML=h;v.hidden=false;
 }
-$('b-shot').onclick=check;
-function setLevel(l){level=l;$('tab-1').setAttribute('aria-selected',l===1);$('tab-2').setAttribute('aria-selected',l===2);load(ROUNDS.findIndex(r=>r.lv===l))}
-$('tab-1').onclick=()=>setLevel(1);
-$('tab-2').onclick=()=>setLevel(2);
 
-// ===== 班級座號與進度 =====
-let ident=null, prog={mask:0,tries:[0,0,0,0],time:Date.now()}, teacher=false;
-const KEY=()=>'it9:w'+WEEK+':'+ident.cls+'-'+ident.seat;
-function saveProg(){try{localStorage.setItem(KEY(),JSON.stringify(prog));localStorage.setItem('it9:last',JSON.stringify({cls:ident.cls,seat:ident.seat}))}catch(e){}renderReport()}
-function renderReport(){
-  if(!ident)return;
-  $('prog').innerHTML=ROUNDS.map((r,i)=>'<span class="'+(prog.mask&(1<<i)?'ok':'')+'">'+(r.lv===1?'基礎':'進階')+'・'+r.name+(prog.mask&(1<<i)?' ✓':'')+'</span>').join('');
-  $('code').textContent=CODEC.encode({week:WEEK,cls:ident.cls,seat:ident.seat,mask:prog.mask,tries:prog.tries,time:prog.time});
-  $('copied').textContent='';
-}
-$('b-copy').onclick=()=>{
-  const t=$('code').textContent;
-  const sel=()=>{const r=document.createRange();r.selectNodeContents($('code'));const s=getSelection();s.removeAllRanges();s.addRange(r);$('copied').textContent='已選取，按 Ctrl+C 複製'};
-  try{navigator.clipboard.writeText(t).then(()=>{$('copied').textContent='已複製'},sel)}catch(e){sel()}
-};
-const digits=el=>{const f=()=>{const v=el.value.replace(/\D/g,'');if(v!==el.value)el.value=v};el.addEventListener('input',f);el.addEventListener('compositionend',f);el.addEventListener('blur',f)};
-digits($('in-cls'));digits($('in-seat'));
-function checkId(){
-  const c=$('in-cls').value, s=$('in-seat').value;
-  if(!/^[1-9]\d{2}$/.test(c)) return '班級要填三位數字，例如 901。';
-  if(!/^\d{1,2}$/.test(s)||+s<1||+s>60) return '座號要填 1～60 的數字。';
-  return null;
-}
-$('g-next').onclick=()=>{
-  const e=checkId();$('gerr').textContent=e||'';if(e)return;
-  $('g-confirm').textContent='你是 '+$('in-cls').value+' 班 '+(+$('in-seat').value)+' 號，對嗎？';
-  $('g-step1').hidden=true;$('g-step2').hidden=false;$('in-cls').disabled=true;$('in-seat').disabled=true;$('g-go').focus();
-};
-['in-cls','in-seat'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('g-next').click()}));
-$('g-back').onclick=()=>{$('g-step1').hidden=false;$('g-step2').hidden=true;$('in-cls').disabled=false;$('in-seat').disabled=false;$('in-cls').focus()};
-$('g-go').onclick=()=>start({cls:+$('in-cls').value,seat:+$('in-seat').value});
-function start(id){
-  ident=id; prog={mask:0,tries:[0,0,0,0],time:Date.now()};
-  try{const p=JSON.parse(localStorage.getItem(KEY())||'null');if(p&&Array.isArray(p.tries))prog=p}catch(e){}
-  done.clear();for(let i=0;i<4;i++)if(prog.mask&(1<<i))done.add(i);
-  $('who').textContent=id.cls+' 班 '+id.seat+' 號'+(id.name?' '+id.name:'');
-  if(loginEnabled()&&YBS.profile()){try{sessionStorage.setItem('ybslab:me:'+YBS.profile().email,JSON.stringify({cls:id.cls,seat:id.seat}))}catch(e){}$('sync').hidden=false;$('rep-note').innerHTML='每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。';YBS.flush()}
-  $('gate').hidden=true;$('main').hidden=false;
-  setLevel(1);renderReport();
-}
-$('b-swap').onclick=()=>{if(teacher){teacher=false;TEACHER.remember(false);setOrig(false);$('tbar').hidden=true;$('report').hidden=false;$('b-swap').textContent='不是我？換人';$('who').textContent=''}ident=null;if(loginEnabled()){YBS.logout();showLogin()}$('sync').hidden=true;$('main').hidden=true;$('gate').hidden=false;$('g-back').click();$('in-cls').value='';$('in-seat').value='';$('gerr').textContent=''};
-// ===== 教師模式 =====
 function setOrig(on){showOrig=on;document.body.classList.toggle('showorig',on);$('tb-orig').setAttribute('aria-pressed',on)}
-function enterTeacher(){
-  teacher=true;TEACHER.remember(true);ident=null;done.clear();
-  $('who').textContent='教師模式';$('b-swap').textContent='登出教師模式';
-  $('report').hidden=true;$('tbar').hidden=false;
-  $('gate').hidden=true;$('main').hidden=false;
-  setLevel(1);
-}
-$('t-show').onclick=()=>{const i=$('in-tcode'),s=i.type==='password';i.type=s?'text':'password';$('t-show').textContent=s?'隱藏通行碼':'顯示通行碼'};
-$('t-open').onclick=()=>{$('t-box').hidden=!$('t-box').hidden;if(!$('t-box').hidden)$('in-tcode').focus()};
-const tryTeacher=async()=>{
-  $('terr').textContent='';
-  if(await TEACHER.check($('in-tcode').value)){$('in-tcode').value='';enterTeacher()}
-  else $('terr').textContent='通行碼不對。';
-};
-$('t-go').onclick=tryTeacher;
-$('in-tcode').addEventListener('keydown',e=>{if(e.key==='Enter')tryTeacher()});
-$('tb-ans').onclick=()=>{
+const STAGE_HTML=`    <div class="knobs">
+      <section class="panel knob samp" id="k-res">
+        <div class="ptitle"><h3>格子數</h3><span class="tag t-samp">取樣</span></div>
+        <div class="kval" id="res-v"></div>
+        <div class="krow"><button class="step" type="button" id="res-dn" aria-label="格子少一點">−</button><input type="range" id="res" min="0" max="7" step="1" aria-label="格子數"><button class="step" type="button" id="res-up" aria-label="格子多一點">＋</button></div>
+        <p class="small" id="res-note"></p>
+      </section>
+      <section class="panel knob quant" id="k-dep">
+        <div class="ptitle"><h3>顏色數</h3><span class="tag t-quant">量化</span></div>
+        <div class="kval" id="dep-v"></div>
+        <div class="krow"><button class="step" type="button" id="dep-dn" aria-label="顏色少一點">−</button><input type="range" id="dep" min="0" max="4" step="1" aria-label="顏色數"><button class="step" type="button" id="dep-up" aria-label="顏色多一點">＋</button></div>
+        <p class="small" id="dep-note"></p>
+      </section>
+    </div>
+    <section class="panel sizebar">
+      <div class="sizeline" id="sizeline"><span>每張照片的大小</span><span class="big" id="size-v"></span><span class="small" id="size-cap"></span></div>
+      <div class="meter" id="meter" hidden><i id="meter-i"></i><b id="meter-b"></b></div>
+    </section>
+    <div class="photos" id="photos"></div>
+    <div class="btns"><button class="btn primary" id="b-shot" type="button">拍下來傳出去</button><span class="small" id="shot-hint"></span></div>
+    <div id="photo-verdict"></div>
+
+  <section class="sec">
+    <h2 class="sec-h"><span class="num">3</span>電腦怎麼存這張照片</h2>
+    <div class="store">
+      <section class="panel">
+        <div class="ptitle"><h3>照片 1 中間的一小塊</h3><span class="tag t-quant">每格一個數字</span></div>
+        <div class="nums" id="nums"></div>
+        <p class="small" id="nums-note"></p>
+      </section>
+      <section class="panel formula">
+        <div class="ptitle"><h3>檔案多大，這樣算</h3><span class="tag t-size">大小</span></div>
+        <div class="eq" id="eq"></div>
+        <p class="small">8 位元 = 1 位元組（Byte），1024 位元組 = 1 KB。真的手機照片有幾千萬格、每格 24 位元，所以一張就要好幾 MB（還會再壓縮）。</p>
+      </section>
+    </div>
+  </section>
+
+`;
+const TOOLBAR_HTML=`    <span class="tlabel">教師模式</span>
+    <button class="btn" id="tb-ans" type="button">顯示答案</button>
+    <button class="btn" id="tb-orig" type="button" aria-pressed="false">對照原圖</button>
+    <button class="btn" id="tb-new" type="button">換一組照片</button>
+    <span class="thint">「顯示答案」把設定調到過關值並填好答案；「對照原圖」把照片換成還沒數位化的樣子（學生看不到）。</span>`;
+function fillAnswers(){
   const R=ROUNDS[ri];
   if(!R.fixRes)setRes=resList(R).indexOf(R.sol.res);
   if(!R.fixDep)setDep=DEP.indexOf(R.sol.dep);
   answers=photos.map(p=>Object.fromEntries(R.ask.map(k=>[k,truth(p,k)])));
   $('verdict').hidden=true;render();
-};
-$('tb-orig').onclick=()=>setOrig(!showOrig);
-$('tb-new').onclick=()=>{newPhotos();$('verdict').hidden=true;renderPhotos()};
-// ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
-const loginEnabled=()=>typeof YBS!=='undefined'&&YBS.enabled();
-function showLogin(){
-  $('g-login').hidden=false;$('g-form').hidden=true;$('g-lerr').textContent='';
-  $('g-who').hidden=true;
-  YBS.button($('g-gbtn'),async me=>{
-    $('g-login').hidden=true;$('g-who').hidden=false;$('g-whobtns').hidden=true;
-    $('g-whotext').textContent='正在確認你的身分…';
-    const r=await YBS.whoami();
-    if(r.ok&&r.student){
-      const st=r.student;
-      $('g-whotext').textContent='你是 '+st.cls+' 班 '+st.seat+' 號，對嗎？';
-      $('g-whobtns').hidden=false;$('g-isme').focus();
-      $('g-isme').onclick=()=>start({cls:st.cls,seat:st.seat,name:st.name});
-      return;
-    }
-    if(!r.ok&&r.error==='not-listed'){
-      $('g-who').hidden=true;YBS.logout();showLogin();
-      $('g-lerr').textContent='名單上找不到這個帳號（'+(me.account||me.email)+'），請改用自己的帳號，或告訴老師。';
-      return;
-    }
-    $('g-who').hidden=true;$('g-form').hidden=false;
-    $('g-me').hidden=false;$('g-me').textContent='已登入：'+(me.account||me.email)+(r.ok?'（名單上沒有你，請填班級座號並告訴老師）':'');
-    try{const s=JSON.parse(sessionStorage.getItem('ybslab:me:'+me.email)||'null');if(s){$('in-cls').value=s.cls;$('in-seat').value=s.seat}}catch(e){}
-    $('in-cls').focus();
-  },msg=>{$('g-lerr').textContent=msg});
 }
-$('g-notme').onclick=()=>{YBS.logout();showLogin()};
-$('g-manual').onclick=()=>{YBS.logout();$('g-login').hidden=true;$('g-who').hidden=true;$('g-form').hidden=false;$('g-me').hidden=false;$('g-me').textContent='這次不登入：過關後請把成績碼交給老師。';$('in-cls').focus()};
-function upload(r){
-  if(!loginEnabled()||!ident)return;
-  YBS.submit({course:COURSE,activity:WEEK,termWeek:TERM_WEEK,title:TITLE,round:r,roundName:ROUNDS[r].name,level:ROUNDS[r].lv===1?'基礎':'進階',rounds:ROUNDS.map(x=>x.name),
-    tries:prog.tries[r],mask:prog.mask,cls:ident.cls,seat:ident.seat,code:$('code').textContent,at:new Date().toISOString()});
+function bindControls(){
+  $('res').oninput=e=>{setRes=+e.target.value;$('verdict').hidden=true;render()};
+  $('dep').oninput=e=>{setDep=+e.target.value;$('verdict').hidden=true;render()};
+  $('res-dn').onclick=()=>nudge('res',-1);$('res-up').onclick=()=>nudge('res',1);
+  $('dep-dn').onclick=()=>nudge('dep',-1);$('dep-up').onclick=()=>nudge('dep',1);
+
+  $('b-shot').onclick=check;
+  $('tb-ans').onclick=fillAnswers;
+  $('tb-orig').onclick=()=>setOrig(!showOrig);
+  $('tb-new').onclick=()=>{newPhotos();$('verdict').hidden=true;renderPhotos()};
 }
-if(typeof YBS!=='undefined')YBS.status(st=>{
-  const el=$('sync');if(!ident)return;
-  el.className='sync'+(st==='ok'?' ok':st==='sending'?'':' warn');
-  if(st==='relogin'){
-    el.innerHTML='登入過期，重新登入才能上傳 <span id="sync-btn"></span>';
-    YBS.button($('sync-btn'),()=>{},msg=>{el.textContent=msg});
-  }else el.textContent=st==='ok'?'✓ 紀錄已上傳給老師':st==='sending'?'上傳中…':'還沒上傳成功，會自動重試';
-});
-(()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
-if(TEACHER.remembered())enterTeacher();
-else if(loginEnabled())showLogin();
-else { $('g-login').hidden=true; $('g-form').hidden=false; $('in-cls').focus(); }
+// 每次傳送原本就判斷兩張不同照片，保留原設定、換照片時機與即時回饋。
+const APP=SHELL({week:WEEK,termWeek:TERM_WEEK,title:TITLE,course:COURSE,unit:2,
+  progressLength:4,finale:'全部完成！放大不會變清楚，因為照片只存了那幾格的數字——新手機的 AI 是把看不到的細節「猜」回去的。',
+  rounds:ROUNDS.map((r,i)=>({...r,confirmations:1,manualAttempt:true,
+    // shell 換關會清空 stage；先保留共用判定節點，再於 view 放回照片下方。
+    gen:()=>{$('main').append($('verdict'));return {round:i}},
+    view(inst,el,api){
+      activityApi=api;teacher=$('report').hidden;
+      el.innerHTML=STAGE_HTML;
+      $('photo-verdict').append($('verdict'));
+      $('tbar').innerHTML=TOOLBAR_HTML;
+      bindControls();setOrig(showOrig);loadRound(i);
+      return {get:()=>({n:curRes(),d:curDep(),answers,photos}),fill:fillAnswers,
+        ready:()=>!answers.some(a=>r.ask.some(k=>a[k]==null))};
+    },
+    check(inst,a){return judge(r,a.n,a.d,a.answers,a.photos).k==='ok'||'調整設定或答案再試一次。'}
+  }))});
+$('b-send').hidden=true;$('streak').hidden=true;$('send-hint').hidden=true;
+$('stage').previousElementSibling.innerHTML='<span class="num">2</span>調設定，拍下來';
+$('says').insertAdjacentHTML('afterend','<p class="small">拉動第 2 部分的設定，兩張照片會跟著變。找到「看得出來、檔案又最小」的設定，回答兩張照片的問題，再按「拍下來傳出去」。第 3 部分可以看到電腦把照片存成了哪些數字。</p>');
+const swap=$('b-swap').onclick;
+$('b-swap').onclick=()=>{setOrig(false);teacher=false;swap()};
 </script>
+</body>
+</html>

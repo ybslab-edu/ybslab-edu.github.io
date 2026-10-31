@@ -13,10 +13,22 @@ const SHELL = (cfg) => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const loginEnabled = () => typeof YBS !== 'undefined' && YBS.enabled();
-  const NEED = 2, R = cfg.rounds;
-  const txt = (v, inst) => typeof v === 'function' ? v(inst) : (v || '');
+  // 每次呼叫各自保存狀態，供同檔案的內部功能共用。
+  const s = { cfg, $, esc, loginEnabled, R: cfg.rounds, level: 1, ri: 0,
+    inst: null, handle: null, streak: 0, teacher: false, done: new Set(), previousKey: null, ident: null };
+  shellCreateInterface(s);
+  s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
+  Object.assign(s, shellCreateRoundFlow(s), shellCreateJudging(s), shellCreateProgress(s));
+  shellBindIdentityForm(s);
+  Object.assign(s, shellCreateIdentity(s), shellCreateTeacher(s), shellCreateLogin(s), shellCreateSync(s));
+  if (TEACHER.remembered()) s.enterTeacher(); else if (loginEnabled()) s.showLogin(); else { $('g-login').hidden = true; $('g-form').hidden = false; $('in-cls').focus(); }
+  // 測試用：讓自動檢查可以拿到目前這一組資料與答案
+  return { get inst() { return s.inst }, get handle() { return s.handle }, load: s.load, setLevel: s.setLevel, get ri() { return s.ri }, rounds: s.R };
+};
 
-  document.body.insertAdjacentHTML('afterbegin', `
+// 建立登入與班座入口的原有介面。
+const shellGateHTML = (cfg, esc) => {
+  return `
 <section class="gate" id="gate">
   <h1>${esc(cfg.title)}</h1>
   <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
@@ -52,7 +64,12 @@ const SHELL = (cfg) => {
     </div>
   </div>
 </section>
-<div class="wrap" id="main" hidden>
+`;
+};
+
+// 建立活動、教師工具與成績碼的原有介面。
+const shellMainHTML = (cfg, esc) => {
+  return `<div class="wrap" id="main" hidden>
   <header class="top">
     <div style="display:flex;flex-direction:column;gap:4px">
       <h1>${esc(cfg.title)}</h1>
@@ -92,9 +109,13 @@ const SHELL = (cfg) => {
     <p class="sync" id="sync2" hidden style="margin:0"></p>
   </section>
   <p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
-</div>`);
+</div>`;
+};
 
-  // ===== 單元進度條 =====
+// 插入共用介面並顯示單元導覽。
+const shellCreateInterface = (s) => {
+  const { cfg, $, esc } = s;
+  document.body.insertAdjacentHTML('afterbegin', shellGateHTML(cfg, esc) + shellMainHTML(cfg, esc));
   if (cfg.unit && typeof ACTIVITIES !== 'undefined') {
     const list = ACTIVITIES.filter(a => a.course === cfg.course && a.unit === cfg.unit).sort((a, b) => a.date.localeCompare(b.date));
     if (list.length > 1) {
@@ -105,83 +126,104 @@ const SHELL = (cfg) => {
       }).join('');
     }
   }
+};
 
-  // ===== 關卡 =====
-  let level = 1, ri = 0, inst = null, handle = null, streak = 0, teacher = false;
-  const done = new Set();
+// 管理關卡切換、題目重抽與作答狀態。
+const shellCreateRoundFlow = (s) => {
+  const { $, esc, R } = s;
+  const txt = (v, inst) => typeof v === 'function' ? v(inst) : (v || '');
   const seed = () => { let s = (Math.random() * 2 ** 31) >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 } };
+  // 更新目前等級的關卡按鈕。
   function renderRounds() {
-    $('rounds').innerHTML = R.map((r, i) => r.lv !== level ? '' : '<button type="button" data-i="' + i + '" aria-pressed="' + (i === ri) + '">' + esc(r.name) + (done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
+    $('rounds').innerHTML = R.map((r, i) => r.lv !== s.level ? '' : '<button type="button" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
-  function renderStreak() { $('streak').innerHTML = '連續答對兩組才過關 ' + [0, 1].map(i => '<i class="' + (i < streak ? 'on' : '') + '"></i>').join(''); }
+  // 顯示連續答對的組數。
+  function renderStreak() { $('streak').innerHTML = '連續答對兩組才過關 ' + [0, 1].map(i => '<i class="' + (i < s.streak ? 'on' : '') + '"></i>').join(''); }
+  // 同步送出狀態與電腦內部說明。
   function changed() {
-    const ok = !handle.ready || handle.ready();
+    const ok = !s.handle.ready || s.handle.ready();
     $('b-send').disabled = !ok; $('send-hint').textContent = ok ? '' : '全部完成後才能送出。';
-    if (R[ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[ri].peek(inst, handle.get()); } else $('sec3').hidden = true;
+    if (R[s.ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[s.ri].peek(s.inst, s.handle.get()); } else $('sec3').hidden = true;
   }
   // 在 view 可能改動資料前保存內容；物件鍵序不影響比對，陣列順序仍有意義。
   const contentKey = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
     ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
-  let previousKey = null;
+  // 依原上限重抽資料並建立作答區。
   function fresh() {
-    const r = R[ri], rnd = seed();
+    const r = R[s.ri], rnd = seed();
     let key;
     // 最多抽 20 次；單一題庫或一直抽到同題時仍可繼續操作。
     for (let draw = 0; draw < 20; draw++) {
-      inst = r.gen(rnd); key = contentKey(inst);
-      if (key !== previousKey) break;
+      s.inst = r.gen(rnd); key = contentKey(s.inst);
+      if (key !== s.previousKey) break;
     }
-    previousKey = key;
-    $('says').innerHTML = '<span class="tk"><b>現在</b><span>' + txt(r.now, inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, inst) + '</span></span>' : '');
-    $('stage').innerHTML = ''; handle = r.view(inst, $('stage'), { changed: () => changed(), attempt, esc });
+    s.previousKey = key;
+    $('says').innerHTML = '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
+    $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), { changed: () => changed(), attempt, esc });
     renderStreak(); changed();
   }
-  function load(i) { if (ri !== i) previousKey = null; ri = i; streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
-  function setLevel(l) { level = l; $('tab-1').setAttribute('aria-selected', l === 1); $('tab-2').setAttribute('aria-selected', l === 2); load(R.findIndex(r => r.lv === l)); }
+  // 切換關卡並重設連續答對狀態。
+  function load(i) { if (s.ri !== i) s.previousKey = null; s.ri = i; s.streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
+  // 切換等級並載入第一關。
+  function setLevel(l) { s.level = l; $('tab-1').setAttribute('aria-selected', l === 1); $('tab-2').setAttribute('aria-selected', l === 2); load(R.findIndex(r => r.lv === l)); }
   $('tab-1').onclick = () => setLevel(1); $('tab-2').onclick = () => setLevel(2);
 
   // 自行演出的活動可在開始演出時記次；預設仍由送出按鈕記次。
   function attempt() {
-    if (!teacher && !done.has(ri)) { prog.tries[ri] = Math.min(15, prog.tries[ri] + 1); saveProg(); }
+    if (!s.teacher && !s.done.has(s.ri)) { s.prog.tries[s.ri] = Math.min(15, s.prog.tries[s.ri] + 1); s.saveProg(); }
   }
-  $('b-send').onclick = () => {
-    const r = R[ri], res = r.check(inst, handle.get()), v = $('verdict');
-    if (!r.manualAttempt) attempt();
+  $('b-send').onclick = () => s.submit();
+  return { renderRounds, renderStreak, fresh, load, setLevel, attempt, changed };
+};
+
+// 沿用判題、連續確認與過關呈現流程。
+const shellCreateJudging = (s) => {
+  const { cfg, $, esc, R } = s;
+  const NEED = 2;
+  // 依原判題結果更新連續確認與過關紀錄。
+  function submit() {
+    const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
+    if (!r.manualAttempt) s.attempt();
     if (res !== true) {
-      streak = 0; renderStreak();
+      s.streak = 0; s.renderStreak();
       v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">修改後再送出一次。</p>';
       v.querySelector('p').textContent = res; v.hidden = false; return;
     }
-    streak++;
-    if (streak < (r.confirmations ?? NEED)) {
+    s.streak++;
+    if (s.streak < (r.confirmations ?? NEED)) {
       v.className = 'verdict mid'; v.innerHTML = '<h3>答對了！再一組確認</h3><p>已經換成一組新的資料，再做一次，連續答對兩組就過關。</p>'; v.hidden = false;
-      fresh(); return;
+      s.fresh(); return;
     }
-    if (!teacher) { done.add(ri); prog.mask |= 1 << ri; prog.time = Date.now(); saveProg(); upload(ri); }
-    const next = R.findIndex((x, i) => i > ri && x.lv === level);
+    if (!s.teacher) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
+    const next = R.findIndex((x, i) => i > s.ri && x.lv === s.level);
     v.className = 'verdict ok';
     v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + '<div class="btns">' +
-      (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : level === 1 ? '<button class="btn primary" id="b-lv2">挑戰進階關</button>' : endMsg()) + '</div>';
-    v.hidden = false; renderRounds();
-    if ($('b-next')) $('b-next').onclick = () => load(next);
-    if ($('b-lv2')) $('b-lv2').onclick = () => setLevel(2);
-  };
-
+      (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : s.level === 1 ? '<button class="btn primary" id="b-lv2">挑戰進階關</button>' : endMsg()) + '</div>';
+    v.hidden = false; s.renderRounds();
+    if ($('b-next')) $('b-next').onclick = () => s.load(next);
+    if ($('b-lv2')) $('b-lv2').onclick = () => s.setLevel(2);
+  }
   // 最後一關過了，不代表整個活動完成：照實際過了幾關說（教師模式示範時直接顯示結語）
   function endMsg() {
-    const got = R.filter((_, i) => done.has(i)).length;
-    if (teacher || got === R.length) return '<p><strong>' + esc(cfg.finale || '全部完成！') + '</strong></p>';
-    return '<p>這一關完成了！這個活動目前完成 ' + got + '／' + R.length + ' 關，還沒過的：' + R.filter((_, i) => !done.has(i)).map(r => esc(r.name)).join('、') + '。</p>';
+    const got = R.filter((_, i) => s.done.has(i)).length;
+    if (s.teacher || got === R.length) return '<p><strong>' + esc(cfg.finale || '全部完成！') + '</strong></p>';
+    return '<p>這一關完成了！這個活動目前完成 ' + got + '／' + R.length + ' 關，還沒過的：' + R.filter((_, i) => !s.done.has(i)).map(r => esc(r.name)).join('、') + '。</p>';
   }
-  // ===== 班級座號與進度 =====
-  let ident = null, prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
-  const KEY = () => 'it9:w' + cfg.week + ':' + ident.cls + '-' + ident.seat;
-  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? ident : { cls: ident.cls, seat: ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄會不見，請現在就把最新的成績碼抄下來交給老師。' } renderReport(); }
+  return { submit };
+};
+
+// 保存既有進度並產生成績碼與複製操作。
+const shellCreateProgress = (s) => {
+  const { cfg, $, esc, R } = s;
+  const KEY = () => 'it9:w' + cfg.week + ':' + s.ident.cls + '-' + s.ident.seat;
+  // 保存班座進度並更新成績碼。
+  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄會不見，請現在就把最新的成績碼抄下來交給老師。' } renderReport(); }
+  // 呈現關卡進度與相容的成績碼。
   function renderReport() {
-    if (!ident) return;
-    $('prog').innerHTML = R.map((r, i) => '<span class="' + (prog.mask & (1 << i) ? 'ok' : '') + '">' + (r.lv === 1 ? '基礎' : '進階') + '・' + esc(r.name) + (prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
-    $('code').textContent = CODEC.encode({ week: cfg.week, cls: ident.cls, seat: ident.seat, mask: prog.mask, tries: prog.tries, time: prog.time });
+    if (!s.ident) return;
+    $('prog').innerHTML = R.map((r, i) => '<span class="' + (s.prog.mask & (1 << i) ? 'ok' : '') + '">' + (r.lv === 1 ? '基礎' : '進階') + '・' + esc(r.name) + (s.prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
+    $('code').textContent = CODEC.encode({ week: cfg.week, cls: s.ident.cls, seat: s.ident.seat, mask: s.prog.mask, tries: s.prog.tries, time: s.prog.time });
     $('copied').textContent = '';
   }
   $('b-copy').onclick = () => {
@@ -189,8 +231,16 @@ const SHELL = (cfg) => {
     const sel = () => { const r = document.createRange(); r.selectNodeContents($('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent = '已選取，按 Ctrl+C 複製' };
     try { navigator.clipboard.writeText(t).then(() => { $('copied').textContent = '已複製' }, sel) } catch (e) { sel() }
   };
+  return { progressKey: KEY, saveProg, renderReport };
+};
+
+// 綁定班座輸入與確認步驟。
+const shellBindIdentityForm = (s) => {
+  const { $ } = s;
+  const start = id => s.start(id);
   const digits = el => { const f = () => { const v = el.value.replace(/\D/g, ''); if (v !== el.value) el.value = v }; el.addEventListener('input', f); el.addEventListener('compositionend', f); el.addEventListener('blur', f) };
   digits($('in-cls')); digits($('in-seat'));
+  // 驗證手動輸入的班級與座號。
   function checkId() {
     const c = $('in-cls').value, s = $('in-seat').value;
     if (!/^[1-9]\d{2}$/.test(c)) return '班級要填三位數字，例如 901。';
@@ -205,38 +255,57 @@ const SHELL = (cfg) => {
   ['in-cls', 'in-seat'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('g-next').click() }));
   $('g-back').onclick = () => { $('g-step1').hidden = false; $('g-step2').hidden = true; $('in-cls').disabled = false; $('in-seat').disabled = false; $('in-cls').focus() };
   $('g-go').onclick = () => start({ cls: +$('in-cls').value, seat: +$('in-seat').value });
+};
+
+// 還原班座進度並處理開始與換人。
+const shellCreateIdentity = (s) => {
+  const { cfg, $, R, loginEnabled } = s;
+  // 還原既有進度並進入活動。
   function start(id) {
-    ident = id; prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
-    try { const p = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (p && Number.isInteger(p.mask) && p.mask >= 0 && p.mask < 2 ** R.length
+    s.ident = id; s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
+    try { const p = JSON.parse(localStorage.getItem(s.progressKey()) || 'null'); if (p && Number.isInteger(p.mask) && p.mask >= 0 && p.mask < 2 ** R.length
       && Array.isArray(p.tries) && p.tries.length >= R.length && p.tries.length <= 6
       && p.tries.every(n => Number.isInteger(n) && n >= 0 && n <= 15)
-      && Number.isFinite(p.time) && p.time >= 0 && p.time <= 8640000000000000) prog = p } catch (e) { }
-    done.clear(); for (let i = 0; i < R.length; i++) if (prog.mask & (1 << i)) done.add(i);
+      && Number.isFinite(p.time) && p.time >= 0 && p.time <= 8640000000000000) s.prog = p } catch (e) { }
+    s.done.clear(); for (let i = 0; i < R.length; i++) if (s.prog.mask & (1 << i)) s.done.add(i);
     $('who').textContent = id.cls + ' 班 ' + id.seat + ' 號' + (id.name ? ' ' + id.name : '');
     if (loginEnabled() && YBS.profile()) { try { sessionStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; $('rep-note').innerHTML = '每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。'; YBS.flush() }
     $('gate').hidden = true; $('main').hidden = false;
-    setLevel(1); renderReport();
+    s.setLevel(1); s.renderReport();
   }
   $('b-swap').onclick = () => {
-    if (teacher) { teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('report').hidden = false; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
-    ident = null; if (loginEnabled()) { YBS.logout(); showLogin() }
+    if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('report').hidden = false; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
+    s.ident = null; if (loginEnabled()) { YBS.logout(); s.showLogin() }
     $('sync').hidden = true; $('main').hidden = true; $('gate').hidden = false; $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
   };
-  // ===== 教師模式 =====
+  return { start };
+};
+
+// 綁定教師登入、填答與換題操作。
+const shellCreateTeacher = (s) => {
+  const { $ } = s;
+  // 進入不記分的教師示範模式。
   function enterTeacher() {
-    teacher = true; TEACHER.remember(true); ident = null; done.clear();
+    s.teacher = true; TEACHER.remember(true); s.ident = null; s.done.clear();
     $('who').textContent = '教師模式'; $('b-swap').textContent = '登出教師模式';
     $('report').hidden = true; $('tbar').hidden = false; $('gate').hidden = true; $('main').hidden = false;
-    setLevel(1);
+    s.setLevel(1);
   }
   $('t-show').onclick=()=>{const i=$('in-tcode'),s=i.type==='password';i.type=s?'text':'password';$('t-show').textContent=s?'隱藏通行碼':'顯示通行碼'};
   $('t-open').onclick = () => { $('t-box').hidden = !$('t-box').hidden; if (!$('t-box').hidden) $('in-tcode').focus() };
   const tryTeacher = async () => { $('terr').textContent = ''; if (await TEACHER.check($('in-tcode').value)) { $('in-tcode').value = ''; enterTeacher() } else $('terr').textContent = '通行碼不對。' };
   $('t-go').onclick = tryTeacher;
   $('in-tcode').addEventListener('keydown', e => { if (e.key === 'Enter') tryTeacher() });
-  $('tb-ans').onclick = () => { handle.fill(); changed(); };
-  $('tb-new').onclick = () => { $('verdict').hidden = true; fresh(); };
-  // ===== 學校帳號登入與自動上傳（assets/login.js 設定好才啟用） =====
+  $('tb-ans').onclick = () => { s.handle.fill(); s.changed(); };
+  $('tb-new').onclick = () => { $('verdict').hidden = true; s.fresh(); };
+  return { enterTeacher };
+};
+
+// 整合帳號登入、名單確認與手動登入。
+const shellCreateLogin = (s) => {
+  const { $ } = s;
+  const start = id => s.start(id);
+  // 確認登入名單或切回手動班座輸入。
   function showLogin() {
     $('g-login').hidden = false; $('g-form').hidden = true; $('g-lerr').textContent = ''; $('g-who').hidden = true;
     YBS.button($('g-gbtn'), async me => {
@@ -252,22 +321,27 @@ const SHELL = (cfg) => {
   }
   $('g-notme').onclick = () => { YBS.logout(); showLogin() };
   $('g-manual').onclick = () => { YBS.logout(); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '這次不登入：過關後請把成績碼交給老師。'; $('in-cls').focus() };
+  return { showLogin };
+};
+
+// 維持上傳欄位並同步顯示上傳狀態。
+const shellCreateSync = (s) => {
+  const { cfg, $, R, loginEnabled } = s;
+  // 沿用既有欄位上傳本關紀錄。
   function upload(r) {
-    if (!loginEnabled() || !ident) return;
-    YBS.submit({ course: cfg.course, activity: cfg.week, termWeek: cfg.termWeek, title: cfg.title, round: r, roundName: R[r].name, level: R[r].lv === 1 ? '基礎' : '進階', rounds: R.map(x => x.name), tries: prog.tries[r], mask: prog.mask, cls: ident.cls, seat: ident.seat, code: $('code').textContent, at: new Date().toISOString() });
+    if (!loginEnabled() || !s.ident) return;
+    YBS.submit({ course: cfg.course, activity: cfg.week, termWeek: cfg.termWeek, title: cfg.title, round: r, roundName: R[r].name, level: R[r].lv === 1 ? '基礎' : '進階', rounds: R.map(x => x.name), tries: s.prog.tries[r], mask: s.prog.mask, cls: s.ident.cls, seat: s.ident.seat, code: $('code').textContent, at: new Date().toISOString() });
   }
   if (typeof YBS !== 'undefined') YBS.status(st => {
-    const el = $('sync'); if (!ident) return;
+    const el = $('sync'); if (!s.ident) return;
     el.className = 'sync' + (st === 'ok' ? ' ok' : st === 'sending' ? '' : ' warn');
     if (st === 'relogin') { el.innerHTML = '登入過期，重新登入才能上傳 <span id="sync-btn"></span>'; YBS.button($('sync-btn'), () => { }, msg => { el.textContent = msg }) }
     else el.textContent = st === 'ok' ? '✓ 紀錄已上傳給老師' : st === 'sending' ? '上傳中…' : '還沒上傳成功，會自動重試';
   });
   (()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
-  if (TEACHER.remembered()) enterTeacher(); else if (loginEnabled()) showLogin(); else { $('g-login').hidden = true; $('g-form').hidden = false; $('in-cls').focus(); }
-
-  // 測試用：讓自動檢查可以拿到目前這一組資料與答案
-  return { get inst() { return inst }, get handle() { return handle }, load, setLevel, get ri() { return ri }, rounds: R };
+  return { upload };
 };
+
 // 常用小工具：亂數挑選
 const PICK = (rnd, arr) => arr[Math.floor(rnd() * arr.length)];
 const SHUF = (rnd, arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1));[a[i], a[j]] = [a[j], a[i]] } return a };

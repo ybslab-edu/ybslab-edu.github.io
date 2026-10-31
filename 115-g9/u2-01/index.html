@@ -255,7 +255,7 @@ const ROUNDS=[
   kind:'idol',ask:['digit'],fixDep:24,startRes:0,sol:{res:32,dep:24}},
  {lv:1,name:'認出應援色',now:'偶像轉身了，看不到背號，只看得到衣服和應援棒的顏色。六連星每個人都有自己的應援色，其中有幾個很像。',goal:'用最少的顏色數，讓朋友還認得出兩張照片各是哪一位成員。',tip:'格子數先固定。每格能用的位元越少，能分的顏色就越少，很像的顏色會被併成同一個。',
   kind:'idol',ask:['member'],noDigit:true,fixRes:48,startDep:0,sol:{res:48,dep:6}},
- {lv:2,name:'容量剛好夠',now:'網路塞到每張照片只能傳 768 位元組（0.75 KB）。',goal:'在容量內，讓朋友同時看出背號和應援色。格子數和顏色數都要自己決定。',tip:'背號要靠格子數，應援色要靠顏色數。超過容量就傳不出去。',
+ {lv:2,name:'容量剛好夠',now:'網路塞到每張照片只能傳 768 位元組（0.75 KiB）。',goal:'在容量內，讓朋友同時看出背號和應援色。格子數和顏色數都要自己決定。',tip:'背號要靠格子數，應援色要靠顏色數。超過容量就傳不出去。',
   kind:'idol',ask:['digit','color'],cap:32*32*6,startRes:3,startDep:4,sol:{res:32,dep:6}},
  {lv:2,name:'衛星數遊覽車',now:'散場後要去搭後援會包的遊覽車，小安打開地圖 App 的衛星圖。衛星圖一格代表地面幾公尺，越清楚檔案越大。',goal:'用最小的衛星圖，數出兩個停車場各有幾台遊覽車。',tip:'遊覽車大約 12 公尺長；三台白色小客車排在一起，遠看也差不多長。',
   kind:'sat',ask:['count'],fixDep:24,startRes:0,sol:{res:32,dep:24}}
@@ -283,7 +283,7 @@ const truth=(p,k)=>k==='digit'?p.digit:k==='count'?p.buses:p.m;   // member 和 
 function curRes(){const R=ROUNDS[ri];return R.fixRes||resList(R)[setRes]}
 function curDep(){const R=ROUNDS[ri];return R.fixDep||DEP[setDep]}
 const bitsOf=(n,d)=>n*n*d;
-function sizeText(bits){const B=bits/8;return fmt(bits)+' 位元 = '+fmt(B)+' 位元組'+(B>=1024?' ≈ '+(B/1024).toFixed(1)+' KB':'')}
+function sizeText(bits){const B=bits/8;return fmt(bits)+' 位元 = '+fmt(B)+' 位元組'+(B>=1024?' ≈ '+(B/1024).toFixed(1)+' KiB':'')}
 
 function renderKnobs(){
   const R=ROUNDS[ri], n=curRes(), d=curDep(), sat=R.kind==='sat';
@@ -443,7 +443,7 @@ const STAGE_HTML=`    <div class="knobs">
       <section class="panel formula">
         <div class="ptitle"><h3>檔案多大，這樣算</h3><span class="tag t-size">大小</span></div>
         <div class="eq" id="eq"></div>
-        <p class="small">8 位元 = 1 位元組（Byte），1024 位元組 = 1 KB。真的手機照片有幾千萬格、每格 24 位元，所以一張就要好幾 MB（還會再壓縮）。</p>
+        <p class="small">8 位元 = 1 位元組（Byte）。容量有兩種算法：電腦常用 1024 位元組 = 1 KiB；手機、記憶卡標示用 1000 位元組 = 1 KB，下一站會用這一種。真的手機照片有幾千萬格、每格 24 位元，所以一張就要好幾 MB（還會再壓縮）。</p>
       </section>
     </div>
   </section>

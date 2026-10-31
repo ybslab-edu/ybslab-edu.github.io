@@ -29,7 +29,7 @@ export function setup(){
     localStorage:{getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)},
     Blob,URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic';},revokeObjectURL(){}},setTimeout:()=>0,
   });
-  for(const path of ['assets/vendor/xlsx-0.18.5.full.min.js','assets/codec.js','assets/curriculum.js','assets/activities.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
+  for(const path of ['assets/vendor/xlsx-0.20.3.full.min.js','assets/codec.js','assets/curriculum.js','assets/activities.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
   vm.runInContext(scripts,context,{filename:'115-g9/teacher/index.html',timeout:1000});
   const evaluate=source=>vm.runInContext(source,context,{timeout:1000});
   const get=id=>elements.get(id);

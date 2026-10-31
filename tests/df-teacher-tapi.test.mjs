@@ -9,6 +9,8 @@ const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].ma
 const responses={
   '200':()=>new Response('{"ok":true}',{status:200}),
   '201':()=>new Response('{"ok":true}',{status:201}),
+  '200 空回應':()=>new Response('',{status:200}),
+  '204':()=>new Response(null,{status:204}),
   '401':()=>new Response('{"ok":true}',{status:401}),
   '500':()=>new Response('{"ok":true}',{status:500}),
   '非 JSON':()=>new Response('<html>synthetic error</html>',{status:200}),
@@ -52,12 +54,14 @@ function setup(response){
 }
 
 for(const [name,response] of Object.entries(responses)){
-  const success=name==='200'||name==='201';
+  const empty=name==='200 空回應'||name==='204';
+  const success=name==='200'||name==='201'||empty;
   test(`tapi：${name} ${success?'回傳 JSON':'拒絕成功'}`,async()=>{
     const t=setup(response);
     t.evaluate("TOKEN='synthetic-token'");
     const result=t.evaluate("tapi('seat',{k:'A-999-1',action:'free'})");
-    if(success)assert.equal((await result).ok,true);
+    if(empty)assert.equal(JSON.stringify(await result),'{}');
+    else if(success)assert.equal((await result).ok,true);
     else await assert.rejects(result);
     assert.equal(t.requests[0].url,'/api/t/seat');
     assert.equal(t.requests[0].method,'POST');

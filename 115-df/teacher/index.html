@@ -254,7 +254,8 @@ function toast2(m){ const n=document.createElement('div'); n.className='empty'; 
 async function tapi(name,obj){
   const r=await fetch('/api/t/'+name,{method:'POST',headers:{'Content-Type':'application/json','x-token':TOKEN},body:JSON.stringify(obj)});
   if(!r.ok) throw new Error('教師 API 請求失敗（HTTP '+r.status+'）');
-  return r.json();
+  const text=await r.text();
+  return text===''?{}:JSON.parse(text);
 }
 function stub(s){ return {app:'DF-investigation',version:'A',cls:s.cls,seat:s.seat,started:s.lastSeen,log:[],h1:{},h2:{},concl:{},b2:{},reveal:{},gallery:{comments:[]},ev:{},l01:{}}; }
 function onSnap(snap){

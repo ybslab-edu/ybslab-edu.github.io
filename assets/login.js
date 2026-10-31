@@ -42,19 +42,20 @@ const YBS = (() => {
   const ACCT_DOMAIN = 'ybslab-edu.github.io';
   const normAccount = v => { const t = String(v || '').trim().toLowerCase().replace(/@.*$/, '').replace(/\s+/g, ''); return /^\d{3,12}$/.test(t) ? 'cgjh' + t : t; };
   const normPassword = v => { const t = String(v || '').trim(); const m = t.match(/^cgjh([a-z][0-9a-d]\d{8})$/i); return m ? 'cgjh' + m[1].toUpperCase() : t; };
+  const loginError = (code, message) => Object.assign(new Error(message), { code });
   async function signIn(account, password) {
     const acct = normAccount(account);
-    if (!/^cgjh\d{3,12}$/.test(acct)) throw { msg: '帳號是 cgjh 加學號，例如 cgjh1100123。' };
-    if (!password) throw { msg: '請輸入密碼。' };
+    if (!/^cgjh\d{3,12}$/.test(acct)) throw loginError('auth/invalid-account', '帳號是 cgjh 加學號，例如 cgjh1100123。');
+    if (!password) throw loginError('auth/missing-password', '請輸入密碼。');
     const { auth } = await initFirebase();
     let cred;
     try { cred = await auth.signInWithEmailAndPassword(acct + '@' + ACCT_DOMAIN, normPassword(password)); }
     catch (e) {
       const c = e && e.code || '';
-      if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) throw { msg: '帳號或密碼不對。密碼是 cgjh 加身分證字號；還是不行請告訴老師。' };
-      if (/too-many-requests/.test(c)) throw { msg: '嘗試太多次，請等幾分鐘再試，或告訴老師。' };
-      if (/network/.test(c)) throw { msg: '連不上網路，請確認網路後再試。' };
-      throw { msg: '登入沒有完成（' + (c || '連線問題') + '），請再試一次或告訴老師。' };
+      if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) throw loginError(c, '帳號或密碼不對。密碼是 cgjh 加身分證字號；還是不行請告訴老師。');
+      if (/too-many-requests/.test(c)) throw loginError(c, '嘗試太多次，請等幾分鐘再試，或告訴老師。');
+      if (/network/.test(c)) throw loginError(c, '連不上網路，請確認網路後再試。');
+      throw loginError(c || 'auth/login-failed', '登入沒有完成（' + (c || '連線問題') + '），請再試一次或告訴老師。');
     }
     profile = { email: acct + '@' + CONFIG.domain, account: acct, uid: cred.user.uid };
     return profile;
@@ -73,10 +74,10 @@ const YBS = (() => {
       ev.preventDefault(); if (btn.disabled) return;
       btn.disabled = true; btn.textContent = '登入中…';
       try { const p = await signIn(f.a.value, f.p.value); f.p.value = ''; onLogin && onLogin(p); flush(); }
-      catch (e) { f.p.value = ''; onError && onError(e && e.msg || '登入失敗，請再試一次。'); }
+      catch (e) { f.p.value = ''; onError && onError(e && e.message || '登入失敗，請再試一次。'); }
       finally { btn.disabled = false; btn.textContent = '登入'; }
     };
-    setTimeout(() => { try { f.a.focus(); } catch (e) {} }, 0);
+    setTimeout(() => { try { f.a.focus(); } catch (e) { /* 自動聚焦僅方便輸入，失敗仍可手動點選。 */ } }, 0);
   }
 
   // 名單：ybsCourses/{courseId}/roster/{email}；回傳 { ok, student:{cls,seat} } 或 { ok:false, error }
@@ -110,13 +111,13 @@ const YBS = (() => {
           ...x, key: x.activity + '_' + x.round
         })) : [];
       }
-      catch (e) { queue = []; }
+      catch (e) { queue = []; /* 無法讀取舊佇列時，仍接受本次分頁的新紀錄。 */ }
     }
     return queue;
   };
   const setQ = a => {
     queue = a;
-    try { sessionStorage.setItem(QKEY, JSON.stringify(a)); } catch (e) {}
+    try { sessionStorage.setItem(QKEY, JSON.stringify(a)); } catch (e) { /* 已保留記憶體佇列，送出狀態仍以伺服器結果為準。 */ }
   };
   let busy = false;
   async function flush() {
@@ -143,7 +144,7 @@ const YBS = (() => {
           done = true;
         } catch (e) {
           // 一關只能有一筆：已經有紀錄（例如重做同一關）就算完成
-          if (ref && e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) {} }
+          if (ref && e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) { /* 無法確認既有紀錄，保留待送並回報 pending。 */ } }
         }
         // 只刪除實際完成的物件，保留途中新增（包含同關重新提交）的項目。
         if (done) setQ(getQ().filter(y => y !== x));
@@ -171,10 +172,11 @@ const YBS = (() => {
   }
   function logout() {
     profile = null;
-    try { if (fb) fb.auth.signOut(); } catch (e) {}
+    const failed = () => { onError && onError('登出未完成，請重新整理後再試。'); };
+    try { if (fb) Promise.resolve(fb.auth.signOut()).catch(failed); } catch (e) { failed(); }
   }
   // 舊版（Apps Script）曾把帳號存在 localStorage：清掉
-  try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('ybslab:login'); } catch (e) {}
+  try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('ybslab:login'); } catch (e) { /* 舊版快取清理不影響目前的分頁登入。 */ }
   setInterval(() => { if (profile) flush(); }, 60000);
   window.addEventListener('online', () => { if (profile) flush(); });
 

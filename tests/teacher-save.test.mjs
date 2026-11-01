@@ -1,102 +1,164 @@
-// 執行實際頁面、成績碼與 Excel 程式；僅使用合成資料，無網路連線。
+// 僅用合成資料，執行實際教師頁、成績碼與固定版本 SheetJS；不連網。
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import vm from 'node:vm';
+import {setup} from './fixtures/teacher-export.mjs';
 
-const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
-const html=read('115-g9/teacher/index.html');
-const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
-function setup(){
-  const elements=new Map(), stored=new Map(), downloads=[], blobs=[];
-  let failKey=null;
-  class Element {
-    constructor(){this.value='';this.textContent='';this.className='';this.hidden=false;this.disabled=false;this.listeners={};this.dataset={};}
-    set innerHTML(value){
-      this.markup=value;
-      for(const m of value.matchAll(/id="([^"]+)"/g)) elements.set(m[1],new Element());
-    }
-    get innerHTML(){return this.markup||'';}
-    querySelectorAll(){return [...this.innerHTML.matchAll(/data-v="([^"]+)"/g)].map(m=>{const el=new Element();el.dataset.v=m[1];return el;});}
-    addEventListener(name,fn){this.listeners[name]=fn;}
-    focus(){}
-    appendChild(){}
-    remove(){}
-    click(){downloads.push({name:this.download,url:this.href});}
+test('離開提醒：空彙整不攔截，新增或更新會提醒，匯出及清空後解除',()=>{
+  const h=setup();
+  assert.equal(h.unload().defaultPrevented,false);
+  h.get('paste').value='invalid';h.get('b-add').onclick();
+  assert.equal(h.unload().defaultPrevented,false);
+  h.add();assert.equal(h.unload().defaultPrevented,true);
+  h.get('b-x1').onclick();assert.equal(h.unload().defaultPrevented,false);
+  h.add();assert.equal(h.unload().defaultPrevented,false,'重複或較舊成績不造成未匯出狀態');
+  h.get('paste').value=h.evaluate('CODEC.encode({week:1,cls:999,seat:1,mask:7,tries:[1,2,1],time:Date.UTC(2026,9,2)})');
+  h.get('b-add').onclick();assert.equal(h.unload().defaultPrevented,true);
+  h.size('3');h.clear();
+  assert.equal(h.unload().defaultPrevented,false,'清空後即使留有班級人數也不提醒');
+});
+
+test('離開提醒：人數變動須重新匯出，相同人數與舊資料備份不會誤解除',()=>{
+  const h=setup();h.add();h.get('b-x1').onclick();
+  h.size('3');assert.equal(h.unload().defaultPrevented,true);
+  h.get('b-legacy-export').onclick();assert.equal(h.unload().defaultPrevented,true);
+  h.get('b-x1').onclick();assert.equal(h.unload().defaultPrevented,false);
+  h.size('03');assert.equal(h.unload().defaultPrevented,false);
+  h.size('');assert.equal(h.unload().defaultPrevented,true);
+});
+
+test('離開提醒：三種匯出只解除所含班週，其他班週繼續提醒',()=>{
+  const h=setup();h.add();
+  for(const data of ['{week:1,cls:998,seat:1,mask:1,tries:[1]}','{week:2,cls:999,seat:1,mask:1,tries:[1]}']){
+    h.get('paste').value=h.evaluate('CODEC.encode({...'+data+',time:Date.UTC(2026,9,1)})');h.get('b-add').onclick();
   }
-  for(const m of html.matchAll(/id="([^"]+)"/g)) elements.set(m[1],new Element());
-  elements.get('save-msg').hidden=true;
-  const context=vm.createContext({
-    document:{getElementById:id=>{assert.ok(elements.has(id),id);return elements.get(id);},createElement:()=>new Element(),body:new Element()},
-    localStorage:{getItem:key=>stored.get(key)??null,setItem(key,value){if(key===failKey)throw new Error('synthetic storage failure');stored.set(key,value);}},
-    Blob,URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic';},revokeObjectURL(){}},setTimeout:()=>0,
-  });
-  for(const path of ['assets/vendor/xlsx-0.20.3.full.min.js','assets/codec.js','assets/curriculum.js','assets/activities.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
-  vm.runInContext(scripts,context,{filename:'115-g9/teacher/index.html',timeout:1000});
-  const evaluate=source=>vm.runInContext(source,context,{timeout:1000});
-  const get=id=>elements.get(id);
-  const code=evaluate('CODEC.encode({week:1,cls:999,seat:1,mask:3,tries:[1,2,0,0,0,0],time:Date.UTC(2026,9,1)})');
-  const add=()=>{get('paste').value=code;get('b-add').onclick();};
-  const size=value=>{get('size').value=value;get('size').listeners.input({target:get('size')});};
-  const clear=()=>{get('b-clear').onclick();get('c-yes').onclick();};
-  return {evaluate,get,code,add,size,clear,stored,downloads,blobs,fail(key){failKey=key;}};
-}
-function warning(t){
-  assert.equal(t.get('save-msg').hidden,false);
-  assert.match(t.get('save-msg').textContent,/這台電腦沒有存下來/);
-  assert.match(t.get('save-msg').textContent,/立刻.*匯出.*備份/);
-  assert.match(t.get('save-msg').textContent,/請勿關閉或重新整理/);
-  assert.notEqual(t.get('msg').className,'msg ok');
-}
-for(const key of ['it9:grades','it9:sizes']){
-  test(`${key} 寫入例外：新增、更新不報成功，畫面與實際 Excel 匯出保留成績`,async()=>{
-    const t=setup();t.fail(key);
-    assert.equal(t.evaluate('save()'),false);
-    t.add();warning(t);
-    assert.equal(t.get('paste').value,t.code);
-    assert.match(t.get('tbl').innerHTML,new RegExp(t.code));
-    assert.equal(t.get('b-x1').disabled,false);
-    t.get('b-x1').onclick();
-    assert.equal(t.downloads.length,1);
-    assert.match(t.downloads[0].name,/\.xlsx$/);
-    assert.equal(Buffer.from(await t.blobs[0].arrayBuffer()).subarray(0,2).toString(),'PK');
-    assert.equal(t.evaluate('XLSX.utils.sheet_to_json(weekSheet(1,999),{header:1})[1].includes(recs["1-999-1"].code)'),true);
-    // 下載訊息與其他輸入驗證不得遮掉存檔警示。
-    t.get('paste').value='';t.get('b-add').onclick();warning(t);
-    t.code=t.evaluate('CODEC.encode({week:1,cls:999,seat:1,mask:7,tries:[1,2,1,0,0,0],time:Date.UTC(2026,9,2)})');
-    t.get('paste').value=t.code;t.get('b-add').onclick();warning(t);
-    assert.equal(t.evaluate('recs["1-999-1"].mask'),7);
-    assert.match(t.get('tbl').innerHTML,new RegExp(t.code));
-  });
-  test(`${key} 寫入例外：班人數快取保留於畫面及匯出，重試成功解除警示`,()=>{
-    const t=setup();t.add();t.fail(key);t.size('3');warning(t);
-    assert.equal(t.get('size').value,3);
-    assert.match(t.get('stats').innerHTML,/\/ 3/);
-    assert.equal(t.evaluate('XLSX.utils.sheet_to_json(weekSheet(1,999),{header:1}).length'),4);
-    t.fail(null);t.size('4');
-    assert.equal(t.get('save-msg').hidden,true);
-    assert.equal(JSON.parse(t.stored.get('it9:sizes'))['999'],4);
-  });
-  test(`${key} 寫入例外：清除也顯示警示，其他班成績仍可匯出`,()=>{
-    const t=setup();t.add();
-    t.get('paste').value=t.evaluate('CODEC.encode({week:1,cls:998,seat:1,mask:1,tries:[1],time:Date.UTC(2026,9,1)})');
-    t.get('b-add').onclick();t.fail(key);t.clear();warning(t);
-    assert.equal(t.evaluate('all().length'),1);
-    assert.equal(t.evaluate('all()[0].cls'),999);
-    assert.equal(t.get('b-x1').disabled,false);
-    t.get('b-x1').onclick();assert.equal(t.downloads.length,1);
+  h.evaluate('curW=1;curC=999;render()');
+  h.get('b-x1').onclick();assert.equal(h.unload().defaultPrevented,true);
+  h.get('b-x2').onclick();assert.equal(h.unload().defaultPrevented,true,'另週尚未匯出');
+  h.get('b-x3').onclick();assert.equal(h.unload().defaultPrevented,false);
+  h.size('2');assert.equal(h.unload().defaultPrevented,true,'人數變動影響該班所有週');
+  h.get('b-x1').onclick();assert.equal(h.unload().defaultPrevented,true);
+  h.evaluate('curW=2;render()');h.clear();assert.equal(h.unload().defaultPrevented,false);
+});
+
+for(const failure of ['XLSX.write=()=>{throw Error("synthetic write failure")}','URL.createObjectURL=()=>{throw Error("synthetic download failure")}','document.createElement=()=>({click(){throw Error("synthetic click failure")}})']){
+  test('離開提醒：匯出失敗保留未匯出狀態（'+failure.split('=')[0]+'）',()=>{
+    const h=setup();h.add();h.evaluate(failure);
+    assert.throws(()=>h.get('b-x1').onclick());assert.equal(h.unload().defaultPrevented,true);
   });
 }
-test('寫入成功：回傳 true、原有 key 與成績成功提示不變，班人數和清除皆存檔',()=>{
-  const t=setup();assert.equal(t.evaluate('save()'),true);
-  t.add();assert.equal(t.get('msg').className,'msg ok');assert.match(t.get('msg').textContent,/新增 1 人/);
-  assert.equal(t.get('paste').value,'');assert.equal(t.get('save-msg').hidden,true);
-  assert.equal(JSON.parse(t.stored.get('it9:grades'))['1-999-1'].code,t.code);
-  t.size('3');assert.equal(JSON.parse(t.stored.get('it9:sizes'))['999'],3);
-  t.size('');assert.deepEqual(JSON.parse(t.stored.get('it9:sizes')),{});
-  t.clear();assert.deepEqual(JSON.parse(t.stored.get('it9:grades')),{});
-  assert.deepEqual([...t.stored.keys()].sort(),['it9:grades','it9:sizes']);
-  assert.equal(t.get('save-msg').hidden,true);
+
+test('記憶體彙整：新增、更新、人數與清除不讀寫儲存區，重開不還原',()=>{
+  const h=setup();
+  assert.equal(h.get('legacy-panel').hidden,true);
+  const initialCalls=h.storageCalls.length;
+  h.add();h.size('3');
+  assert.equal(h.get('paste').value,'');assert.match(h.get('msg').textContent,/新增 1 人.*僅暫存.*請先匯出/);
+  assert.equal(h.evaluate('all().length'),1);assert.equal(h.evaluate('sizes[999]'),3);
+  assert.equal(h.evaluate('rowsFor(1,999).length'),3);
+  h.get('paste').value=h.evaluate('CODEC.encode({week:1,cls:999,seat:1,mask:7,tries:[1,2,1,0,0,0],time:Date.UTC(2026,9,2)})');
+  h.get('b-add').onclick();assert.equal(h.evaluate('all()[0].mask'),7);
+  const reopened=h.reopen();
+  assert.equal(reopened.evaluate('all().length'),0);assert.equal(reopened.evaluate('Object.keys(sizes).length'),0);
+  assert.equal(reopened.get('b-x1').disabled,true);
+  h.size('');assert.equal(h.evaluate('Object.keys(sizes).length'),0);
+  h.clear();assert.equal(h.evaluate('all().length'),0);
+  assert.equal(h.storageCalls.length,initialCalls,'日常彙整不再讀取或寫入 localStorage');
+  assert.equal(h.stored.size,0);
+});
+
+test('儲存區被封鎖：提示檢查失敗，記憶體彙整、人數及 Excel 下載仍可用',async()=>{
+  const h=setup({storageErrors:{getItem:true,setItem:true,removeItem:true}});
+  assert.match(h.get('legacy-msg').textContent,/無法讀取/);
+  assert.equal(h.get('b-legacy-export').disabled,true);
+  h.add();h.size('2');h.get('b-x1').onclick();
+  assert.equal(h.evaluate('all().length'),1);assert.equal(h.evaluate('sizes[999]'),2);
+  assert.equal(Buffer.from(await h.blobs[0].arrayBuffer()).subarray(0,2).toString(),'PK');
+  assert.equal(h.storageCalls.some(c=>c.method!=='getItem'),false);
+});
+
+function legacyStore(){
+  const seed=setup();seed.add();
+  return new Map([
+    ['it9:grades',seed.evaluate('JSON.stringify(recs)')],
+    ['it9:sizes','{"999":3,"998":1000000,"damaged":null}'],
+    ['synthetic:unrelated','keep'],
+  ]);
+}
+for(const [label,entries] of [
+  ['合法成績及混合損毀人數',()=>legacyStore()],
+  ['無法解析的兩鍵',()=>new Map([['it9:grades','{'],['it9:sizes','not JSON']])],
+  ['空字串與非物件根節點',()=>new Map([['it9:grades',''],['it9:sizes','null']])],
+  ['僅有成績鍵',()=>new Map([['it9:grades','[]']])],
+  ['僅有人數鍵',()=>new Map([['it9:sizes','{"999":2}']])],
+])test(`舊資料（${label}）：不還原、明示匯出原值、取消不刪、確認才完整移除`,async()=>{
+  const stored=entries(),before=new Map(stored),h=setup({stored});
+  assert.equal(h.evaluate('all().length'),0);assert.equal(h.evaluate('Object.keys(sizes).length'),0);
+  assert.equal(h.get('legacy-panel').hidden,false);assert.equal(h.get('legacy-confirm').hidden,true);
+  assert.match(h.get('legacy-msg').textContent,/尚未載入.*未刪除/);
+  assert.equal(h.get('b-legacy-clear').disabled,true);
+  h.get('legacy-yes').onclick();assert.deepEqual(stored,before,'不能略過備份及確認步驟');
+  h.add();h.size('2');
+  assert.deepEqual(stored,before,'新增彙整與人數不能覆寫舊鍵');
+  const reopened=h.reopen();assert.equal(reopened.evaluate('all().length'),0);
+  assert.equal(reopened.evaluate('Object.keys(sizes).length'),0);
+  assert.equal(h.downloads.length,0,'偵測不自動下載');
+  h.get('b-legacy-export').onclick();
+  assert.equal(h.downloads.length,1);assert.match(h.downloads[0].name,/^資訊科技_舊瀏覽器資料_\d{8}\.json$/);
+  assert.deepEqual(JSON.parse(await h.blobs[0].text()),{'it9:grades':before.get('it9:grades')??null,'it9:sizes':before.get('it9:sizes')??null});
+  assert.deepEqual(stored,before,'下載仍不刪除');
+  h.get('legacy-yes').onclick();assert.deepEqual(stored,before,'下載後仍須開啟確認');
+  h.get('b-legacy-clear').onclick();assert.equal(h.get('legacy-confirm').hidden,false);
+  h.get('legacy-no').onclick();assert.equal(h.get('legacy-confirm').hidden,true);
+  assert.deepEqual(stored,before,'取消保留完整舊資料');
+  h.get('b-legacy-clear').onclick();h.get('legacy-yes').onclick();
+  assert.equal(stored.has('it9:grades'),false);assert.equal(stored.has('it9:sizes'),false);
+  assert.deepEqual(stored,new Map([...before].filter(([k])=>!['it9:grades','it9:sizes'].includes(k))));
+  assert.deepEqual(h.storageCalls.filter(c=>c.method==='removeItem').map(c=>c.key),['it9:grades','it9:sizes']);
+  assert.equal(h.evaluate('all().length'),1);assert.equal(h.evaluate('sizes[999]'),2,'目前記憶體彙整不受清除影響');
+  assert.equal(h.get('legacy-panel').hidden,true);
+  assert.match(h.get('dlmsg').textContent,/已完整清除.*關閉前請先匯出/);
+  assert.equal(h.reopen().get('legacy-panel').hidden,true);
+});
+
+test('清除目前班週只改記憶體；其他班仍可匯出，舊鍵不變',()=>{
+  const stored=legacyStore(),before=new Map(stored),h=setup({stored});h.add();
+  h.get('paste').value=h.evaluate('CODEC.encode({week:1,cls:998,seat:1,mask:1,tries:[1],time:Date.UTC(2026,9,1)})');
+  h.get('b-add').onclick();h.clear();
+  assert.equal(h.evaluate('all().length'),1);assert.equal(h.evaluate('all()[0].cls'),999);
+  h.get('b-x1').onclick();assert.equal(h.downloads.length,1);
+  assert.deepEqual(stored,before);assert.equal(h.get('legacy-panel').hidden,false);
+});
+
+test('其他分頁在備份後變動舊資料：拒絕清除，重新備份及確認後才刪',()=>{
+  const h=setup({stored:legacyStore()});h.get('b-legacy-export').onclick();
+  h.stored.set('it9:grades','synthetic changed data');
+  h.get('b-legacy-clear').onclick();h.get('legacy-yes').onclick();
+  assert.equal(h.stored.get('it9:grades'),'synthetic changed data');
+  assert.equal(h.storageCalls.some(c=>c.method==='removeItem'),false);
+  assert.match(h.get('legacy-msg').textContent,/已變動.*未清除.*重新下載/);
+  assert.equal(h.get('b-legacy-clear').disabled,true);
+  h.get('b-legacy-export').onclick();h.get('b-legacy-clear').onclick();h.get('legacy-yes').onclick();
+  assert.equal(h.stored.has('it9:grades'),false);assert.equal(h.stored.has('it9:sizes'),false);
+});
+
+test('備份下載失敗：保留兩鍵且不允許清除',()=>{
+  const stored=legacyStore(),before=new Map(stored),h=setup({stored});
+  h.evaluate('URL.createObjectURL=()=>{throw Error("synthetic download failure")}');
+  h.get('b-legacy-export').onclick();h.get('b-legacy-clear').onclick();h.get('legacy-yes').onclick();
+  assert.deepEqual(stored,before);assert.equal(h.get('b-legacy-clear').disabled,true);
+  assert.match(h.get('legacy-msg').textContent,/下載失敗.*未刪除/);
+});
+
+for(const key of ['it9:grades','it9:sizes'])test(`清除 ${key} 失敗：仍嘗試另一鍵、如實提示，再次備份確認可清乾淨`,()=>{
+  const h=setup({stored:legacyStore(),storageErrors:{removeItem:key}});
+  h.get('b-legacy-export').onclick();h.get('b-legacy-clear').onclick();h.get('legacy-yes').onclick();
+  assert.equal(h.stored.has(key),true);
+  assert.equal(h.stored.has(key==='it9:grades'?'it9:sizes':'it9:grades'),false);
+  assert.equal(h.get('legacy-panel').hidden,false);assert.match(h.get('legacy-msg').textContent,/部分.*未能清除/);
+  assert.equal(h.get('b-legacy-clear').disabled,true);
+  delete h.storageErrors.removeItem;
+  h.get('b-legacy-export').onclick();h.get('b-legacy-clear').onclick();h.get('legacy-yes').onclick();
+  assert.equal(h.stored.has('it9:grades'),false);assert.equal(h.stored.has('it9:sizes'),false);
 });
 
 test('SheetJS 0.20.3：三種教師匯出保留欄位、成績、缺交、日期、欄寬及工作表順序',async()=>{

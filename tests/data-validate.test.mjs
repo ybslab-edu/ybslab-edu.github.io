@@ -138,7 +138,7 @@ test('上傳佇列：逐筆捨棄壞項目，合法項目及其他 uid 不受影
 });
 function teacherSetup(grades,sizes='{}'){
   const d=dom(),stored=new Map([['it9:grades',grades],['it9:sizes',sizes]]);
-  const c=vm.createContext({document:d.document,localStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)},setTimeout(){}});
+  const c=vm.createContext({window:{addEventListener(){}},document:d.document,localStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)},setTimeout(){}});
   for(const p of ['assets/codec.js','assets/curriculum.js','assets/activities.js'])run(c,read(p));
   run(c,[...read('115-g9/teacher/index.html').matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'));
   return {...d,c,stored};
@@ -147,23 +147,25 @@ function grade(){
   const c=vm.createContext({});run(c,read('assets/codec.js'));
   return plain(run(c,'CODEC.decode(CODEC.encode({week:1,cls:999,seat:1,mask:3,tries:[1,2,0,0,0,0],time:Date.UTC(2026,9,1)}))'));
 }
-test('教師快取：逐筆驗範圍／型別，n1 不會卡死，提示且保存其餘成績與壞資料原值',()=>{
+test('教師舊資料：不解析或還原壞項目，正常彙整也不覆寫原始值',()=>{
   const good=grade(),data={'1-999-1':good};
   const changes=[['mask',-1],['mask',64],['mask',2**32],['mask',1.5],['mask','3'],['seat',1000000],['tries',[null]],['time',null],['code',{}],['week',0]];
   changes.forEach(([k,v],i)=>{const r={...good,cls:800+i,[k]:v};data[`1-${800+i}-1`]=r;});
   data.bad=null;
-  const h=teacherSetup(JSON.stringify(data),'{"999":60,"998":1000000}');
-  assert.equal(run(h.c,'all().length'),1);assert.equal(run(h.c,'sizes[999]'),60);assert.equal(run(h.c,'sizes[998]'),undefined);
-  assert.equal(h.get('cache-msg').hidden,false);assert.match(h.get('cache-msg').textContent,/略過.*原始成績快取保留/);
+  const grades=JSON.stringify(data),sizes='{"999":60,"998":1000000}';
+  const h=teacherSetup(grades,sizes);
+  assert.equal(run(h.c,'all().length'),0);assert.deepEqual(plain(run(h.c,'sizes')),{});
+  assert.equal(h.get('legacy-panel').hidden,false);assert.match(h.get('legacy-msg').textContent,/尚未載入.*未刪除/);
   assert.equal(run(h.c,'n1(-1)'),32);assert.equal(run(h.c,'n1(63)'),6);
-  assert.equal(run(h.c,'save()'),true);assert.deepEqual(JSON.parse(h.stored.get('it9:grades')),data);
   h.get('paste').value=good.code;h.get('b-add').onclick();assert.equal(run(h.c,'all().length'),1);
-  assert.equal(h.get('cache-msg').hidden,false);
+  assert.equal(h.stored.get('it9:grades'),grades);assert.equal(h.stored.get('it9:sizes'),sizes);
 });
-test('教師快取：根節點壞掉不可覆寫；sizes 解析失敗不影響合法成績；舊成績照常顯示',()=>{
-  for(const raw of ['{','null','[]','42']){const h=teacherSetup(raw);assert.equal(run(h.c,'all().length'),0);assert.equal(run(h.c,'save()'),false);assert.equal(h.stored.get('it9:grades'),raw);}
-  const good=grade();const h=teacherSetup(JSON.stringify({'1-999-1':good}),'{');
-  assert.equal(run(h.c,'all().length'),1);assert.match(h.get('tbl').innerHTML,new RegExp(good.code));
+test('教師舊資料：根節點損毀、空字串或 sizes 解析失敗皆提示且原樣保留',()=>{
+  for(const raw of ['{','null','[]','42','']){
+    const h=teacherSetup(raw,'{');
+    assert.equal(run(h.c,'all().length'),0);assert.equal(h.stored.get('it9:grades'),raw);
+    assert.equal(h.stored.get('it9:sizes'),'{');assert.equal(h.get('legacy-panel').hidden,false);
+  }
 });
 function shellSetup(value){
   const d=dom(),stored=new Map([['it9:w1:999-1',value]]),packets=[];

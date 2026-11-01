@@ -72,14 +72,27 @@ nav a{color:var(--accent)}
   <nav><a href="../../">← YBS Lab</a></nav>
   <div>
     <h1>資訊科技成績彙整</h1>
-    <p class="sub">把學生交來的成績碼貼進來，依週次、班級整理，匯出 Excel。資料只存在這台電腦的這個瀏覽器，別人打開這頁看不到你的資料。</p>
+    <p class="sub">把學生交來的成績碼貼進來，依週次、班級整理，匯出 Excel。成績與班級人數只暫存於目前頁面的記憶體；重新整理或關閉頁面後不保留，請先匯出需要的各班各週成績。</p>
   </div>
+
+  <section class="panel" id="legacy-panel" aria-label="舊資料處理" hidden>
+    <p class="msg no" id="legacy-msg" role="alert"></p>
+    <div class="row">
+      <button class="btn" id="b-legacy-export">下載舊資料原始備份（JSON）</button>
+      <button class="btn danger" id="b-legacy-clear" disabled>清除瀏覽器舊資料…</button>
+    </div>
+    <p class="sub">原始備份保留成績、人數及損毀內容，並非 Excel，無法直接匯回此頁。下載後請確認檔案已另存，再確認清除；未確認前不會刪除舊資料。</p>
+    <div class="confirm" id="legacy-confirm" hidden>
+      <span>確定完整清除這個瀏覽器的舊成績與班級人數（含損毀項目）？刪除後無法復原，目前頁面的新彙整不受影響。</span>
+      <button class="btn danger" id="legacy-yes">確認清除兩項舊資料</button>
+      <button class="btn" id="legacy-no">取消</button>
+    </div>
+  </section>
 
   <section class="panel">
     <label for="paste"><strong>貼上成績碼</strong>　不同週、不同班混在一起也可以，夾雜其他文字也沒關係</label>
     <textarea id="paste" placeholder="E2K5-H7W2-FZFX-3M1A&#10;…"></textarea>
     <div class="row"><button class="btn primary" id="b-add">加入</button><span class="msg" id="msg" role="status"></span></div>
-    <p class="msg no" id="save-msg" role="alert" hidden></p>
   </section>
 
   <section class="panel">
@@ -95,7 +108,6 @@ nav a{color:var(--accent)}
       <button class="btn" id="b-x2">下載本週全部班級</button>
       <button class="btn" id="b-x3">下載本班學期總表</button>
     </div>
-    <p class="msg no" id="cache-msg" role="alert" hidden></p>
     <p class="msg" id="dlmsg" role="status"></p>
   </section>
 
@@ -110,44 +122,57 @@ const COURSE='115-g9';   // 這個教師專區對應的課程
 const W=Object.fromEntries(ACTIVITIES.filter(a=>a.course===COURSE).map(a=>[a.week,a]));
 const roundsOf=w=>(W[w]&&W[w].rounds)||['第1關','第2關','第3關','第4關'];
 let recs={}, sizes={}, curW=null, curC=null;
-// 壞項目不參與顯示／計算；另存原值，後續儲存也不悄悄刪掉它們。
-let rejectedRecs={}, unreadableGrades=false, cacheIssues=0;
-const cacheObject=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
-const cacheInt=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi;
-function validGrade(r,k){
-  return cacheObject(r)&&cacheInt(r.week,1,63)&&cacheInt(r.cls,100,999)&&cacheInt(r.seat,1,60)
-    && k===r.week+'-'+r.cls+'-'+r.seat && cacheInt(r.mask,0,63)
-    && Array.isArray(r.tries)&&r.tries.length>=4&&r.tries.length<=6
-    && r.tries.every(n=>cacheInt(n,0,15))
-    && Number.isFinite(r.time)&&r.time>=0&&r.time<=8640000000000000
-    && typeof r.code==='string'&&r.code.length<=19&&!!CODEC.decode(r.code);
-}
-try{
-  const data=JSON.parse(localStorage.getItem('it9:grades')||'{}');
-  if(!cacheObject(data)){unreadableGrades=true;cacheIssues++;}
-  else for(const [k,r] of Object.entries(data)){
-    if(validGrade(r,k))recs[k]=r;
-    else {Object.defineProperty(rejectedRecs,k,{value:r,enumerable:true});cacheIssues++;}
+// 依班週追蹤，部分匯出不能解除其他班週的離開提醒。
+const unexported=new Set();
+window.addEventListener('beforeunload',e=>{
+  if(!unexported.size)return;
+  e.preventDefault();e.returnValue='';
+});
+// 新彙整只存記憶體。舊鍵僅供偵測、明示備份及確認清除，絕不匯入 recs／sizes。
+const legacyKeys=['it9:grades','it9:sizes'];
+const readLegacy=()=>Object.fromEntries(legacyKeys.map(k=>[k,localStorage.getItem(k)]));
+let legacyBackup=null;
+function legacyNotice(message){$('legacy-panel').hidden=false;$('legacy-msg').textContent=message;}
+function checkLegacy(){
+  try{
+    if(Object.values(readLegacy()).some(v=>v!==null)){
+      legacyNotice('偵測到這個瀏覽器留有舊成績或班級人數，尚未載入目前彙整，也未刪除。同一瀏覽器的其他使用者仍可能讀取這些舊資料；請先下載備份，再確認清除。');
+    }
+  }catch(e){
+    legacyNotice('無法讀取瀏覽器儲存區，不能檢查或處理舊資料。可繼續使用目前頁面的記憶體彙整，關閉前請先匯出。');
+    $('b-legacy-export').disabled=true;
   }
-}catch(e){unreadableGrades=true;cacheIssues++;}
-try{
-  const data=JSON.parse(localStorage.getItem('it9:sizes')||'{}');
-  if(!cacheObject(data))cacheIssues++;
-  else for(const [k,n] of Object.entries(data)){
-    if(/^[1-9]\d{2}$/.test(k)&&cacheInt(n,1,60))sizes[k]=n;else cacheIssues++;
-  }
-}catch(e){cacheIssues++;}
-if(cacheIssues){$('cache-msg').hidden=false;$('cache-msg').textContent='已略過 '+cacheIssues+' 筆損毀或超出範圍的快取；其他成績仍可使用。原始成績快取保留，請先匯出可讀成績備份，再請老師處理損毀資料。';}
-const save=()=>{try{
-  if(unreadableGrades)return false; // 無法判讀整份快取時，不覆蓋老師原始資料。
-  localStorage.setItem('it9:grades',JSON.stringify({...rejectedRecs,...recs}));
-  localStorage.setItem('it9:sizes',JSON.stringify(sizes));return true;
-}catch(e){return false}};
-function reportSave(saved){
-  const m=$('save-msg');m.hidden=saved;
-  m.textContent=saved?'':'這台電腦沒有存下來。請老師立刻用下方既有的下載／匯出方式備份各班各週成績；資料仍留在目前畫面可匯出，保存前請勿關閉或重新整理。';
-  if(!saved){$('msg').className='msg no';$('msg').textContent=''}
 }
+$('b-legacy-export').onclick=()=>{
+  $('legacy-confirm').hidden=true;
+  try{
+    const raw=JSON.stringify(readLegacy(),null,2);
+    const url=URL.createObjectURL(new Blob([raw],{type:'application/json;charset=utf-8'}));
+    const a=document.createElement('a');a.href=url;a.download='資訊科技_舊瀏覽器資料_'+today()+'.json';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    legacyBackup=raw;$('b-legacy-clear').disabled=false;
+    legacyNotice('已送出舊資料備份下載，尚未刪除任何舊資料。請確認檔案已另存，再按清除並確認。');
+  }catch(e){legacyBackup=null;$('b-legacy-clear').disabled=true;legacyNotice('舊資料備份下載失敗，未刪除任何舊資料。請重試或檢查瀏覽器儲存權限。');}
+};
+$('b-legacy-clear').onclick=()=>{if(legacyBackup!==null)$('legacy-confirm').hidden=false;};
+$('legacy-no').onclick=()=>{$('legacy-confirm').hidden=true;};
+$('legacy-yes').onclick=()=>{
+  if($('legacy-confirm').hidden||legacyBackup===null)return;
+  $('legacy-confirm').hidden=true;
+  try{
+    if(JSON.stringify(readLegacy(),null,2)!==legacyBackup){
+      legacyNotice('瀏覽器舊資料已變動，未清除。請重新下載備份並確認檔案已另存，再確認清除。');
+    }else{
+      // 各鍵分別嘗試，單一鍵失敗也不漏掉另一鍵；不解析，因此損毀項目也會移除。
+      for(const key of legacyKeys){try{localStorage.removeItem(key);}catch(e){}}
+      const remains=Object.values(readLegacy()).some(v=>v!==null);
+      legacyNotice(remains?'部分舊資料未能清除，請檢查瀏覽器儲存權限，重新備份後再確認清除。':'已完整清除瀏覽器的舊成績與班級人數。目前彙整仍只存記憶體，關閉前請先匯出。');
+      if(!remains){$('dlmsg').className='msg ok';$('dlmsg').textContent=$('legacy-msg').textContent;$('legacy-panel').hidden=true;}
+    }
+  }catch(e){legacyNotice('無法確認舊資料是否完整清除。請檢查瀏覽器儲存權限，重新備份後再確認清除。');}
+  legacyBackup=null;$('b-legacy-clear').disabled=true;
+};
+checkLegacy();
 const n1=m=>{let c=0;m=m>>>0;while(m){c+=m&1;m>>>=1}return c};
 const p2=n=>String(n).padStart(2,'0');
 const fmtTime=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+p2(d.getHours())+':'+p2(d.getMinutes())};
@@ -166,13 +191,13 @@ $('b-add').onclick=()=>{
     if(!ex){recs[k]=r;add++;last=r}
     else if(r.time>ex.time||(r.time===ex.time&&n1(r.mask)>n1(ex.mask))){recs[k]=r;upd++;last=r}
     else old++;
+    if(recs[k]===r)unexported.add(r.week+'-'+r.cls);
   }
-  const saved=save();reportSave(saved);
   const m=$('msg');
   if(!found.length){m.className='msg no';m.textContent='沒有找到成績碼。';return}
-  m.className='msg '+(!saved||bad.length?'no':'ok');
-  m.textContent=(saved?'新增 '+add+' 人、更新 '+upd+' 人'+(old?'、'+old+' 筆比現有的舊所以略過':''):'成績僅保留在目前畫面，尚未存妥')+(bad.length?'；'+bad.length+' 筆驗證不過（打錯或被改過）：'+bad.join('、'):'')+'。';
-  if(saved&&!bad.length)$('paste').value='';
+  m.className='msg '+(bad.length?'no':'ok');
+  m.textContent='新增 '+add+' 人、更新 '+upd+' 人'+(old?'、'+old+' 筆比現有的舊所以略過':'')+(bad.length?'；'+bad.length+' 筆驗證不過（打錯或被改過）：'+bad.join('、'):'')+'。成績僅暫存於目前頁面，關閉或重新整理前請先匯出。';
+  if(!bad.length)$('paste').value='';
   if(last){curW=last.week;curC=last.cls}
   render();
 };
@@ -211,7 +236,7 @@ function render(){
   $('tbl').innerHTML=h+'</tbody></table>';
 }
 
-$('size').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');e.target.value=v;if(curC!=null){if(v&&+v>=1&&+v<=60)sizes[curC]=+v;else delete sizes[curC];reportSave(save());render();$('size').focus()}});
+$('size').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');e.target.value=v;if(curC!=null){const prev=sizes[curC];if(v&&+v>=1&&+v<=60)sizes[curC]=+v;else delete sizes[curC];if(prev!==sizes[curC])for(const r of all())if(r.cls===curC)unexported.add(r.week+'-'+r.cls);render();$('size').focus()}});
 
 // ===== Excel =====
 function weekSheet(w,c){
@@ -241,7 +266,7 @@ function termSheet(c){
   const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=head.map(h=>({wch:Math.max(8,Math.min(24,h.length*2))}));
   return {ws,ws_};
 }
-function saveBook(name,sheets){
+function saveBook(name,sheets,covered=[]){
   const m=$('dlmsg');
   if(typeof XLSX==='undefined'){m.className='msg no';m.textContent='Excel 元件沒有載入成功，請確認網路後重新整理。';return}
   const wb=XLSX.utils.book_new();
@@ -250,12 +275,13 @@ function saveBook(name,sheets){
   const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
+  for(const key of covered)unexported.delete(key);
   m.className='msg ok';m.textContent='已下載 '+name;
 }
 const today=()=>{const d=new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
-$('b-x1').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_'+curC+'班_'+today()+'.xlsx',[[curC+'班',weekSheet(curW,curC)]]);
-$('b-x2').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_全部班級_'+today()+'.xlsx',classes(curW).map(c=>[c+'班',weekSheet(curW,c)]));
-$('b-x3').onclick=()=>{const {ws,ws_}=termSheet(curC);saveBook('資訊科技_'+curC+'班_學期總表_'+today()+'.xlsx',[['總表',ws],...ws_.map(w=>['第'+tw(w)+'週',weekSheet(w,curC)])])};
+$('b-x1').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_'+curC+'班_'+today()+'.xlsx',[[curC+'班',weekSheet(curW,curC)]],[curW+'-'+curC]);
+$('b-x2').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_全部班級_'+today()+'.xlsx',classes(curW).map(c=>[c+'班',weekSheet(curW,c)]),classes(curW).map(c=>curW+'-'+c));
+$('b-x3').onclick=()=>{const {ws,ws_}=termSheet(curC);saveBook('資訊科技_'+curC+'班_學期總表_'+today()+'.xlsx',[['總表',ws],...ws_.map(w=>['第'+tw(w)+'週',weekSheet(w,curC)])],ws_.map(w=>w+'-'+curC))};
 
 // ===== 清除 =====
 function renderClear(){
@@ -264,7 +290,7 @@ function renderClear(){
   $('b-clear').onclick=()=>{
     row.innerHTML='<div class="confirm"><span>確定刪除'+wname(curW)+' '+curC+' 班的所有成績？刪了不能復原。</span><button class="btn danger" id="c-yes">刪除</button><button class="btn" id="c-no">取消</button></div>';
     $('c-no').onclick=renderClear;
-    $('c-yes').onclick=()=>{for(const k of Object.keys(recs))if(recs[k].week===curW&&recs[k].cls===curC)delete recs[k];reportSave(save());render()};
+    $('c-yes').onclick=()=>{for(const k of Object.keys(recs))if(recs[k].week===curW&&recs[k].cls===curC)delete recs[k];unexported.delete(curW+'-'+curC);render()};
   };
 }
 render();

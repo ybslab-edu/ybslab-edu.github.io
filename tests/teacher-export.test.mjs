@@ -25,7 +25,7 @@ test('成績彙整：同班座去重、時間較新優先、同時刻過關較�
   assert.deepEqual(json(h,'weeks()'),[1,2]);
   assert.deepEqual(json(h,'classes(1)'),[998,999]);
   assert.deepEqual(json(h,'classes(2)'),[999]);
-  assert.equal(Object.keys(JSON.parse(h.stored.get('it9:grades'))).length,3);
+  assert.equal(h.stored.size,0,'彙整不寫入瀏覽器儲存區');
 });
 
 test('舊 13 碼可與 16 碼混貼；舊碼補零、較舊跳過、驗證錯誤不入表',()=>{

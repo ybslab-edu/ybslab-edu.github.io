@@ -110,8 +110,9 @@ test('生日題實際產題：連抽同組後會換成另一組內容',()=>{
 
 test('保留既有容錯：前後空白、千分位、數列分隔與文字空白／大小寫',()=>{
   const c=activity('u2-02');
-  assert.equal(vm.runInContext("intVal(' 1,234 ')",c),1234);
-  assert.equal(vm.runInContext("numVal(' 1，234.5 ')",c),1234.5);
+  assert.equal(vm.runInContext("integer(' 1,234 ')",c),1234);
+  assert.equal(vm.runInContext("integer(' 1，234 ')",c),1234);
+  assert.equal(vm.runInContext("integer('1234.5')",c),null);
   assert.equal(vm.runInContext("NUMOK(' 1，234 ')",c),1234);
   for (const dir of ['u2-04','u2-07']) {
     const a=activity(dir);

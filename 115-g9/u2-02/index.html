@@ -10,15 +10,17 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=3">
 <style>
-/* 第 10 週：計量單位與檔案大小。關卡：排順序（槽位）、選大小、算分鐘、挑容量 */
-.ladder{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:16px}
-.ladder b{font-family:var(--f-mono);background:var(--a-soft);color:var(--a);border-radius:8px;padding:4px 10px}
-.ladder i{font-style:normal;color:var(--muted);font-family:var(--f-mono);font-size:14px}
-.spec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;font-size:17px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
-.spec .v{font-family:var(--f-mono);font-weight:700;text-align:right}
-.file{display:flex;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:18px}
-.file .ic{flex:none;width:56px;height:56px;border-radius:12px;display:grid;place-items:center;font-size:15px;font-weight:700;color:#fff}
-.pool-done{color:var(--muted);font-size:15px;margin:0}
+/* 本頁的體驗與繪圖皆為本機運算，不發聲。 */
+.lab-canvas{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+.lab-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.lab-control{display:grid;gap:6px;margin:12px 0;min-width:0}
+.lab-control select{width:100%;min-height:46px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)}
+.lab-stat{padding:10px;background:var(--a-soft);border-radius:8px;overflow-wrap:anywhere}
+.lab-answer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.lab-answer input{max-width:100%;min-width:0}
+.lab-table{width:100%;border-collapse:collapse;font-size:16px}
+.lab-table th,.lab-table td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:left;overflow-wrap:anywhere}
+@media(max-width:500px){.lab-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -27,137 +29,126 @@
 <script src="../../assets/lock.js?v=20261027b"></script>
 <script src="../../assets/login.js?v=20261031e"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
-<script src="../../assets/activities.js?v=20261016d"></script>
+<script src="../../assets/activities.js?v=20261102a"></script>
 <script src="../../assets/shell.js?v=20261031b"></script>
 <script>
-// 單位採國際標準（SI）：1 KB＝1000 位元組，往上每級 1000 倍；手機、記憶卡標示的容量也是這樣算。
-// 1024 倍的單位正式寫法是 KiB、MiB、GiB（電腦作業系統常用），只在說明裡對照，不拿來出題。
-const KB=1000, MB=KB*1000, GB=MB*1000, TB=GB*1000;
-// 以位元組為準的大小清單：數字刻意混用不同單位，有幾組容易看錯（1500 KB 比 1 MB 大、1800 MB 比 2 GB 小）
-const POOL=[['64 位元',8],['16 位元組',16],['4,000 位元',500],['900 位元組',900],['2 KB',2*KB],['3,000 位元組',3000],
-  ['0.5 MB',0.5*MB],['1 MB',MB],['1,500 KB',1500*KB],['800 MB',800*MB],['1 GB',GB],['1,800 MB',1800*MB],['3 GB',3*GB],
-  ['600 GB',600*GB],['0.5 TB',0.5*TB],['2 TB',2*TB]];
-const UNITS=[['位元組',1],['KB',KB],['MB',MB],['GB',GB],['TB',TB]];
-function nice(bytes){                 // 選最合適的單位，留一位小數
-  let u=UNITS[0];for(const x of UNITS)if(bytes>=x[1])u=x;
-  const v=bytes/u[1];return (v>=100?Math.round(v):Math.round(v*10)/10).toLocaleString('en-US')+' '+u[0];
+// 示範資料量均省略檔頭；影像與聲音使用未壓縮模型，影片依題目的估計速率。
+const SR=[8,16,32,64], QL=[4,8,16,32], RES=[16,32,64,128], COLORS=[4,16,64], FPS=[4,8,12,24,30];
+const QUALITY=[{name:'基本',rate:100},{name:'清晰',rate:250},{name:'精細',rate:400}];
+const bytesText=b=>b>=1000?(b/1000).toLocaleString('en-US',{maximumFractionDigits:2})+' KB':b+' 位元組';
+const integer=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+$/.test(t)&&Number.isSafeInteger(Number(t))?Number(t):null};
+function selectControl(el,id,label,values,format=x=>x){
+  el.insertAdjacentHTML('beforeend','<label class="lab-control" for="'+id+'">'+label+'<select id="'+id+'"><option value="">請選擇</option>'+values.map(v=>'<option value="'+v+'">'+format(v)+'</option>').join('')+'</select></label>');
+  return el.querySelector('#'+id);
 }
-const ladder='<div class="ladder"><b>位元</b><i>×8</i><b>位元組</b><i>×1000</i><b>KB</b><i>×1000</i><b>MB</b><i>×1000</i><b>GB</b><i>×1000</i><b>TB</b></div>';
-const binNote='<p class="small">另一種算法：電腦的記憶體和作業系統常用 1024 倍（2<sup>10</sup>），正式寫法是 KiB、MiB、GiB。1 GiB＝1024 MiB，比 1 GB 大一點。所以 128 GB 的手機在電腦上可能顯示成約 119 GiB；再扣掉系統占用，能用的又更少。</p>';
-
-// 排順序元件：點左邊的卡片放進下一格，點格子裡的卡片拿回去
-function ORDER(el,labels,api){
-  const n=labels.length, slots=Array(n).fill(null);
-  el.innerHTML='<div class="two"><section class="panel"><div class="ptitle"><h3>手機裡的東西</h3><span class="small">點一下放進右邊下一格</span></div><div class="picks" id="o-pool"></div></section>'+
-    '<section class="panel"><div class="ptitle"><h3>由小排到大</h3><span class="small">點格子裡的卡片拿回去</span></div><div class="slots" id="o-slots"></div></section></div>';
-  const draw=()=>{
-    el.querySelector('#o-pool').innerHTML=labels.map((l,i)=>slots.includes(i)?'':'<button type="button" class="pk" data-i="'+i+'">'+l+'</button>').join('')||'<p class="pool-done">都排好了，按「送出」。</p>';
-    el.querySelector('#o-slots').innerHTML=slots.map((k,j)=>'<div class="slot"><span class="n">'+(j+1)+'</span>'+(k==null?'<span class="empty">'+(j===0?'最小':j===n-1?'最大':'　')+'</span>':'<button type="button" class="pk" data-s="'+j+'">'+labels[k]+'</button>')+'</div>').join('');
-    el.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{slots[slots.indexOf(null)]=+b.dataset.i;draw();api.changed()});
-    el.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{slots[+b.dataset.s]=null;draw();api.changed()});
-  };
-  draw();
-  return {get:()=>[...slots],fill:a=>{a.forEach((v,i)=>slots[i]=v);draw()},ready:()=>slots.every(v=>v!=null)};
+function numberControl(el,id,label){
+  el.insertAdjacentHTML('beforeend','<label class="lab-answer" for="'+id+'">'+label+'<input class="num-in" id="'+id+'" inputmode="numeric" autocomplete="off"></label>');
+  return el.querySelector('#'+id);
 }
-function numIn(el,id,unit){el.insertAdjacentHTML('beforeend','<label style="display:flex;gap:10px;align-items:center;font-size:18px;flex-wrap:wrap"><input class="num-in" id="'+id+'" inputmode="decimal" autocomplete="off"> '+unit+'</label>');return el.querySelector('#'+id)}
-// 只接受完整的數字：去掉頭尾空白和千分位逗號後，整串都要是數字（73abc 不算 73）
-const numVal=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+(\.\d+)?$/.test(t)?Number(t):null};
-const intVal=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+$/.test(t)?Number(t):null};
-
+function canvas(el,label,w=640,h=220){el.insertAdjacentHTML('beforeend','<canvas class="lab-canvas" width="'+w+'" height="'+h+'" role="img" aria-label="'+label+'">'+label+'</canvas>');return el.lastElementChild}
+const wave=(i,t)=>.60*Math.sin(2*Math.PI*i.cycles*t)+.22*Math.sin(2*Math.PI*(i.cycles+2)*t+i.phase);
+const quant=(v,q)=>Math.round((v+1)/2*(q-1))/(q-1)*2-1;
+function soundMetrics(i,rate,levels){
+  let error=0;for(let k=0;k<512;k++){const t=k/512;error+=Math.abs(wave(i,t)-quant(wave(i,Math.floor(t*rate)/rate),levels))}
+  return {score:Math.round(1000*(1-error/512/2))/10,bytes:Math.ceil(rate*Math.log2(levels)/8)};
+}
+const soundSolutions=new Map();
+function soundBest(i){
+  const key=[i.cycles,i.phase,i.target].join(':');
+  if(!soundSolutions.has(key))soundSolutions.set(key,SR.flatMap(rate=>QL.map(levels=>({rate,levels,...soundMetrics(i,rate,levels)}))).filter(x=>x.score>=i.target).sort((a,b)=>a.bytes-b.bytes)[0]);
+  return soundSolutions.get(key);
+}
+function drawWave(c,i,rate,levels){
+  const x=c.getContext('2d'),y=v=>110-v*90;x.clearRect(0,0,640,220);
+  x.strokeStyle='#ccc';x.beginPath();x.moveTo(0,110);x.lineTo(640,110);x.stroke();
+  x.strokeStyle='#596c80';x.lineWidth=2;x.beginPath();for(let k=0;k<=640;k++){const v=y(wave(i,k/640));k?x.lineTo(k,v):x.moveTo(k,v)}x.stroke();
+  if(!rate||!levels)return;
+  x.strokeStyle='#c34618';x.lineWidth=2;x.beginPath();
+  for(let k=0;k<rate;k++){const v=y(quant(wave(i,k/rate),levels));if(!k)x.moveTo(0,v);else x.lineTo(k/rate*640,v);x.lineTo((k+1)/rate*640,v)}x.stroke();
+  x.fillStyle='#c34618';for(let k=0;k<rate;k++){x.beginPath();x.arc(k/rate*640,y(quant(wave(i,k/rate),levels)),3,0,Math.PI*2);x.fill()}
+}
+function drawScene(c,n=128,colors=64){
+  // 直接計算每格的顏色：舞台、聚光燈、表演者與應援色，無外部圖片。
+  const x=c.getContext('2d'),steps=colors===4?[2,2,1]:colors===16?[4,2,2]:[4,4,4];x.clearRect(0,0,c.width,c.height);
+  for(let row=0;row<n;row++)for(let col=0;col<n;col++){
+    const u=(col+.5)/n,v=(row+.5)/n;
+    let rgb=[30+u*90,35+v*90,110+u*100];
+    if(Math.abs(u-.5)<v*.3)rgb=[230,190-v*90,90];
+    if((u-.5)**2+(v-.37)**2<.006||Math.abs(u-.5)<.055&&v>.43&&v<.77)rgb=[65,40,100];
+    if(v>.82)rgb=[60,180+60*Math.sin(u*45),160];
+    x.fillStyle='rgb('+rgb.map((z,k)=>steps[k]===1?0:Math.round(z/255*(steps[k]-1))/(steps[k]-1)*255).join(',')+')';
+    x.fillRect(col*c.width/n,row*c.height/n,Math.ceil(c.width/n),Math.ceil(c.height/n));
+  }
+}
+const imageBytes=(n,c)=>Math.ceil(n*n*Math.log2(c)/8);
+function movieFrame(c,t){const x=c.getContext('2d');x.fillStyle='#18253b';x.fillRect(0,0,c.width,c.height);x.fillStyle='#f6b746';x.beginPath();x.arc(25+(c.width-50)*(t%1),c.height/2,16,0,Math.PI*2);x.fill()}
+function recording(i,q){const rate=QUALITY[q].rate;return {max:Math.floor(i.cap*1000/rate),need:i.minutes*rate/1000}}
+function bestQuality(i){return QUALITY.reduce((best,q,k)=>q.rate*i.minutes<=i.cap*1000?k:best,-1)}
 const ROUNDS=[
- {lv:1,name:'由小排到大',
-  now:'跨年演唱會前，小安整理手機，看到一堆檔案和設定，單位全都不一樣。',
-  goal:'把五個大小由小排到大。',
-  tip:'先換成同一個單位再比。1 位元組＝8 位元，往上每一級都是 1000 倍（KB、MB、GB、TB）。',
-  learn:'比大小之前要先換成同一個單位：位元 → 位元組 → KB → MB → GB → TB，除了第一步是 8 倍，其他每一級都是 1000 倍。電腦有時改用 1024 倍，那時正式寫法是 KiB、MiB、GiB。',
-  gen(rnd){
-    let pick;
-    do{pick=SAMPLE(rnd,POOL,5).sort((a,b)=>a[1]-b[1])}while(pick.some((p,i)=>i&&p[1]/pick[i-1][1]<1.3));
-    return {items:SHUF(rnd,pick)};
+ {lv:1,name:'聲音取樣',
+  now:'演出前先試錄：這裡只看波形，全程不發聲。灰線是連續的聲音；橘點與階梯是儲存後的還原。',
+  goal:i=>'比較至少兩種設定，讓接近度達 '+i.target+'%，並找到資料量最小的設定。',
+  tip:'取樣頻率＝每秒量幾次；量化＝把高低分成幾階。先提高到夠接近，再試著減少資料。',
+  learn:'量得越密、分階越細，通常越接近原波形，資料量也增加。這是取樣與量化。',
+  gen(rnd){return {cycles:PICK(rnd,[2,3,4]),phase:PICK(rnd,[0,.7,1.4]),target:PICK(rnd,[91,93,95])}},
+  view(i,el,api){
+    const c=canvas(el,'灰色原始連續波形與橘色取樣點、階梯還原波形');
+    const r=selectControl(el,'sample-rate','取樣頻率',SR,v=>'每秒 '+v+' 次'),q=selectControl(el,'sample-level','量化階數',QL,v=>'分成 '+v+' 階');
+    el.insertAdjacentHTML('beforeend','<p class="lab-stat" aria-live="polite" id="sample-stat">先選兩個設定。</p><p class="small">示範 1 秒、單聲道，接近度依波形誤差估算；不是實際音質評分。</p>');
+    const seen=new Set();const update=()=>{drawWave(c,i,+r.value,+q.value);if(r.value&&q.value){seen.add(r.value+':'+q.value);const m=soundMetrics(i,+r.value,+q.value);el.querySelector('#sample-stat').textContent='接近度 '+m.score.toFixed(1)+'%｜資料量 '+bytesText(m.bytes)+'｜已比較 '+seen.size+' 種'} };update();
+    r.onchange=q.onchange=()=>{update();api.changed()};
+    return {get:()=>({rate:+r.value,levels:+q.value,compared:seen.size}),ready:()=>!!r.value&&!!q.value&&seen.size>=2,fill:()=>{const b=soundBest(i);r.value=b.rate;q.value=b.levels;seen.add('demo');update()}};
   },
-  view(inst,el,api){const h=ORDER(el,inst.items.map(x=>x[0]),api);const sol=inst.items.map((x,i)=>i).sort((a,b)=>inst.items[a][1]-inst.items[b][1]);return {...h,fill:()=>h.fill(sol)}},
-  check(inst,a){
-    for(let i=1;i<a.length;i++){const p=inst.items[a[i-1]],q=inst.items[a[i]];if(p[1]>q[1])return '第 '+i+' 格和第 '+(i+1)+' 格的順序不對：「'+p[0]+'」其實比「'+q[0]+'」大。'}
-    return true;
+  check(i,a){if(!SR.includes(a.rate)||!QL.includes(a.levels)||a.compared<2)return '先比較至少兩種完整設定。';const m=soundMetrics(i,a.rate,a.levels);if(m.score<i.target)return '還原還不夠接近，試著量密一點或分更多階。';return m.bytes===soundBest(i).bytes?true:'已經夠接近！試著降低設定，還能減少資料量。'}},
+ {lv:1,name:'影像像素',
+  now:'要把演出舞台圖放進宣傳品。左邊是原圖，右邊是取樣與減色後的圖。',
+  goal:i=>'用途：'+i.use+'。至少 '+i.minRes+' × '+i.minRes+' 像素、'+i.minColors+' 色；比較兩種設定，選資料量最小且夠用的組合。',
+  tip:'解析度決定格子多密；顏色數決定每格能選幾種顏色。這是縮小的示意圖，實際海報需要更多像素。',
+  learn:'影像由像素組成。像素越多、可用顏色越多，細節越豐富，資料量通常也越大。',
+  gen(rnd){return PICK(rnd,[{use:'手機縮圖',minRes:32,minColors:16},{use:'海報示意',minRes:128,minColors:64},{use:'節目單小圖',minRes:64,minColors:16}])},
+  view(i,el,api){
+    el.innerHTML='<div class="lab-grid"><div id="image-original">原圖</div><div id="image-preview">數位化後</div></div>';
+    drawScene(canvas(el.querySelector('#image-original'),'原始舞台圖',320,320));const c=canvas(el.querySelector('#image-preview'),'調整解析度與顏色數後的舞台圖',320,320);
+    const r=selectControl(el,'image-res','解析度',RES,v=>v+' × '+v+' 像素'),q=selectControl(el,'image-colors','顏色數',COLORS,v=>v+' 色');
+    el.insertAdjacentHTML('beforeend','<p class="lab-stat" id="image-stat" aria-live="polite">先選兩個設定。</p><p class="small">未壓縮，不計色盤與檔頭。顏色數為這張圖可用的色盤上限。</p>');
+    const seen=new Set();const update=()=>{if(!r.value||!q.value)return;seen.add(r.value+':'+q.value);drawScene(c,+r.value,+q.value);el.querySelector('#image-stat').textContent='資料量 '+bytesText(imageBytes(+r.value,+q.value))+'｜已比較 '+seen.size+' 種'};
+    r.onchange=q.onchange=()=>{update();api.changed()};return {get:()=>({res:+r.value,colors:+q.value,compared:seen.size}),ready:()=>!!r.value&&!!q.value&&seen.size>=2,fill:()=>{r.value=i.minRes;q.value=i.minColors;seen.add('demo');update()}};
   },
-  peek:()=>'<section class="panel"><div class="ptitle"><h3>單位的階梯</h3></div>'+ladder+binNote+'</section>'},
-
- {lv:1,name:'這個檔案多大',
-  now:i=>i.kind==='photo'?'小安要傳一張沒壓縮的照片給後援會，照片是 '+FMT(i.w)+' × '+FMT(i.h)+' 格，每格 24 位元。':'小安錄了一段 '+i.sec+' 秒的清唱，沒壓縮的 CD 音質：每秒量 44,100 次、每次 16 位元、左右兩聲道。',
-  goal:'算出檔案大約多大，選出正確的那一個。',
-  tip:i=>i.kind==='photo'?'格子數 × 每格位元 ÷ 8 ＝ 位元組，再換成 KB、MB。':'秒數 × 每秒次數 × 每次位元 × 聲道數 ÷ 8 ＝ 位元組，再換成 KB、MB。',
-  learn:'檔案大小＝格子數（或取樣次數）× 每一格的位元數，最後除以 8 變成位元組。常見的錯誤是忘了除以 8，或單位差了一級（1000 倍）。',
-  gen(rnd){
-    let kind=rnd()<.5?'photo':'audio',w,h,sec,bits;
-    if(kind==='photo'){[w,h]=PICK(rnd,[[1920,1080],[3000,2000],[4000,3000],[1280,720],[2048,1536],[2560,1440]]);bits=w*h*24}
-    else{sec=PICK(rnd,[20,30,45,60,90,120]);bits=sec*44100*16*2}
-    const B=bits/8, wrong=[B*8,B/3,B*1000,B/1000].map(nice).filter(s=>s!==nice(B));
-    const opts=SHUF(rnd,[nice(B),...SAMPLE(rnd,[...new Set(wrong)],3)]);
-    return {kind,w,h,sec,B,opts,ans:opts.indexOf(nice(B))};
+  check(i,a){if(!RES.includes(a.res)||!COLORS.includes(a.colors)||a.compared<2)return '先比較至少兩種完整設定。';if(a.res<i.minRes||a.colors<i.minColors)return '這個用途需要更多像素或顏色，請看指定條件。';return a.res===i.minRes&&a.colors===i.minColors?true:'已經夠用，但還有資料量更小的設定。'}},
+ {lv:2,name:'影片組成',
+  now:'錄影是把一張張畫面接起來，再配上聲音。看小球移動，比較每秒張數對順暢度的影響。這裡不播放聲音。',
+  goal:i=>'比較至少兩種速度，選至少 '+i.target+' fps 且張數最少的設定，再回答問題。',
+  tip:'fps 是「每秒幾張」。相同時間內，張數越多，移動通常越順暢；資料量也增加。',
+  learn:'影片是一連串畫面加上聲音。24 fps 表示每秒 24 張，畫面、聲音與時間都會影響影片大小。',
+  gen(rnd){return {target:PICK(rnd,[12,24,30]),seconds:PICK(rnd,[2,3,5])}},
+  view(i,el,api){
+    const c=canvas(el,'依每秒張數更新的小球動畫',640,160);const f=selectControl(el,'movie-fps','每秒張數',FPS,v=>v+' fps');
+    el.insertAdjacentHTML('beforeend','<p class="lab-stat" id="movie-stat" aria-live="polite">選擇 fps 開始看。</p>');
+    const one=numberControl(el,'movie-one','目前設定，1 秒要存幾張？'),total=numberControl(el,'movie-total',i.seconds+' 秒要存幾張？');
+    const comp=selectControl(el,'movie-parts','有聲影片由什麼組成？',[0,1,2],v=>['一張照片加聲音','一連串畫面加聲音','只有一連串畫面'][v]);
+    const seen=new Set();let start=null,last=-1;movieFrame(c,0);
+    // 換題後畫布移出 DOM，下一幀即停止；不累積動畫或計時器。
+    function tick(t){if(!c.isConnected)return;if(start===null)start=t;const fps=+f.value,frame=Math.floor((t-start)/1000*fps);if(fps&&frame!==last){last=frame;movieFrame(c,frame/fps/2)}requestAnimationFrame(tick)}requestAnimationFrame(tick);
+    f.onchange=()=>{if(f.value){seen.add(f.value);el.querySelector('#movie-stat').textContent=f.value+' fps：每秒 '+f.value+' 張｜已比較 '+seen.size+' 種'}last=-1;api.changed()};
+    one.oninput=total.oninput=comp.onchange=()=>api.changed();
+    return {get:()=>({fps:+f.value,one:integer(one.value),total:integer(total.value),parts:comp.value,compared:seen.size}),ready:()=>!!f.value&&seen.size>=2&&one.value!==''&&total.value!==''&&comp.value!=='',fill:()=>{f.value=i.target;seen.add('demo');f.onchange();one.value=i.target;total.value=i.target*i.seconds;comp.value='1'}};
   },
-  view:null,   // 在下面 pickOne 定義好之後再指定
-  check(inst,a){return a===inst.ans?true:'再算一次。記得最後要除以 8 才是位元組，換單位時每一級是 1000 倍。'}},
-
- {lv:2,name:'能錄幾分鐘',
-  now:i=>'小安的手機是 '+i.cap+' GB，已經用了 '+i.used+' GB。相機設定頁寫：4K 影片每分鐘大約 '+i.rate+' MB。',
-  goal:'跨年那天，剩下的空間最多能錄幾分鐘的 4K 影片？（取整數，錄不滿一分鐘的不算）',
-  tip:'剩下的空間換成 MB（1 GB＝1000 MB），再除以每分鐘的大小，最後無條件捨去成整數。',
-  learn:'影片的大小跟長度成正比。先算剩下的空間，換成同一個單位，再除以每分鐘的大小。手機寫的容量有一部分給系統用，實際能錄的會再少一點。',
-  gen(rnd){const cap=PICK(rnd,[64,128,256]),used=RINT(rnd,Math.round(cap*.35),Math.round(cap*.85)),rate=PICK(rnd,[170,350,400,440]);return {cap,used,rate,min:Math.floor((cap-used)*1000/rate)}},
-  view(inst,el,api){
-    el.innerHTML='<div class="spec"><span>手機容量</span><span class="v">'+inst.cap+' GB</span><span>已經用了</span><span class="v">'+inst.used+' GB</span><span>4K 影片每分鐘</span><span class="v">約 '+inst.rate+' MB</span></div>';
-    const inp=numIn(el,'n-min','分鐘');inp.oninput=()=>api.changed();
-    return {get:()=>intVal(inp.value),fill:()=>{inp.value=inst.min},ready:()=>inp.value.trim()!==''};
+  check(i,a){if(!FPS.includes(a.fps)||a.compared<2)return '先比較兩種速度。';if(a.fps!==i.target)return '選達到目標、每秒張數最少的設定。';if(a.one!==a.fps||a.total!==a.fps*i.seconds)return '每秒張數 × 秒數＝總張數，請填完整整數。';return a.parts==='1'?true:'有聲影片需要一連串畫面，再配上聲音。'}},
+ {lv:2,name:'錄滿一整場',
+  now:i=>'演出長 '+i.minutes+' 分鐘，空白記憶卡有 '+i.cap+' GB 可用。表中的大小已包含聲音。',
+  goal:'選能錄完整場的最高畫質，把錄影時間設成演出長度，並算出所需空間與最多可錄分鐘。',
+  tip:'1 位元組＝8 位元；1 KB＝1000 位元組；1 MB＝1000 KB；1 GB＝1000 MB；1 TB＝1000 GB。所需 MB＝分鐘 × 每分鐘 MB；最多分鐘＝可用 MB ÷ 每分鐘 MB，無條件捨去。',
+  learn:'先算整場需要的空間，再挑裝得下的最高畫質。影片大小也受壓縮方式影響，實際錄影前還要留餘裕。',
+  gen(rnd){return {cap:PICK(rnd,[16,32,64]),minutes:PICK(rnd,[60,90,120,150])}},
+  view(i,el,api){
+    el.innerHTML='<table class="lab-table"><caption>本題估計的錄影大小（包含聲音）</caption><thead><tr><th>畫質</th><th>每分鐘</th></tr></thead><tbody>'+QUALITY.map(q=>'<tr><td>'+q.name+'</td><td>'+q.rate+' MB</td></tr>').join('')+'</tbody></table>';
+    const q=selectControl(el,'record-quality','畫質',[0,1,2],v=>QUALITY[v].name),duration=selectControl(el,'record-duration','預計錄影時間',[i.minutes-15,i.minutes,i.minutes+15],v=>v+' 分鐘');
+    const need=numberControl(el,'record-need','整場需要幾 MB？'),max=numberControl(el,'record-max','此畫質最多可錄幾分鐘？');
+    q.onchange=duration.onchange=need.oninput=max.oninput=()=>api.changed();
+    return {get:()=>({q:q.value===''?null:+q.value,duration:+duration.value,need:integer(need.value),max:integer(max.value)}),ready:()=>q.value!==''&&duration.value!==''&&need.value!==''&&max.value!=='',fill:()=>{const k=bestQuality(i);q.value=k;duration.value=i.minutes;need.value=i.minutes*QUALITY[k].rate;max.value=recording(i,k).max}};
   },
-  check(inst,v){
-    if(v==null)return '請填一個整數（只能有數字）。';
-    if(v===inst.min)return true;
-    if(v===inst.min+1)return '多了 1 分鐘：最後那一分鐘錄不滿，要無條件捨去。';
-    if(v===Math.floor((inst.cap-inst.used)*1024/inst.rate))return '很接近了！不過手機標示的 1 GB 是 1000 MB（1024 是電腦常用的 GiB 算法）。';
-    if(v>inst.min*3)return '比可能的多太多了，是不是忘了先扣掉已經用掉的空間，或單位沒換對？';
-    return '再算一次：剩下幾 GB？換成幾 MB？再除以每分鐘幾 MB。';
-  }},
-
- {lv:2,name:'128 還是 256',
-  now:'小安要換新手機，店員問：「你要 128 GB 還是 256 GB？」小安列出要放的東西。',
-  goal:'算出總共需要幾 GB，再選出夠用而且最小的容量。',
-  tip:'全部換成 GB 再加起來（1 GB＝1000 MB）。總數差幾 GB 沒關係，但容量一定要夠。',
-  learn:'買手機前先估：系統和 App、照片數量 × 每張大小、歌曲、要錄的影片，再留一些空間。容量選「夠用而且最小」的，不夠的話跨年錄到一半就會跳出「儲存空間不足」。',
-  gen(rnd){
-    let o;
-    do{
-      const sys=RINT(rnd,18,32),ph=RINT(rnd,20,90)*100,song=RINT(rnd,3,15)*100,vid=PICK(rnd,[60,90,120,150,180]),keep=10;
-      const tot=sys+ph*3/1000+song*8/1000+vid*400/1000+keep;
-      o={sys,ph,song,vid,keep,tot,cap:[64,128,256,512].find(c=>c>=tot)};
-    }while([64,128,256].some(c=>Math.abs(c-o.tot)<c*.06));
-    return o;
-  },
-  view(inst,el,api){
-    el.innerHTML='<div class="spec"><span>系統和 App</span><span class="v">'+inst.sys+' GB</span><span>照片 '+FMT(inst.ph)+' 張，每張約 3 MB</span><span class="v">？</span><span>歌曲 '+FMT(inst.song)+' 首，每首約 8 MB</span><span class="v">？</span><span>跨年要錄 '+inst.vid+' 分鐘 4K，每分鐘約 400 MB</span><span class="v">？</span><span>想多留的空間</span><span class="v">'+inst.keep+' GB</span></div>';
-    const inp=numIn(el,'n-tot','GB（總共需要）');inp.oninput=()=>api.changed();
-    el.insertAdjacentHTML('beforeend','<div class="ask" style="font-weight:700">要買哪一種容量？</div>');
-    const c=CLASSIFY(el,[{html:'手機容量'}],['64 GB','128 GB','256 GB','512 GB'],api);
-    return {get:()=>({tot:numVal(inp.value),cap:[64,128,256,512][c.get()[0]]}),fill:()=>{inp.value=Math.ceil(inst.tot);c.fill([[64,128,256,512].indexOf(inst.cap)])},ready:()=>numVal(inp.value)!=null&&c.ready()};
-  },
-  check(inst,a){
-    if(Math.abs(a.tot-inst.tot)>Math.max(3,inst.tot*.04))return '總共需要的空間再算一次：照片、歌曲、影片都要先換成 GB 再加。';
-    if(a.cap<inst.tot)return '這個容量不夠放，跨年錄到一半就會滿。';
-    if(a.cap!==inst.cap)return '夠用，但還有更小、也夠用的容量。';
-    return true;
-  }}
+  check(i,a){if(!Number.isInteger(a.q)||!QUALITY[a.q])return '先選畫質。';if(a.duration!==i.minutes)return '要從開場錄到結束，錄影時間請設成演出長度。';const r=recording(i,a.q);if(a.need!==i.minutes*QUALITY[a.q].rate||a.max!==r.max)return '再算一次：GB 先乘 1000 變 MB；最多分鐘要無條件捨去。';if(a.max<i.minutes)return '此畫質錄不完整場，降低畫質試試。';return a.q===bestQuality(i)?true:'空間夠用，還能選更高的畫質。'}}
 ];
-// 「選一個」：四個選項排成一列
-function pickOne(el,inst,api){
-  el.insertAdjacentHTML('beforeend','<div class="picks" style="margin-top:10px">'+inst.opts.map((o,j)=>'<button type="button" class="pk" data-o="'+j+'" aria-pressed="false" style="font-family:var(--f-mono);font-size:20px">'+o+'</button>').join('')+'</div>');
-  let v=null;const sync=()=>el.querySelectorAll('[data-o]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===v));
-  el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{v=+b.dataset.o;sync();api.changed()});
-  return {get:()=>v,fill:()=>{v=inst.ans;sync()},ready:()=>v!=null};
-}
-ROUNDS[1].view=function(inst,el,api){
-  el.innerHTML='<div class="file"><span class="ic" style="background:'+(inst.kind==='photo'?'var(--a)':'var(--b)')+'">'+(inst.kind==='photo'?'照片':'錄音')+'</span><span>'+(inst.kind==='photo'?FMT(inst.w)+' × '+FMT(inst.h)+' 格，每格 24 位元':inst.sec+' 秒 × 44,100 次 × 16 位元 × 2 聲道')+'</span></div>';
-  return pickOne(el,inst,api);
-};
-ROUNDS[1].peek=()=>'<section class="panel"><div class="ptitle"><h3>單位的階梯</h3></div>'+ladder+'</section>';
 const APP=SHELL({week:4,termWeek:10,title:'錄滿一整場',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！下一站：燈牌只有亮和暗，數字到底怎麼存？'});
 </script>
 </body>

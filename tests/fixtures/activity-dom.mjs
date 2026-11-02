@@ -65,11 +65,12 @@ export class Element {
   append(el){if(el.parentElement){const a=el.parentElement.childNodes;a.splice(a.indexOf(el),1)}el.parentElement=this;this.childNodes.push(el)}
   get previousElementSibling(){const a=this.parentElement.childNodes.filter(n=>n.nodeType===1);return a[a.indexOf(this)-1]}
   get parentNode(){return this.parentElement}
+  get lastElementChild(){return this.childNodes.filter(n=>n.nodeType===1).at(-1)}
   getContext(){
     // 畫布只替代像素 I/O；照片產生、取樣、量化、UI 與判定仍執行頁面原碼。
     const noop=()=>{}, gradient=()=>({addColorStop:noop});
     return {createLinearGradient:gradient,createRadialGradient:gradient,
-      fillRect:noop,beginPath:noop,moveTo:noop,lineTo:noop,closePath:noop,fill:noop,arc:noop,drawImage:noop,putImageData:noop,
+      clearRect:noop,stroke:noop,fillRect:noop,beginPath:noop,moveTo:noop,lineTo:noop,closePath:noop,fill:noop,arc:noop,drawImage:noop,putImageData:noop,
       getImageData:(x,y,w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)})};
   }
   scrollIntoView(){}

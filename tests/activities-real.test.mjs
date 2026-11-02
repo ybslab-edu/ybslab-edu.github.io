@@ -11,7 +11,7 @@ function activity(dir){
   const html=read(`115-g9/${dir}/index.html`),body=new Element('body');
   const context=vm.createContext({document:{body,addEventListener(){},createElement:t=>new Element(t),getElementById:id=>body.querySelector('#'+id)},
     window:{},localStorage:{getItem:()=>null,setItem(){}},sessionStorage:{setItem(){}},
-    TEACHER:{remembered:()=>false,remember(){}},setTimeout:()=>0,clearTimeout(){},
+    TEACHER:{remembered:()=>false,remember(){}},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame:()=>0,
     matchMedia:()=>({matches:true})});
   const run=(source,timeout=1000)=>vm.runInContext(source,context,{timeout});
   // 控制 Math.random（自訂活動也會用到），同時限制傳入 gen 的 rnd 呼叫數。

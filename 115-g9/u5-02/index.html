@@ -56,6 +56,7 @@ const ROUNDS=[
   now:'林老師說：做攤位前，先看看別人用 AI 闖了哪些禍。',
   goal:'每一件事，主要是哪一種問題？',
   tip:'偏見：對某些人不公平。隱私：別人的個人資料被亂用。著作權：拿別人的作品當自己的。造假：做出假的東西騙人。',
+  steps:i=>'這題有 '+i.items.length+' 個事件。每一個都問「誰受到傷害、傷害是什麼」：某些人被不公平對待是偏見；別人的個人資料被拿去用是隱私；別人的作品被拿走當自己的是著作權；做出假的東西去騙人是造假。',
   learn:'AI 從資料學，資料裡的偏見會被學進去；AI 也讓造假、侵犯隱私和著作權變得很容易。用 AI 的人要負責：不傷害別人、不冒用別人的作品。',
   gen(rnd){let p;do{p=SAMPLE(rnd,ETH,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),ISSUE,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -64,6 +65,7 @@ const ROUNDS=[
   now:'會考快到了，班上很多人開始用 AI 讀書、寫作業。',
   goal:'判斷每一種用法合不合適。',
   tip:'合適的用法：自己仍然在思考、會查證、有標示。不合適：冒充是自己做的、作弊、傷害別人、亂給個資。',
+  steps:i=>'這題有 '+i.items.length+' 種用法。每一種都過三個檢查：一、用的人自己還有在思考、會查證嗎？二、有沒有誠實標示用了 AI，而不是冒充自己做的？三、會不會傷害別人或洩漏個資？三個都沒問題才算合適；有一個不行就是不合適。',
   learn:'AI 可以當幫手，但不能代替你思考：自己的作業要自己完成，用了 AI 要說清楚，AI 給的資料要查證，也不能拿 AI 傷害別人。',
   gen(rnd){let p;do{p=SAMPLE(rnd,USE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不合適','合適'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -72,6 +74,7 @@ const ROUNDS=[
   now:'小安請 AI 幫忙整理理化和地理的重點，AI 回答得很有自信。可是 AI 有時會一本正經地講錯（這叫「幻覺」）。',
   goal:'用右邊課本整理的資料卡，檢查 AI 的每一句話。',
   tip:'一句一句對照資料卡：一樣的打「對得上」，數字或名稱不一樣的打「對不上」，資料卡根本沒寫的，打「資料卡沒寫」。',
+  steps:i=>'資料卡有 '+i.ref.length+' 條，要查的句子有 '+i.items.length+' 句。每一句都分三步：一、圈出句子裡的關鍵（人名、數字、日期、地點）。二、到資料卡找同一個關鍵。三、完全一樣打「對得上」；找到了但數字或名稱不一樣打「對不上」；資料卡完全沒提到打「資料卡沒寫」。',
   learn:'AI 是猜「最可能的下一個字」，不是查資料庫，所以會講錯，而且講得很有自信。重要的事要找可靠的來源查證；資料卡沒寫的，不代表錯，但要再查。',
   gen(rnd){
     const ref=SAMPLE(rnd,FACT,5);let claims;
@@ -87,6 +90,7 @@ const ROUNDS=[
   now:'群組裡傳來一支「隔壁班在園遊會攤位打架」的影片，大家都在轉。小禾說：「先別轉，查一下再說。」',
   goal:'每一個線索，是「值得懷疑」的線索，還是「不能證明是真的」？',
   tip:'看起來很逼真、很多人轉、有新聞台標誌，都可以造假，所以不能證明是真的。找不到出處、細節怪怪的、以前就有這張圖，才是值得懷疑的線索。',
+  steps:i=>'這題有 '+i.items.length+' 個線索。每一個都問：「這件事，假的東西也做得到嗎？」做得很逼真、很多人轉傳、有新聞台標誌，假的也做得到，所以只能算「不能證明是真的」；找不到原始出處、細節前後矛盾、以前就出現過同一張圖，才是「值得懷疑」的線索。',
   learn:'AI 讓假照片、假影片看起來很逼真，「看起來很真」和「很多人轉」都不能當證據。要追出處、找原始檔、看細節、查內容憑證；不確定就先不要轉。',
   gen(rnd){let p;do{p=SAMPLE(rnd,CLUE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['值得懷疑','不能證明是真的'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},

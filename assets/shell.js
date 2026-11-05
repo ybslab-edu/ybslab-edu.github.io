@@ -146,7 +146,7 @@ const shellCreateHints = s => {
     demonstrating = false;
     $('hint-demo').hidden = true; $('demo-content').innerHTML = '';
     $('original-work').hidden = false;
-    if (focus) { s.changed(); $('b-demo').focus(); }
+    if (focus) { s.changed(); renderHints(); $('b-demo').focus(); }
   }
   function renderHints() {
     const r = R[s.ri];
@@ -171,8 +171,8 @@ const shellCreateHints = s => {
   };
   $('b-demo').onclick = () => {
     if (level < 3 || demonstrating || s.teacher) return;
-    const r = R[s.ri], box = $('demo-content');
-    box.innerHTML = '';
+    const r = R[s.ri], box = document.createElement('div');
+    $('demo-content').innerHTML = '';
     // 演出型活動的 fill 只排卡片，尚未完成演出，改用 learn 說明。
     let example = null;
     if (typeof s.handle.fill === 'function' && !r.manualAttempt) {
@@ -198,10 +198,22 @@ const shellCreateHints = s => {
       } catch (e) { example = null; box.innerHTML = ''; }
     }
     if (!example) box.innerHTML = '<h3>這一關的說明</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '<p>' + txt(r.now, s.inst) + '</p><p>' + txt(r.goal, s.inst) + '</p><p>' + txt(r.tip, s.inst) + '</p>');
+    // view/fill/get 完成後才改 ID，避免破壞活動內的選取器；掛入頁面前與原題隔離。
+    const demoIds = new Map();
+    box.querySelectorAll('[id]').forEach((el, index) => {
+      const id = 'hint-example-' + index;
+      demoIds.set(el.id, id); el.id = id;
+    });
+    for (const attr of ['for', 'aria-labelledby', 'aria-describedby', 'aria-controls']) {
+      box.querySelectorAll('[' + attr + ']').forEach(el => {
+        el.setAttribute(attr, el.getAttribute(attr).split(/\s+/).map(id => demoIds.get(id) || id).join(' '));
+      });
+    }
+    $('demo-content').appendChild(box);
     demonstrating = true; $('original-work').hidden = true; $('sec3').hidden = true;
     $('hint-demo').hidden = false; renderHints(); $('b-demo-back').focus();
   };
-  $('b-demo-back').onclick = () => { closeDemo(true); renderHints(); };
+  $('b-demo-back').onclick = () => closeDemo(true);
   return { renderHints, resetHints, hintSubmitted, closeDemo, isHintDemo: () => demonstrating };
 };
 

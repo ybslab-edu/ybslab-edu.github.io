@@ -83,12 +83,14 @@ test('全站 121 關提示：不同示範題、自動填答與說明、保留原
     assertOriginal(await page.evaluate(()=>demoSnapshot()),'開啟前（聚焦後）');
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('#hint-demo').isVisible(),true,label);
-    await page.waitForFunction(id=>document.activeElement&&document.activeElement.id===id,'b-demo-back',{timeout:2000}).catch(()=>{});
-    assert.equal(await page.locator('#b-demo-back').evaluate(el=>document.activeElement===el),true,label+' 鍵盤焦點');
+    assert.equal(await page.locator('#b-demo-back').evaluate(el=>document.activeElement===el),true,label+' 開啟示範後鍵盤焦點');
     const result=await page.evaluate(()=>{
      const r=APP.rounds[APP.ri],key=JSON.stringify(r.questionKey?r.questionKey(APP.inst):APP.inst);
-     return {...demoSnapshot(),different:demoInputs.some(v=>v!==key),manual:!!r.manualAttempt,filled:!!document.querySelector('#demo-content fieldset'),explanation:document.querySelector('#demo-content').textContent};
+     const ids=[...document.querySelectorAll('[id]')].map(el=>el.id),box=document.getElementById('demo-content');
+     return {...demoSnapshot(),duplicates:ids.filter((id,i)=>ids.indexOf(id)!==i),labelsLinked:[...box.querySelectorAll('label[for]')].every(el=>box.contains(el.control)),different:demoInputs.some(v=>v!==key),manual:!!r.manualAttempt,filled:!!box.querySelector('fieldset'),explanation:box.textContent};
     });
+    assert.deepEqual(result.duplicates,[],label+' 示範不可產生重複 ID');
+    assert.equal(result.labelsLinked,true,label+' 示範標籤仍連結示範元件');
     assertOriginal(result,'示範顯示中');
     // 即使直接觸發隱藏的送出按鈕，也不能判題或換題。
     await page.evaluate(()=>document.getElementById('b-send').click());
@@ -96,12 +98,11 @@ test('全站 121 關提示：不同示範題、自動填答與說明、保留原
     if(!result.manual){automatic++;assert.equal(result.different,true,label+' 不同題');assert.equal(result.filled,true,label+' 自動示範');}
     else{manual++;assert.equal(result.filled,false,label+' 演出關卡只顯示說明');assert.equal(result.different,false,label+' 演出關卡不產示範題');assert.equal(result.explanation,await page.evaluate(()=>{const r=APP.rounds[APP.ri],text=document.createElement('div'),txt=v=>typeof v==='function'?v(APP.inst):(v||'');text.innerHTML=r.learn||[r.now,r.goal,r.tip].map(txt).join('');return '這一關的說明'+text.textContent}),label+' 演出說明');}
     assert.ok(result.explanation.length>20,label+' 示範說明');
-    await page.locator('#b-demo-back').focus(); // 前面測試直接點了送出鈕，焦點被測試移走
+    await page.locator('#b-demo-back').focus(); // 返回操作前明確定位鍵盤焦點
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('#original-work').isVisible(),true,label+' 返回原題');
     assertOriginal(await page.evaluate(()=>demoSnapshot()),'返回後');
-    await page.waitForFunction(id=>document.activeElement&&document.activeElement.id===id,'b-demo',{timeout:2000}).catch(()=>{});
-    assert.equal(await page.locator('#b-demo').evaluate(el=>document.activeElement===el),true,label+' 鍵盤焦點');
+    assert.equal(await page.locator('#b-demo').evaluate(el=>document.activeElement===el),true,label+' 返回原題後鍵盤焦點');
     await page.evaluate(()=>{APP.rounds[APP.ri].gen=restoreGen});
    }
   }

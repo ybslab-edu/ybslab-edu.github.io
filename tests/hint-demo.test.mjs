@@ -57,12 +57,16 @@ for(const dir of dirs)test(dir+' 全關示範隔離：不同題、填答正確�
    document.getElementById('b-demo').click();
    const box=document.getElementById('demo-content'),shown=!document.getElementById('hint-demo').hidden,
      filled=!!box.querySelector('fieldset'),why=box.textContent;
+   const ids=document.body.querySelectorAll('[id]').map(el=>el.id),duplicates=ids.filter((id,i)=>ids.indexOf(id)!==i);
+   const labelsLinked=box.querySelectorAll('[for]').every(el=>!!box.querySelector('#'+el.getAttribute('for')));
    const isolated=APP.inst===original&&APP.handle===handle&&JSON.stringify(APP.inst)===inst&&JSON.stringify(APP.handle.get())===answer;
    document.getElementById('b-send').click();unchanged('示範中送出後');
    document.getElementById('b-demo-back').click();unchanged('返回後');r.gen=gen;r.view=demoView;r.check=check;
-   return {shown,filled,why,isolated,violations,different:demoKeys.some(k=>k!==key(original)),manual:!!r.manualAttempt,returned:!document.getElementById('original-work').hidden};
+   return {shown,filled,why,isolated,violations,duplicates,labelsLinked,different:demoKeys.some(k=>k!==key(original)),manual:!!r.manualAttempt,returned:!document.getElementById('original-work').hidden};
   })()`);
   const label=dir+' 關卡索引 '+index;
+  assert.deepEqual(Array.from(result.duplicates),[],label+' 示範不可產生重複 ID');
+  assert.equal(result.labelsLinked,true,label+' 示範標籤仍連結示範元件');
   assert.equal(result.shown,true,label+' 示範顯示');assert.equal(result.isolated,true,label+' 原題物件及作答不變');assert.equal(result.returned,true,label+' 返回原題');
   assert.deepEqual(Array.from(result.violations),[],label+' 各示範回呼前後都不得暫換原題物件');
   if(!result.manual){automatic++;assert.equal(result.different,true);assert.equal(result.filled,true,dir+' 關 '+index+' 示範不應降級說明：'+result.why)}

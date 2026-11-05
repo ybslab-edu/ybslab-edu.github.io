@@ -24,8 +24,14 @@ function setup({teacher=false,reduced=false,actual=false}={}){
     now:i=>'固定 5，目標 <b>'+i.n+'</b>，小數 '+i.n+'.5',goal:'累積答對 2/2',gen:()=>({n:++n}),
     tip:i=>'方向 '+i.n,steps:i=>'拆步驟 '+i.n,learn:'合成規則',view:(i,el)=>{el.innerHTML='<button data-changed="target">目標 '+i.n+'</button>';el.querySelector('button').onclick=()=>globalThis.clicked=true;return {get:()=>null}},check:()=>reply}))});`),context);
   const get=id=>body.querySelector('#'+id),run=code=>vm.runInContext(code,context);
+  // 隱藏的按鈕或隱藏祖先內的按鈕無法取得焦點。
+  for(const button of body.querySelectorAll('button'))button.focus=function(){
+    if(this.disabled)return;
+    for(let el=this;el;el=el.parentElement)if(el.hidden)return;
+    context.document.activeElement=this;
+  };
   if(!teacher){get('in-cls').value='999';get('in-seat').value='1';get('g-go').click()}
-  return {get,run,stored,scrolls,send:()=>get('b-send').click()};
+  return {get,run,stored,scrolls,active:()=>context.document.activeElement,send:()=>get('b-send').click()};
 }
 
 test('提示層級：未送出鎖定、錯一次升一層、同關換題保留且更新內容、過關與換關重設',()=>{
@@ -62,6 +68,15 @@ test('三層上限與跳層純規則',()=>{
  assert.equal(vm.runInContext('shellHintNext(2,round)',c),3);
  assert.equal(vm.runInContext('shellHintNext(3,round)',c),3);
  }
+});
+
+test('開啟示範聚焦返回鈕；返回原題先顯示示範鈕再還原焦點',()=>{
+ const h=setup();h.run('reply=false');h.send();h.get('b-hint').click();h.get('b-hint').click();
+ h.get('b-demo').focus();h.get('b-demo').click();
+ assert.equal(h.active()===h.get('b-demo-back'),true,'開啟示範的焦點');
+ h.get('b-demo-back').click();
+ assert.equal(h.get('b-demo').hidden,false);
+ assert.equal(h.active()===h.get('b-demo'),true,'返回原題的焦點');
 });
 
 test('示範保留原題與作答：另一題填答、說明、進度欄位及次數不變',()=>{

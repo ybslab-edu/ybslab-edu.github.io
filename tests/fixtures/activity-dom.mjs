@@ -39,6 +39,10 @@ export class Element {
     this[key === 'class' ? 'className' : key] = String(value);
     if (key.startsWith('data-')) this.dataset[key.slice(5)] = String(value);
   }
+  getAttribute(key) {
+    const value = this[key === 'class' ? 'className' : key];
+    return value === undefined ? null : String(value);
+  }
   querySelectorAll(selector) {
     const result = [];
     const visit = parent => parent.childNodes.filter(n => n.nodeType === 1).forEach(el => {

@@ -135,3 +135,16 @@ test('u5-02 每關多種子拆步驟使用題目內容且不列最終答案',()=
   for(const input of inputs)assert.ok(text.includes(String(input)),`${r.name}: 缺少實際題目 ${input}`);
  }
 });
+
+for(const dir of ['u5-03','u5-04'])test(dir+' 每關多種子拆步驟使用題目內容且不列最終答案',()=>{
+ const c=vm.createContext({SHELL:cfg=>cfg,console});
+ vm.runInContext(read('assets/shell.js').slice(read('assets/shell.js').indexOf('const PICK ='))+'\n'+[...read('115-g9/'+dir+'/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')+'\nthis.rounds=ROUNDS;',c);
+ for(const [index,r] of c.rounds.entries())for(let seed=1;seed<=30;seed++){
+  let state=seed;const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296};
+  const i=r.gen(rnd),before=JSON.stringify(i),text=r.steps(i);
+  assert.equal(JSON.stringify(i),before);assert.ok(text.length>35);assert.doesNotMatch(text,/undefined|NaN|答案是|正解是/);
+  const inputs=i.items?[i.items.length]:i.txt?[i.txt]:i.goal?[i.goal,i.opts.length]:i.S?[i.S.length,...i.S[0].p]:i.opts?[i.opts.length]:[i.cards.length];
+  for(const input of inputs)assert.ok(text.includes(String(input)),`${r.name}: 缺少實際題目 ${input}`);
+  if(i.opts&&i.ans!=null)assert.ok(!text.includes(typeof i.opts[i.ans]==='string'?i.opts[i.ans]:'\u0000'),'不列正確選項原文');
+ }
+});

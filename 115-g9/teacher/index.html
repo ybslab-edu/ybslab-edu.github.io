@@ -53,6 +53,7 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;whit
 th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--surface)}
 td{font-variant-numeric:tabular-nums}
 td.code{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+tr.health-warning td{color:var(--warn);background:var(--warn-soft)}
 .y{color:var(--ok);font-weight:700} .n{color:var(--muted)}
 tr.miss td{color:var(--muted);background:var(--warn-soft)}
 .size{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
@@ -88,6 +89,16 @@ nav a{color:var(--accent)}
     <div class="tbl" id="cloud-table"></div>
   </section>
 
+  <section class="panel" aria-label="題目健檢">
+    <strong>題目健檢</strong>
+    <p class="sub">只計名冊中的登入學生，不含班座紀錄。人數以名冊帳號計；同帳號每關採最後上傳的過關紀錄。平均、中位數與最多次數只計已過關者，無紀錄顯示「—」。</p>
+    <p class="sub">過關率 &lt; 60% 或平均作答次數 &gt; 4 標紅；尚未開放或尚未上課的關卡也可能過關率低。</p>
+    <label for="health-class">健檢班級</label>
+    <select id="health-class" disabled><option value="">全部班級</option></select>
+    <p class="msg" id="health-status" role="status">請先登入並讀取雲端紀錄。</p>
+    <div class="tbl" id="health-table"></div>
+  </section>
+
   <section class="panel" id="legacy-panel" aria-label="舊資料處理" hidden>
     <p class="msg no" id="legacy-msg" role="alert"></p>
     <div class="row">
@@ -99,7 +110,8 @@ nav a{color:var(--accent)}
 </div>
 
 <script src="../../assets/login.js?v=20261105d"></script>
-<script src="../../assets/guest-teacher.js?v=20261105f"></script>
+<script src="../../assets/item-health.js?v=20261105a"></script>
+<script src="../../assets/guest-teacher.js?v=20261105h"></script>
 <script>
 const $=id=>document.getElementById(id);
 const COURSE='115-g9';   // 這個教師專區對應的課程
@@ -132,5 +144,6 @@ function saveBook(name,sheets){
   m.className='msg ok';m.textContent='已下載 '+name;
 }
 const today=()=>{const d=new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
-if(typeof window.YBSGuestTeacher==='function')window.YBSGuestTeacher({course:COURSE,activities:W,saveBook});
+const updateHealth=window.YBSItemHealth?.mount({activities:W});
+if(typeof window.YBSGuestTeacher==='function')window.YBSGuestTeacher({course:COURSE,activities:W,saveBook,onRecords:updateHealth});
 </script>

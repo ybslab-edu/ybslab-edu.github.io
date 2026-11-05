@@ -51,3 +51,18 @@ test('u4-02 每關多種子拆步驟使用題目內容且不列最終答案',()=
   if(index===3)assert.ok(!text.includes(i.ans),'不列答案 IP');
  }
 });
+
+test('u4-03 每關多種子拆步驟使用題目內容且不列最終答案',()=>{
+ const dir='u4-03';
+ const c=vm.createContext({SHELL:cfg=>cfg,console});
+ vm.runInContext(read('assets/shell.js').slice(read('assets/shell.js').indexOf('const PICK ='))+'\n'+[...read('115-g9/'+dir+'/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')+'\nthis.rounds=ROUNDS;',c);
+ for(const [index,r] of c.rounds.entries())for(let seed=1;seed<=30;seed++){
+  let state=seed;const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296};
+  const i=r.gen(rnd),before=JSON.stringify(i),text=r.steps(i);
+  assert.equal(JSON.stringify(i),before);assert.ok(text.length>35);assert.doesNotMatch(text,/undefined|NaN|答案是|正解是/);
+  const inputs=index===0||index===1?[i.items.length]:index===2?[i.g.length]:[i.cells.length];
+  for(const input of inputs)assert.ok(text.includes(String(input)),`${r.name}: 缺少實際題目 ${input}`);
+  if(index===2)assert.ok(!text.includes(i.dead.length+' 個死角'),'不列死角數');
+  if(index===3)assert.ok(!text.includes(i.cov.join('、'))&&!text.includes('第 '+(i.best+1)+' 個'),'不列最佳位置');
+ }
+});

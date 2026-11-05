@@ -74,6 +74,7 @@ const ROUNDS=[
   now:'後援會借了社區活動中心練應援。一個下午，大家用了好幾種無線連線。',
   goal:'每一件事，選它用的無線技術。',
   tip:'NFC：幾公分內，碰一下。藍牙：身邊 10 公尺左右，連自己的小東西。Wi-Fi：一個屋子裡，連到路由器上網。行動網路：走到哪都能上網，靠電信公司的基地台。',
+  steps:i=>'這題有 '+i.items.length+' 個情境。每個情境先問「兩個東西隔多遠」：碰一下、幾公分內選 NFC；在身邊幾公尺、連自己的耳機或手錶選藍牙；同一個屋子裡、要接路由器上網選 Wi-Fi；走到哪都要上網、靠電信公司基地台選行動網路。再確認連的是「自己的小東西」還是「網路」。',
   learn:'無線網路用電波傳資料，差別在距離和用途：NFC 最近、碰一下就好；藍牙連身邊的裝置；Wi-Fi 涵蓋一個屋子；行動網路靠基地台，走到哪都能用。',
   gen(rnd){let p;do{p=SAMPLE(rnd,USE,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),TECH,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -83,6 +84,7 @@ const ROUNDS=[
   now:'小安拿著手機在活動中心裡走來走去，藍牙喇叭走遠就斷了。',
   goal:'在一般情況下，這個距離收得到嗎？',
   tip:'本題假設的參考距離：NFC 約 4 公分內、藍牙約 10 公尺、Wi-Fi 約 40 公尺（室內、穿牆會變差）、行動網路離基地台幾公里都可以。真實距離會因設備、牆和干擾而不同。',
+  steps:i=>'這題有 '+i.items.length+' 個情況，每一個都分兩步：一、看它用哪一種技術，對照參考距離（NFC 約 4 公分、藍牙約 10 公尺、Wi-Fi 約 40 公尺、行動網路離基地台幾公里）。二、把題目的距離換成同樣單位再比，1 公尺＝100 公分；比參考距離短才收得到。',
   learn:'電波離得越遠越弱，穿過牆也會變弱。NFC 故意設計得很短，碰一下才會動作，比較安全；藍牙省電、範圍小；Wi-Fi 範圍大一點、速度快；行動網路靠一座座基地台接力。',
   gen(rnd){let p;do{p=SAMPLE(rnd,DIST,5)}while(new Set(p.map(x=>x[2])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b>　距離 '+x[1]})),['收得到','收不到'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>1-x[2]))}},
@@ -92,6 +94,7 @@ const ROUNDS=[
   now:'小安用手機的訊號測量 App，在活動中心每一格（約 3 公尺）量了一次 Wi-Fi 訊號（數字是本題的模擬值）。📶 是路由器，粗線是牆。',
   goal:'點出所有「死角」：訊號比 -70 還弱的格子。',
   tip:'單位是 dBm，都是負數：越接近 0 越強。-75 比 -70 弱，-65 比 -70 強；剛好 -70 不算死角。',
+  steps:i=>'這張地圖共有 '+i.g.length+' 格，死角的標準是比 -70 dBm 還弱。第一步：負數越接近 0 越強，所以 -71、-80 比 -70 弱，是死角；剛好 -70 或 -65 不是。第二步：從路由器那一格往外一格一格看，每隔一面牆訊號會再掉一些。第三步：把每一格的數字和 -70 比，比 -70 小的才點。',
   learn:'Wi-Fi 訊號離路由器越遠越弱，每穿過一道牆又會掉一截。測出整間的訊號，就能畫出「訊號地圖」，找出死角，再決定路由器要搬到哪裡、或多加一台。',
   gen(rnd){for(let t=0;t<200;t++){const w=walls(rnd),ap=[RINT(rnd,0,W-1),RINT(rnd,0,H-1)],g=signal(w,ap),dead=g.map((v,i)=>v<-70?i:-1).filter(i=>i>=0);if(dead.length>=5&&dead.length<=16)return {w,ap,g,dead}}},
   view(inst,el,api){const m=new Set(),api_=api;
@@ -107,6 +110,7 @@ const ROUNDS=[
   now:'死角太多了。後援會決定把路由器搬家，候選位置有 A、B、C、D 四個。',
   goal:'選出「能讓最多格收得到（-70 或更強）」的位置。',
   tip:'點一個位置，下面會模擬那個位置的訊號地圖和收得到的格數。每個都試試看，再選最好的送出。',
+  steps:i=>'這次有 '+i.cells.length+' 個候選位置。第一步：每個位置都點一次，記下下面顯示的「收得到的格數」。第二步：放在房子中間、牆比較少擋的地方，訊號比較傳得開；角落或被很多牆包住的位置通常較差。第三步：比較這 '+i.cells.length+' 個數字，選收得到格數最多的那個再送出。',
   learn:'路由器放在中間、少隔幾道牆、放高一點，訊號才會均勻。工程師也是先模擬、比較幾個方案，再決定。真的不夠時，可以加一台延伸器或用多台組成「網狀網路」。',
   gen(rnd){for(let t=0;t<300;t++){const w=walls(rnd),cells=SAMPLE(rnd,[...Array(W*H).keys()],4);const cov=cells.map(i=>signal(w,[i%W,Math.floor(i/W)]).filter(v=>v>=-70).length);const s=[...cov].sort((a,b)=>b-a);if(s[0]-s[1]>=2&&s[0]<W*H)return {w,cells,cov,best:cov.indexOf(s[0])}}},
   view(inst,el,api){let v=null;const L='ABCD';

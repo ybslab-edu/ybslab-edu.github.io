@@ -189,6 +189,9 @@ const shellCreateRoundFlow = (s) => {
     s.previousKey = key;
     $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
     $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), { changed: () => changed(), attempt, esc });
+    // 程式填答不會觸發 input；共用入口同步 ready、送出按鈕與內部說明。
+    const handle = s.handle, fill = handle.fill;
+    if (fill) handle.fill = (...args) => { const result = fill.apply(handle, args); changed(); return result; };
     shellHighlightQuestion($, previousNumbers);
     renderStreak(); changed();
     if (afterSubmit) $('task-instructions')?.scrollIntoView?.({behavior: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
@@ -321,7 +324,7 @@ const shellCreateTeacher = (s) => {
   const tryTeacher = async () => { $('terr').textContent = ''; if (await TEACHER.check($('in-tcode').value)) { $('in-tcode').value = ''; enterTeacher() } else $('terr').textContent = '通行碼不對。' };
   $('t-go').onclick = tryTeacher;
   $('in-tcode').addEventListener('keydown', e => { if (e.key === 'Enter') tryTeacher() });
-  $('tb-ans').onclick = () => { s.handle.fill(); s.changed(); };
+  $('tb-ans').onclick = () => s.handle.fill();
   $('tb-new').onclick = () => { $('verdict').hidden = true; s.fresh(); };
   return { enterTeacher };
 };

@@ -27,7 +27,12 @@ localStorage.setItem('ybs:xp:115-g9:seat:999-1',JSON.stringify({1:{passes:Object
       });
       await page.goto('http://synthetic.test/115-g9/u2-03/');
       await page.waitForFunction(()=>typeof YBSXP!=='undefined');
-      await page.fill('#in-cls','999');await page.fill('#in-seat','1');await page.click('#g-go');
+      await page.fill('#in-cls','999');await page.fill('#in-seat','1');
+      // 班座驗證通過並顯示確認區後，才能按「對，開始」。
+      await page.click('#g-next');
+      assert.equal(await page.locator('#g-confirm').textContent(),'你是 999 班 1 號，對嗎？');
+      await page.click('#g-go');
+      await page.locator('#main').waitFor({state:'visible'});
       assert.equal(await page.locator('#xp-total').textContent(),'80 XP');
       const disabled=await page.locator('#xp-link').getAttribute('aria-disabled');assert.equal(disabled,'true');
       for(let i=0;i<4;i++)await page.evaluate(i=>{APP.load(i);document.getElementById('b-send').click();document.getElementById('b-send').click()},i);

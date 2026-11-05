@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {Element} from './fixtures/activity-dom.mjs';
 
 const shell = readFileSync(new URL('../assets/shell.js', import.meta.url), 'utf8');
 function activity(dir) {
@@ -19,11 +20,11 @@ for (const [dir, index, inst, answer] of [
   ['u2-06', 2, {rows:[], clean:[4,2,0], raw:[5,3,1]}, [4,2,0]]
 ]) test(`${dir} 關卡 ${index + 1}：整串作答、教師填答與合成產題`, () => {
   const c = activity(dir);
-  const inputs = answer.map(() => ({value:''}));
   c.inst = inst;
-  c.el = {insertAdjacentHTML(){}, querySelectorAll:() => dir === 'u2-06' ? inputs : [],
-    querySelector:selector => inputs[selector === '#n-m' ? 1 : 0]};
+  c.el = new Element('div');
   vm.runInContext(`const r=APP.rounds[${index}], h=r.view(inst,el,{changed(){}});`, c);
+  const inputs = c.el.querySelectorAll('input');
+  assert.equal(inputs.length,answer.length);
   const check = () => vm.runInContext('r.check(inst,h.get()) === true', c);
   const enter = values => values.forEach((value,i) => {inputs[i].value=String(value); inputs[i].oninput();});
   enter(answer); assert.equal(check(), true);

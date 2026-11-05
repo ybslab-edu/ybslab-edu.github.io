@@ -166,7 +166,7 @@ test('演出期間 running 阻止換關、換人與清空；結束後解除限�
   const h=setup();h.evaluate('APP.handle.fill()');
   const pending=h.evaluate('play()');
   assert.equal(h.evaluate('running'),true);
-  for(const id of ['tab-2','b-swap','b-clear','tb-new','tb-ans']){
+  for(const id of ['rounds','b-swap','b-clear','tb-new','tb-ans']){
     let canceled=false;
     const event={preventDefault(){canceled=true},stopImmediatePropagation(){}};
     h.get('main').listeners.click[0](event);

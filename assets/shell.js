@@ -9,6 +9,14 @@
 // round.manualAttempt=true 時，由 view 的 api.attempt() 在演出開始時記次。
 // cfg.progressLength（預設 6）、rememberIdentity（預設 false）保留舊頁儲存形狀。
 // 過關規則：連續答對兩組不同的資料。答錯留在同一組讓學生修正，答對才換新的一組。
+// 僅供頁面顯示；不寫入既有過關紀錄或雲端欄位。
+const shellScore = (passed, total) => passed <= 0 || total <= 0 ? 0
+  : passed >= total ? 100 : passed === 1 ? 70 : passed === 2 ? 80 : 90;
+const shellTitle = cfg => {
+  const activity = typeof ACTIVITIES !== 'undefined' ? ACTIVITIES.find(a => a.course === cfg.course && a.week === cfg.week) : null;
+  const week = cfg.termWeek ?? (activity && typeof termWeekOf === 'function' ? termWeekOf(activity) : null);
+  return week ? `第 ${week} 週｜${cfg.title}` : cfg.title;
+};
 const SHELL = (cfg) => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -30,7 +38,7 @@ const SHELL = (cfg) => {
 const shellGateHTML = (cfg, esc) => {
   return `
 <section class="gate" id="gate">
-  <h1>${esc(cfg.title)}</h1>
+  <h1>${esc(shellTitle(cfg))}</h1>
   <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
     <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
     <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
@@ -71,14 +79,12 @@ const shellGateHTML = (cfg, esc) => {
 const shellMainHTML = (cfg, esc) => {
   return `<div class="wrap" id="main" hidden>
   <header class="top">
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <h1>${esc(cfg.title)}</h1>
+    <div class="activity-heading">
+      <div class="title-rounds"><h1>${esc(shellTitle(cfg))}</h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div>
       <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
     </div>
-    <div class="tabs" role="tablist" aria-label="等級"><button id="tab-1" role="tab" aria-selected="true">基礎關</button><button id="tab-2" role="tab" aria-selected="false">進階關</button></div>
+    <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分</div>
   </header>
-  <nav class="unit" id="unit" aria-label="本單元進度" hidden></nav>
-  <div class="rounds" id="rounds"></div>
   <section class="sec">
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
     <div class="order" id="says" aria-live="polite"></div>
@@ -110,20 +116,10 @@ const shellMainHTML = (cfg, esc) => {
 </div>`;
 };
 
-// 插入共用介面並顯示單元導覽。
+// 插入共用介面。
 const shellCreateInterface = (s) => {
-  const { cfg, $, esc } = s;
+  const { cfg, esc } = s;
   document.body.insertAdjacentHTML('afterbegin', shellGateHTML(cfg, esc) + shellMainHTML(cfg, esc));
-  if (cfg.unit && typeof ACTIVITIES !== 'undefined') {
-    const list = ACTIVITIES.filter(a => a.course === cfg.course && a.unit === cfg.unit).sort((a, b) => a.date.localeCompare(b.date));
-    if (list.length > 1) {
-      $('unit').hidden = false;
-      $('unit').innerHTML = '<span class="lbl">第 ' + esc(cfg.unit) + ' 單元</span>' + list.map(a => {
-        const w = typeof termWeekOf === 'function' ? termWeekOf(a) : null, now = a.week === cfg.week;
-        return '<' + (now ? 'span class="now" aria-current="page"' : 'a href="../../' + esc(a.href) + '"') + '><b>' + esc(a.title) + '</b>' + (w ? '第 ' + esc(w) + ' 週' : '') + (a.track === '選修' ? '・選修' : '') + '</' + (now ? 'span' : 'a') + '>';
-      }).join('');
-    }
-  }
 };
 
 // 管理關卡切換、題目重抽與作答狀態。
@@ -131,9 +127,10 @@ const shellCreateRoundFlow = (s) => {
   const { $, esc, R } = s;
   const txt = (v, inst) => typeof v === 'function' ? v(inst) : (v || '');
   const seed = () => { let s = (Math.random() * 2 ** 31) >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 } };
-  // 更新目前等級的關卡按鈕。
+  // 按原順序顯示所有關卡與已完成標記。
   function renderRounds() {
-    $('rounds').innerHTML = R.map((r, i) => r.lv !== s.level ? '' : '<button type="button" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
+    $('rounds').innerHTML = R.map((r, i) => '<button type="button" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
+    $('score-value').textContent = shellScore(R.filter((_, i) => s.done.has(i)).length, R.length);
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
   // 顯示連續答對的組數。
@@ -157,15 +154,14 @@ const shellCreateRoundFlow = (s) => {
       if (key !== s.previousKey) break;
     }
     s.previousKey = key;
-    $('says').innerHTML = '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
+    $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
     $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), { changed: () => changed(), attempt, esc });
     renderStreak(); changed();
   }
   // 切換關卡並重設連續答對狀態。
   function load(i) { if (s.ri !== i) s.previousKey = null; s.ri = i; s.streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
-  // 切換等級並載入第一關。
-  function setLevel(l) { s.level = l; $('tab-1').setAttribute('aria-selected', l === 1); $('tab-2').setAttribute('aria-selected', l === 2); load(R.findIndex(r => r.lv === l)); }
-  $('tab-1').onclick = () => setLevel(1); $('tab-2').onclick = () => setLevel(2);
+  // 保留既有測試／頁面使用的入口；等級不再影響關卡顯示。
+  function setLevel(l) { const i = R.findIndex(r => r.lv === l); load(i >= 0 ? i : 0); }
 
   // 自行演出的活動可在開始演出時記次；預設仍由送出按鈕記次。
   function attempt() {
@@ -194,13 +190,12 @@ const shellCreateJudging = (s) => {
       s.fresh(); return;
     }
     if (!s.teacher) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
-    const next = R.findIndex((x, i) => i > s.ri && x.lv === s.level);
+    const next = R.findIndex((x, i) => i > s.ri);
     v.className = 'verdict ok';
     v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + '<div class="btns">' +
-      (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : s.level === 1 ? '<button class="btn primary" id="b-lv2">挑戰進階關</button>' : endMsg()) + '</div>';
+      (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : endMsg()) + '</div>';
     v.hidden = false; s.renderRounds();
     if ($('b-next')) $('b-next').onclick = () => s.load(next);
-    if ($('b-lv2')) $('b-lv2').onclick = () => s.setLevel(2);
   }
   // 最後一關過了，不代表整個活動完成：照實際過了幾關說（教師模式示範時直接顯示結語）
   function endMsg() {
@@ -220,7 +215,7 @@ const shellCreateProgress = (s) => {
   // 呈現關卡進度。
   function renderReport() {
     if (!s.ident) return;
-    $('prog').innerHTML = R.map((r, i) => '<span class="' + (s.prog.mask & (1 << i) ? 'ok' : '') + '">' + (r.lv === 1 ? '基礎' : '進階') + '・' + esc(r.name) + (s.prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
+    $('prog').innerHTML = R.map((r, i) => '<span class="' + (s.prog.mask & (1 << i) ? 'ok' : '') + '">' + esc(r.name) + (s.prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
   }
   return { progressKey: KEY, saveProg, renderReport };
 };

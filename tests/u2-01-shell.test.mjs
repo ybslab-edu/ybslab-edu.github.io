@@ -159,7 +159,7 @@ test('實際拍照保留所有判定分支、清空答案與照片更換時機',
   assert.match(h.get('verdict').textContent,/取樣/);assert.equal(h.progress().mask,1);assert.equal(h.progress().tries[0],4);
   assert.equal(h.get('rounds').querySelector('button').textContent.includes('✓'),true);
   h.get('b-next').click();assert.equal(h.evaluate('ri'),1);assert.equal(h.get('res').disabled,true);
-  h.fill();h.shoot();h.get('b-lv2').click();assert.equal(h.evaluate('ri'),2);
+  h.fill();h.shoot();h.get('b-next').click();assert.equal(h.evaluate('ri'),2);
   h.fill();h.get('res-up').click();const capPhotos=h.evaluate('photos');h.shoot();
   assert.match(h.get('verdict').textContent,/傳不出去！/);assert.equal(h.evaluate('photos'),capPhotos);assert.equal(h.progress().mask,3);
   h.fill();h.shoot();h.get('b-next').click();assert.equal(h.evaluate('ri'),3);assert.equal(h.get('dep').disabled,true);

@@ -73,6 +73,29 @@ test('單一來源顯示過關數，全過顯示勾號，保留未驗證標記',
   h.get('cloud-class').value='999';h.get('cloud-class').onchange();
   const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.equal(cell.textContent,'✓（未驗證）');
 });
+for(const roster of [[],[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}]]){
+  test((roster.length?'名冊有其他班級':'空名冊')+'時，名冊外紀錄不必選班即可展開並逐筆顯示班座',async()=>{
+    const h=setup({roster,attempts:[],guests:[guest('outside1_1_0',{cls:'998',seat:2}),guest('outside2_1_0',{cls:'997',seat:3})]});
+    await h.login();await h.read();
+    const check=()=>{
+      const box=h.get('cloud-table').querySelector('details');assert.ok(box);
+      assert.match(box.querySelector('summary').textContent,/待核對：名冊外紀錄（2 列，不計入表格）/);
+      box.open=true;
+      const records=box.querySelectorAll('p');assert.equal(records.length,2);
+      assert.match(records[0].textContent,/班級：997・座號：3・.+・未驗證・UID：outside2・1\/4・各關嘗試：2/);
+      assert.match(records[1].textContent,/班級：998・座號：2・.+・未驗證・UID：outside1・1\/4・各關嘗試：2/);
+    };
+    assert.equal(h.get('cloud-class').value,'');check();
+    assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,0);
+    if(roster.length){
+      h.get('cloud-class').value='999';h.get('cloud-class').onchange();check();
+      assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,1);
+      h.get('cloud-class').value='';h.get('cloud-class').onchange();check();
+      assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,0);
+    }
+    await h.logout();assert.equal(h.get('cloud-table').textContent,'');
+  });
+}
 test('跨班座共用 UID 及名冊重複均待核對，名冊外不擠進學生列',async()=>{
   const h=setup({attempts:[],guests:[guest('same_1_0'),guest('same_1_1',{round:1,seat:2})]});await h.login();await h.read();
   h.get('cloud-class').value='999';h.get('cloud-class').onchange();

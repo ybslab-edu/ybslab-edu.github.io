@@ -77,12 +77,15 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
   function details(records, warning) {
     const box=node('details'); box.appendChild(node('summary',warning || '詳細資料'));
     for(const r of records) box.appendChild(node('p',
-      activities[r.activity].title + '・' + r.source + '・UID：' + r.uid + '・' + count(r.mask) + '/' + r.tries.length +
+      '班級：' + r.cls + '・座號：' + r.seat + '・' + activities[r.activity].title + '・' + r.source + '・UID：' + r.uid + '・' + count(r.mask) + '/' + r.tries.length +
       '・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW')));
     return box;
   }
   function render() {
     const target=el('cloud-table'); target.textContent='';
+    // 名冊外紀錄可獨立展開，不依賴名冊是否有班級可選。
+    const outside=rows.filter(r=>!people.some(p=>p.cls===r.cls&&p.seat===r.seat));
+    if(outside.length)target.appendChild(details(outside,'待核對：名冊外紀錄（'+outside.length+' 列，不計入表格）'));
     const cls=Number(el('cloud-class').value); if(!cls)return;
     const table=node('table'), thead=node('thead'), head=node('tr');
     const ids=Object.keys(activities).map(Number).sort((a,b)=>a-b);
@@ -106,8 +109,6 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
       const td=node('td');td.appendChild(details(records,conflict?'待核對：來源、UID 或名冊衝突':'詳細資料'));tr.appendChild(td);tbody.appendChild(tr);
     }
     table.appendChild(tbody);target.appendChild(table);
-    const outside=rows.filter(r=>!people.some(p=>p.cls===r.cls&&p.seat===r.seat));
-    if(outside.length)target.appendChild(details(outside,'待核對：名冊外紀錄（'+outside.length+' 列，不計入表格）'));
   }
   el('cloud-class').onchange = render;
   el('cloud-login').onclick = async () => {

@@ -206,28 +206,40 @@ def guest_cycle(b):
         pg.click('#g-next'); pg.click('#g-go')
         pg.wait_for_selector('#main', state='visible')
         wait_evaluate(pg, "sessionStorage.getItem('ybslab:guest-identity') !== null")
-    def pass_guest():
-        pg.evaluate("() => { for(let n=0;n<2;n++){APP.handle.fill();document.getElementById('b-send').click();} }")
-        assert '過關' in pg.inner_text('#verdict') and pg.inner_text('#code')
+    def pass_guest(step):
+        previous = None
+        for n in range(2):
+            # fill 只填答案；派送選單 change，經活動的 api.changed 同步送出按鈕。
+            pg.evaluate('() => { APP.handle.fill(); document.getElementById("sample-rate").dispatchEvent(new Event("change", {bubbles:true})); }')
+            state = pg.evaluate('({ready:APP.handle.ready(), disabled:document.getElementById("b-send").disabled, inst:JSON.stringify(APP.inst)})')
+            assert state['ready'] and not state['disabled'], f'{step}／第 {n+1} 組：填答後無法送出，{state}'
+            assert state['inst'] != previous, f'{step}／第 {n+1} 組：未換成不同資料，{state}'
+            previous = state['inst']
+            pg.click('#b-send')
+            streak = pg.locator('#streak .on').count()
+            verdict = pg.inner_text('#verdict')
+            assert streak == n+1, f'{step}／第 {n+1} 組：連對數應為 {n+1}，實際 {streak}，判定={verdict!r}'
+        assert '過關' in verdict, f'{step}：兩組送出後未過關，判定={verdict!r}'
+        assert pg.inner_text('#code'), f'{step}：過關後成績碼為空，判定={verdict!r}'
     try:
         pg.goto(BASE + '115-g9/u2-02/'); manual(1)
-        pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})'); pass_guest()
+        pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})'); pass_guest('999 班 1 號／首次寫入 unavailable')
         wait_evaluate(pg, "document.getElementById('sync').textContent.includes('紀錄暫存在本機')")
-        assert pg.evaluate("JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length") == 1
-        assert pg.evaluate("JSON.parse(localStorage.getItem('it9:w4:999-1')).mask") == 1
+        assert pg.evaluate("JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length") == 1, '首次寫入失敗：應保留一筆待送紀錄'
+        assert pg.evaluate("JSON.parse(localStorage.getItem('it9:w4:999-1')).mask") == 1, '首次寫入失敗：第一關本機過關紀錄遺失'
         pg.reload()  # mock 重建；沿用 session UID，自動重送，不需要學生再登入。
         wait_evaluate(pg, "JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length === 0")
         manual(1)
         assert pg.evaluate('__authCalls') == [], '同班座重新整理不重登'
         pg.click('#b-swap'); manual(2)
         wait_evaluate(pg, "JSON.parse(sessionStorage.getItem('ybslab:guest-identity')).seat === 2")
-        assert pg.evaluate('__authCalls') == ['signOut', 'anonymous']
-        pass_guest(); wait_evaluate(pg, '__writes.length === 2')
+        assert pg.evaluate('__authCalls') == ['signOut', 'anonymous'], '換成 999 班 2 號：應先登出再匿名登入'
+        pass_guest('999 班 2 號／換班座後作答'); wait_evaluate(pg, '__writes.length === 2')
         writes = pg.evaluate('__writes')
-        assert [x[0] for x in writes] == ['ybsCourses/115-g9/guestAttempts/guest1_4_0', 'ybsCourses/115-g9/guestAttempts/guest2_4_0']
+        assert [x[0] for x in writes] == ['ybsCourses/115-g9/guestAttempts/guest1_4_0', 'ybsCourses/115-g9/guestAttempts/guest2_4_0'], f'開頁重送／換班座：寫入路徑不符，{writes!r}'
         expected = {'activity', 'round', 'level', 'tries', 'termWeek', 'passedAt', 'app', 'cls', 'seat', 'verified'}
         for path, data in writes:
-            assert set(data) == expected and data['cls'] == '999' and data['verified'] is False and data['passedAt'] == 'TS'
+            assert set(data) == expected and data['cls'] == '999' and data['verified'] is False and data['passedAt'] == 'TS', f'班座紀錄欄位／型別不符：{path}，{data!r}'
         pg.goto(BASE + '115-g9/teacher/'); pg.click('#cloud-login')
         wait_evaluate(pg, "!document.getElementById('cloud-read').disabled")
         pg.evaluate("""writes => {
@@ -238,17 +250,18 @@ def guest_cycle(b):
                 uid:'real1',email:'synthetic@example.invalid',activity:4,round:0,level:1,tries:2,passedAt:'TS'});
         }""", writes)
         pg.click('#cloud-read'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('已讀取 3 列')")
-        assert pg.locator('#cloud-table tbody tr').count() == 3
-        assert '未驗證' in pg.inner_text('#cloud-table') and '帳號名單' in pg.inner_text('#cloud-table')
+        assert pg.locator('#cloud-table tbody tr').count() == 3, 'owner 讀取：雲端合併表應有三列'
+        assert '未驗證' in pg.inner_text('#cloud-table') and '帳號名單' in pg.inner_text('#cloud-table'), 'owner 讀取：缺少班座未驗證或帳號名單來源標示'
         with pg.expect_download() as download:
             pg.click('#cloud-export')
-        assert download.value.suggested_filename.endswith('.xlsx')
+        assert download.value.suggested_filename.endswith('.xlsx'), 'owner 匯出：下載檔名應為 .xlsx'
         pg.click('#cloud-logout'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('已登出')")
-        assert pg.inner_text('#cloud-table') == ''
+        assert pg.inner_text('#cloud-table') == '', '教師登出：雲端表應清空'
         pg.evaluate('window.__mockTeacherUid = "otherTeacher"'); pg.click('#cloud-login')
         wait_evaluate(pg, "!document.getElementById('cloud-read').disabled")
         pg.click('#cloud-read'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('無權限')")
-        assert pg.inner_text('#cloud-table') == '' and not errors
+        assert pg.inner_text('#cloud-table') == '', '非 owner 讀取遭拒後：雲端表應維持空白'
+        assert not errors, f'guest/cycle：瀏覽器 JavaScript 錯誤，{errors!r}'
         print('OK  guest/作答、斷網待送、開頁重送、換班座、owner 合併表／匯出與非 owner 拒絕')
         return 0
     except Exception as e:

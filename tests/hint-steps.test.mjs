@@ -216,3 +216,65 @@ test('u1-01 每關多種子拆步驟使用題目內容且不列最終答案',()=
   for(const input of inputs)assert.ok(text.includes(String(input)),`${r.name}: 缺少實際題目 ${input}`);
  }
 });
+
+for(const dir of ['u0-01','u1-02','u1-03','u1-04','u1-05','u1-06','u2-01'])test(dir+' 每關 30 種子拆步驟含題目內容、保留資料且不洩漏答案（含演出型）',()=>{
+ // 演出型的 gen 保留既有 DOM 節點；只提供空節點，不執行 view 或連線。
+ const node={hidden:false,innerHTML:'',onclick(){},append(){},addEventListener(){},insertAdjacentHTML(){},classList:{toggle(){}},setAttribute(){}};
+ node.querySelector=()=>node;node.previousElementSibling=node;
+ const document={getElementById:()=>node,addEventListener(){},body:node};
+ const c=vm.createContext({SHELL:cfg=>cfg,console,document});
+ const shell=read('assets/shell.js');
+ vm.runInContext(shell.slice(shell.indexOf('const PICK ='))+'\n'+[...read('115-g9/'+dir+'/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')+'\nthis.rounds=APP.rounds;this.originals=ROUNDS;',c);
+ for(const [index,r] of c.rounds.entries())for(let seed=1;seed<=30;seed++){
+  let state=seed,calls=0;const rnd=()=>{if(++calls>100000)throw Error('產題超過上限');state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296};
+  assert.equal(typeof r.steps,'function',r.name+' 缺少 steps');
+  const i=r.gen(rnd);
+  if(dir==='u2-01'){
+   c.seededRandom=rnd;
+   vm.runInContext('Math.random=seededRandom;ri='+index+';setRes='+((seed-1)%5)+';setDep='+((seed-1)%5)+';newPhotos();this.photoState=()=>({photos,answers,setRes,setDep});this.settings=()=>({n:curRes(),d:curDep(),ground:GROUND});',c);
+  }
+  const snapshot=()=>JSON.stringify({i,rounds:c.originals,photo:dir==='u2-01'?c.photoState():null});
+  const before=snapshot(),text=r.steps(i);
+  assert.equal(snapshot(),before,r.name+' 不得改題目資料');
+  assert.ok(text.length>35);assert.doesNotMatch(text,/undefined|NaN|答案是|正解是/);
+  let inputs=[];
+  if(dir==='u0-01')inputs=i.items?[i.items.length,i.items[0][0]]:[i.cards.length];
+  if(dir==='u1-02')inputs=i.t?[i.t.length,i.cards.length,i.t[0].n,i.t[0].need,i.t[0].dl,...(index===2?[i.t[0].rel]:[])]:i.rows?[i.cap,i.fg,i.need,i.rows.length]:[i.n.length,...(i.q==='cpu'?i.cpu.map(v=>v+'%'):i.mem.map(v=>v+' MB'))];
+  if(dir==='u1-03')inputs=index===0?[i.items.length,i.items[0][1]]:index===1?[i.items.length,i.items[0][0]]:index===2?[i.cards.length,...i.cards.map(x=>x[0])]:[i.y1,i.y2,i.n];
+  if(dir==='u1-04')inputs=i.items?[i.items.length,i.items[0][0]]:i.g?[i.g.length,...i.g.flatMap(g=>[g[0],g[1]])]:[i.name,i.cards.length];
+  if(dir==='u1-05')inputs=Object.values(c.originals[index].tests[0]).filter(v=>v!==null);
+  if(dir==='u1-06'){const r0=c.originals[index],t=r0.tests[0];inputs=[t.order.drink,t.order.qty,t.order.price,...(t.sales!=null?[t.sales]:[]),...(t.ledger!=null?[t.ledger]:[]),...(index!==1?[r0.cap]:[])];}
+  if(dir==='u2-01'){const s=c.settings();inputs=[s.n,s.d,2,...(index===2?[c.originals[index].cap/8]:index===3?[s.ground,s.ground/s.n]:[])];}
+  for(const input of inputs)assert.ok(text.includes(String(input)),`${r.name}: 缺少實際題目 ${input}`);
+  // 改掉隱藏解答仍應產生相同提示，防止把解答欄位變成提示來源。
+  const hidden=new Set(['sol','ans','c','m','digit','buses']);
+  const guard=value=>value&&typeof value==='object'?new Proxy(value,{get(target,key){if(hidden.has(key))throw Error(r.name+' 讀取隱藏解答 '+key);return guard(Reflect.get(target,key));}}):value;
+  c.guardAnswers=guard;
+  vm.runInContext('this.savedRounds=ROUNDS.slice();ROUNDS.forEach((r,k)=>{ROUNDS[k]=guardAnswers(r)});'+(dir==='u2-01'?'this.savedPhotos=photos;photos=guardAnswers(photos);':''),c);
+  try{assert.equal(r.steps(guard(i)),text);}finally{
+   vm.runInContext('savedRounds.forEach((r,k)=>{ROUNDS[k]=r});'+(dir==='u2-01'?'photos=savedPhotos;':''),c);
+  }
+  assert.equal(snapshot(),before);
+  if(i.sol){
+   const solution=i.sol.map(k=>i.cards?i.cards[k]:i.items[k][1]);
+   assert.ok(!text.includes(solution.join(' → '))&&!text.includes(i.sol.join(',')),'不列完整排序答案');
+  }
+  if(dir==='u1-03'&&index===3)assert.ok(!text.includes('＝'+i.ans)&&!text.includes(' '+i.ans+(i.q==='x'?' 倍':' 億個')),'不列最後倍數或數量');
+  if(dir==='u1-05'){
+   const t=c.originals[index].tests[0],total=index===0?t[11]+t[12]:index===3?t[11]*t[12]+t[13]*t[14]:t[11]*t[12]+t[13];
+   assert.ok(!text.includes(total+' 元'),'不列總價');
+   if(index===2)assert.doesNotMatch(text,/錢不夠|錢夠了/);
+  }
+  if(dir==='u1-06'){
+   const t=c.originals[index].tests[0],points=t.order.qty*t.order.price;
+   if(points!==t.order.price)assert.ok(!text.includes(points+' 分'),'不列本次得分');
+   if(t.sales!=null)assert.ok(!text.includes((t.sales+points)+' 分'),'不列更新後進度');
+  }
+  if(dir==='u2-01')assert.doesNotMatch(text,/背號是|成員是|有 [2-5] 台遊覽車|64 色才|一格 2 公尺時/);
+  if(dir==='u0-01'&&index===1)for(const label of ['依照號碼入座','不飲食','認真上課學習','尊重同學','離開前收好'])assert.ok(text.includes(label));
+  if(dir==='u0-01'&&index===2)for(const label of ['認知（30%）','情意（30%）','技能（40%）'])assert.ok(text.includes(label));
+  if(dir==='u1-04'&&index===0)assert.ok(text.includes('輸入也輸出'));
+  if(dir==='u1-02'&&index===3)for(const label of ['留著','關掉'])assert.ok(text.includes(label));
+  if(r.manualAttempt)assert.ok(text.length>35,'演出型關卡也能取得第 2 層');
+ }
+});

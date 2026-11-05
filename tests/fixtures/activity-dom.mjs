@@ -74,6 +74,6 @@ export class Element {
       getImageData:(x,y,w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)})};
   }
   scrollIntoView(){}
-  click(){this.onclick?.()}
+  click(){if(!this.disabled)this.onclick?.()}
   focus() {}
 }

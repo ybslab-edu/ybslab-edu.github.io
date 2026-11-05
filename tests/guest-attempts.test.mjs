@@ -154,6 +154,37 @@ for(const rejected of [false,true])test(`單輪最多重送十筆（持續被拒
   h.advance();await h.api.flushGuest();assert.equal(h.calls.length,20);assert.equal(h.queue().length,rejected?24:4);
   assert.equal(h.authCalls.filter(x=>x==='anonymous').length,1);
 });
+for(const reload of [false,true])test(`前十筆持續被拒仍跨輪嘗試後續項目（重新開頁=${reload}）`,async()=>{
+  const other=packet({cls:'998',seat:2});
+  const queue=[other,...Array.from({length:24},(_,i)=>packet({cls:'999',activity:i+1}))];
+  const stored=new Map([[key,JSON.stringify({queue,receipts:[]})]]);
+  const write=async d=>{if(d.activity<=10)throw error('permission-denied');};
+  let h=setup({stored,write});await h.api.guest({cls:999,seat:1});await settle();
+  const attempts=[...h.calls];
+  assert.deepEqual(attempts.map(x=>x.data.activity),[1,2,3,4,5,6,7,8,9,10]);
+  await h.online();h.advance(59999);await h.api.flushGuest();
+  assert.equal(h.calls.length,10,'輪替仍須遵守一分鐘退避');
+  h.advance(1);
+  if(reload){
+    h=setup({stored:h.stored,session:h.session,user:h.auth.currentUser,write});await settle();
+    attempts.push(...h.calls);
+  }else{
+    await h.online();attempts.push(...h.calls.slice(10));
+  }
+  assert.deepEqual(attempts.slice(10).map(x=>x.data.activity),[11,12,13,14,15,16,17,18,19,20],
+    '第二輪須送到被前十筆擋住的項目，且單輪最多十筆');
+  const before=h.calls.length;await h.api.flushGuest();
+  attempts.push(...h.calls.slice(before));
+  assert.equal(h.calls.length-before,10,'成功輪之後仍維持每輪上限');
+  assert.deepEqual(attempts.slice(20).map(x=>x.data.activity),[21,22,23,24,1,2,3,4,5,6]);
+  assert.ok(attempts.every(x=>x.data.cls==='999'&&x.data.seat===1&&x.uid==='guest1'));
+  assert.deepEqual(h.authCalls,reload?[]:['anonymous'],'背景輪替不得增加 UID');
+  assert.deepEqual(h.queue().find(x=>x.cls==='998'),other,'其他班座保留且不送出');
+  assert.deepEqual(h.queue().filter(x=>x.cls==='999').map(x=>x.activity).sort((a,b)=>a-b),[1,2,3,4,5,6,7,8,9,10]);
+  assert.equal(h.state().receipts.length,14);assert.equal(h.statuses.at(-1),'guest-pending');
+  await h.online();h.advance(59999);await h.api.flushGuest();
+  assert.equal(h.calls.length,before+10,'第三輪失敗後仍須退避');
+});
 const proof=i=>JSON.stringify(['115-g9','999',1,'old'+i,1,0]);
 test('既有 receipts 清至最近兩百筆，新成功證據也維持上限',async()=>{
   const receipts=Array.from({length:260},(_,i)=>proof(i));

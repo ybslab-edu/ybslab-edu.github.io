@@ -325,7 +325,10 @@ const YBS = (() => {
           x.uid = uid;
           const state = readGuest(), current = state.queue.find(y => guestKey(y) === guestKey(x));
           if (!current) continue;
-          current.uid = uid; saveGuest(state);
+          current.uid = uid;
+          // 送出前移至隊尾並保存；跨輪及重新開頁都讓後續項目輪到，不被持續失敗的前十筆擋住。
+          state.queue = state.queue.filter(y => y !== current);
+          state.queue.push(current); saveGuest(state);
           const proof = receiptKey(x);
           let done = state.receipts.includes(proof);
           if (!done) try {

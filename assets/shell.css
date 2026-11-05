@@ -123,3 +123,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .question-changed{background:#ffe066;color:#211b17;border-radius:2px;animation:question-change-fade 2s ease-out forwards}
 @keyframes question-change-fade{0%,20%{background:#ffe066;color:#211b17}100%{background:transparent;color:inherit}}
 @media(prefers-reduced-motion:reduce){.question-changed{animation-timing-function:steps(1,end)}}
+
+/* 成長資訊與原有成績分開顯示；窄螢幕可獨立換行。 */
+.xp-header{flex:0 1 230px;min-width:0;max-width:100%;margin-left:auto}
+.xp-header a{display:flex;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-decoration:none;overflow-wrap:anywhere;cursor:default}
+.xp-header b{flex:1 1 100%;color:var(--a)}
+.xp-header progress{display:block;flex:1 1 100%;width:100%;height:10px;accent-color:var(--a)}
+.xp-header .small{flex-basis:100%}
+.xp-detail{font-weight:700;color:var(--out)}
+.xp-title-card{border:2px solid var(--a);border-radius:12px;padding:12px;background:var(--a-soft);color:var(--ink);animation:xp-arrive .3s ease-out}
+@keyframes xp-arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){.xp-header{flex-basis:100%;margin-left:0}.activity-heading{flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.xp-title-card{animation:none}}

@@ -18,6 +18,18 @@ const shellTitle = cfg => {
   const week = cfg.termWeek ?? (activity && typeof termWeekOf === 'function' ? termWeekOf(activity) : null);
   return week ? `第 ${week} 週｜${cfg.title}` : cfg.title;
 };
+// 從 shell 同目錄載入核心，沿用靜態頁 CSP；HTML 只需更新 shell 快取版本。
+const shellXPReady = (() => {
+  if (typeof YBSXP !== 'undefined') return Promise.resolve();
+  const src = typeof document !== 'undefined' && document.currentScript?.src;
+  if (!src) return Promise.resolve();
+  return new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = new URL('xp.js?v=20261105a', src).href;
+    script.onload = script.onerror = resolve;
+    document.head.appendChild(script);
+  });
+})();
 const SHELL = (cfg) => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -28,6 +40,7 @@ const SHELL = (cfg) => {
   shellCreateInterface(s);
   s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
   Object.assign(s, shellCreateRoundFlow(s), shellCreateJudging(s), shellCreateProgress(s));
+  s.xp = shellCreateXP(s);
   shellBindIdentityForm(s);
   Object.assign(s, shellCreateIdentity(s), shellCreateTeacher(s), shellCreateLogin(s), shellCreateSync(s));
   if (TEACHER.remembered()) s.enterTeacher(); else if (loginEnabled()) s.showLogin(); else { $('g-login').hidden = true; $('g-form').hidden = false; $('in-cls').focus(); }
@@ -84,6 +97,13 @@ const shellMainHTML = (cfg, esc) => {
       <div class="title-rounds"><h1>${esc(shellTitle(cfg))}</h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div>
       <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
     </div>
+    <aside class="xp-header" id="xp-header" hidden aria-live="polite">
+      <a href="../me/" id="xp-link" aria-disabled="true" tabindex="-1" title="個人成長頁準備中">
+        <b id="xp-level"></b><span id="xp-total"></span>
+        <progress id="xp-progress" max="1" value="0" aria-label="升級進度"></progress>
+        <span class="small" id="xp-next"></span>
+      </a>
+    </aside>
     <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分<span class="small">（滿分 100，每少過一關扣 10；0 關過＝0 分）</span></div>
   </header>
   <section class="sec" id="task-instructions">
@@ -153,6 +173,122 @@ const shellHighlightQuestion = ($, previous) => {
   });
 };
 
+// XP 的本機佐證獨立儲存，不加入 prog 或 submit 的欄位。
+const shellCreateXP = s => {
+  const {cfg, $, esc} = s;
+  let owner = null, key = null, meta = {}, cloud = [], ready = false, generation = 0;
+  const course = cfg.course || '115-g9';
+  const catalog = () => typeof ACTIVITIES === 'undefined' ? [] : ACTIVITIES.filter(a => a.course === course).map(a => ({...a,
+    openedAt:typeof activityOpenAt === 'function' ? activityOpenAt(a) : NaN,
+    isOpen:typeof isActivityOpen === 'function' && isActivityOpen(a)}));
+  const read = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
+  const persist = () => { try { localStorage.setItem(key, JSON.stringify(meta)); } catch { /* XP 儲存失敗不阻擋既有進度與上傳。 */ } };
+  function evidence(a) {
+    if (!meta[a.week] || typeof meta[a.week] !== 'object') meta[a.week] = {wrong:[], passes:{}};
+    const item = meta[a.week];
+    if (!Array.isArray(item.wrong)) item.wrong = [];
+    if (!item.passes || typeof item.passes !== 'object') item.passes = {};
+    return item;
+  }
+  function records() {
+    if (owner) {
+      const result = cloud.map(r => {
+        const local = meta[r.activity]?.passes?.[r.round];
+        return local?.cloudChecked ? {...r, wrongAnswers:local.wrongAnswers} : r;
+      });
+      for (const a of catalog()) for (const [round, r] of Object.entries(evidence(a).passes)) {
+        if (!result.some(x => x.activity === a.week && x.round === +round)) result.push({...r, course, activity:a.week, round:+round});
+      }
+      return result;
+    }
+    return catalog().flatMap(a => {
+      const p = a.week === cfg.week ? s.prog : read('it9:w' + a.week + ':' + s.ident.cls + '-' + s.ident.seat);
+      return a.rounds.flatMap((_, round) => Number.isInteger(p?.mask) && (p.mask & (1 << round))
+        ? [{...evidence(a).passes[round], course, activity:a.week, round}] : []);
+    });
+  }
+  const snapshot = () => typeof YBSXP !== 'undefined' ? YBSXP.calculate(catalog(), records()) : null;
+  function render() {
+    const header = $('xp-header');
+    if (!header || !s.ident || s.teacher) { if (header) header.hidden = true; return; }
+    header.hidden = false;
+    const result = ready && snapshot();
+    $('xp-link').onclick = e => e.preventDefault();
+    $('xp-level').textContent = result ? 'Lv ' + result.level + ' ' + result.title : '成長紀錄';
+    $('xp-total').textContent = result ? result.totalXP + ' XP' : 'XP 尚未取得';
+    $('xp-progress').hidden = !result;
+    if (result) $('xp-progress').value = result.progress;
+    $('xp-next').textContent = result ? (result.next === null ? '已達最高等級' : '下一級還差 ' + result.remaining + ' XP') : '等待載入紀錄；不以 0 代替';
+  }
+  function stop() { generation++; owner = null; ready = false; if ($('xp-header')) $('xp-header').hidden = true; }
+  function start() {
+    stop();
+    if (!s.ident || s.teacher) return;
+    const current = generation;
+    owner = s.loginEnabled() && typeof YBS.profile === 'function' ? YBS.profile()?.uid || null : null;
+    key = 'ybs:xp:' + course + ':' + (owner ? 'uid:' + owner : 'seat:' + s.ident.cls + '-' + s.ident.seat);
+    meta = read(key) || {}; cloud = []; ready = !owner;
+    const activity = catalog().find(a => a.week === cfg.week);
+    if (activity) {
+      const item = evidence(activity);
+      activity.rounds.forEach((_, i) => {
+        if (item.wrong[i] === undefined) item.wrong[i] = !s.done.has(i) && s.prog.tries[i] === 0 ? 0 : null;
+      });
+    }
+    persist(); render();
+    shellXPReady.then(() => { if (current === generation) render(); });
+    if (!owner || typeof YBS.firebaseSession !== 'function') return;
+    const uid = owner;
+    // 僅查目前帳號自己的 attempts；不用教師路徑或 guestAttempts。
+    YBS.firebaseSession().then(async ({db, auth}) => {
+      if (current !== generation || auth.currentUser?.uid !== uid) return;
+      const result = await db.collection('ybsCourses/' + course + '/attempts').where('uid', '==', uid).get();
+      if (current !== generation || YBS.profile()?.uid !== uid || auth.currentUser?.uid !== uid) return;
+      cloud = result.docs.map(d => ({...d.data(), course})).filter(r => r.uid === uid); ready = true; render();
+    }).catch(() => { if (current === generation) { ready = false; render(); } });
+  }
+  function wrong() {
+    if (!s.ident || s.teacher || s.done.has(s.ri)) return;
+    const item = meta[cfg.week];
+    if (Number.isInteger(item?.wrong?.[s.ri])) { item.wrong[s.ri]++; persist(); }
+  }
+  function pass() {
+    if (!s.ident || s.teacher || s.done.has(s.ri)) return '';
+    const activity = catalog().find(a => a.week === cfg.week);
+    if (!activity) return '';
+    const item = evidence(activity), activities = catalog(), previous = records();
+    if (item.passes[s.ri] || (owner && cloud.some(r => r.activity === cfg.week && r.round === s.ri))) return '<p class="xp-detail">這關已領過 XP。</p>';
+    item.passes[s.ri] = {passedAt:Date.now(), wrongAnswers:owner && !ready ? null : item.wrong[s.ri], cloudChecked:!!owner && ready};
+    persist();
+    // 班座的 mask 在原過關流程稍後才更新；只在本次計算加入這筆新證據。
+    const index = s.ri, current = generation, canLevelUp = ready, awaitingCloud = !!owner && !ready;
+    const added = {...item.passes[index], course, activity:cfg.week, round:index};
+    function message() {
+      if (awaitingCloud) return '<p class="small">本關紀錄已保留；XP 待雲端紀錄確認。</p>';
+      if (typeof YBSXP === 'undefined') return '<p class="small">XP 核心尚未載入；本機已保留過關佐證。</p>';
+      const before = YBSXP.calculate(activities, previous);
+      const after = YBSXP.calculate(activities, [...previous, added]);
+      const detail = after.activities.find(a => a.activity === cfg.week), round = detail.rounds[index];
+      const allBefore = before.activities.find(a => a.activity === cfg.week)?.completeXP || 0;
+      const bits = ['+' + round.passXP + ' 過關'];
+      if (round.firstXP) bits.push('+' + round.firstXP + ' 一次答對');
+      if (round.onTimeXP) bits.push('+' + round.onTimeXP + ' 準時');
+      if (detail.completeXP > allBefore) bits.push('+' + detail.completeXP + ' 全過');
+      const card = canLevelUp && after.level > before.level
+        ? '<div class="xp-title-card"><strong>升級！Lv ' + after.level + '</strong><p>' + esc(after.title) + '</p></div>' : '';
+      return '<p class="xp-detail">本關 XP：' + bits.join('、') + '</p>' + card;
+    }
+    // 核心較慢載入時，仍補上目前這次過關提示；換關或換人後不回填。
+    shellXPReady.then(() => {
+      if (current !== generation) return;
+      render();
+      if (s.ri === index && $('xp-pending')) $('xp-pending').innerHTML = message();
+    });
+    return typeof YBSXP !== 'undefined' ? message() : '<div id="xp-pending">正在計算本關 XP…</div>';
+  }
+  return {start, stop, wrong, pass, render};
+};
+
 // 管理關卡切換、題目重抽與作答狀態。
 const shellCreateRoundFlow = (s) => {
   const { $, esc, R } = s;
@@ -215,6 +351,7 @@ const shellCreateJudging = (s) => {
     const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
     if (!r.manualAttempt) s.attempt();
     if (res !== true) {
+      s.xp?.wrong();
       v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">' + (r.manualAttempt ? '調整後再演出一次。' : '已換新題；答錯不歸零，累積答對 2/2 就過關。') + '</p>';
       v.querySelector('p').textContent = res; v.hidden = false;
       // 演出型活動自行檢查固定雙組資料，須保留播放、斷電及逐步示範狀態。
@@ -226,10 +363,11 @@ const shellCreateJudging = (s) => {
       v.className = 'verdict mid'; v.innerHTML = '<h3>答對了！再一組確認</h3><p>已經換成一組新的資料，再做一次，累積答對 2/2 就過關。</p>'; v.hidden = false;
       s.fresh(true); return;
     }
+    const xpMessage = s.xp?.pass() || '';
     if (!s.teacher) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
     const next = R.findIndex((x, i) => i > s.ri);
     v.className = 'verdict ok';
-    v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + '<div class="btns">' +
+    v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + xpMessage + '<div class="btns">' +
       (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : endMsg()) + '</div>';
     v.hidden = false; s.renderStreak(); s.renderRounds();
     if ($('b-next')) $('b-next').onclick = () => s.load(next);
@@ -296,10 +434,12 @@ const shellCreateIdentity = (s) => {
     else if (loginEnabled()) { $('sync').hidden = false; YBS.guest(id); }
     $('b-retry').hidden = !loginEnabled();
     $('gate').hidden = true; $('main').hidden = false;
+    s.xp?.start();
     s.setLevel(1); s.renderReport();
   }
   $('b-swap').onclick = () => {
     if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('report').hidden = false; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
+    s.xp?.stop();
     s.ident = null; if (loginEnabled()) { if (YBS.profile()) YBS.logout(); else YBS.leaveGuest(); s.showLogin() }
     $('sync').hidden = true; $('main').hidden = true; $('gate').hidden = false; $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
   };
@@ -311,6 +451,7 @@ const shellCreateTeacher = (s) => {
   const { $ } = s;
   // 進入不記分的教師示範模式。
   function enterTeacher() {
+    s.xp?.stop();
     s.teacher = true; TEACHER.remember(true); s.ident = null; s.done.clear();
     $('who').textContent = '教師模式'; $('b-swap').textContent = '登出教師模式';
     $('report').hidden = true; $('tbar').hidden = false; $('gate').hidden = true; $('main').hidden = false;

@@ -306,22 +306,26 @@ const shellCreateTeacher = (s) => {
 const shellCreateLogin = (s) => {
   const { $ } = s;
   const start = id => s.start(id);
+  let generation = 0;
   // 確認登入名單或切回手動班座輸入。
   function showLogin() {
+    const current = ++generation;
     $('g-login').hidden = false; $('g-form').hidden = true; $('g-lerr').textContent = ''; $('g-who').hidden = true;
     YBS.button($('g-gbtn'), async me => {
+      if (current !== generation) return;
       $('g-login').hidden = true; $('g-who').hidden = false; $('g-whobtns').hidden = true; $('g-whotext').textContent = '正在確認你的身分…';
       const r = await YBS.whoami();
-      if (r.ok && r.student && /^[1-9]\d{2}$/.test(String(r.student.cls)) && /^\d{1,2}$/.test(String(r.student.seat)) && +r.student.seat >= 1 && +r.student.seat <= 60) { const st = r.student; $('g-whotext').textContent = '你是 ' + st.cls + ' 班 ' + st.seat + ' 號，對嗎？'; $('g-whobtns').hidden = false; $('g-isme').focus(); $('g-isme').onclick = () => start({ cls: st.cls, seat: st.seat, name: st.name }); return }
+      if (current !== generation) return;
+      if (r.ok && r.student && /^[1-9]\d{2}$/.test(String(r.student.cls)) && /^\d{1,2}$/.test(String(r.student.seat)) && +r.student.seat >= 1 && +r.student.seat <= 60) { const st = r.student; $('g-whotext').textContent = '你是 ' + st.cls + ' 班 ' + st.seat + ' 號，對嗎？'; $('g-whobtns').hidden = false; $('g-isme').focus(); $('g-isme').onclick = () => { if (current === generation) start({ cls: st.cls, seat: st.seat, name: st.name }); }; return }
       if (!r.ok && r.error === 'not-listed') { $('g-who').hidden = true; YBS.logout(); showLogin(); $('g-lerr').textContent = '名單上找不到這個帳號（' + (me.account || me.email) + '），請改用自己的帳號，或告訴老師。'; return }
       $('g-who').hidden = true; $('g-form').hidden = false;
       $('g-me').hidden = false; $('g-me').textContent = '已登入：' + (me.account || me.email) + (r.ok ? '（名單上沒有你，請填班級座號並告訴老師）' : '');
       try { const s = JSON.parse(sessionStorage.getItem('ybslab:me:' + me.email) || 'null'); if (s) { $('in-cls').value = s.cls; $('in-seat').value = s.seat } } catch (e) { }
       $('in-cls').focus();
-    }, msg => { $('g-lerr').textContent = msg });
+    }, msg => { if (current === generation) $('g-lerr').textContent = msg });
   }
   $('g-notme').onclick = () => { YBS.logout(); showLogin() };
-  $('g-manual').onclick = () => { if (YBS.profile()) YBS.logout(); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '班座紀錄會自動上傳；班座尚未驗證，請保留成績碼備份。'; $('in-cls').focus() };
+  $('g-manual').onclick = () => { generation++; YBS.logout({keepAnonymous:true}); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '班座紀錄會自動上傳；班座尚未驗證，請保留成績碼備份。'; $('in-cls').focus() };
   return { showLogin };
 };
 
@@ -337,7 +341,7 @@ const shellCreateSync = (s) => {
     const el = $('sync'); if (!s.ident) return;
     el.className = 'sync' + (st === 'ok' ? ' ok' : st === 'sending' ? '' : ' warn');
     if (st === 'relogin') { el.innerHTML = '登入過期，重新登入才能上傳 <span id="sync-btn"></span>'; YBS.button($('sync-btn'), () => { }, msg => { el.textContent = msg }) }
-    else el.textContent = st === 'ok' ? '✓ 紀錄已上傳給老師' : st === 'sending' ? '上傳中…' : st === 'guest-pending' ? '紀錄暫存在本機，稍後自動上傳' : '還沒上傳成功，會自動重試';
+    else el.textContent = st === 'ok' ? '✓ 紀錄已上傳給老師' : st === 'sending' ? '上傳中…' : st === 'guest-storage' ? '儲存空間不足，請保留成績碼；離開頁面可能遺失待送紀錄。' : st === 'guest-pending' ? '紀錄暫存在本機，稍後自動上傳' : '還沒上傳成功，會自動重試';
   });
   (()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
   return { upload };

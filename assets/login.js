@@ -59,20 +59,30 @@ const YBS = (() => {
     if (!/^cgjh\d{3,12}$/.test(acct)) throw loginError('auth/invalid-account', '帳號是 cgjh 加學號，例如 cgjh1100123。');
     if (!password) throw loginError('auth/missing-password', '請輸入密碼。');
     const generation = ++accountGeneration;
+    profile = null;
     leaveGuest();
     const { auth } = await initFirebase();
-    let cred;
-    try { cred = await withAuth(() => auth.signInWithEmailAndPassword(acct + '@' + ACCT_DOMAIN, normPassword(password))); }
+    try { return await withAuth(async () => {
+      const cancelled = () => loginError('auth/login-cancelled', '登入已取消，請重新登入。');
+      if (generation !== accountGeneration) throw cancelled();
+      const cred = await auth.signInWithEmailAndPassword(acct + '@' + ACCT_DOMAIN, normPassword(password));
+      if (generation !== accountGeneration) {
+        // 必須在釋放 Auth 序列前清掉遲到的帳號，後續匿名登入才不會混用。
+        await auth.signOut();
+        throw cancelled();
+      }
+      if (cred.user.isAnonymous || auth.currentUser?.uid !== cred.user.uid) throw cancelled();
+      profile = { email: acct + '@' + CONFIG.domain, account: acct, uid: cred.user.uid };
+      return profile;
+    }); }
     catch (e) {
       const c = e && e.code || '';
+      if (c === 'auth/login-cancelled') throw e;
       if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) throw loginError(c, '帳號或密碼不對。密碼是 cgjh 加身分證字號；還是不行請告訴老師。');
       if (/too-many-requests/.test(c)) throw loginError(c, '嘗試太多次，請等幾分鐘再試，或告訴老師。');
       if (/network/.test(c)) throw loginError(c, '連不上網路，請確認網路後再試。');
       throw loginError(c || 'auth/login-failed', '登入沒有完成（' + (c || '連線問題') + '），請再試一次或告訴老師。');
     }
-    if (generation !== accountGeneration) throw loginError('auth/login-cancelled', '登入已取消，請重新登入。');
-    profile = { email: acct + '@' + CONFIG.domain, account: acct, uid: cred.user.uid };
-    return profile;
   }
   // 在 el 放「帳號、密碼、登入」表單；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
   async function button(el, ok, bad) {
@@ -88,7 +98,7 @@ const YBS = (() => {
       ev.preventDefault(); if (btn.disabled) return;
       btn.disabled = true; btn.textContent = '登入中…';
       try { const p = await signIn(f.a.value, f.p.value); f.p.value = ''; onLogin && onLogin(p); flush(); }
-      catch (e) { f.p.value = ''; onError && onError(e && e.message || '登入失敗，請再試一次。'); }
+      catch (e) { f.p.value = ''; if (e?.code !== 'auth/login-cancelled') onError && onError(e && e.message || '登入失敗，請再試一次。'); }
       finally { btn.disabled = false; btn.textContent = '登入'; }
     };
     setTimeout(() => { try { f.a.focus(); } catch (e) { /* 自動聚焦僅方便輸入，失敗仍可手動點選。 */ } }, 0);
@@ -185,19 +195,24 @@ const YBS = (() => {
     q.push(x); setQ(q);
     return flush();
   }
-  function logout() {
+  function logout({keepAnonymous = false} = {}) {
     accountGeneration++;
     profile = null;
     leaveGuest();
     const failed = () => { onError && onError('登出未完成，請重新整理後再試。'); };
-    return withAuth(async () => { if (fb) await fb.auth.signOut(); }).catch(failed);
+    return withAuth(async () => {
+      // 手動入口會作廢待完成帳密登入，但同班座可保留既有匿名 SESSION。
+      if (fb && (!keepAnonymous || (fb.auth.currentUser && !fb.auth.currentUser.isAnonymous))) await fb.auth.signOut();
+    }).catch(failed);
   }
   // 班座紀錄獨立存 localStorage；不放帳號、答案或密碼。SDK 只沿用上面的設定。
   const GKEY = 'ybslab:guest:' + courseCode, GIDENT = 'ybslab:guest-identity';
+  const GUEST_RECEIPT_LIMIT = 200, GUEST_BATCH_LIMIT = 10;
   let guestState = { queue: [], receipts: [] }, guestStorageFailed = false;
   let guestIdentity = null, guestBinding = null, guestGeneration = 0, guestBusy = false, guestAgain = false;
+  let guestFailures = 0, guestRetryAt = 0;
   const guestWarn = e => console.warn('[YBS guestAttempts]', e?.code || 'local-or-network-error');
-  const guestStatus = state => { try { onStatus(state); } catch (e) { guestWarn(e); } };
+  const guestStatus = state => { try { onStatus(state === 'guest-pending' && guestStorageFailed ? 'guest-storage' : state); } catch (e) { guestWarn(e); } };
   const identity = x => x && /^[1-9]\d{2}$/.test(String(x.cls)) && queueInt(x.seat, 1, 60)
     ? {cls: String(x.cls), seat: x.seat} : null;
   const sameIdentity = (a, b) => !!a && !!b && a.cls === b.cls && a.seat === b.seat;
@@ -208,19 +223,30 @@ const YBS = (() => {
     && (x.uid === undefined || (typeof x.uid === 'string' && /^[^/]{1,128}$/.test(x.uid)));
   const guestKey = x => [x.cls, x.seat, x.activity, x.round].join('_');
   const receiptKey = x => JSON.stringify([courseId(), x.cls, x.seat, x.uid, x.activity, x.round]);
+  const trimReceipts = receipts => [...new Set(receipts.filter(x => typeof x === 'string' && x.length <= 256))].slice(-GUEST_RECEIPT_LIMIT);
+  // 開頁只還原這個分頁最後確認的班座，不從其他人的待送紀錄猜身分。
+  try { guestBinding = JSON.parse(sessionStorage.getItem(GIDENT) || 'null'); guestIdentity = identity(guestBinding); }
+  catch (e) { guestWarn(e); }
   function readGuest() {
     // 儲存失敗時記憶體仍是最新版本；正常時重新讀取，以容納其他分頁的新增。
     if (!guestStorageFailed) try {
       const stored = JSON.parse(localStorage.getItem(GKEY) || '{"queue":[],"receipts":[]}');
       if (!Array.isArray(stored.queue) || !Array.isArray(stored.receipts)) throw new Error('invalid queue');
-      guestState = {queue: stored.queue.filter(validGuest), receipts: stored.receipts.filter(x => typeof x === 'string')};
+      guestState = {queue: stored.queue.filter(validGuest), receipts: trimReceipts(stored.receipts)};
+      if (stored.receipts.length !== guestState.receipts.length) saveGuest(guestState);
     } catch (e) { guestWarn(e); guestStorageFailed = true; }
     return guestState;
   }
   function saveGuest(state) {
-    guestState = state;
-    try { localStorage.setItem(GKEY, JSON.stringify(state)); guestStorageFailed = false; }
-    catch (e) { guestStorageFailed = true; guestWarn(e); }
+    guestState = {...state, receipts:trimReceipts(state.receipts)};
+    // 額滿時依序捨棄最舊成功證據，把空間優先留給待送；絕不刪除待送換空間。
+    for (;;) {
+      try { localStorage.setItem(GKEY, JSON.stringify(guestState)); guestStorageFailed = false; return; }
+      catch (e) {
+        if (guestState.receipts.length) { guestState.receipts.shift(); continue; }
+        guestStorageFailed = true; guestWarn(e); return;
+      }
+    }
   }
   function guestData(x) {
     if (!validGuest(x)) throw new Error('invalid guest attempt');
@@ -229,7 +255,7 @@ const YBS = (() => {
     if (x.termWeek !== undefined) data.termWeek = x.termWeek;
     return data;
   }
-  function leaveGuest() { guestIdentity = null; guestGeneration++; }
+  function leaveGuest() { guestIdentity = null; guestGeneration++; guestFailures = 0; guestRetryAt = 0; }
   async function ensureGuest(id, generation, manual = false) {
     return withAuth(async () => {
       const {auth} = await initFirebase();
@@ -246,6 +272,10 @@ const YBS = (() => {
       }
       if (generation !== guestGeneration || profile) return null;
       if (!auth.currentUser) await auth.signInAnonymously();
+      if (generation !== guestGeneration || profile) {
+        if (auth.currentUser?.isAnonymous) await auth.signOut();
+        return null;
+      }
       if (!auth.currentUser?.isAnonymous) return null;
       guestBinding = {...id, uid:auth.currentUser.uid};
       try { sessionStorage.setItem(GIDENT, JSON.stringify(guestBinding)); } catch (e) { guestWarn(e); }
@@ -255,7 +285,7 @@ const YBS = (() => {
   function guest(id) {
     if (!enabled() || profile) return;
     const next = identity(id); if (!next) return;
-    if (!sameIdentity(next, guestIdentity)) guestGeneration++;
+    if (!sameIdentity(next, guestIdentity)) { guestGeneration++; guestFailures = 0; guestRetryAt = 0; }
     guestIdentity = next;
     const generation = guestGeneration;
     // 不等待網路；換班座時仍先完成 signOut，再匿名登入。
@@ -270,24 +300,27 @@ const YBS = (() => {
     const state = readGuest();
     // 同班座同關只留最早的待送紀錄；送出期間的重做不會刪掉別人的項目。
     if (!state.queue.some(y => guestKey(y) === guestKey(x))) saveGuest({...state, queue:[...state.queue, x]});
-    if (!sameIdentity(id, guestIdentity)) { guestIdentity = id; guestGeneration++; }
+    if (!sameIdentity(id, guestIdentity)) { guestIdentity = id; guestGeneration++; guestFailures = 0; guestRetryAt = 0; }
     return flushGuest();
   }
   async function flushGuest() {
-    if (!enabled() || profile) return;
+    if (!enabled() || profile || !guestIdentity) return;
     if (guestBusy) { guestAgain = true; return; }
-    if (!readGuest().queue.length) return;
+    if (!readGuest().queue.some(x => sameIdentity(x, guestIdentity))) return;
+    if (Date.now() < guestRetryAt) { guestStatus('guest-pending'); return; }
+    if (guestStorageFailed) saveGuest(guestState);
     if (typeof navigator !== 'undefined' && navigator.onLine === false) { guestStatus('guest-pending'); return; }
     guestBusy = true; guestAgain = false;
-    const generation = guestGeneration, attempted = new Set();
+    const generation = guestGeneration, id = guestIdentity, attempted = new Set();
+    let failed = false;
     try {
       guestStatus('sending');
-      while (generation === guestGeneration && !profile) {
-        const x = readGuest().queue.find(y => !attempted.has(guestKey(y)));
+      while (generation === guestGeneration && !profile && attempted.size < GUEST_BATCH_LIMIT) {
+        const x = readGuest().queue.find(y => sameIdentity(y, id) && !attempted.has(guestKey(y)));
         if (!x) break;
         attempted.add(guestKey(x));
         try {
-          const uid = await ensureGuest(identity(x), generation);
+          const uid = await ensureGuest(id, generation);
           if (!uid || generation !== guestGeneration || profile) break;
           x.uid = uid;
           const state = readGuest(), current = state.queue.find(y => guestKey(y) === guestKey(x));
@@ -301,22 +334,30 @@ const YBS = (() => {
           } catch (e) {
             // 匿名者不能 get；permission-denied 也可能是關課，不能無證據當成功。
             done = /^(?:firestore\/)?already-exists$/.test(e?.code || '') || readGuest().receipts.includes(proof);
-            if (!done) guestWarn(e);
+            if (!done) { failed = true; guestWarn(e); }
           }
           if (done) {
             const latest = readGuest();
             saveGuest({queue:latest.queue.filter(y => !(guestKey(y) === guestKey(x) && y.uid === uid)),
-              receipts:[...new Set([...latest.receipts, proof])]});
+              receipts:[...latest.receipts.filter(y => y !== proof), proof]});
           }
-        } catch (e) { guestWarn(e); }
+        } catch (e) { failed = true; guestWarn(e); break; }
       }
     } finally {
       guestBusy = false;
       if (!profile && generation === guestGeneration) {
-        const pending = readGuest().queue.length > 0;
+        if (failed) {
+          guestFailures = Math.min(guestFailures + 1, 5);
+          guestRetryAt = Date.now() + Math.min(60000 * 2 ** (guestFailures - 1), 900000);
+        } else { guestFailures = 0; guestRetryAt = 0; }
+        const pending = readGuest().queue.some(x => sameIdentity(x, id));
         guestStatus(pending ? 'guest-pending' : 'ok');
       }
-      if (guestAgain && !profile) { guestAgain = false; void flushGuest(); }
+      if (guestAgain && !profile) {
+        guestAgain = false;
+        // 已達單輪上限留待下個觸發點；換人仍可立即處理新身分。
+        if (generation !== guestGeneration || attempted.size < GUEST_BATCH_LIMIT) void flushGuest();
+      }
     }
   }
   // 只有有待送紀錄才在開頁時載入 SDK；教師頁不背景匿名登入。

@@ -23,7 +23,7 @@ for(const extra of [{activity:0},{activity:32},{activity:1.5},{round:-1},{round:
 test('寫入失敗保留 localStorage，online 重送成功才移除',async()=>{
   let fail=true;const h=setup({write:async()=>{if(fail)throw error('unavailable');}});
   await h.api.submit(packet());assert.equal(h.queue().length,1);assert.equal(h.statuses.at(-1),'guest-pending');
-  fail=false;await h.online();assert.equal(h.calls.length,2);assert.equal(h.queue().length,0);assert.equal(h.state().receipts.length,1);
+  fail=false;h.advance();await h.online();assert.equal(h.calls.length,2);assert.equal(h.queue().length,0);assert.equal(h.state().receipts.length,1);
 });
 test('下次開頁自動重送，同班座保留 session 匿名 UID',async()=>{
   const h=setup({write:async()=>{throw error('unavailable');}});await h.api.submit(packet());
@@ -32,13 +32,13 @@ test('下次開頁自動重送，同班座保留 session 匿名 UID',async()=>{
 });
 test('下次過關重送舊項目，失敗項目不阻擋後續關卡',async()=>{
   let fail=true;const h=setup({write:async d=>{if(fail&&d.round===0)throw error('unavailable');}});
-  await h.api.submit(packet());fail=false;await h.api.submit(packet({round:1}));
+  await h.api.submit(packet());fail=false;h.advance();await h.api.submit(packet({round:1}));
   assert.deepEqual(h.calls.map(x=>x.data.round),[0,0,1]);assert.equal(h.queue().length,0);
 });
 test('匿名登入失敗也先保存；online 可重送',async()=>{
   const h=setup({authFailure:'auth/network-request-failed'});await h.api.submit(packet());
   assert.equal(h.queue().length,1);assert.equal(h.calls.length,0);assert.equal(h.statuses.at(-1),'guest-pending');
-  h.failLogin(null);await h.online();assert.equal(h.calls.length,1);assert.equal(h.queue().length,0);
+  h.failLogin(null);h.advance();await h.online();assert.equal(h.calls.length,1);assert.equal(h.queue().length,0);
 });
 test('同班座不重登；換班或座號先 signOut 再匿名登入',async()=>{
   const h=setup();await h.api.guest({cls:999,seat:1});await h.api.guest({cls:'999',seat:1});
@@ -61,7 +61,7 @@ test('signOut 失敗不能用舊 UID 寫新班座；恢復後才重試',async()=
   const h=setup();await h.api.guest({cls:999,seat:1});const signOut=h.auth.signOut;
   h.auth.signOut=async()=>{throw error('auth/network-request-failed');};
   await h.api.submit(packet({seat:2}));assert.equal(h.calls.length,0);assert.equal(h.queue().length,1);
-  h.auth.signOut=signOut;await h.api.flushGuest();assert.equal(h.calls[0].uid,'guest2');assert.equal(h.calls[0].data.seat,2);
+  h.auth.signOut=signOut;h.advance();await h.api.flushGuest();assert.equal(h.calls[0].uid,'guest2');assert.equal(h.calls[0].data.seat,2);
 });
 test('送出等待中換班座：新 UID 不會寫前一位資料，也不遺失待送',async()=>{
   let release;const gate=new Promise(r=>release=r);let first=true;
@@ -108,11 +108,72 @@ test('寫入等待期間加新關卡；同關去重且成功才移除',async()=>
 });
 test('localStorage 不可用仍可作答上傳；失敗留記憶體重試',async()=>{
   let fail=true;const h=setup({storageFails:true,write:async()=>{if(fail)throw error('unavailable');}});
-  await h.api.submit(packet());fail=false;h.blockStorage(false);await h.api.flushGuest();
+  await h.api.submit(packet());fail=false;h.blockStorage(false);h.advance();await h.api.flushGuest();
   assert.equal(h.calls.length,2);assert.equal(h.statuses.at(-1),'ok');
 });
 test('教師頁開啟及定時器不啟動背景匿名登入',async()=>{
   const stored=new Map([[key,JSON.stringify({queue:[packet({cls:'999'})],receipts:[]})]]);
   const h=setup({stored,pathname:'/115-g9/teacher/'});await settle();for(const t of h.timers)await t.fn();await h.online();
   assert.deepEqual(h.authCalls,[]);assert.equal(h.calls.length,0);
+});
+test('兩班座持續被拒：背景只重送目前班座，退避期間不寫入、不增加 UID',async()=>{
+  const h=setup({write:async()=>{throw error('permission-denied');}});
+  await h.api.guest({cls:999,seat:1});await h.api.submit(packet());
+  await h.api.guest({cls:999,seat:2});await h.api.submit(packet({seat:2}));
+  const initial=h.calls.length;
+  for(let i=0;i<3;i++){await h.online();await h.api.flushGuest();}
+  assert.equal(h.calls.length,initial,'失敗後立即觸發 online／flush 也須退避');
+  h.advance();await h.online();assert.equal(h.calls.length,initial+1);
+  h.advance();await h.online();assert.equal(h.calls.length,initial+1,'第二次失敗至少退避兩分鐘');
+  h.advance();await h.online();assert.equal(h.calls.length,initial+2);
+  assert.equal(h.authCalls.filter(x=>x==='anonymous').length,2);
+  assert.equal(h.authCalls.filter(x=>x==='signOut').length,1);
+  assert.ok(h.calls.slice(1).every(x=>x.data.seat===2));assert.equal(h.queue().length,2);
+  const next=setup({stored:h.stored,session:h.session,user:h.auth.currentUser,write:async()=>{throw error('permission-denied');}});await settle();
+  assert.deepEqual(next.authCalls,[]);assert.ok(next.calls.every(x=>x.data.seat===2));
+  await next.api.guest({cls:999,seat:1});assert.equal(next.calls.at(-1).data.seat,1);
+});
+test('沒有目前班座的開頁重送不從待送猜身分、不建立 UID',async()=>{
+  const stored=new Map([[key,JSON.stringify({queue:[packet({cls:'999'}),packet({cls:'999',seat:2})],receipts:[]})]]);
+  const h=setup({stored});await settle();await h.online();
+  assert.deepEqual(h.authCalls,[]);assert.equal(h.calls.length,0);assert.equal(h.queue().length,2);
+});
+test('匿名登入等待中改用帳號：作廢遲到匿名身分，帳號過關只寫 attempts',async()=>{
+  let release;const gate=new Promise(r=>release=r);
+  const h=setup({anonymousLogin:()=>gate});const guest=h.api.guest({cls:999,seat:1});await settle();
+  const login=h.signIn();release();await guest;await login;await h.api.submit(packet());
+  assert.equal(h.api.profile().uid,'account1');assert.equal(h.auth.currentUser.isAnonymous,false);
+  assert.equal(h.calls.length,1);assert.match(h.calls[0].path,/attempts\/account1_1_0$/);
+  assert.deepEqual(h.authCalls,['anonymous','signOut','password']);
+});
+for(const rejected of [false,true])test(`單輪最多重送十筆（持續被拒=${rejected}），後續輪繼續保留項目`,async()=>{
+  const queue=Array.from({length:24},(_,i)=>packet({cls:'999',activity:i+1}));
+  const stored=new Map([[key,JSON.stringify({queue,receipts:[]})]]);
+  const h=setup({stored,write:async()=>{if(rejected)throw error('permission-denied');}});await h.api.guest({cls:999,seat:1});await settle();
+  assert.equal(h.calls.length,10);assert.equal(h.queue().length,rejected?24:14);
+  h.advance();await h.api.flushGuest();assert.equal(h.calls.length,20);assert.equal(h.queue().length,rejected?24:4);
+  assert.equal(h.authCalls.filter(x=>x==='anonymous').length,1);
+});
+const proof=i=>JSON.stringify(['115-g9','999',1,'old'+i,1,0]);
+test('既有 receipts 清至最近兩百筆，新成功證據也維持上限',async()=>{
+  const receipts=Array.from({length:260},(_,i)=>proof(i));
+  const stored=new Map([[key,JSON.stringify({queue:[],receipts})]]);const h=setup({stored});await settle();
+  assert.deepEqual(h.state().receipts,receipts.slice(-200));
+  await h.api.submit(packet());assert.equal(h.state().receipts.length,200);
+  assert.equal(h.state().receipts[0],receipts[61]);assert.match(h.state().receipts.at(-1),/guest1/);
+});
+test('quota 額滿先清最舊 receipts，待送優先持久保存且重新開頁仍存在',async()=>{
+  const receipts=[proof(1),proof(2),proof(3)];
+  const stored=new Map([[key,JSON.stringify({queue:[],receipts})]]);const h=setup({stored});
+  const pending=packet({cls:'999'});
+  h.limitStorage(JSON.stringify({queue:[pending],receipts:receipts.slice(-1)}).length);
+  h.blockStorage(false);h.failLogin('auth/network-request-failed');await h.api.submit(packet());
+  assert.equal(h.queue().length,1);assert.equal(h.state().receipts.length,1);assert.equal(h.state().receipts[0],receipts[2]);
+  const next=setup({stored});await settle();assert.equal(next.queue().length,1);
+});
+test('quota 連純待送都存不下時明確提示，儲存恢復後可重新持久保存',async()=>{
+  const h=setup({storageLimit:1,authFailure:'auth/network-request-failed'});await h.api.submit(packet());
+  assert.equal(h.statuses.at(-1),'guest-storage');
+  h.limitStorage(Infinity);h.advance();await h.api.flushGuest();
+  assert.equal(h.queue().length,1);assert.equal(h.statuses.at(-1),'guest-pending');
 });

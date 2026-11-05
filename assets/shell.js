@@ -10,8 +10,8 @@
 // round.manualAttempt=true 時，由 view 的 api.attempt() 在演出開始時記次。
 // cfg.progressLength（預設 6）、rememberIdentity（預設 false）保留舊頁儲存形狀。
 // 過關規則：累積答對兩組不同的資料。答錯不歸零；未過關時送出後換新題。
-// 僅供頁面顯示；不寫入既有過關紀錄或雲端欄位。
-const shellScore = (passed, total) => passed <= 0 || total <= 0 ? 0
+// 活動頁與教師頁共用計分；不寫入既有過關紀錄或雲端欄位。
+const activityScore = (passed, total) => passed <= 0 || total <= 0 ? 0
   : Math.max(0, 100 - 10 * Math.max(0, total - passed));
 const shellTitle = cfg => {
   const activity = typeof ACTIVITIES !== 'undefined' ? ACTIVITIES.find(a => a.course === cfg.course && a.week === cfg.week) : null;
@@ -264,7 +264,7 @@ const shellCreateRoundFlow = (s) => {
   // 按原順序顯示所有關卡與已完成標記。
   function renderRounds() {
     $('rounds').innerHTML = R.map((r, i) => '<button type="button" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
-    $('score-value').textContent = shellScore(R.filter((_, i) => s.done.has(i)).length, R.length);
+    $('score-value').textContent = activityScore(R.filter((_, i) => s.done.has(i)).length, R.length);
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
   // 顯示累積答對的組數；保留 streak 名稱相容舊計數。

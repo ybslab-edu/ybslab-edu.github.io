@@ -6,11 +6,11 @@ import vm from 'node:vm';
 import {Element} from './fixtures/activity-dom.mjs';
 import {setup as firebase,settle,key,error} from './fixtures/guest-firebase.mjs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-function setup({loginDisabled=false,whoami=async()=>({ok:true,student:{cls:'999',seat:1}}),...options}={}){
+function setup({teacher=false,loginDisabled=false,whoami=async()=>({ok:true,student:{cls:'999',seat:1}}),...options}={}){
   const fb=firebase(options),body=new Element('body'),stored=fb.stored;
   const context=vm.createContext({YBS:fb.api,document:{body,addEventListener(){},createElement:t=>new Element(t),getElementById:id=>body.querySelector('#'+id)},
     window:{},localStorage:{getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)},sessionStorage:{setItem(){}},
-    TEACHER:{remembered:()=>false,remember(){}},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame:()=>0,matchMedia:()=>({matches:true})});
+    TEACHER:{remembered:()=>teacher,remember(){}},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame:()=>0,matchMedia:()=>({matches:true})});
   // 登入表單由既有獨立測試涵蓋；此處進入真實手動班座、判題與上傳流程。
   let onLogin;
   const ybs={...fb.api,button(_,callback){onLogin=callback;},whoami};
@@ -35,7 +35,8 @@ for(const [mode,options] of [
   assert.equal(h.el('b-send').disabled,true);
   h.run('APP.handle.fill()');
   assert.equal(h.run('APP.handle.ready()'),true);
-  assert.equal(h.el('b-send').disabled,true,'fill 不會自動同步送出按鈕');
+  // 此處直接填值只為準備合成答案；尚未觸發學生 input/change，與教師工具列入口不同。
+  assert.equal(h.el('b-send').disabled,true,'直接 fill 後仍須學生輸入事件同步送出狀態');
   h.el('b-send').click();
   assert.equal(h.el('streak').querySelectorAll('.on').length,0,'disabled click 不應判題');
   assert.equal(h.el('verdict').hidden,true);
@@ -133,4 +134,24 @@ test('帳號上傳失敗可從按鈕重送，登出後按鈕不送出',async()=>
   assert.match(h.el('sync2').textContent,/還沒上傳成功/);assert.equal(h.calls.length,1);
   fail=false;await h.el('b-retry').onclick();assert.equal(h.calls.length,2);assert.match(h.el('sync2').textContent,/已上傳/);
   h.el('b-swap').click();await h.el('b-retry').onclick();assert.equal(h.calls.length,2);
+});
+
+test('教師顯示答案可直接送出兩組示範過關，不儲存進度或上傳',async()=>{
+  const h=setup({teacher:true});
+  const storedBefore=[...h.stored];
+  for(let i=0;i<2;i++){
+    assert.equal(h.el('b-send').disabled,true);
+    const question=h.run('JSON.stringify(APP.inst)');
+    h.el('tb-ans').click();
+    assert.equal(h.run('APP.handle.ready()'),true);
+    assert.equal(h.el('b-send').disabled,false);
+    assert.equal(h.el('send-hint').textContent,'');
+    h.el('b-send').click();
+    assert.equal(h.el('streak').querySelectorAll('.on').length,i+1);
+    if(i===0)assert.notEqual(h.run('JSON.stringify(APP.inst)'),question);
+  }
+  await settle();
+  assert.match(h.el('verdict').textContent,/過關/);
+  assert.deepEqual([...h.stored],storedBefore);
+  assert.equal(h.calls.length,0);assert.deepEqual(h.authCalls,[]);
 });

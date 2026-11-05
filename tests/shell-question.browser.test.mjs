@@ -94,8 +94,8 @@ test('u2-03 實際頁面：生日、八燈、最少燈數與容量換題標示�
     assert.equal(await page.evaluate(()=>window.draws),1);
     const first=await page.evaluate(()=>JSON.stringify(APP.inst));
     if(index>=3)assert.equal(await page.locator('#b-send').isDisabled(),true);
-    await page.evaluate(()=>APP.handle.fill());
-    assert.equal(await page.locator('#b-send').isDisabled(),false,'填答後必須啟用送出');
+    await page.locator('#tb-ans').click();
+    assert.equal(await page.locator('#b-send').isDisabled(),false,'教師顯示答案後必須啟用送出');
     await page.evaluate(()=>document.getElementById('b-send').click());
     assert.equal(await page.locator('#verdict').isVisible(),true);
     assert.match(await page.locator('#streak').innerText(),/累積答對 1\/2/);

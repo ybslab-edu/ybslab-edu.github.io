@@ -72,8 +72,8 @@ test('u2-03 實際題目：生日、八燈、最少燈數與容量的任務數�
     assert.equal(h.run('draws'),1);
     const first=h.run('JSON.stringify(APP.inst)');
     if(i>=3)assert.equal(h.get('b-send').disabled,true);
-    h.run('APP.handle.fill()');
-    assert.equal(h.get('b-send').disabled,false,'填答後必須啟用送出');
+    h.get('tb-ans').click();
+    assert.equal(h.get('b-send').disabled,false,'教師顯示答案後必須啟用送出');
     h.send();
     assert.equal(h.get('verdict').hidden,false);
     assert.match(h.get('streak').textContent,/累積答對 1\/2/);
@@ -81,6 +81,6 @@ test('u2-03 實際題目：生日、八燈、最少燈數與容量的任務數�
     assert.equal(h.run('draws'),4,'排除重複數值，不能只改情境文字');
     assert.ok(h.get('says').querySelectorAll('.question-changed').length>0);
     assert.ok(h.get('stage').querySelector('.target-content').querySelectorAll('.question-changed').length>0);
-    h.run('APP.handle.fill()');h.send();assert.equal(h.get('verdict').className,'verdict ok');
+    h.get('tb-ans').click();h.send();assert.equal(h.get('verdict').className,'verdict ok');
   }
 });

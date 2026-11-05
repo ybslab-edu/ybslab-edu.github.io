@@ -72,13 +72,14 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
   }
   const headers = ['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳'];
   const count = mask => { let n=0; while(mask){n+=mask&1;mask>>>=1;} return n; };
+  const score = r => activityScore(count(r.mask), activities[r.activity].rounds.length);
   const values = r => [r.cls,r.seat,r.activity,activities[r.activity].title,r.source,r.uid,count(r.mask),r.tries.length,r.tries.join(' / '),new Date(r.at)];
   const node = (tag, text) => { const n=document.createElement(tag); if(text!==undefined)n.textContent=String(text); return n; };
   function details(records, warning) {
     const box=node('details'); box.appendChild(node('summary',warning || '詳細資料'));
     for(const r of records) box.appendChild(node('p',
       '班級：' + r.cls + '・座號：' + r.seat + '・' + activities[r.activity].title + '・' + r.source + '・UID：' + r.uid + '・' + count(r.mask) + '/' + r.tries.length +
-      '・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW')));
+      '・分數：' + score(r) + ' 分・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW')));
     return box;
   }
   function render() {
@@ -104,8 +105,8 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
       for(const id of ids){
         const found=records.filter(r=>r.activity===id), td=node('td');
         if(found.length>1||duplicate||sharedUID){td.textContent='待核對';conflict=true;}
-        else if(found.length){const r=found[0], n=count(r.mask);td.textContent=(n===r.tries.length?'✓':n+'/'+r.tries.length)+(r.source==='未驗證'?'（未驗證）':'');}
-        else td.textContent='0/'+activities[id].rounds.length;
+        else if(found.length){const r=found[0], n=count(r.mask);td.textContent=score(r)+' 分（'+(n===r.tries.length?'✓':n+'/'+r.tries.length)+'）'+(r.source==='未驗證'?'（未驗證）':'');}
+        else td.textContent=activityScore(0,activities[id].rounds.length)+' 分（0/'+activities[id].rounds.length+'）';
         tr.appendChild(td);
       }
       const td=node('td');td.appendChild(details(records,conflict?'待核對：來源、UID 或名冊衝突':'詳細資料'));tr.appendChild(td);tbody.appendChild(tr);

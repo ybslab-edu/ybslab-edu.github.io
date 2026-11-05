@@ -232,7 +232,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 
 <header class="bar">
   <div class="in">
-    <a class="logo" href="../" aria-label="YBS Lab：Why, because, so."><b aria-hidden="true"><span class="y">Y</span><span class="bb">B</span><span class="s">S</span> Lab</b><span class="motto" id="motto" aria-hidden="true"><span>wh<span class="k y">Y</span></span><span><span class="k b">B</span>ecause</span><span><span class="k s">S</span>o.</span></span></a>
+    <a class="logo" href="../" aria-label="YBS Lab：Why, because, so"><b aria-hidden="true"><span class="y">Y</span><span class="bb">B</span><span class="s">S</span> Lab</b><span class="motto" id="motto" aria-hidden="true"><span>wh<span class="k y">Y</span></span><span><span class="k b">B</span>ecause</span><span><span class="k s">S</span>o</span></span></a>
     <nav aria-label="主選單"><a href="../">學期進度</a><a href="./" aria-current="page">學習地圖</a><a href="../about/">關於</a></nav>
   </div>
 </header>
@@ -286,7 +286,8 @@ const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網�
 /* 地圖：國中／高中必修／高中選修 三個分頁共用同一套畫法 */
 const pref=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 const keep=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-let cur=CURRICULA.find(c=>c.id===pref('ybs:cur'))||CURRICULA[0];
+// 每次進入預設國中；下方仍依網址的課綱代碼開啟對應分頁。
+let cur=CURRICULA.find(c=>c.id==='jh');
 const savedView=pref('ybs:view');
 let view=['radial','lines'].includes(savedView)?savedView:(innerWidth>=760?'radial':'lines');
 const lvOf=(c,g)=>c.levels.find(l=>l.g===g)||{mark:'',label:''};

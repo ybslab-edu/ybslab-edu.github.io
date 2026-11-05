@@ -1,6 +1,6 @@
 // 活動頁共用外框（第 2 單元起）。各週頁面只要寫關卡，填班級座號、分頁、教師模式、上傳都在這裡。
 // 用法：SHELL({week, termWeek, title, course, unit, rounds:[…]})
-// 每一關：{ name, lv:1|2, now, goal, tip（字串或 inst=>字串）, learn（過關說明）,
+// 每一關：{ name, lv:1|2, now, goal, tip（字串或 inst=>字串）, steps(inst)（選填拆步驟）, learn（過關說明）,
 //   gen(rnd) → inst（一組題目資料，rnd() 回傳 0～1）,
 //   questionKey(inst)（可省略）→ 用於判斷同題的資料；預設比對完整 inst，
 //   view(inst, el, api) → { get()（學生目前的答案）, fill()（教師：填好答案）, ready()（可以送出了嗎，可省略） },
@@ -27,6 +27,7 @@ const SHELL = (cfg) => {
     inst: null, handle: null, streak: 0, teacher: false, done: new Set(), previousKey: null, ident: null };
   shellCreateInterface(s);
   s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
+  Object.assign(s, shellCreateHints(s));
   Object.assign(s, shellCreateRoundFlow(s), shellCreateJudging(s), shellCreateProgress(s));
   shellBindIdentityForm(s);
   Object.assign(s, shellCreateIdentity(s), shellCreateTeacher(s), shellCreateLogin(s), shellCreateSync(s));
@@ -91,10 +92,20 @@ const shellMainHTML = (cfg, esc) => {
     <div class="order" id="says" aria-live="polite"></div>
   </section>
   <section class="sec">
-    <h2 class="sec-h"><span class="num">2</span>動手做</h2>
+    <div id="original-work"><h2 class="sec-h"><span class="num">2</span>動手做</h2>
     <div id="stage"></div>
     <div class="btns"><button class="btn primary" id="b-send" type="button">送出</button><span class="streak" id="streak"></span><span class="small" id="send-hint"></span></div>
-    <section class="verdict" id="verdict" hidden aria-live="polite"></section>
+    <section class="verdict" id="verdict" hidden aria-live="polite"></section></div>
+    <aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯">
+      <button class="btn" id="b-hint" type="button" disabled>我需要提示</button>
+      <span class="small" id="hint-status">先試著送出一次，就能看提示。</span>
+      <div id="hint-content" aria-live="polite" aria-atomic="true"></div>
+      <button class="btn" id="b-demo" type="button" hidden>看一題示範</button>
+      <section id="hint-demo" hidden aria-label="另一題示範">
+        <div id="demo-content" aria-live="polite"></div>
+        <button class="btn" id="b-demo-back" type="button">回原題自己做</button>
+      </section>
+    </aside>
   </section>
   <section class="sec" id="sec3" hidden>
     <h2 class="sec-h"><span class="num">3</span>電腦裡發生的</h2>
@@ -121,6 +132,77 @@ const shellMainHTML = (cfg, esc) => {
 const shellCreateInterface = (s) => {
   const { cfg, esc } = s;
   document.body.insertAdjacentHTML('afterbegin', shellGateHTML(cfg, esc) + shellMainHTML(cfg, esc));
+};
+
+// 提示只存在本次操作的記憶體，不加入進度、成績或上傳欄位。
+const shellHintNext = (level, round) => level >= 3 ? 3 : level === 1 && !round.steps ? 3 : level + 1;
+const shellContentKey = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
+  ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
+const shellCreateHints = s => {
+  const { $, esc, R } = s;
+  let level = 0, submitted = false, demonstrating = false;
+  const txt = (v, i) => typeof v === 'function' ? v(i) : (v || '');
+  function closeDemo(focus = false) {
+    demonstrating = false;
+    $('hint-demo').hidden = true; $('demo-content').innerHTML = '';
+    $('original-work').hidden = false;
+    if (focus) { s.changed(); $('b-demo').focus(); }
+  }
+  function renderHints() {
+    const r = R[s.ri];
+    $('hint-ladder').hidden = s.teacher;
+    $('b-hint').disabled = !submitted || level >= 3 || demonstrating;
+    $('hint-status').textContent = !submitted ? '先試著送出一次，就能看提示。' : level >= 3 ? '已解鎖全部提示。看提示不影響分數與經驗值。' : '看提示不影響分數與經驗值。';
+    $('hint-content').innerHTML = (level >= 1 ? '<h3>第 1 層：方向</h3><div>' + txt(r.tip, s.inst) + '</div>' : '') +
+      (level >= 2 && r.steps ? '<h3>第 2 層：拆步驟</h3><div>' + txt(r.steps, s.inst) + '</div>' : '') +
+      (level >= 3 ? '<h3>第 3 層：看一題示範</h3><p>用另一組資料練習，再回原題自己做。</p>' : '');
+    $('b-demo').hidden = level < 3 || demonstrating;
+  }
+  function resetHints() { closeDemo(); level = 0; submitted = false; renderHints(); }
+  function hintSubmitted(wrong) {
+    if (s.teacher) return;
+    submitted = true;
+    if (wrong) level = shellHintNext(level, R[s.ri]);
+    renderHints();
+  }
+  $('b-hint').onclick = () => {
+    if (!submitted || demonstrating || s.teacher) return;
+    level = shellHintNext(level, R[s.ri]); renderHints();
+  };
+  $('b-demo').onclick = () => {
+    if (level < 3 || demonstrating || s.teacher) return;
+    const r = R[s.ri], box = $('demo-content');
+    box.innerHTML = '';
+    // 演出型活動的 fill 只排卡片，尚未完成演出，改用 learn 說明。
+    let example = null;
+    if (typeof s.handle.fill === 'function' && !r.manualAttempt) {
+      const key = i => shellContentKey(r.questionKey ? r.questionKey(i) : i);
+      const originalKey = key(s.inst);
+      for (let draw = 0; draw < 20; draw++) {
+        const candidate = r.gen(Math.random);
+        if (key(candidate) !== originalKey) { example = candidate; break; }
+      }
+    }
+    if (example) {
+      try {
+        const field = document.createElement('fieldset');
+        field.innerHTML = '<legend>另一題示範（已填好）</legend><div class="demo-question">' +
+          (r.instruction ? txt(r.instruction, example) : txt(r.now, example) + '<br>' + txt(r.goal, example)) + '</div><div class="demo-stage"></div>';
+        const handle = r.view(example, field.querySelector('.demo-stage'), {changed() {}, attempt() {}, esc});
+        handle.fill();
+        if (r.check(example, handle.get()) !== true) throw new Error('此關無法自動完成');
+        field.disabled = true; box.appendChild(field);
+        box.insertAdjacentHTML('beforeend', '<div class="demo-why"><h3>為什麼這樣做</h3>' +
+          (r.steps ? txt(r.steps, example) : '') + '<p>' + esc(r.learn || '依照本關規則完成上面的操作。') + '</p>' +
+          (r.peek ? r.peek(example, handle.get()) : '') + '</div>');
+      } catch (e) { example = null; box.innerHTML = ''; }
+    }
+    if (!example) box.innerHTML = '<h3>這一關的說明</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '<p>' + txt(r.now, s.inst) + '</p><p>' + txt(r.goal, s.inst) + '</p><p>' + txt(r.tip, s.inst) + '</p>');
+    demonstrating = true; $('original-work').hidden = true; $('sec3').hidden = true;
+    $('hint-demo').hidden = false; renderHints(); $('b-demo-back').focus();
+  };
+  $('b-demo-back').onclick = () => { closeDemo(true); renderHints(); };
+  return { renderHints, resetHints, hintSubmitted, closeDemo, isHintDemo: () => demonstrating };
 };
 
 // 任務說明自動比對數字；活動可用 data-changed="穩定名稱" 標記額外題目區域。
@@ -173,10 +255,10 @@ const shellCreateRoundFlow = (s) => {
     if (R[s.ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[s.ri].peek(s.inst, s.handle.get()); } else $('sec3').hidden = true;
   }
   // 在 view 可能改動資料前保存內容；物件鍵序不影響比對，陣列順序仍有意義。
-  const contentKey = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
-    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
+  const contentKey = shellContentKey;
   // 共用換題入口：送出、教師換題及重載同關皆排除前題。
   function fresh(afterSubmit = false) {
+    s.closeDemo?.();
     const r = R[s.ri], rnd = seed();
     const previousNumbers = s.previousKey === null ? null : shellQuestionNumbers($);
     let key;
@@ -187,14 +269,14 @@ const shellCreateRoundFlow = (s) => {
       if (key !== s.previousKey) break;
     }
     s.previousKey = key;
-    $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
+    $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (s.teacher && r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
     $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), { changed: () => changed(), attempt, esc });
     shellHighlightQuestion($, previousNumbers);
-    renderStreak(); changed();
+    renderStreak(); changed(); s.renderHints?.();
     if (afterSubmit) $('task-instructions')?.scrollIntoView?.({behavior: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   }
   // 切換關卡並重設累積答對狀態。
-  function load(i) { if (s.ri !== i) s.previousKey = null; s.ri = i; s.streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
+  function load(i) { if (s.ri !== i) { s.previousKey = null; s.resetHints?.(); } s.ri = i; s.streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
   // 保留既有測試／頁面使用的入口；等級不再影響關卡顯示。
   function setLevel(l) { const i = R.findIndex(r => r.lv === l); load(i >= 0 ? i : 0); }
 
@@ -212,8 +294,10 @@ const shellCreateJudging = (s) => {
   const NEED = 2;
   // 依原判題結果更新累積確認與過關紀錄。
   function submit() {
+    if (s.isHintDemo?.()) return;
     const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
     if (!r.manualAttempt) s.attempt();
+    s.hintSubmitted?.(res !== true);
     if (res !== true) {
       v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">' + (r.manualAttempt ? '調整後再演出一次。' : '已換新題；答錯不歸零，累積答對 2/2 就過關。') + '</p>';
       v.querySelector('p').textContent = res; v.hidden = false;
@@ -227,6 +311,7 @@ const shellCreateJudging = (s) => {
       s.fresh(true); return;
     }
     if (!s.teacher) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
+    s.resetHints?.();
     const next = R.findIndex((x, i) => i > s.ri);
     v.className = 'verdict ok';
     v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + '<div class="btns">' +
@@ -285,6 +370,7 @@ const shellCreateIdentity = (s) => {
   const { cfg, $, R, loginEnabled } = s;
   // 還原既有進度並進入活動。
   function start(id) {
+    s.resetHints?.();
     s.ident = id; $('sync').textContent = ''; $('sync2').textContent = ''; $('sync2').hidden = true; $('b-retry').disabled = false; s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
     try { const p = JSON.parse(localStorage.getItem(s.progressKey()) || 'null'); if (p && Number.isInteger(p.mask) && p.mask >= 0 && p.mask < 2 ** R.length
       && Array.isArray(p.tries) && p.tries.length >= R.length && p.tries.length <= 6

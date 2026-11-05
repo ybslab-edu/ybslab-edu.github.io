@@ -123,3 +123,14 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .question-changed{background:#ffe066;color:#211b17;border-radius:2px;animation:question-change-fade 2s ease-out forwards}
 @keyframes question-change-fade{0%,20%{background:#ffe066;color:#211b17}100%{background:transparent;color:inherit}}
 @media(prefers-reduced-motion:reduce){.question-changed{animation-timing-function:steps(1,end)}}
+
+/* 提示階梯沒有動畫，鍵盤沿用原生按鈕；長文字在手機內換行。 */
+.hint-ladder{margin-top:18px;border-top:1px solid var(--line);padding-top:16px;overflow-wrap:anywhere}
+.hint-ladder h3{font-size:18px;margin:14px 0 8px}
+.hint-ladder #hint-content{line-height:1.8}
+.hint-ladder fieldset{min-width:0;border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+.hint-ladder fieldset:disabled{opacity:1}
+.hint-ladder .demo-question{margin-bottom:12px}
+.hint-ladder #b-demo-back{margin-top:14px}
+
+#original-work{display:flex;flex-direction:column;gap:12px;min-width:0}

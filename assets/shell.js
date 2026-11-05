@@ -25,7 +25,7 @@ const shellXPReady = (() => {
   if (!src) return Promise.resolve();
   return new Promise(resolve => {
     const script = document.createElement('script');
-    script.src = new URL('xp.js?v=20261105b', src).href;
+    script.src = new URL('xp.js?v=20261105d', src).href;
     script.onload = script.onerror = resolve;
     document.head.appendChild(script);
   });
@@ -227,6 +227,8 @@ const shellCreateXP = s => {
       // 僅查目前帳號自己的 attempts；不用教師路徑或 guestAttempts。
       const result = await db.collection('ybsCourses/' + course + '/attempts').where('uid', '==', uid).get();
       if (current !== generation || request !== readGeneration || YBS.profile()?.uid !== uid || auth.currentUser?.uid !== uid) return;
+      // 預設 get 離線時可回傳空快取；僅伺服器確認後才更新 XP。
+      if (result.metadata?.fromCache !== false) return;
       cloud = result.docs.map(d => ({...d.data(), course})).filter(r => r.uid === uid);
       ready = true; render(); renderPass();
     } catch { /* 讀取失敗保留已確認紀錄；首次讀取仍等待雲端，不顯示假 0。 */ }

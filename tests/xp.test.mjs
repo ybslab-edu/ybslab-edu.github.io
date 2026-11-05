@@ -51,3 +51,20 @@ test('六大主題探索度分母含未開放；同主題不重算；多軸與�
   assert.equal(result.exploration.length,6);assert.equal(result.exploration.find(a=>a.id==='H').value,0);
   assert.equal(xp.calculate([activity()],[record({activity:99}),record({round:9}),record({course:'other'})]).totalXP,0);
 });
+
+test('離線補傳優先採有效 at；舊紀錄或無效 at 回退 passedAt',()=>{
+  for(const at of [open,new Date(open).toISOString(),{toMillis:()=>open}]){
+    assert.equal(xp.calculate([activity()],[record({at,passedAt:open+8*day})]).totalXP,15);
+  }
+  assert.equal(xp.calculate([activity()],[record({at:open+8*day,passedAt:open})]).totalXP,10);
+  for(const at of [undefined,null,'bad',0,NaN]){
+    assert.equal(xp.calculate([activity()],[record({at,passedAt:open})]).totalXP,15);
+  }
+  assert.equal(xp.calculate([activity()],[record({at:open})]).totalXP,15);
+});
+test('重複紀錄依有效作答時間選首次；未知時間仍不補發準時加成',()=>{
+  const early=record({at:open,passedAt:open+9*day});
+  const late=record({at:open+8*day,passedAt:open+8*day});
+  for(const records of [[early,late],[late,early]])assert.equal(xp.calculate([activity()],records).totalXP,15);
+  for(const records of [[early,record()],[record(),early]])assert.equal(xp.calculate([activity()],records).totalXP,10);
+});

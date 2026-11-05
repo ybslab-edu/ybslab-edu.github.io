@@ -1,6 +1,6 @@
 // XP 只供成長顯示，與成績及雲端寫入無關。
 // calculate 的活動須附 openedAt（共用 activityOpenAt 結果）與 isOpen；不自行猜日期。
-// records 為已過關明細：{course, activity, round, passedAt?}。
+// records 為已過關明細：{course, activity, round, at?, passedAt?}。
 const YBSXP = (() => {
   const RULES = Object.freeze({pass:10, onTime:5, complete:20, windowMs:7 * 864e5, levelFactor:21.5});
   const TITLES = Object.freeze(['位元見習生','編碼學徒','封包工程師','資料偵探','網路巡守員','演算法學徒','程式工匠','系統架構師','AI 訓練師','資訊大師']);
@@ -10,6 +10,11 @@ const YBSXP = (() => {
     if (typeof v.toMillis === 'function') v = v.toMillis();
     else if (typeof v === 'string') v = Date.parse(v);
     return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : NaN;
+  };
+  // at 是既有學生端作答時間；舊紀錄無有效 at 時才採伺服器收件時間。
+  const attemptTime = r => {
+    const at = timestamp(r?.at);
+    return Number.isFinite(at) ? at : timestamp(r?.passedAt);
   };
   // Lv 1 從 0 開始；目前 九年級 30 活動、121 關，滿額 2415 XP 可達 Lv 10（2365）。
   const threshold = n => n <= 1 ? 0 : Math.ceil(RULES.levelFactor * n * (n + 1));
@@ -26,7 +31,7 @@ const YBSXP = (() => {
       if (!Number.isInteger(r.activity) || !Number.isInteger(r.round) || r.round < 0) continue;
       const key = r.course + ':' + r.activity + ':' + r.round, old = first.get(key);
       // 有未知時間時保留未知；不讓重做補發首次過關的加成。
-      if (!old || (Number.isFinite(timestamp(old.passedAt)) && (!Number.isFinite(timestamp(r.passedAt)) || timestamp(r.passedAt) < timestamp(old.passedAt)))) first.set(key, r);
+      if (!old || (Number.isFinite(attemptTime(old)) && (!Number.isFinite(attemptTime(r)) || attemptTime(r) < attemptTime(old)))) first.set(key, r);
     }
     const axes = Object.fromEntries(Object.entries(THEMES).map(([id, name]) => [id, {id, name, passed:0, total:0, openPassed:0, openTotal:0}]));
     const seen = new Set();
@@ -37,7 +42,7 @@ const YBSXP = (() => {
       seen.add(key);
       const rounds = a.rounds.map((name, round) => {
         const record = first.get(key + ':' + round), passed = !!record;
-        const at = timestamp(record?.passedAt), open = timestamp(a.openedAt);
+        const at = attemptTime(record), open = timestamp(a.openedAt);
         const passXP = passed ? RULES.pass : 0;
         const onTimeXP = passed && at >= open && at <= open + RULES.windowMs ? RULES.onTime : 0;
         return {round, name, passed, passXP, onTimeXP, totalXP:passXP + onTimeXP};

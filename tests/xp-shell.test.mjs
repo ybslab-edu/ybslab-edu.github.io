@@ -13,10 +13,10 @@ function setup({old,cloud,fail=false,delayed=false,teacher=false}={}){
   if(old)stored.set('it9:w2:999-1',JSON.stringify(old));
   let coreScript;
   let status;
-  let cloudRecords=[];
+  let cloudRecords=[],cache=false;
   let profile=cloud?{uid:'synthetic-one',email:'synthetic@example.invalid'}:null,resolveRead;
   const waiting=new Promise(resolve=>resolveRead=resolve);
-  const db={collection:path=>{queries.push(path);return {where:(field,op,value)=>{queries.push([field,op,value]);return {get:async()=>{if(fail)throw new Error('offline');if(value!=='synthetic-one')await new Promise(()=>{});await waiting;return {docs:cloudRecords.map(data=>({data:()=>data}))}}}}}}};
+  const db={collection:path=>{queries.push(path);return {where:(field,op,value)=>{queries.push([field,op,value]);return {get:async()=>{if(fail)throw new Error('offline');if(value!=='synthetic-one')await new Promise(()=>{});await waiting;return {metadata:{fromCache:cache},docs:cloudRecords.map(data=>({data:()=>data}))}}}}}}};
   const context=vm.createContext({URL,document:{body,currentScript:delayed?{src:'https://synthetic.invalid/assets/shell.js'}:null,head:{appendChild:el=>{coreScript=el}},createElement:t=>new Element(t),getElementById:id=>body.querySelector('#'+id)},window:{},
     localStorage:{getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},sessionStorage:{setItem(){}},
     TEACHER:{remembered:()=>teacher,remember(){}},
@@ -29,7 +29,7 @@ function setup({old,cloud,fail=false,delayed=false,teacher=false}={}){
   const start=(seat=1)=>{el('in-cls').value='999';el('in-seat').value=String(seat);el('g-go').click()};
   if(!teacher)start();
   return {stored,uploads,queries,el,run,start,status:st=>status(st),loadXP:()=>{run(read('assets/xp.js'));coreScript.onload()},send:()=>el('b-send').click(),pass:i=>{run('APP.load('+i+')');el('b-send').click();el('b-send').click()},
-    resolve:records=>{cloudRecords=records;resolveRead()},swapProfile:()=>{profile={uid:'synthetic-two'}}};
+    resolve:(records,fromCache=false)=>{cloudRecords=records;cache=fromCache;resolveRead()},swapProfile:()=>{profile={uid:'synthetic-two'}}};
 }
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve()};
 const records=(count=4)=>Array.from({length:count},(_,round)=>({uid:'synthetic-one',activity:1,round,passedAt:Date.now()}));
@@ -93,4 +93,23 @@ test('核心慢載仍只用雲端；教師不顯示 XP',async()=>{
   const teacher=setup({teacher:true}),before=[...teacher.stored];teacher.pass(0);await settle();
   assert.deepEqual([...teacher.stored],before);assert.equal(teacher.el('xp-header').hidden,true);
   assert.equal(teacher.el('verdict').querySelector('.xp-detail'),null);
+});
+
+test('空快取不確認 XP；伺服器回覆後才顯示，後續快取不覆蓋已確認紀錄',async()=>{
+  const h=setup({cloud:true});h.resolve([],true);await settle();
+  assert.equal(h.el('xp-total').textContent,'載入中…');
+  assert.equal(h.el('xp-progress').hidden,true);
+  h.pass(0);await settle();
+  assert.match(h.el('verdict').textContent,/XP 待雲端紀錄確認/);
+  h.resolve(records());h.status('ok');await settle();
+  assert.equal(h.el('xp-total').textContent,'80 XP');
+  h.resolve([],true);h.status('ok');await settle();
+  assert.equal(h.el('xp-total').textContent,'80 XP');
+  h.resolve([]);h.status('ok');await settle();
+  assert.equal(h.el('xp-total').textContent,'0 XP');
+});
+test('雲端紀錄中的學生作答時間優先於補傳收件時間',async()=>{
+  const h=setup({cloud:true});
+  h.resolve([{uid:'synthetic-one',activity:2,round:0,at:new Date().toISOString(),passedAt:Date.now()+8*864e5}]);await settle();
+  assert.equal(h.el('xp-total').textContent,'15 XP');
 });

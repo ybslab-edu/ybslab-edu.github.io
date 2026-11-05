@@ -17,7 +17,7 @@ let loaded=false;
 const auth={get currentUser(){return profile}};
 const db={collection:path=>{if(path!=='ybsCourses/115-g9/attempts')throw Error('unexpected path');return {where:(field,op,uid)=>{
   if(field!=='uid'||op!=='=='||uid!==profile.uid)throw Error('unexpected query');
-  return {get:async()=>{if(!loaded)await waiting;return {docs:records.map(data=>({data:()=>data}))}}}
+  return {get:async()=>{if(!loaded)await waiting;return {metadata:{fromCache:false},docs:records.map(data=>({data:()=>data}))}}}
 }}}};
 const YBS={enabled:()=>true,profile:()=>profile,
   button:(el,cb)=>{login=cb;el.innerHTML='<button id="mock-login">登入合成帳號</button>';el.querySelector('button').onclick=()=>{profile={uid:'synthetic-one',email:'synthetic@example.invalid'};cb(profile)}},

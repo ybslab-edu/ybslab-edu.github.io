@@ -522,3 +522,19 @@ function termWeekLabel(a) {
   const lo = Math.min(...ws), hi = Math.max(...ws);
   return lo === hi ? '第 ' + lo + ' 週' : '第 ' + lo + '–' + hi + ' 週';
 }
+
+// 上課日前最近的週日 23:59（台灣 UTC+8）。只用 UTC 運算，不受裝置時區影響。
+// also 是後續重複上課日；開放時刻只依首次上課的 date，之後不再關閉。
+function activityOpenAt(a) {
+  if (!a || !/^\d{4}-\d{2}-\d{2}$/.test(a.date || '')) return NaN;
+  const day = Date.parse(a.date + 'T00:00:00Z');
+  if (!Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== a.date) return NaN;
+  const daysBack = new Date(day).getUTCDay() || 7; // 週日上課要回到前一個週日
+  return day - daysBack * 864e5 + (23 * 60 + 59 - 8 * 60) * 6e4;
+}
+
+function isActivityOpen(a, now = Date.now()) {
+  const sub = a && (a.href || '').split('/')[1];
+  if (a && typeof OPEN !== 'undefined' && OPEN[a.course]?.includes(sub)) return true;
+  return Number(now) >= activityOpenAt(a);
+}

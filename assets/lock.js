@@ -1,16 +1,20 @@
-// 活動上鎖：只開放 OPEN 裡的資料夾，其他活動頁蓋一層「還沒開放」，老師輸入通行碼可解鎖（只在這個分頁有效）。
-// 開新的一週：把資料夾名加進對應課程的清單，例如九年級加 'u2-01'。課程首頁、教師頁（teacher）不受影響。
+// 活動依 date 前最近的週日 23:59（台灣時間）開放；OPEN 可額外提早開放。
+// 教師解鎖只在這個分頁有效；課程首頁、教師頁（teacher）不受影響。
+const OPEN = {
+  '115-g9': ['u1-05', 'u1-06', 'u2-01', 'u2-02'],
+  '115-df': ['a']                                  // 數資班專題：要開放就加 'a'
+};
 (() => {
-  const OPEN = {
-    '115-g9': ['u1-05', 'u1-06', 'u2-01', 'u2-02'],
-    '115-df': ['a']                                  // 數資班專題：要開放就加 'a'
-  };
   const seg = location.pathname.split('/').filter(Boolean);
   const list = OPEN[seg[0]], sub = seg[1] || '';
   if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub) || list.includes(sub)) return;
   const T = typeof TEACHER !== 'undefined' ? TEACHER : null;
   if (T && T.remembered()) return;
   const show = () => {
+    // 多數活動頁稍後才載入 activities.js，等 DOM 完成後再讀取共用日期判斷。
+    const a = typeof ACTIVITIES !== 'undefined'
+      ? ACTIVITIES.find(a => a.course === seg[0] && a.href.split('/')[1] === sub) : null;
+    if (a && isActivityOpen(a)) return;
     const d = document.createElement('div');
     d.id = 'ybs-lock';
     d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:#14161b;color:#e8eaee;font:18px/1.6 system-ui,"Noto Sans TC",sans-serif;text-align:center';
@@ -26,5 +30,6 @@
       else alert('通行碼不對。');
     };
   };
-  if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', show);
+  else show();
 })();

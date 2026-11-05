@@ -9,6 +9,7 @@ import os, sys, re
 from urllib.parse import urlsplit
 from html import unescape
 from pathlib import Path
+from datetime import datetime
 from time import monotonic, sleep
 from playwright.sync_api import sync_playwright
 
@@ -27,10 +28,44 @@ REDIRECTS = dict(pair.split(':') for pair in (
     'w22:u5-07 w23:u5-08 w24:u5-09 w25:u5-10'
 ).split())
 ACTIVITY_DIRS = {int(old[1:]): new for old, new in REDIRECTS.items()}
-OPEN = {'115-g9/u1-05/', '115-g9/u1-06/', '115-g9/u2-01/', '115-g9/u2-02/', '115-df/a/'}  # 和 assets/lock.js 一致
+ROOT = Path(__file__).resolve().parents[2]
+# 固定台灣時間：保留過去已開放與未來仍上鎖，避免 CI 隨執行日期變動。
+TEST_NOW = '2026-11-05T12:00:00+08:00'
+TIME_CASES = [
+    ('115-g9/u2-03/', '2026-11-08T23:58:59+08:00', True),
+    ('115-g9/u2-03/', '2026-11-08T23:59:00+08:00', False),
+    ('115-g9/u2-02/', '2026-01-01T00:00:00+08:00', False),  # OPEN 提早開放
+]
 PAGES = ['115-g9/u1-05/', '115-g9/u1-06/', '115-g9/u2-01/', '115-g9/u2-02/', '115-g9/u2-03/', '115-g9/u0-01/', '115-g9/', '115-g9/teacher/',
          '115-df/', '115-df/a/', '115-df/teacher/', '', 'about/', 'map/']
-LOCKED_EXPECT = lambda p: p.startswith(('115-g9/u', '115-df/a')) and p not in OPEN
+
+def page_of(c, now=TEST_NOW):
+    pg = c.new_page()
+    # 只固定 Date；計時器照常執行，保留弱網重試、動畫與等待檢查。
+    pg.clock.set_fixed_time(datetime.fromisoformat(now))
+    return pg
+
+
+def lock_expectations(b, now=TEST_NOW):
+    """在空白頁載入正式規則，以同一時鐘計算所有直連／轉址落點的預期。"""
+    c = ctx_of(b)
+    try:
+        pg = page_of(c, now)
+        source = '\n'.join((ROOT / 'assets' / name).read_text(encoding='utf-8')
+                           for name in ('lock.js', 'activities.js'))
+        paths = list(dict.fromkeys(PAGES + [f'115-g9/{new}/' for new in REDIRECTS.values()]))
+        return pg.evaluate("paths => {" + source + r"""
+            return Object.fromEntries(paths.map(path => {
+                const [course, sub = ''] = path.split('/');
+                const list = OPEN[course];
+                if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub) || list.includes(sub))
+                    return [path, false];
+                const a = ACTIVITIES.find(a => a.course === course && a.href.split('/')[1] === sub);
+                return [path, !(a && isActivityOpen(a))];
+            }));
+        }""", paths)
+    finally:
+        c.close()
 
 def ctx_of(b):
     c = b.new_context()
@@ -97,7 +132,7 @@ def check_records(pg, rounds):
 
 def weaknet_case(b, name, run):
     c = ctx_of(b)
-    pg = c.new_page()
+    pg = page_of(c)
     pg.emulate_media(reduced_motion='reduce')
     errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)[:150]))
@@ -199,7 +234,7 @@ def weaknet_permission(c, pg, exists):
 
 def guest_cycle(b):
     """九年級真實作答 → 弱網／重新開頁 → 換班座 → owner 教師表；全程 mock。"""
-    c = ctx_of(b); pg = c.new_page(); errors = []
+    c = ctx_of(b); pg = page_of(c); errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)[:150]))
     def manual(seat):
         pg.click('#g-manual'); pg.fill('#in-cls', '999'); pg.fill('#in-seat', str(seat))
@@ -290,24 +325,39 @@ def guest_cycle(b):
 fail = 0
 with sync_playwright() as p:
     b = p.chromium.launch()
+    expected = lock_expectations(b)
+    assert expected['115-g9/u0-01/'] is False, '過去活動應已開放'
+    assert expected['115-g9/u2-03/'] is True, '未來活動應仍上鎖'
     for path in PAGES:
-        c = ctx_of(b); pg = c.new_page(); errs = []; csp = []
+        c = ctx_of(b); pg = page_of(c); errs = []; csp = []
         pg.on('pageerror', lambda e: errs.append(str(e)[:100]))
         pg.on('console', lambda m: csp.append(m.text[:100]) if 'Content Security Policy' in m.text else None)
         pg.goto(BASE + path); pg.wait_for_timeout(600)
         locked = pg.evaluate("!!document.getElementById('ybs-lock')")
-        ok = locked == LOCKED_EXPECT(path) and not errs and not csp
+        ok = locked == expected[path] and not errs and not csp
         fail += not ok
         print(('OK  ' if ok else 'FAIL'), (path or '/').ljust(18), 'locked=', locked, errs[:1], csp[:1])
         c.close()
+    # 獨立固定預期，避免正式規則與預期一起退化，且確認時鐘在導頁前已注入。
+    for path, now, locked_expected in TIME_CASES:
+        timed_expected = lock_expectations(b, now)
+        assert timed_expected[path] is locked_expected, f'{path} {now} 開放規則不符'
+        c = ctx_of(b); pg = page_of(c, now); errs = []; csp = []
+        pg.on('pageerror', lambda e: errs.append(str(e)[:100]))
+        pg.on('console', lambda m: csp.append(m.text[:100]) if 'content security policy' in m.text.lower() else None)
+        pg.goto(BASE + path); pg.wait_for_timeout(600)
+        locked = pg.evaluate("!!document.getElementById('ybs-lock')")
+        ok = locked is locked_expected and not errs and not csp
+        fail += not ok
+        print(('OK  ' if ok else 'FAIL'), 'clock', path, now, 'locked=', locked, errs[:1], csp[:1])
+        c.close()
     # 每個舊網址都驗證落點、原標題、上鎖狀態、JS/CSP；另逐一驗證 query/hash。
-    root = Path(__file__).resolve().parents[2]
     for old, new in REDIRECTS.items():
         target = f'115-g9/{new}/'
-        html = (root / target / 'index.html').read_text(encoding='utf-8')
+        html = (ROOT / target / 'index.html').read_text(encoding='utf-8')
         title = unescape(re.search(r'<title>(.*?)</title>', html, re.S).group(1))
         for suffix in ('', '?x=1#h'):
-            c = ctx_of(b); pg = c.new_page(); errs = []; csp = []
+            c = ctx_of(b); pg = page_of(c); errs = []; csp = []
             pg.on('pageerror', lambda e: errs.append(str(e)[:100]))
             pg.on('console', lambda m: csp.append(m.text[:100]) if 'content security policy' in m.text.lower() else None)
             c.add_init_script("""window.__cspViolations = [];
@@ -321,7 +371,7 @@ with sync_playwright() as p:
                 csp.extend(pg.evaluate('window.__cspViolations'))
                 locked = pg.evaluate("!!document.getElementById('ybs-lock')")
                 ok = (pg.url == BASE + target + suffix and pg.title() == title
-                      and locked == LOCKED_EXPECT(target) and not errs and not csp)
+                      and locked == expected[target] and not errs and not csp)
             except Exception as e:
                 errs.append(str(e)[:150]); ok = False
             fail += not ok
@@ -344,13 +394,13 @@ with sync_playwright() as p:
             const result = insert.apply(this, args); inspect(); return result;
           };
         })()""")
-        pg = c.new_page(); pg.goto(BASE + path)
+        pg = page_of(c); pg.goto(BASE + path)
         pg.wait_for_selector('#g-form', state='attached')
         ok = pg.evaluate('window.__gateInitial === true') and not pg.locator('#g-form').is_visible()
         fail += not ok; print(('OK  ' if ok else 'FAIL'), 'initial gate', path); c.close()
 
     for week in (1, 2):
-        c = ctx_of(b); pg = c.new_page(); pg.emulate_media(reduced_motion='reduce')
+        c = ctx_of(b); pg = page_of(c); pg.emulate_media(reduced_motion='reduce')
         pg.goto(BASE + f'115-g9/{ACTIVITY_DIRS[week]}/'); pg.wait_for_timeout(600)
         pg.fill('#g-gbtn input[name=a]', '1100123'); pg.fill('#g-gbtn input[name=p]', 'x'); pg.click('#g-gbtn button'); pg.wait_for_timeout(400)
         wrong = '不對' in pg.inner_text('#g-lerr')
@@ -391,7 +441,7 @@ with sync_playwright() as p:
     # login.js 載入失敗或停用時，仍可用班座開始，且初始化不能拋出例外。
     for week in (1, 2, 3, 5):
         for mode in ('missing', 'disabled'):
-            c = ctx_of(b); pg = c.new_page(); errs = []
+            c = ctx_of(b); pg = page_of(c); errs = []
             pg.on('pageerror', lambda e: errs.append(str(e)[:100]))
             def intercept_login(route):
                 if mode == 'missing':
@@ -410,7 +460,7 @@ with sync_playwright() as p:
             fail += not ok; print(('OK  ' if ok else 'FAIL'), f'{ACTIVITY_DIRS[week]} fallback/{mode}', errs[:1]); c.close()
     code = os.environ.get('YBS_TEACHER_CODE')
     if code:
-        c = ctx_of(b); pg = c.new_page(); pg.on('dialog', lambda d: d.accept(code) if d.type == 'prompt' else d.accept())
+        c = ctx_of(b); pg = page_of(c); pg.on('dialog', lambda d: d.accept(code) if d.type == 'prompt' else d.accept())
         pg.goto(BASE + '115-g9/u2-03/'); pg.wait_for_timeout(500); pg.click('#ybs-unlock'); pg.wait_for_timeout(1200)
         ok = not pg.evaluate("!!document.getElementById('ybs-lock')"); fail += not ok
         print(('OK  ' if ok else 'FAIL'), 'teacher unlock'); c.close()

@@ -67,8 +67,13 @@ test('舊 streak 計數可直接延續為累積次數',()=>{
 test('u2-03 實際題目：生日、八燈與容量的任務數字及目標卡同步標示',()=>{
   const h=setup({teacher:true,actual:true});
   for(const i of [0,2,3]){
-    h.run(`{let n=0;ROUNDS[${i}].gen=()=>{n++;return ${i}===0?{who:'合成角色',t:3+n}:${i}===2?{t:130+n,why:'合成目標'}:{n:100+n,b:7,max:127,what:'合成編號'}};APP.load(${i})}`);
+    h.run(`APP.load(${i===0?1:0})`);
+    h.run(`{globalThis.draws=0;ROUNDS[${i}].gen=()=>{const draw=++draws,n=draw<=3?1:2;return ${i}===0?{who:'合成角色',t:3+n}:${i}===2?{t:130+n,why:'合成目標'}:{n:100+n,b:7,max:127,what:'合成編號'+draw}};APP.load(${i})}`);
+    assert.equal(h.run('draws'),1);
+    const first=h.run('JSON.stringify(APP.inst)');
     h.run('APP.handle.fill()');h.send();
+    assert.notEqual(h.run('JSON.stringify(APP.inst)'),first);
+    assert.equal(h.run('draws'),4,'排除重複數值，不能只改情境文字');
     assert.ok(h.get('says').querySelectorAll('.question-changed').length>0);
     assert.ok(h.get('stage').querySelector('.target-content').querySelectorAll('.question-changed').length>0);
     h.run('APP.handle.fill()');h.send();assert.equal(h.get('verdict').className,'verdict ok');

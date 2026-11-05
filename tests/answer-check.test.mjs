@@ -109,6 +109,21 @@ test('生日題實際產題：連抽同組後會換成另一組內容',()=>{
   assert.equal(calls,4);assert.notEqual(JSON.stringify(h.app.inst),first);
 });
 
+test('共用換題鍵：送出與教師換題皆忽略情境差異，換關不排除前關資料',()=>{
+  for(const action of ['correct','wrong','teacher','reload']){
+    let calls=0;
+    const h=setup(()=>({n:++calls<=3?101:102,b:7,max:127,what:'合成情境'+calls}),{
+      questionKey:({n,b,max})=>({n,b,max})
+    });
+    if(action==='teacher')h.get('tb-new').onclick();
+    else if(action==='reload')h.app.load(0);
+    else {h.reply(action==='correct');h.send();}
+    assert.equal(calls,4,action+' 應排除兩次重複計算題');
+    assert.equal(h.app.inst.n,102);
+    h.app.load(1);assert.equal(calls,5,'跨關不重抽');
+  }
+});
+
 test('保留既有容錯：前後空白、千分位、數列分隔與文字空白／大小寫',()=>{
   const c=activity('u2-02');
   assert.equal(vm.runInContext("integer(' 1,234 ')",c),1234);

@@ -2,6 +2,7 @@
 // 用法：SHELL({week, termWeek, title, course, unit, rounds:[…]})
 // 每一關：{ name, lv:1|2, now, goal, tip（字串或 inst=>字串）, learn（過關說明）,
 //   gen(rnd) → inst（一組題目資料，rnd() 回傳 0～1）,
+//   questionKey(inst)（可省略）→ 用於判斷同題的資料；預設比對完整 inst，
 //   view(inst, el, api) → { get()（學生目前的答案）, fill()（教師：填好答案）, ready()（可以送出了嗎，可省略） },
 //   check(inst, ans) → true 或 一句「哪裡不對」的純文字提示（不解析 HTML）,
 //   peek(inst, ans)（可省略）→ 第 3 部分「電腦裡發生的」HTML }
@@ -174,14 +175,15 @@ const shellCreateRoundFlow = (s) => {
   // 在 view 可能改動資料前保存內容；物件鍵序不影響比對，陣列順序仍有意義。
   const contentKey = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
     ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
-  // 依原上限重抽資料並建立作答區。
+  // 共用換題入口：送出、教師換題及重載同關皆排除前題。
   function fresh(afterSubmit = false) {
     const r = R[s.ri], rnd = seed();
     const previousNumbers = s.previousKey === null ? null : shellQuestionNumbers($);
     let key;
     // 最多抽 20 次；單一題庫或一直抽到同題時仍可繼續操作。
     for (let draw = 0; draw < 20; draw++) {
-      s.inst = r.gen(rnd); key = contentKey(s.inst);
+      s.inst = r.gen(rnd);
+      key = contentKey(r.questionKey ? r.questionKey(s.inst) : s.inst);
       if (key !== s.previousKey) break;
     }
     s.previousKey = key;

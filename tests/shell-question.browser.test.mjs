@@ -82,10 +82,20 @@ test('共用數字比對：只標示變值，保留 DOM 事件，兩秒淡出且
 test('u2-03 實際頁面：生日、八燈目標與最大值換題標示，目標卡與說明皆生效',async t=>{
   const page=await setup(t,{teacher:true,actual:true});
   for(const index of [0,2,3]){
-    await page.evaluate(i=>{let draw=0;ROUNDS[i].gen=()=>{const n=++draw;return i===0?{who:'合成角色',t:3+n}:i===2?{t:130+n,why:'合成目標'}:{n:100+n,b:7,max:127,what:'合成編號'}};APP.load(i)},index);
+    await page.evaluate(i=>{
+      APP.load(i===0?1:0); // 跨關清除前題，避免初始隨機題影響合成抽題次數。
+      window.draws=0;
+      ROUNDS[i].gen=()=>{
+        const draw=++window.draws,n=draw<=3?1:2;
+        return i===0?{who:'合成角色',t:3+n}:i===2?{t:130+n,why:'合成目標'}:{n:100+n,b:7,max:127,what:'合成編號'+draw};
+      };
+      APP.load(i);
+    },index);
+    assert.equal(await page.evaluate(()=>window.draws),1);
     const first=await page.evaluate(()=>JSON.stringify(APP.inst));
     await page.evaluate(()=>{APP.handle.fill();document.getElementById('b-send').click()});
     assert.notEqual(await page.evaluate(()=>JSON.stringify(APP.inst)),first);
+    assert.equal(await page.evaluate(()=>window.draws),4,'同題與僅情境不同的計算題皆須重抽，採用第一個不同題');
     assert.ok(await page.locator('#says .question-changed').count()>0);
     assert.ok(await page.locator('.target-content .question-changed').count()>0);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);

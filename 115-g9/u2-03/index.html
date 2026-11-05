@@ -36,7 +36,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105g"></script>
-<script src="../../assets/shell.js?v=20261105g"></script>
+<script src="../../assets/shell.js?v=20261105h"></script>
 <script>
 const toBits=(v,n)=>v.toString(2).padStart(n,'0').split('').map(Number);
 const val=b=>b.reduce((s,x)=>s*2+x,0);
@@ -93,6 +93,8 @@ const ROUNDS=[
   peek:(i,b)=>peekBits(b,false)},
 
  {lv:2,name:'要幾顆燈才夠',
+  // 情境文字不同但數值相同，仍是同一組計算題。
+  questionKey:({n,b,max})=>({n,b,max}),
   now:i=>'後援會要做一塊新燈牌，用來顯示'+i.what+'，最大會到 '+i.n+'。',
   goal:'最少要幾顆燈才夠？用這麼多顆燈，最大能顯示到多少？',
   tip:'1 顆燈最大 1、2 顆最大 3、3 顆最大 7……每多一顆，能表示的數量就加倍。',

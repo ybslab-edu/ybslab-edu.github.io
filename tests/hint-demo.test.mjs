@@ -30,7 +30,7 @@ for(const dir of dirs)test(dir+' 全關示範隔離：不同題、填答正確�
  for(let index=0;index<count;index++){
   const result=run(`(()=>{
    const round=APP.rounds[${index}],view=round.view;
-   round.view=(inst,el,api)=>{globalThis.answerChanged=api.changed;return view(inst,el,api)};
+   round.view=(inst,el,api)=>{if(el.id==='stage')globalThis.answerChanged=api.changed;return view(inst,el,api)};
    APP.load(${index});
    // fill 不保證觸發 changed；與教師填答入口一樣明確同步 ready。
    APP.handle.fill();
@@ -45,16 +45,26 @@ for(const dir of dirs)test(dir+' 全關示範隔離：不同題、填答正確�
    r.check=()=>false;document.getElementById('b-send').click();r.check=originalCheck;
    for(let n=0;n<3;n++)document.getElementById('b-hint').click();
    const original=APP.inst,handle=APP.handle,inst=JSON.stringify(APP.inst),answer=JSON.stringify(handle.get());
-   const demoKeys=[],gen=r.gen,key=i=>shellContentKey(r.questionKey?r.questionKey(i):i);
-   r.gen=rnd=>{const i=gen(rnd);demoKeys.push(key(i));return i};
+   const demoKeys=[],gen=r.gen,demoView=r.view,check=r.check,violations=[],key=i=>shellContentKey(r.questionKey?r.questionKey(i):i);
+   const unchanged=phase=>{if(APP.inst!==original||APP.handle!==handle)violations.push(phase)};
+   const guard=(phase,fn)=>function(...args){unchanged(phase+' 前');try{return fn.apply(this,args)}finally{unchanged(phase+' 後')}};
+   r.gen=guard('gen',rnd=>{const i=gen(rnd);demoKeys.push(key(i));return i});
+   r.view=guard('view',(inst,el,api)=>{
+    const h=demoView(inst,el,api);
+    return {...h,fill:guard('fill',()=>h.fill()),get:guard('get',()=>h.get())};
+   });
+   r.check=guard('check',check);
    document.getElementById('b-demo').click();
    const box=document.getElementById('demo-content'),shown=!document.getElementById('hint-demo').hidden,
      filled=!!box.querySelector('fieldset'),why=box.textContent;
    const isolated=APP.inst===original&&APP.handle===handle&&JSON.stringify(APP.inst)===inst&&JSON.stringify(APP.handle.get())===answer;
-   document.getElementById('b-demo-back').click();r.gen=gen;
-   return {shown,filled,why,isolated,different:demoKeys.some(k=>k!==key(original)),manual:!!r.manualAttempt,returned:!document.getElementById('original-work').hidden};
+   document.getElementById('b-send').click();unchanged('示範中送出後');
+   document.getElementById('b-demo-back').click();unchanged('返回後');r.gen=gen;r.view=demoView;r.check=check;
+   return {shown,filled,why,isolated,violations,different:demoKeys.some(k=>k!==key(original)),manual:!!r.manualAttempt,returned:!document.getElementById('original-work').hidden};
   })()`);
-  assert.equal(result.shown,true);assert.equal(result.isolated,true);assert.equal(result.returned,true);
+  const label=dir+' 關卡索引 '+index;
+  assert.equal(result.shown,true,label+' 示範顯示');assert.equal(result.isolated,true,label+' 原題物件及作答不變');assert.equal(result.returned,true,label+' 返回原題');
+  assert.deepEqual(Array.from(result.violations),[],label+' 各示範回呼前後都不得暫換原題物件');
   if(!result.manual){automatic++;assert.equal(result.different,true);assert.equal(result.filled,true,dir+' 關 '+index+' 示範不應降級說明：'+result.why)}
   else{manual++;assert.equal(result.filled,false);assert.equal(result.different,false);assert.equal(result.why,run(`(()=>{const r=APP.rounds[${index}],text=document.createElement('div'),txt=v=>typeof v==='function'?v(APP.inst):(v||'');text.innerHTML=r.learn||[r.now,r.goal,r.tip].map(txt).join('');return '這一關的說明'+text.textContent})()`))}
   assert.ok(result.why.length>20);

@@ -36,44 +36,69 @@ test('全站 121 關提示：不同示範題、自動填答與說明、保留原
    const length=await page.evaluate(()=>APP.rounds.length);
    for(let i=0;i<length;i++){
     count++;
+    const label=dir+' 關卡索引 '+i;
     // 保留活動 view 與 ready；只記住正常互動使用的 changed 通知。
     await page.evaluate(index=>{
      const r=APP.rounds[index],view=r.view;
-     r.view=(inst,el,api)=>{window.answerChanged=api.changed;return view(inst,el,api)};
+     r.view=(inst,el,api)=>{if(el.id==='stage')window.answerChanged=api.changed;return view(inst,el,api)};
      APP.load(index);
     },i);
-    assert.equal(await page.locator('#b-hint').isDisabled(),true);
+    assert.equal(await page.locator('#b-hint').isDisabled(),true,label+' 初始提示鎖定');
     // 首次送出沿用活動正解及既有換題流程，不變更 check。
     await page.evaluate(()=>APP.handle.fill());
     if(dir==='u0-01'&&i===0){
-     assert.equal(await page.locator('#b-send').isDisabled(),true,'重現原失敗：fill 未通知 changed');
+     assert.equal(await page.locator('#b-send').isDisabled(),true,label+' 重現原失敗：fill 未通知 changed');
      await page.evaluate(()=>document.getElementById('b-send').click());
-     assert.equal(await page.locator('#b-hint').isDisabled(),true,'disabled 送出不應解鎖提示');
+     assert.equal(await page.locator('#b-hint').isDisabled(),true,label+' disabled 送出不應解鎖提示');
     }
     await page.evaluate(()=>answerChanged());
-    assert.equal(await page.locator('#b-send').isDisabled(),false,dir+' '+i+' 填答後可送出');
+    assert.equal(await page.locator('#b-send').isDisabled(),false,label+' 填答後可送出');
     await page.evaluate(()=>document.getElementById('b-send').click());
     await page.evaluate(()=>{for(let n=0;n<3;n++)document.getElementById('b-hint').click()});
     // 演出型關卡可能已過關，重設後用一次錯答解鎖；不呼叫演出或雲端。
     if(await page.evaluate(()=>!!APP.rounds[APP.ri].manualAttempt)){
      await page.evaluate(()=>{APP.handle.fill();answerChanged();const r=APP.rounds[APP.ri],check=r.check;r.check=()=>false;document.getElementById('b-send').click();r.check=check;for(let n=0;n<3;n++)document.getElementById('b-hint').click()});
     }
-    assert.equal(await page.locator('#b-demo').isVisible(),true,dir+' '+i+' 示範已解鎖');
-    const before=await page.evaluate(()=>{window.originalInst=APP.inst;window.originalHandle=APP.handle;window.originalCheck=APP.rounds[APP.ri].check;window.demoInputs=[];const r=APP.rounds[APP.ri],gen=r.gen;window.restoreGen=gen;r.gen=rnd=>{const inst=gen(rnd);demoInputs.push(JSON.stringify(r.questionKey?r.questionKey(inst):inst));return inst};return {inst:JSON.stringify(APP.inst),answer:JSON.stringify(APP.handle.get()),stored:JSON.stringify({...localStorage})}});
-    await page.locator('#b-demo').focus();await page.keyboard.press('Enter');
-    assert.equal(await page.locator('#hint-demo').isVisible(),true,dir+' '+i);
+    assert.equal(await page.locator('#b-demo').isVisible(),true,label+' 示範已解鎖');
+    const before=await page.evaluate(()=>{
+     // 送出已可能換題；以此刻原題為基準，並讓參照留在閉包內。
+     const originalInst=APP.inst,originalHandle=APP.handle,originalRound=APP.ri;
+     const r=APP.rounds[APP.ri],gen=r.gen,demoInputs=[];
+     window.demoSnapshot=()=>({same:originalInst===APP.inst&&originalHandle===APP.handle,
+      sameInst:originalInst===APP.inst,sameHandle:originalHandle===APP.handle,round:APP.ri,originalRound,
+      inst:JSON.stringify(APP.inst),answer:JSON.stringify(APP.handle.get()),stored:JSON.stringify({...localStorage})});
+     window.demoInputs=demoInputs;window.restoreGen=gen;
+     r.gen=rnd=>{const inst=gen(rnd);demoInputs.push(JSON.stringify(r.questionKey?r.questionKey(inst):inst));return inst};
+     return demoSnapshot();
+    });
+    const assertOriginal=(snapshot,phase)=>{
+     const detail=label+' '+phase+' '+JSON.stringify({sameInst:snapshot.sameInst,sameHandle:snapshot.sameHandle,round:snapshot.round,originalRound:snapshot.originalRound});
+     assert.equal(snapshot.same,true,detail);
+     assert.equal(snapshot.round,before.originalRound,label+' '+phase+' 關卡不變');
+     assert.equal(snapshot.inst,before.inst,label+' '+phase+' 題目內容不變');
+     assert.equal(snapshot.answer,before.answer,label+' '+phase+' 作答不變');
+     assert.equal(snapshot.stored,before.stored,label+' '+phase+' 儲存不變');
+    };
+    await page.locator('#b-demo').focus();
+    assertOriginal(await page.evaluate(()=>demoSnapshot()),'開啟前（聚焦後）');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#hint-demo').isVisible(),true,label);
     const result=await page.evaluate(()=>{
      const r=APP.rounds[APP.ri],key=JSON.stringify(r.questionKey?r.questionKey(APP.inst):APP.inst);
-     return {same:originalInst===APP.inst&&originalHandle===APP.handle,inst:JSON.stringify(APP.inst),answer:JSON.stringify(APP.handle.get()),stored:JSON.stringify({...localStorage}),different:demoInputs.some(v=>v!==key),manual:!!r.manualAttempt,filled:!!document.querySelector('#demo-content fieldset'),explanation:document.querySelector('#demo-content').textContent};
+     return {...demoSnapshot(),different:demoInputs.some(v=>v!==key),manual:!!r.manualAttempt,filled:!!document.querySelector('#demo-content fieldset'),explanation:document.querySelector('#demo-content').textContent};
     });
-    assert.equal(result.same,true);assert.equal(result.inst,before.inst);assert.equal(result.answer,before.answer);assert.equal(result.stored,before.stored);
-    if(!result.manual){automatic++;assert.equal(result.different,true,dir+' '+i+' 不同題');assert.equal(result.filled,true,dir+' '+i+' 自動示範');}
-    else{manual++;assert.equal(result.filled,false,dir+' '+i+' 演出關卡只顯示說明');assert.equal(result.different,false);assert.equal(result.explanation,await page.evaluate(()=>{const r=APP.rounds[APP.ri],text=document.createElement('div'),txt=v=>typeof v==='function'?v(APP.inst):(v||'');text.innerHTML=r.learn||[r.now,r.goal,r.tip].map(txt).join('');return '這一關的說明'+text.textContent}));}
-    assert.ok(result.explanation.length>20);
-    assert.equal(await page.locator('#b-demo-back').evaluate(el=>document.activeElement===el),true);
+    assertOriginal(result,'示範顯示中');
+    // 即使直接觸發隱藏的送出按鈕，也不能判題或換題。
+    await page.evaluate(()=>document.getElementById('b-send').click());
+    assertOriginal(await page.evaluate(()=>demoSnapshot()),'示範中送出後');
+    if(!result.manual){automatic++;assert.equal(result.different,true,label+' 不同題');assert.equal(result.filled,true,label+' 自動示範');}
+    else{manual++;assert.equal(result.filled,false,label+' 演出關卡只顯示說明');assert.equal(result.different,false,label+' 演出關卡不產示範題');assert.equal(result.explanation,await page.evaluate(()=>{const r=APP.rounds[APP.ri],text=document.createElement('div'),txt=v=>typeof v==='function'?v(APP.inst):(v||'');text.innerHTML=r.learn||[r.now,r.goal,r.tip].map(txt).join('');return '這一關的說明'+text.textContent}),label+' 演出說明');}
+    assert.ok(result.explanation.length>20,label+' 示範說明');
+    assert.equal(await page.locator('#b-demo-back').evaluate(el=>document.activeElement===el),true,label+' 鍵盤焦點');
     await page.keyboard.press('Enter');
-    assert.equal(await page.locator('#original-work').isVisible(),true);
-    assert.equal(await page.locator('#b-demo').evaluate(el=>document.activeElement===el),true);
+    assert.equal(await page.locator('#original-work').isVisible(),true,label+' 返回原題');
+    assertOriginal(await page.evaluate(()=>demoSnapshot()),'返回後');
+    assert.equal(await page.locator('#b-demo').evaluate(el=>document.activeElement===el),true,label+' 鍵盤焦點');
     await page.evaluate(()=>{APP.rounds[APP.ri].gen=restoreGen});
    }
   }

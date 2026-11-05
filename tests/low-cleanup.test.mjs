@@ -112,11 +112,11 @@ test('專題留言：座號 1–60，保留正規化與原本留言判定',()=>{
 });
 
 test('外框名單：僅合法班座可進入確認，異常資料改手動填寫',async()=>{
-  const source=shell.slice(shell.indexOf('  function showLogin()'),shell.indexOf("  $('g-notme').onclick"));
+  const source=shell.slice(shell.indexOf('const shellCreateLogin ='),shell.indexOf('// 維持上傳欄位'));
   for(const [cls,seat,ok] of [[100,1,true],[999,60,true],['701','01',true],[99,1,false],[1000,1,false],[701,0,false],[701,61,false],[701,1.5,false],['701x',1,false],[701,null,false]]){
     const elements=new Map();let login;
     const $=id=>{if(!elements.has(id))elements.set(id,{hidden:false,value:'',focus(){}});return elements.get(id)};
-    run(source+'\nshowLogin();',{$,YBS:{button:(_el,fn)=>{login=fn},whoami:async()=>({ok:true,student:{cls,seat}})},sessionStorage:{getItem:()=>null}});
+    run(source+'\nshellCreateLogin({$}).showLogin();',{$,YBS:{button:(_el,fn)=>{login=fn},whoami:async()=>({ok:true,student:{cls,seat}})},sessionStorage:{getItem:()=>null}});
     await login({email:'synthetic@example.invalid'});
     assert.equal($('g-whobtns').hidden,!ok,`${cls}/${seat}`);
     assert.equal($('g-form').hidden,ok,`${cls}/${seat}`);

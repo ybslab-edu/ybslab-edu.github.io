@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/ https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}.lbl{font-size:13px;color:var(--muted);min-width:2.5em}
 .tabs a{color:inherit}
@@ -75,6 +75,19 @@ nav a{color:var(--accent)}
     <p class="sub">把學生交來的成績碼貼進來，依週次、班級整理，匯出 Excel。成績與班級人數只暫存於目前頁面的記憶體；重新整理或關閉頁面後不保留，請先匯出需要的各班各週成績。</p>
   </div>
 
+  <section class="panel" aria-label="雲端過關紀錄">
+    <strong>雲端過關紀錄（帳號與班座）</strong>
+    <p class="sub">使用 ClassScore 課程擁有者的 Google 帳號登入後讀取。班座自填的來源標示「未驗證」；不同 UID 分列，請核對冒填與重複紀錄。雲端表另行匯出，不併入下方成績碼總表。</p>
+    <div class="row">
+      <button class="btn" id="cloud-login">教師 Google 登入</button>
+      <button class="btn" id="cloud-read" disabled>讀取雲端紀錄</button>
+      <button class="btn" id="cloud-logout" disabled>登出並清除雲端畫面</button>
+      <button class="btn" id="cloud-export" disabled>下載雲端紀錄</button>
+    </div>
+    <p class="msg" id="cloud-status" role="status">請使用課程擁有者的 Google 帳號登入。</p>
+    <div class="tbl" id="cloud-table"></div>
+  </section>
+
   <section class="panel" id="legacy-panel" aria-label="舊資料處理" hidden>
     <p class="msg no" id="legacy-msg" role="alert"></p>
     <div class="row">
@@ -116,6 +129,8 @@ nav a{color:var(--accent)}
   </section>
 </div>
 
+<script src="../../assets/login.js?v=20261105c"></script>
+<script src="../../assets/guest-teacher.js?v=20261105a"></script>
 <script>
 const $=id=>document.getElementById(id);
 const COURSE='115-g9';   // 這個教師專區對應的課程
@@ -294,4 +309,5 @@ function renderClear(){
   };
 }
 render();
+if(typeof window.YBSGuestTeacher==='function')window.YBSGuestTeacher({course:COURSE,activities:W,saveBook});
 </script>

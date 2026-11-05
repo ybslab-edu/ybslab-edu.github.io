@@ -127,6 +127,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 /* 成長資訊與原有成績分開顯示；窄螢幕可獨立換行。 */
 .xp-header{flex:0 1 230px;min-width:0;max-width:100%;margin-left:auto}
 .xp-header a{display:flex;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-decoration:none;overflow-wrap:anywhere;cursor:default}
+.xp-header [hidden]{display:none}
+.xp-login-hint{color:var(--muted);margin:0}
 .xp-header b{flex:1 1 100%;color:var(--a)}
 .xp-header progress{display:block;flex:1 1 100%;width:100%;height:10px;accent-color:var(--a)}
 .xp-header .small{flex-basis:100%}

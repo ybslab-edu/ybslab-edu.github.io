@@ -103,6 +103,7 @@ const shellMainHTML = (cfg, esc) => {
         <progress id="xp-progress" max="1" value="0" aria-label="升級進度"></progress>
         <span class="small" id="xp-next"></span>
       </a>
+      <p class="small xp-login-hint" id="xp-login-hint" hidden>用帳號登入就能累積等級</p>
     </aside>
     <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分<span class="small">（滿分 100，每少過一關扣 10；0 關過＝0 分）</span></div>
   </header>
@@ -173,107 +174,84 @@ const shellHighlightQuestion = ($, previous) => {
   });
 };
 
-// XP 的本機過關時間獨立儲存，不加入 prog 或 submit 的欄位。
+// 成長紀錄只採用目前登入帳號的雲端 attempts，不另存本機 XP 資料。
 const shellCreateXP = s => {
   const {cfg, $, esc} = s;
-  let owner = null, key = null, meta = {}, cloud = [], ready = false, generation = 0;
+  let owner = null, cloud = [], ready = false, generation = 0, readGeneration = 0;
+  const pending = new Map();
   const course = cfg.course || '115-g9';
   const catalog = () => typeof ACTIVITIES === 'undefined' ? [] : ACTIVITIES.filter(a => a.course === course).map(a => ({...a,
     openedAt:typeof activityOpenAt === 'function' ? activityOpenAt(a) : NaN,
     isOpen:typeof isActivityOpen === 'function' && isActivityOpen(a)}));
-  const read = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
-  const persist = () => { try { localStorage.setItem(key, JSON.stringify(meta)); } catch { /* XP 儲存失敗不阻擋既有進度與上傳。 */ } };
-  function evidence(a) {
-    if (!meta[a.week] || typeof meta[a.week] !== 'object') meta[a.week] = {passes:{}};
-    const item = meta[a.week];
-    if (!item.passes || typeof item.passes !== 'object') item.passes = {};
-    return item;
-  }
-  function records() {
-    if (owner) {
-      const result = [...cloud];
-      for (const a of catalog()) for (const [round, r] of Object.entries(evidence(a).passes)) {
-        if (!result.some(x => x.activity === a.week && x.round === +round)) result.push({...r, course, activity:a.week, round:+round});
-      }
-      return result;
-    }
-    return catalog().flatMap(a => {
-      const p = a.week === cfg.week ? s.prog : read('it9:w' + a.week + ':' + s.ident.cls + '-' + s.ident.seat);
-      return a.rounds.flatMap((_, round) => Number.isInteger(p?.mask) && (p.mask & (1 << round))
-        ? [{...evidence(a).passes[round], course, activity:a.week, round}] : []);
-    });
-  }
-  const snapshot = () => typeof YBSXP !== 'undefined' ? YBSXP.calculate(catalog(), records()) : null;
+  const snapshot = records => typeof YBSXP !== 'undefined' ? YBSXP.calculate(catalog(), records) : null;
   function render() {
     const header = $('xp-header');
     if (!header || !s.ident || s.teacher) { if (header) header.hidden = true; return; }
     header.hidden = false;
-    const result = ready && snapshot();
+    $('xp-link').hidden = !owner;
+    $('xp-login-hint').hidden = !!owner;
+    if (!owner) return;
+    const result = ready && snapshot(cloud);
     $('xp-link').onclick = e => e.preventDefault();
     $('xp-level').textContent = result ? 'Lv ' + result.level + ' ' + result.title : '成長紀錄';
-    $('xp-total').textContent = result ? result.totalXP + ' XP' : 'XP 尚未取得';
+    $('xp-total').textContent = result ? result.totalXP + ' XP' : '載入中…';
     $('xp-progress').hidden = !result;
     if (result) $('xp-progress').value = result.progress;
-    $('xp-next').textContent = result ? (result.next === null ? '已達最高等級' : '下一級還差 ' + result.remaining + ' XP') : '等待載入紀錄；不以 0 代替';
+    $('xp-next').textContent = result ? (result.next === null ? '已達最高等級' : '下一級還差 ' + result.remaining + ' XP') : '等待雲端紀錄';
   }
-  function stop() { generation++; owner = null; ready = false; if ($('xp-header')) $('xp-header').hidden = true; }
+  function renderPass() {
+    const item = pending.get(s.ri), el = $('xp-pending');
+    if (!item || !el || !ready || typeof YBSXP === 'undefined') return;
+    if (!cloud.some(r => r.activity === cfg.week && r.round === s.ri)) return;
+    if (!item.before) { el.textContent = '雲端紀錄已確認，XP 已更新。'; return; }
+    const before = snapshot(item.before), after = snapshot(cloud);
+    const detail = after.activities.find(a => a.activity === cfg.week), round = detail.rounds[s.ri];
+    if (item.before.some(r => r.activity === cfg.week && r.round === s.ri)) { el.textContent = '這關已領過 XP。'; return; }
+    const bits = ['+' + round.passXP + ' 過關'];
+    if (round.onTimeXP) bits.push('+' + round.onTimeXP + ' 準時');
+    if (detail.completeXP > (before.activities.find(a => a.activity === cfg.week)?.completeXP || 0)) bits.push('+' + detail.completeXP + ' 全過');
+    const card = after.level > before.level
+      ? '<div class="xp-title-card"><strong>升級！Lv ' + after.level + '</strong><p>' + esc(after.title) + '</p></div>' : '';
+    el.innerHTML = '<p class="xp-detail">本關 XP：' + bits.join('、') + '</p>' + card;
+  }
+  function stop() {
+    generation++; readGeneration++; owner = null; ready = false; cloud = []; pending.clear();
+    if ($('xp-header')) $('xp-header').hidden = true;
+  }
+  async function refresh() {
+    if (!owner || typeof YBS.firebaseSession !== 'function') return;
+    const uid = owner, current = generation, request = ++readGeneration;
+    try {
+      const {db, auth} = await YBS.firebaseSession();
+      if (current !== generation || auth.currentUser?.uid !== uid) return;
+      // 僅查目前帳號自己的 attempts；不用教師路徑或 guestAttempts。
+      const result = await db.collection('ybsCourses/' + course + '/attempts').where('uid', '==', uid).get();
+      if (current !== generation || request !== readGeneration || YBS.profile()?.uid !== uid || auth.currentUser?.uid !== uid) return;
+      cloud = result.docs.map(d => ({...d.data(), course})).filter(r => r.uid === uid);
+      ready = true; render(); renderPass();
+    } catch { /* 讀取失敗保留已確認紀錄；首次讀取仍等待雲端，不顯示假 0。 */ }
+  }
   function start() {
     stop();
     if (!s.ident || s.teacher) return;
     const current = generation;
     owner = s.loginEnabled() && typeof YBS.profile === 'function' ? YBS.profile()?.uid || null : null;
-    key = 'ybs:xp:' + course + ':' + (owner ? 'uid:' + owner : 'seat:' + s.ident.cls + '-' + s.ident.seat);
-    // 舊 XP 附加資料只保留過關時間；不碰 it9 既有進度。
-    const saved = read(key) || {};
-    meta = Object.fromEntries(Object.entries(saved).filter(([, item]) => item && typeof item === 'object').map(([week, item]) =>
-      [week, {passes:Object.fromEntries(Object.entries(item.passes || {}).map(([round, r]) => [round, {passedAt:r?.passedAt}]))}]));
-    cloud = []; ready = !owner;
-    persist(); render();
-    shellXPReady.then(() => { if (current === generation) render(); });
-    if (!owner || typeof YBS.firebaseSession !== 'function') return;
-    const uid = owner;
-    // 僅查目前帳號自己的 attempts；不用教師路徑或 guestAttempts。
-    YBS.firebaseSession().then(async ({db, auth}) => {
-      if (current !== generation || auth.currentUser?.uid !== uid) return;
-      const result = await db.collection('ybsCourses/' + course + '/attempts').where('uid', '==', uid).get();
-      if (current !== generation || YBS.profile()?.uid !== uid || auth.currentUser?.uid !== uid) return;
-      cloud = result.docs.map(d => ({...d.data(), course})).filter(r => r.uid === uid); ready = true; render();
-    }).catch(() => { if (current === generation) { ready = false; render(); } });
+    // 清除舊版 XP 專用快取；it9 進度與登入待送佇列保持原樣。
+    try {
+      localStorage.removeItem('ybs:xp:' + course + ':seat:' + s.ident.cls + '-' + s.ident.seat);
+      if (owner) localStorage.removeItem('ybs:xp:' + course + ':uid:' + owner);
+    } catch { /* 儲存空間不可用不影響作答。 */ }
+    render();
+    shellXPReady.then(() => { if (current === generation) { render(); renderPass(); } });
+    refresh();
   }
   function pass() {
-    if (!s.ident || s.teacher || s.done.has(s.ri)) return '';
-    const activity = catalog().find(a => a.week === cfg.week);
-    if (!activity) return '';
-    const item = evidence(activity), activities = catalog(), previous = records();
-    if (item.passes[s.ri] || (owner && cloud.some(r => r.activity === cfg.week && r.round === s.ri))) return '<p class="xp-detail">這關已領過 XP。</p>';
-    item.passes[s.ri] = {passedAt:Date.now()};
-    persist();
-    // 班座的 mask 在原過關流程稍後才更新；只在本次計算加入這筆新證據。
-    const index = s.ri, current = generation, canLevelUp = ready, awaitingCloud = !!owner && !ready;
-    const added = {...item.passes[index], course, activity:cfg.week, round:index};
-    function message() {
-      if (awaitingCloud) return '<p class="small">本關紀錄已保留；XP 待雲端紀錄確認。</p>';
-      if (typeof YBSXP === 'undefined') return '<p class="small">XP 核心尚未載入；本機已保留過關佐證。</p>';
-      const before = YBSXP.calculate(activities, previous);
-      const after = YBSXP.calculate(activities, [...previous, added]);
-      const detail = after.activities.find(a => a.activity === cfg.week), round = detail.rounds[index];
-      const allBefore = before.activities.find(a => a.activity === cfg.week)?.completeXP || 0;
-      const bits = ['+' + round.passXP + ' 過關'];
-      if (round.onTimeXP) bits.push('+' + round.onTimeXP + ' 準時');
-      if (detail.completeXP > allBefore) bits.push('+' + detail.completeXP + ' 全過');
-      const card = canLevelUp && after.level > before.level
-        ? '<div class="xp-title-card"><strong>升級！Lv ' + after.level + '</strong><p>' + esc(after.title) + '</p></div>' : '';
-      return '<p class="xp-detail">本關 XP：' + bits.join('、') + '</p>' + card;
-    }
-    // 核心較慢載入時，仍補上目前這次過關提示；換關或換人後不回填。
-    shellXPReady.then(() => {
-      if (current !== generation) return;
-      render();
-      if (s.ri === index && $('xp-pending')) $('xp-pending').innerHTML = message();
-    });
-    return typeof YBSXP !== 'undefined' ? message() : '<div id="xp-pending">正在計算本關 XP…</div>';
+    if (!owner || !s.ident || s.teacher || s.done.has(s.ri)) return '';
+    if (!catalog().some(a => a.week === cfg.week)) return '';
+    pending.set(s.ri, {before:ready ? [...cloud] : null});
+    return '<div id="xp-pending" class="small">XP 待雲端紀錄確認。</div>';
   }
-  return {start, stop, pass, render};
+  return {start, stop, pass, render, refresh};
 };
 
 // 管理關卡切換、題目重抽與作答狀態。
@@ -511,7 +489,7 @@ const shellCreateSync = (s) => {
     }
     if (note) { note.hidden = false; note.className = cls; note.textContent = text; }
   }
-  if (typeof YBS !== 'undefined') YBS.status(st => { if (!s.ident) return; state = st; identity = s.ident; renderStatus(); });
+  if (typeof YBS !== 'undefined') YBS.status(st => { if (!s.ident) return; state = st; identity = s.ident; renderStatus(); if (st === 'ok') s.xp?.refresh(); });
   // 元素延後建立或被重建時重綁按鈕及還原目前身分的提示；不依賴首次查找成功。
   if (window.MutationObserver) new window.MutationObserver(() => {
     const current = [$('sync'), $('sync2'), $('b-retry')];

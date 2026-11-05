@@ -19,6 +19,12 @@
 .msg{font-size:22px;line-height:1.6;background:#fffdf5;color:#2b2620;border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-wrap:anywhere;font-family:"Noto Sans TC","Noto Sans JP","Noto Sans SC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
 .dex{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:6px 14px;font-size:15px;align-items:baseline}
 .dex .m{font-size:18px;overflow-wrap:anywhere}
+.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.compare>section{min-width:0}
+.compare .txt-in{width:100%;min-width:0;box-sizing:border-box}
+.compare-status,.my-preview{margin:12px 0 0;font-size:17px;overflow-wrap:anywhere}
+#says:not(:has(.tk)){font-size:17px}
+@media(max-width:559px){.compare{grid-template-columns:minmax(0,1fr)}}
 .bin{font-family:var(--f-mono);font-size:15px;line-height:1.8}
 </style>
 </head>
@@ -110,6 +116,38 @@ const ROUNDS=[
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['字型缺字（方塊）','編碼不同（亂碼）'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項判斷錯了。整段都變怪字，還是只有一兩個字變方塊？':true}}
 ];
+// 文字／編碼有可直接對照的目標；分類辨識關維持原有版面。
+let lastCompare=null;
+ROUNDS.forEach((round,index)=>{
+  const originalView=round.view;
+  if(index>1){
+    round.view=(inst,el,api)=>{lastCompare=null;return originalView(inst,el,api)};
+    return;
+  }
+  round.instruction=index===0?'用編碼表把數字換回英文字母，打出這句暗號。':i=>'把「'+i.w+'」換成編碼表上的數字，數字之間空一格。';
+  round.view=(inst,el,api)=>{
+    const wordChanged=lastCompare?.index===index&&lastCompare.w!==inst.w;
+    lastCompare={index,w:inst.w};
+    el.innerHTML='<div class="compare"><section class="panel compare-target"><h3>目標</h3><div class="target-content"'+(index===0?' data-changed="target"':'')+'></div><div class="reference"></div></section><section class="panel compare-mine"><h3>我的</h3><div class="my-controls"></div><p class="my-preview"></p><p class="compare-status" aria-live="polite"></p></section></div>';
+    const target=el.querySelector('.target-content'),controls=el.querySelector('.my-controls'),preview=el.querySelector('.my-preview'),status=el.querySelector('.compare-status');
+    const update=()=>{
+      const answer=handle.get();
+      // 解碼關沿用 check 的大小寫及空白正規化；編碼關沿用 parseNums。
+      const current=index===0?codesOf(answer.toUpperCase().replace(/\s+/g,' ').trim()):answer;
+      const expected=codesOf(inst.w);
+      const different=Array.from({length:Math.max(current.length,expected.length)},(_,k)=>k).filter(k=>current[k]!==expected[k]);
+      preview.textContent='目前編碼：'+(current.length?current.join(' '):'尚未填入');
+      status.textContent=!current.length?'尚未填入有效答案':different.length?'與目標相差 '+different.length+' 個位置（含缺少或多出）；第一個差異在第 '+(different[0]+1)+' 個位置':'與目標相同';
+    };
+    const handle=originalView(inst,controls,{...api,changed:()=>{update();api.changed()}});
+    if(index===0)target.append(controls.querySelector('.codes'));
+    else target.innerHTML='<p class="msg"><span'+(wordChanged?' class="question-changed"':'')+'>'+api.esc(inst.w)+'</span></p>';
+    // 編碼表只顯示一份，放在目標卡供查表；原作答控制與事件保留。
+    el.querySelector('.reference').append(controls.querySelector('section'));
+    update();
+    return {...handle,fill:()=>{handle.fill();update()}};
+  };
+});
 const APP=SHELL({week:6,termWeek:12,title:'傳給阿嬤的方塊',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！數字、文字都能存成 0 和 1 了。下一站：後援會問卷，把一堆資料變成有用的資訊。'});
 </script>
 </body>

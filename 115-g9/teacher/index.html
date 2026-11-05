@@ -14,7 +14,7 @@ nav a{color:var(--accent)}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 
 <style>
-/* Layout: 上方貼成績碼 → 班級切換 → 該班成績表；工具型頁面，安靜、好掃描 */
+/* Layout: 班級切換 → 名冊活動摘要 → 詳細紀錄；工具型頁面，安靜、好掃描 */
 :root{
   --bg:#F1F3F5; --surface:#FFFFFF; --ink:#1F2328; --muted:#5D6670; --line:#D5DBE1;
   --accent:#2C67AE; --accent-soft:#E2ECF8; --ok:#2B7A4C; --ok-soft:#DFF1E6; --warn:#B3261E; --warn-soft:#FBE4E2;
@@ -64,7 +64,6 @@ tr.miss td{color:var(--muted);background:var(--warn-soft)}
 nav a{color:var(--accent)}
 </style>
 <script src="../../assets/vendor/xlsx-0.20.3.full.min.js?v=20261031a"></script>
-<script src="../../assets/codec.js"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261102a"></script>
 
@@ -72,12 +71,12 @@ nav a{color:var(--accent)}
   <nav><a href="../../">← YBS Lab</a></nav>
   <div>
     <h1>資訊科技成績彙整</h1>
-    <p class="sub">把學生交來的成績碼貼進來，依週次、班級整理，匯出 Excel。成績與班級人數只暫存於目前頁面的記憶體；重新整理或關閉頁面後不保留，請先匯出需要的各班各週成績。</p>
+    <p class="sub">選擇班級查看名冊每個座號的活動進度；點開詳細資料核對來源與衝突。下載 Excel 保留完整明細。</p>
   </div>
 
   <section class="panel" aria-label="雲端過關紀錄">
     <strong>雲端過關紀錄（帳號與班座）</strong>
-    <p class="sub">使用 ClassScore 課程擁有者的 Google 帳號登入後讀取。班座自填的來源標示「未驗證」；不同 UID 分列，請核對冒填與重複紀錄。雲端表另行匯出，不併入下方成績碼總表。</p>
+    <p class="sub">使用 ClassScore 課程擁有者的 Google 帳號登入後讀取。班座來源為未驗證；不同來源或 UID 的衝突標示待核對，不合併計算。</p>
     <div class="row">
       <button class="btn" id="cloud-login">教師 Google 登入</button>
       <button class="btn" id="cloud-read" disabled>讀取雲端紀錄</button>
@@ -85,6 +84,7 @@ nav a{color:var(--accent)}
       <button class="btn" id="cloud-export" disabled>下載雲端紀錄</button>
     </div>
     <p class="msg" id="cloud-status" role="status">請使用課程擁有者的 Google 帳號登入。</p>
+    <label for="cloud-class">班級</label> <select id="cloud-class" disabled><option value="">請先讀取雲端紀錄</option></select>
     <div class="tbl" id="cloud-table"></div>
   </section>
 
@@ -92,196 +92,35 @@ nav a{color:var(--accent)}
     <p class="msg no" id="legacy-msg" role="alert"></p>
     <div class="row">
       <button class="btn" id="b-legacy-export">下載舊資料原始備份（JSON）</button>
-      <button class="btn danger" id="b-legacy-clear" disabled>清除瀏覽器舊資料…</button>
     </div>
-    <p class="sub">原始備份保留成績、人數及損毀內容，並非 Excel，無法直接匯回此頁。下載後請確認檔案已另存，再確認清除；未確認前不會刪除舊資料。</p>
-    <div class="confirm" id="legacy-confirm" hidden>
-      <span>確定完整清除這個瀏覽器的舊成績與班級人數（含損毀項目）？刪除後無法復原，目前頁面的新彙整不受影響。</span>
-      <button class="btn danger" id="legacy-yes">確認清除兩項舊資料</button>
-      <button class="btn" id="legacy-no">取消</button>
-    </div>
+    <p class="sub">原始備份保留舊成績、人數及損毀內容，並非 Excel，無法直接匯回此頁。舊資料原樣保留。</p>
   </section>
-
-  <section class="panel">
-    <label for="paste"><strong>貼上成績碼</strong>　不同週、不同班混在一起也可以，夾雜其他文字也沒關係</label>
-    <textarea id="paste" placeholder="E2K5-H7W2-FZFX-3M1A&#10;…"></textarea>
-    <div class="row"><button class="btn primary" id="b-add">加入</button><span class="msg" id="msg" role="status"></span></div>
-  </section>
-
-  <section class="panel">
-    <div class="row"><span class="lbl">週次</span><div class="tabs" id="wtabs"></div></div>
-    <div class="row"><span class="lbl">班級</span><div class="tabs" id="tabs"></div></div>
-    <div class="row" style="justify-content:space-between">
-      <div class="stats" id="stats"></div>
-      <label class="size" for="size">本班人數 <input id="size" inputmode="numeric" maxlength="2" placeholder="—"> <span>填了會列出未交的座號</span></label>
-    </div>
-    <div class="tbl" id="tbl"></div>
-    <div class="row">
-      <button class="btn" id="b-x1">下載本班本週</button>
-      <button class="btn" id="b-x2">下載本週全部班級</button>
-      <button class="btn" id="b-x3">下載本班學期總表</button>
-    </div>
-    <p class="msg" id="dlmsg" role="status"></p>
-  </section>
-
-  <section class="panel">
-    <div class="row" id="clr-row"></div>
-  </section>
+  <p class="msg" id="dlmsg" role="status"></p>
 </div>
 
-<script src="../../assets/login.js?v=20261105c"></script>
-<script src="../../assets/guest-teacher.js?v=20261105a"></script>
+<script src="../../assets/login.js?v=20261105d"></script>
+<script src="../../assets/guest-teacher.js?v=20261105d"></script>
 <script>
 const $=id=>document.getElementById(id);
 const COURSE='115-g9';   // 這個教師專區對應的課程
 const W=Object.fromEntries(ACTIVITIES.filter(a=>a.course===COURSE).map(a=>[a.week,a]));
-const roundsOf=w=>(W[w]&&W[w].rounds)||['第1關','第2關','第3關','第4關'];
-let recs={}, sizes={}, curW=null, curC=null;
-// 依班週追蹤，部分匯出不能解除其他班週的離開提醒。
-const unexported=new Set();
-window.addEventListener('beforeunload',e=>{
-  if(!unexported.size)return;
-  e.preventDefault();e.returnValue='';
-});
-// 新彙整只存記憶體。舊鍵僅供偵測、明示備份及確認清除，絕不匯入 recs／sizes。
 const legacyKeys=['it9:grades','it9:sizes'];
 const readLegacy=()=>Object.fromEntries(legacyKeys.map(k=>[k,localStorage.getItem(k)]));
-let legacyBackup=null;
 function legacyNotice(message){$('legacy-panel').hidden=false;$('legacy-msg').textContent=message;}
-function checkLegacy(){
-  try{
-    if(Object.values(readLegacy()).some(v=>v!==null)){
-      legacyNotice('偵測到這個瀏覽器留有舊成績或班級人數，尚未載入目前彙整，也未刪除。同一瀏覽器的其他使用者仍可能讀取這些舊資料；請先下載備份，再確認清除。');
-    }
-  }catch(e){
-    legacyNotice('無法讀取瀏覽器儲存區，不能檢查或處理舊資料。可繼續使用目前頁面的記憶體彙整，關閉前請先匯出。');
-    $('b-legacy-export').disabled=true;
-  }
-}
+try {
+  if(Object.values(readLegacy()).some(v=>v!==null)) legacyNotice('偵測到舊成績或班級人數，尚未載入，也未刪除。可下載原始備份。');
+} catch(e) { legacyNotice('無法讀取瀏覽器儲存區，不能檢查舊資料。'); $('b-legacy-export').disabled=true; }
 $('b-legacy-export').onclick=()=>{
-  $('legacy-confirm').hidden=true;
-  try{
+  try {
     const raw=JSON.stringify(readLegacy(),null,2);
     const url=URL.createObjectURL(new Blob([raw],{type:'application/json;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download='資訊科技_舊瀏覽器資料_'+today()+'.json';document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
-    legacyBackup=raw;$('b-legacy-clear').disabled=false;
-    legacyNotice('已送出舊資料備份下載，尚未刪除任何舊資料。請確認檔案已另存，再按清除並確認。');
-  }catch(e){legacyBackup=null;$('b-legacy-clear').disabled=true;legacyNotice('舊資料備份下載失敗，未刪除任何舊資料。請重試或檢查瀏覽器儲存權限。');}
+    legacyNotice('已送出舊資料備份下載，未刪除任何舊資料。');
+  } catch(e) { legacyNotice('舊資料備份下載失敗，未刪除任何舊資料。請重試。'); }
 };
-$('b-legacy-clear').onclick=()=>{if(legacyBackup!==null)$('legacy-confirm').hidden=false;};
-$('legacy-no').onclick=()=>{$('legacy-confirm').hidden=true;};
-$('legacy-yes').onclick=()=>{
-  if($('legacy-confirm').hidden||legacyBackup===null)return;
-  $('legacy-confirm').hidden=true;
-  try{
-    if(JSON.stringify(readLegacy(),null,2)!==legacyBackup){
-      legacyNotice('瀏覽器舊資料已變動，未清除。請重新下載備份並確認檔案已另存，再確認清除。');
-    }else{
-      // 各鍵分別嘗試，單一鍵失敗也不漏掉另一鍵；不解析，因此損毀項目也會移除。
-      for(const key of legacyKeys){try{localStorage.removeItem(key);}catch(e){}}
-      const remains=Object.values(readLegacy()).some(v=>v!==null);
-      legacyNotice(remains?'部分舊資料未能清除，請檢查瀏覽器儲存權限，重新備份後再確認清除。':'已完整清除瀏覽器的舊成績與班級人數。目前彙整仍只存記憶體，關閉前請先匯出。');
-      if(!remains){$('dlmsg').className='msg ok';$('dlmsg').textContent=$('legacy-msg').textContent;$('legacy-panel').hidden=true;}
-    }
-  }catch(e){legacyNotice('無法確認舊資料是否完整清除。請檢查瀏覽器儲存權限，重新備份後再確認清除。');}
-  legacyBackup=null;$('b-legacy-clear').disabled=true;
-};
-checkLegacy();
-const n1=m=>{let c=0;m=m>>>0;while(m){c+=m&1;m>>>=1}return c};
 const p2=n=>String(n).padStart(2,'0');
-const fmtTime=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+p2(d.getHours())+':'+p2(d.getMinutes())};
-const all=()=>Object.values(recs);
-const weeks=()=>[...new Set(all().map(r=>r.week))].sort((a,b)=>a-b);
-const classes=w=>[...new Set(all().filter(r=>w==null||r.week===w).map(r=>r.cls))].sort((a,b)=>a-b);
-const tw=w=>(W[w]&&termWeekOf(W[w]))||w;   // 學期第幾週（w 是第幾個活動）
-const wname=w=>'第 '+tw(w)+' 週'+(W[w]?'・'+W[w].title:'');
-
-$('b-add').onclick=()=>{
-  const found=CODEC.extract($('paste').value);
-  let add=0,upd=0,old=0;const bad=[];let last=null;
-  for(const f of found){
-    const r=CODEC.decode(f); if(!r){bad.push(f);continue}
-    const k=r.week+'-'+r.cls+'-'+r.seat, ex=recs[k];
-    if(!ex){recs[k]=r;add++;last=r}
-    else if(r.time>ex.time||(r.time===ex.time&&n1(r.mask)>n1(ex.mask))){recs[k]=r;upd++;last=r}
-    else old++;
-    if(recs[k]===r)unexported.add(r.week+'-'+r.cls);
-  }
-  const m=$('msg');
-  if(!found.length){m.className='msg no';m.textContent='沒有找到成績碼。';return}
-  m.className='msg '+(bad.length?'no':'ok');
-  m.textContent='新增 '+add+' 人、更新 '+upd+' 人'+(old?'、'+old+' 筆比現有的舊所以略過':'')+(bad.length?'；'+bad.length+' 筆驗證不過（打錯或被改過）：'+bad.join('、'):'')+'。成績僅暫存於目前頁面，關閉或重新整理前請先匯出。';
-  if(!bad.length)$('paste').value='';
-  if(last){curW=last.week;curC=last.cls}
-  render();
-};
-
-function rowsFor(w,c){
-  const list=all().filter(r=>r.week===w&&r.cls===c);
-  const by=Object.fromEntries(list.map(r=>[r.seat,r]));
-  const n=+sizes[c]||0, max=Math.max(n,...list.map(r=>r.seat),0), out=[];
-  for(let s=1;s<=max;s++){if(by[s])out.push(by[s]);else if(n&&s<=n)out.push({week:w,cls:c,seat:s,missing:true})}
-  return out;
-}
-
-function tabs(el,items,cur,label,on){
-  el.innerHTML=items.length?items.map(x=>'<button type="button" data-v="'+x+'" aria-pressed="'+(x===cur)+'">'+label(x)+'</button>').join(''):'<span class="sub">還沒有資料</span>';
-  el.querySelectorAll('button').forEach(b=>b.onclick=()=>on(+b.dataset.v));
-}
-
-function render(){
-  const ws=weeks(); if(!ws.includes(curW))curW=ws[ws.length-1]??null;
-  const cs=classes(curW); if(!cs.includes(curC))curC=cs[0]??null;
-  tabs($('wtabs'),ws,curW,wname,v=>{curW=v;render()});
-  tabs($('tabs'),cs,curC,c=>c+' <small>'+all().filter(r=>r.week===curW&&r.cls===c).length+' 人</small>',v=>{curC=v;render()});
-  const none=curW==null||curC==null;
-  ['b-x1','b-x2','b-x3','size'].forEach(id=>$(id).disabled=none);
-  $('size').value=!none&&sizes[curC]?sizes[curC]:'';
-  renderClear();
-  if(none){$('tbl').innerHTML='<p class="empty">貼上成績碼後，這裡會出現各班成績表。</p>';$('stats').innerHTML='';return}
-  const R=roundsOf(curW), rows=rowsFor(curW,curC), got=rows.filter(r=>!r.missing), full=(1<<R.length)-1;
-  $('stats').innerHTML='<span>已交 <b>'+got.length+'</b>'+(sizes[curC]?' / '+sizes[curC]:'')+'</span><span>全部過關 <b>'+got.filter(r=>(r.mask&full)===full).length+'</b></span>';
-  let h='<table><thead><tr><th>座號</th>'+R.map(x=>'<th>'+x+'</th>').join('')+'<th>過關數</th><th>總嘗試次數</th><th>最後更新</th><th>成績碼</th></tr></thead><tbody>';
-  for(const r of rows){
-    if(r.missing){h+='<tr class="miss"><td>'+r.seat+'</td><td colspan="'+(R.length+4)+'">未交</td></tr>';continue}
-    h+='<tr><td>'+r.seat+'</td>'+R.map((_,i)=>r.mask&(1<<i)?'<td class="y">✓ <small>'+r.tries[i]+' 次</small></td>':'<td class="n">'+(r.tries[i]?'未過（'+r.tries[i]+' 次）':'—')+'</td>').join('')+
-       '<td><b>'+n1(r.mask&full)+'</b></td><td>'+r.tries.slice(0,R.length).reduce((a,b)=>a+b,0)+'</td><td>'+fmtTime(r.time)+'</td><td class="code">'+r.code+'</td></tr>';
-  }
-  $('tbl').innerHTML=h+'</tbody></table>';
-}
-
-$('size').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');e.target.value=v;if(curC!=null){const prev=sizes[curC];if(v&&+v>=1&&+v<=60)sizes[curC]=+v;else delete sizes[curC];if(prev!==sizes[curC])for(const r of all())if(r.cls===curC)unexported.add(r.week+'-'+r.cls);render();$('size').focus()}});
-
-// ===== Excel =====
-function weekSheet(w,c){
-  const R=roundsOf(w);
-  const head=['班級','座號',...R.map(x=>x+'（1=過）'),'過關數',...R.map(x=>x+' 嘗試次數'),'總嘗試次數','最後更新','成績碼','備註'];
-  const aoa=[head], full=(1<<R.length)-1;
-  for(const r of rowsFor(w,c)){
-    if(r.missing){const row=Array(head.length).fill('');row[0]=c;row[1]=r.seat;row[head.length-1]='未交';aoa.push(row);continue}
-    const t=r.tries.slice(0,R.length);
-    aoa.push([c,r.seat,...R.map((_,i)=>r.mask&(1<<i)?1:0),n1(r.mask&full),...t,t.reduce((a,b)=>a+b,0),new Date(r.time),r.code,'']);
-  }
-  const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:'yyyy/mm/dd hh:mm'});
-  ws['!cols']=head.map(h=>({wch:Math.max(8,Math.min(20,h.length*2))}));
-  return ws;
-}
-function termSheet(c){
-  const ws_=weeks().filter(w=>all().some(r=>r.week===w&&r.cls===c));
-  const head=['班級','座號',...ws_.map(w=>'第'+tw(w)+'週 過關數（共'+roundsOf(w).length+'關）'),'合計過關數','合計關卡數'];
-  const seats=new Set(all().filter(r=>r.cls===c).map(r=>r.seat));
-  const n=+sizes[c]||0; for(let s=1;s<=n;s++)seats.add(s);
-  const total=ws_.reduce((a,w)=>a+roundsOf(w).length,0);
-  const aoa=[head];
-  for(const s of [...seats].sort((a,b)=>a-b)){
-    const per=ws_.map(w=>{const r=recs[w+'-'+c+'-'+s];return r?n1(r.mask&((1<<roundsOf(w).length)-1)):''});
-    aoa.push([c,s,...per,per.reduce((a,b)=>a+(+b||0),0),total]);
-  }
-  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=head.map(h=>({wch:Math.max(8,Math.min(24,h.length*2))}));
-  return {ws,ws_};
-}
-function saveBook(name,sheets,covered=[]){
+function saveBook(name,sheets){
   const m=$('dlmsg');
   if(typeof XLSX==='undefined'){m.className='msg no';m.textContent='Excel 元件沒有載入成功，請確認網路後重新整理。';return}
   const wb=XLSX.utils.book_new();
@@ -290,24 +129,8 @@ function saveBook(name,sheets,covered=[]){
   const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
-  for(const key of covered)unexported.delete(key);
   m.className='msg ok';m.textContent='已下載 '+name;
 }
 const today=()=>{const d=new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
-$('b-x1').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_'+curC+'班_'+today()+'.xlsx',[[curC+'班',weekSheet(curW,curC)]],[curW+'-'+curC]);
-$('b-x2').onclick=()=>saveBook('資訊科技_第'+tw(curW)+'週_全部班級_'+today()+'.xlsx',classes(curW).map(c=>[c+'班',weekSheet(curW,c)]),classes(curW).map(c=>curW+'-'+c));
-$('b-x3').onclick=()=>{const {ws,ws_}=termSheet(curC);saveBook('資訊科技_'+curC+'班_學期總表_'+today()+'.xlsx',[['總表',ws],...ws_.map(w=>['第'+tw(w)+'週',weekSheet(w,curC)])],ws_.map(w=>w+'-'+curC))};
-
-// ===== 清除 =====
-function renderClear(){
-  const row=$('clr-row');
-  row.innerHTML='<button class="btn danger" id="b-clear" '+(curC==null?'disabled':'')+'>清除這班這週的資料</button><span class="sub">只清除目前選的週次和班級</span>';
-  $('b-clear').onclick=()=>{
-    row.innerHTML='<div class="confirm"><span>確定刪除'+wname(curW)+' '+curC+' 班的所有成績？刪了不能復原。</span><button class="btn danger" id="c-yes">刪除</button><button class="btn" id="c-no">取消</button></div>';
-    $('c-no').onclick=renderClear;
-    $('c-yes').onclick=()=>{for(const k of Object.keys(recs))if(recs[k].week===curW&&recs[k].cls===curC)delete recs[k];unexported.delete(curW+'-'+curC);render()};
-  };
-}
-render();
 if(typeof window.YBSGuestTeacher==='function')window.YBSGuestTeacher({course:COURSE,activities:W,saveBook});
 </script>

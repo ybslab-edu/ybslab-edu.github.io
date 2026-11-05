@@ -59,7 +59,7 @@ function setup(gen, options={}) {
     return nodes.get(id);
   };
   const c=vm.createContext({document:{body:{insertAdjacentHTML(){}},getElementById:get},window:{},
-    TEACHER:{remembered:()=>false},CODEC:{encode:()=> 'synthetic'},localStorage:{getItem:()=>null,setItem(){}}});
+    TEACHER:{remembered:()=>false},localStorage:{getItem:()=>null,setItem(){}}});
   vm.runInContext(shell+'\nglobalThis.makeShell=SHELL;',c);
   let correct=true;
   const round={lv:1,name:'合成關卡',gen,view:()=>({get:()=>null}),check:()=>correct,...options};

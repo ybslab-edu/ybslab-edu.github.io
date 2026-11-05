@@ -1,10 +1,10 @@
 // 學生用帳號密碼登入（cgjh學號／cgjh身分證字號），每過一關寫一筆紀錄到 ClassScore 的 Firebase（class-score-86020）。
 // 資料結構與權限見 class-score repo 的 docs/YBS_FIRESTORE.md：學生只能新增自己的紀錄、一關一筆、不能改刪。
-// on 為 false 或該課程沒有對應的 courseId 時不啟用：活動頁維持「班級座號＋成績碼」。
+// on 為 false 或該課程沒有對應的 courseId 時不啟用：活動頁維持「班級座號與本機進度」。
 // 專案 ID、網頁金鑰都是公開識別碼，不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
   const CONFIG = {
-    on: true,                                     // false：關閉登入，活動頁只用「班級座號＋成績碼」
+    on: true,                                     // false：關閉登入，活動頁只用「班級座號與本機進度」
     project: 'class-score-86020',
     apiKey: 'AIzaSyAooTgTdo8xiaFn6Tl2dLHLwFDlyn0frIQ',   // Firebase 網頁金鑰是公開識別碼，不是密碼
     sender: '1078830272862',
@@ -447,6 +447,7 @@ const YBS = (() => {
     }
     return {courseId:'115-df', uid:me.uid, session, cls, seat, updatedAt};
   }
+  function retry() { guestRetryAt = 0; return profile ? flush() : flushGuest(); }
   return { CONFIG, enabled, button, submit, flush, logout, whoami, submitReport, guest, leaveGuest, flushGuest,
-    firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
+    retry, firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
 })();

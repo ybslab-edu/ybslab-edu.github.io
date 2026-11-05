@@ -16,7 +16,7 @@ function activity(dir){
   const run=(source,timeout=1000)=>vm.runInContext(source,context,{timeout});
   // 控制 Math.random（自訂活動也會用到），同時限制傳入 gen 的 rnd 呼叫數。
   run(`let state=1,calls=0;function rnd(){if(++calls>100000)throw Error('產題亂數超過 100000 次');state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296}Math.random=rnd;`);
-  run(read('assets/codec.js')+'\n'+shell+'\n'+[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'));
+  run(shell+'\n'+[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'));
   return {run,context};
 }
 const dirs=readdirSync(new URL('../115-g9/',import.meta.url)).filter(d=>/^u\d+-\d+$/.test(d)&&read(`115-g9/${d}/index.html`).includes('assets/shell.js'));

@@ -80,7 +80,7 @@ function setup({old,failSave=false,teacher=false,random=0.5}={}){
     sessionStorage:{setItem(){}},TEACHER:{remembered:()=>teacher,remember(){}},
     YBS:{enabled:()=>true,profile:()=>({email:'synthetic@example.invalid'}),flush(){},button(){},status(){},submit:x=>uploads.push(x)},
     setTimeout:f=>{timers.set(++timer,f);return timer},clearTimeout:id=>timers.delete(id),matchMedia:()=>({matches:true})});
-  vm.runInContext(read('assets/codec.js')+'\n'+read('assets/shell.js')+'\n'+page,context,{timeout:1000});
+  vm.runInContext(read('assets/shell.js')+'\n'+page,context,{timeout:1000});
   const get=id=>document.getElementById(id),evaluate=(s,timeout=1000)=>vm.runInContext(s,context,{timeout});
   if(!teacher){get('in-cls').value='999';get('in-seat').value='1';get('g-go').onclick()}
   const drain=()=>{let n=0;while(timers.size){assert.ok(n++<100,'播放必須有界');const [id,fn]=timers.entries().next().value;timers.delete(id);fn()}};
@@ -122,24 +122,24 @@ test('四關順序、固定雙組資料、所有排卡的實際判定與獨立�
   }
 });
 
-test('錯答不過、播放開始記次、一次雙資料過關、四關上傳與舊進度/成績碼相容',()=>{
+test('錯答不過、播放開始記次、一次雙資料過關、四關上傳與舊進度/進度相容',()=>{
   const old={mask:2,tries:[3,4,0,0],time:1790000000000},h=setup({old});
   assert.deepEqual(h.progress(),old);
-  assert.equal(h.evaluate('CODEC.decode(document.getElementById("code").textContent).mask'),2);
+  assert.equal(h.evaluate('JSON.parse(localStorage.getItem("it9:w2:999-1")).mask'),2);
   h.play([1,0,2,3]);assert.equal(h.progress().mask,2);assert.equal(h.progress().tries[0],4);assert.equal(h.uploads.length,0);
   h.play();assert.equal(h.progress().mask,3);assert.equal(h.progress().tries[0],5);assert.equal(h.uploads.length,1);
   assert.match(h.get('verdict').textContent,/換一個情況/);
   assert.deepEqual(JSON.parse(h.stored.get('it9:last')),{cls:999,seat:1});
   for(const i of [1,2,3]){h.evaluate('APP.load('+i+')');h.play();assert.ok(h.progress().mask&(1<<i))}
-  const decoded=h.evaluate('CODEC.decode(document.getElementById("code").textContent)');
-  assert.equal(decoded.week,2);assert.equal(decoded.mask,15);assert.deepEqual(Array.from(decoded.tries).slice(0,4),[5,4,1,1]);
+  const decoded=h.evaluate('JSON.parse(localStorage.getItem("it9:w2:999-1"))');
+  assert.equal(decoded.mask,15);assert.deepEqual(Array.from(decoded.tries).slice(0,4),[5,4,1,1]);
   assert.deepEqual(h.uploads.map(x=>[x.activity,x.termWeek,x.round,x.tries]),[[2,8,0,5],[2,8,1,4],[2,8,2,1],[2,8,3,1]]);
   h.play();assert.equal(h.progress().tries[3],1);
 });
 
 test('儲存失敗顯示 shell 提示；教師暫停、前後步、跳步、停止、鍵盤且不記分',()=>{
   const h=setup({failSave:true});h.play();assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);
-  assert.equal(h.evaluate('CODEC.decode(document.getElementById("code").textContent).mask'),1);
+  assert.match(h.get('prog').textContent,/✓/);assert.equal(h.uploads.length,1);
   const t=setup({teacher:true});t.evaluate('APP.handle.fill();play()');
   t.get('tb-play').onclick();assert.equal(t.evaluate('pb.paused'),true);
   t.get('tb-next').onclick();assert.equal(t.evaluate('pb.i'),1);
@@ -169,8 +169,8 @@ test('選格、點卡、拿回、上下移動、清空與拖曳（取代、插�
   h.evaluate('APP.handle.fill();play()');
   let canceled=false;h.get('main').listeners.click[0]({target:h.get('tab-2'),preventDefault(){canceled=true},stopImmediatePropagation(){}});
   assert.equal(canceled,true);
-  canceled=false;h.get('main').listeners.click[0]({target:h.get('b-copy'),preventDefault(){canceled=true},stopImmediatePropagation(){}});
-  assert.equal(canceled,false,'播放時仍可複製成績碼');
+  canceled=false;h.get('main').listeners.click[0]({target:h.get('b-retry'),preventDefault(){canceled=true},stopImmediatePropagation(){}});
+  assert.equal(canceled,false,'播放時仍可重試上傳');
   h.drain();assert.equal(h.evaluate('running'),false);
   const t=setup({teacher:true});t.evaluate('APP.handle.fill();play()');
   t.get('main').listeners.click[0]({target:t.get('b-swap')});

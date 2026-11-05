@@ -136,46 +136,16 @@ test('上傳佇列：逐筆捨棄壞項目，合法項目及其他 uid 不受影
   assert.equal(h.queue().length,1);assert.equal(h.queue()[0].uid,'synthetic-2');
   await h.c.api.submit({activity:2,round:1,level:2,tries:3});assert.equal(h.sent.length,2);assert.equal(h.queue().length,1);
 });
-function teacherSetup(grades,sizes='{}'){
-  const d=dom(),stored=new Map([['it9:grades',grades],['it9:sizes',sizes]]);
-  const c=vm.createContext({window:{addEventListener(){}},document:d.document,localStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)},setTimeout(){}});
-  for(const p of ['assets/codec.js','assets/curriculum.js','assets/activities.js'])run(c,read(p));
-  run(c,[...read('115-g9/teacher/index.html').matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'));
-  return {...d,c,stored};
-}
-function grade(){
-  const c=vm.createContext({});run(c,read('assets/codec.js'));
-  return plain(run(c,'CODEC.decode(CODEC.encode({week:1,cls:999,seat:1,mask:3,tries:[1,2,0,0,0,0],time:Date.UTC(2026,9,1)}))'));
-}
-test('教師舊資料：不解析或還原壞項目，正常彙整也不覆寫原始值',()=>{
-  const good=grade(),data={'1-999-1':good};
-  const changes=[['mask',-1],['mask',64],['mask',2**32],['mask',1.5],['mask','3'],['seat',1000000],['tries',[null]],['time',null],['code',{}],['week',0]];
-  changes.forEach(([k,v],i)=>{const r={...good,cls:800+i,[k]:v};data[`1-${800+i}-1`]=r;});
-  data.bad=null;
-  const grades=JSON.stringify(data),sizes='{"999":60,"998":1000000}';
-  const h=teacherSetup(grades,sizes);
-  assert.equal(run(h.c,'all().length'),0);assert.deepEqual(plain(run(h.c,'sizes')),{});
-  assert.equal(h.get('legacy-panel').hidden,false);assert.match(h.get('legacy-msg').textContent,/尚未載入.*未刪除/);
-  assert.equal(run(h.c,'n1(-1)'),32);assert.equal(run(h.c,'n1(63)'),6);
-  h.get('paste').value=good.code;h.get('b-add').onclick();assert.equal(run(h.c,'all().length'),1);
-  assert.equal(h.stored.get('it9:grades'),grades);assert.equal(h.stored.get('it9:sizes'),sizes);
-});
-test('教師舊資料：根節點損毀、空字串或 sizes 解析失敗皆提示且原樣保留',()=>{
-  for(const raw of ['{','null','[]','42','']){
-    const h=teacherSetup(raw,'{');
-    assert.equal(run(h.c,'all().length'),0);assert.equal(h.stored.get('it9:grades'),raw);
-    assert.equal(h.stored.get('it9:sizes'),'{');assert.equal(h.get('legacy-panel').hidden,false);
-  }
-});
 function shellSetup(value){
   const d=dom(),stored=new Map([['it9:w1:999-1',value]]),packets=[];
   const c=vm.createContext({document:d.document,window:{},localStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)},
-    TEACHER:{remembered:()=>false},CODEC:{encode:p=>{packets.push(plain(p));return 'synthetic-code';}}});
-  run(c,read('assets/shell.js')+'\nglobalThis.makeShell=SHELL;');
+    TEACHER:{remembered:()=>false}});
+  run(c,read('assets/shell.js').replace('shellBindIdentityForm(s);','globalThis.shellState=s; shellBindIdentityForm(s);')+'\nglobalThis.makeShell=SHELL;');
   const round={name:'合成關卡',lv:1,gen:()=>({}),view:()=>({get:()=>'',ready:()=>true}),check:()=>false};
   c.makeShell({week:1,title:'合成活動',rounds:Array.from({length:4},()=>({...round})),progressLength:4});
   d.get('in-cls').value='999';d.get('in-seat').value='1';d.get('g-go').onclick();
-  return {...d,packets,send:()=>d.get('b-send').onclick()};
+  packets.push(plain(run(c,'shellState.prog')));
+  return {...d,packets,send:()=>{d.get('b-send').onclick();packets.push(JSON.parse(stored.get('it9:w1:999-1')));}};
 }
 test('活動進度：壞資料回預設且可繼續作答；合法 4／6 關儲存形狀均保留',()=>{
   const good={mask:3,tries:[1,2,0,0],time:Date.UTC(2026,9,1)};

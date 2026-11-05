@@ -221,15 +221,14 @@ def guest_cycle(b):
             if n == 0:
                 assert pg.locator('#verdict.mid').count() == 1 and '再一組確認' in verdict, f'{step}／第 1 組：應要求再一組，判定={verdict!r}'
                 assert pg.locator('#streak .on').count() == 1 and pg.is_disabled('#b-send'), f'{step}／第 1 組：應亮一顆並等待新題填答'
-                assert progress['mask'] == 0 and progress['tries'][0] == 1 and pg.evaluate('CODEC.decode(document.getElementById("code").textContent).mask') == 0, f'{step}／第 1 組：進度與成績碼不應標記過關，{progress}'
+                assert progress['mask'] == 0 and progress['tries'][0] == 1, f'{step}／第 1 組：進度不應標記過關，{progress}'
                 assert pg.locator('#b-next').count() == 0, f'{step}／第 1 組：不應出現下一關'
             else:
                 # shell 過關時不呼叫 renderStreak，燈號仍停在一顆；以過關與保存結果判斷。
                 assert pg.locator('#verdict.ok').count() == 1 and '過關！' in verdict, f'{step}／第 2 組：應過關，判定={verdict!r}'
                 assert progress['mask'] == 1 and progress['tries'][0] == 2, f'{step}／第 2 組：應以兩次作答完成第一關，{progress}'
                 assert pg.evaluate('JSON.stringify(APP.inst)') == previous and not pg.is_disabled('#b-send'), f'{step}／第 2 組：過關後應保留當題與可按的送出按鈕'
-        assert pg.inner_text('#code'), f'{step}：過關後成績碼為空，判定={verdict!r}'
-        assert pg.evaluate('CODEC.decode(document.getElementById("code").textContent).mask') == 1, f'{step}：過關後成績碼應標記第一關完成'
+        assert pg.locator('#code').count() == 0, f'{step}：活動不應產生成績碼'
         pg.click('#b-next')
         assert pg.evaluate('APP.ri') == 1 and pg.locator('#streak .on').count() == 0 and pg.is_disabled('#b-send') and not pg.is_visible('#verdict'), f'{step}：下一關應重設連對、等待填答並隱藏判定'
     try:
@@ -245,7 +244,10 @@ def guest_cycle(b):
         pg.click('#b-swap'); manual(2)
         wait_evaluate(pg, "JSON.parse(sessionStorage.getItem('ybslab:guest-identity')).seat === 2")
         assert pg.evaluate('__authCalls') == ['signOut', 'anonymous'], '換成 999 班 2 號：應先登出再匿名登入'
-        pass_guest('999 班 2 號／換班座後作答'); wait_evaluate(pg, '__writes.length === 2')
+        pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})')
+        pass_guest('999 班 2 號／換班座後作答')
+        wait_evaluate(pg, "document.getElementById('sync2').textContent.includes('還沒上傳成功')")
+        pg.click('#b-retry'); wait_evaluate(pg, '__writes.length === 2')
         writes = pg.evaluate('__writes')
         assert [x[0] for x in writes] == ['ybsCourses/115-g9/guestAttempts/guest1_4_0', 'ybsCourses/115-g9/guestAttempts/guest2_4_0'], f'開頁重送／換班座：寫入路徑不符，{writes!r}'
         expected = {'activity', 'round', 'level', 'tries', 'termWeek', 'passedAt', 'app', 'cls', 'seat', 'verified'}
@@ -261,7 +263,11 @@ def guest_cycle(b):
                 uid:'real1',email:'synthetic@example.invalid',activity:4,round:0,level:1,tries:2,passedAt:'TS'});
         }""", writes)
         pg.click('#cloud-read'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('已讀取 3 列')")
-        assert pg.locator('#cloud-table tbody tr').count() == 3, 'owner 讀取：雲端合併表應有三列'
+        assert pg.locator('#cloud-table tbody tr').count() == 0, '選班前不應顯示學生列'
+        pg.select_option('#cloud-class', '999')
+        assert pg.locator('#cloud-table tbody tr').count() == 1, 'owner 讀取：依名冊應有一座號列'
+        assert '待核對' in pg.inner_text('#cloud-table'), '重複來源須待核對'
+        pg.locator('#cloud-table details summary').first.click()
         assert '未驗證' in pg.inner_text('#cloud-table') and '帳號名單' in pg.inner_text('#cloud-table'), 'owner 讀取：缺少班座未驗證或帳號名單來源標示'
         with pg.expect_download() as download:
             pg.click('#cloud-export')

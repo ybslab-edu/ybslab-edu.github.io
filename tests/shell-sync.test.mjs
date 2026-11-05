@@ -1,0 +1,20 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {Element} from './fixtures/activity-dom.mjs';
+test('狀態先到、元素延後出現及重建都可重試；換人不能復原舊狀態',()=>{
+  const body=new Element('body');let observer,status,retries=0;
+  const s={cfg:{},R:[],ident:{cls:999,seat:1},loginEnabled:()=>true,$:id=>body.querySelector('#'+id)};
+  const context=vm.createContext({document:{body},window:{MutationObserver:class{constructor(fn){observer=fn;}observe(){}}},YBS:{status(fn){status=fn;},retry(){retries++;}}});
+  vm.runInContext(readFileSync(new URL('../assets/shell.js',import.meta.url),'utf8')+'\nglobalThis.sync=shellCreateSync;',context);context.sync(s);
+  status('guest-pending');
+  body.innerHTML='<span id="sync"></span><p id="sync2"></p><button id="b-retry"></button>';observer();
+  assert.match(s.$('sync2').textContent,/還沒上傳成功/);s.$('b-retry').click();assert.equal(retries,1);
+  status('sending');assert.equal(s.$('b-retry').disabled,true);
+  body.innerHTML='<span id="sync"></span><p id="sync2"></p><button id="b-retry"></button>';observer();
+  assert.match(s.$('sync2').textContent,/上傳中/);assert.equal(s.$('b-retry').disabled,true);
+  status('ok');assert.match(s.$('sync2').textContent,/已上傳/);s.$('b-retry').click();assert.equal(retries,2);
+  s.ident={cls:999,seat:2};body.innerHTML='<span id="sync"></span><p id="sync2"></p><button id="b-retry"></button>';observer();
+  assert.equal(s.$('sync2').hidden,true);assert.equal(s.$('sync2').textContent,'');s.ident=null;s.$('b-retry').click();assert.equal(retries,2);
+});

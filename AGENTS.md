@@ -2,7 +2,7 @@
 
 ## 專案與入口
 - 本檔是唯一 AI 入口；以繁體中文簡潔回覆，不在 repo 維護交接快照、進度或待辦。
-- `ybslab-edu/ybslab-edu.github.io` 是教學靜態網站，提供課堂活動、成績碼與報告交件。
+- `ybslab-edu/ybslab-edu.github.io` 是教學靜態網站，提供課堂活動、雲端過關紀錄與報告交件。
 - 網站：<https://ybslab-edu.github.io/>；HTML、CSS、JavaScript 直接提供服務，無建置步驟或套件安裝需求。
 - ClassScore 位於 `ybslab-edu/class-score`；兩站共用 Firebase，跨站資料規格見該 repo 的 `docs/YBS_FIRESTORE.md`。
 
@@ -11,8 +11,8 @@
 - `115-g9/`：九年級活動與教師成績彙整；活動資料夾 `uU-NN/`＝單元＋該單元第幾個活動；`115-df/`：專題學生頁及教師報告彙整。
 - `assets/activities.js`：唯一活動登記處；`assets/curriculum.js`：課綱、課程與學期。
 - `assets/shell.js`、`assets/shell.css`：活動共用外框；過關須連續答對兩組不同資料。
-- `assets/codec.js`：共用成績碼；`assets/teacher.js`：教師模式；`assets/lock.js`：活動開放清單。
-- `assets/login.js`：學生帳號密碼登入、過關紀錄與報告交件；登入失敗可改用班座及成績碼。
+- `assets/codec.js`：舊成績碼相容程式，網站入口已停用；`assets/teacher.js`：教師模式；`assets/lock.js`：活動開放清單。
+- `assets/login.js`：學生帳號密碼登入、過關紀錄與報告交件；登入失敗可改填班座，背景匿名上傳未驗證紀錄；保留本機待送及重試上傳。
 - `assets/df-report.js`：報告白名單與編解碼；`assets/df-teacher-cloud.js`：教師雲端報告操作。
 - `docs/DF_REPORT_FORMAT.md`：報告格式規格；`tests/`：合成資料測試；`tools/dev/`：本機回歸及 Firebase mock。
 - `lab/login-test/`：隔離的登入測試頁；`assets/vendor/`：固定版本的第三方程式庫。
@@ -42,7 +42,7 @@
 
 ## 維護規則與部署
 - 共用資源版本以 `node tools/set-asset-version.mjs login.js 版本號` 統一全站 HTML 的 `?v=`；加 `--check` 僅列出不一致（有差異時結束碼為 1），再執行 `node --test tests/asset-versions.test.mjs` 驗證。
-- 活動 `week` 須與活動頁的 `WEEK` 活動序號一致（成績碼用），與資料夾 `uU-NN/` 無關，改名不能改動；學期週次依 `date` 計算，不可混用。舊 `wNN/` 是轉址頁，勿刪。
+- 活動 `week` 須與活動頁的 `WEEK` 活動序號一致（雲端活動 ID），與資料夾 `uU-NN/` 無關，改名不能改動；學期週次依 `date` 計算，不可混用。舊 `wNN/` 是轉址頁，勿刪。
 - 每週開放活動須修改 `assets/lock.js` 的 `OPEN`，並同步 `tools/dev/check-pages.py` 的開放預期；前端鎖不具授權保護能力。
 - 新增外部字型、CDN、iframe 或 API 時，須同步檢查各頁 CSP；更換教師通行碼雜湊時同步更新引用的快取版本。
 - 一個功能一個 Draft PR；合併與發布須先取得老師明確核准。

@@ -1,4 +1,4 @@
-/* 活動頁共用外框（第 2 單元起）：顏色、填班級座號、分頁、任務說明、送出與判定、成績碼、教師列。各週只寫自己的關卡樣式。 */
+/* 活動頁共用外框（第 2 單元起）：顏色、填班級座號、分頁、任務說明、送出與判定、教師列。各週只寫自己的關卡樣式。 */
 :root{
   --bg:#EDF0F3; --surface:#FFFFFF; --ink:#211B17; --muted:#5D6670; --line:#D3D9E0;
   --a:#2C67AE; --a-soft:#E2ECF8;
@@ -107,11 +107,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .linkbtn{font:inherit;font-size:14px;border:0;background:none;color:var(--a);cursor:pointer;text-decoration:underline;padding:0}
 .report{background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
 .report h2{margin:0;font-family:var(--f-display);font-size:19px;width:100%}
-.code{font-family:var(--f-mono);font-size:clamp(20px,4.5vw,28px);font-weight:700;letter-spacing:.06em;user-select:all;overflow-wrap:anywhere}
 .prog{display:flex;gap:8px;flex-wrap:wrap;width:100%}
 .prog span{font-size:14px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
 .prog span.ok{background:var(--out-soft);border-color:var(--out);color:var(--ink);font-weight:700}
-.copied{font-size:14px;color:var(--out)}
 .tlogin{display:flex;flex-direction:column;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:12px}
 .tlogin .field{width:100%}
 .tbar{position:sticky;bottom:12px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--cu);border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.18)}

@@ -216,11 +216,22 @@ def guest_cycle(b):
             assert state['inst'] != previous, f'{step}／第 {n+1} 組：未換成不同資料，{state}'
             previous = state['inst']
             pg.click('#b-send')
-            streak = pg.locator('#streak .on').count()
             verdict = pg.inner_text('#verdict')
-            assert streak == n+1, f'{step}／第 {n+1} 組：連對數應為 {n+1}，實際 {streak}，判定={verdict!r}'
-        assert '過關' in verdict, f'{step}：兩組送出後未過關，判定={verdict!r}'
+            progress = pg.evaluate("JSON.parse(localStorage.getItem('it9:w4:999-' + JSON.parse(sessionStorage.getItem('ybslab:guest-identity')).seat))")
+            if n == 0:
+                assert pg.locator('#verdict.mid').count() == 1 and '再一組確認' in verdict, f'{step}／第 1 組：應要求再一組，判定={verdict!r}'
+                assert pg.locator('#streak .on').count() == 1 and pg.is_disabled('#b-send'), f'{step}／第 1 組：應亮一顆並等待新題填答'
+                assert progress['mask'] == 0 and progress['tries'][0] == 1 and pg.evaluate('CODEC.decode(document.getElementById("code").textContent).mask') == 0, f'{step}／第 1 組：進度與成績碼不應標記過關，{progress}'
+                assert pg.locator('#b-next').count() == 0, f'{step}／第 1 組：不應出現下一關'
+            else:
+                # shell 過關時不呼叫 renderStreak，燈號仍停在一顆；以過關與保存結果判斷。
+                assert pg.locator('#verdict.ok').count() == 1 and '過關！' in verdict, f'{step}／第 2 組：應過關，判定={verdict!r}'
+                assert progress['mask'] == 1 and progress['tries'][0] == 2, f'{step}／第 2 組：應以兩次作答完成第一關，{progress}'
+                assert pg.evaluate('JSON.stringify(APP.inst)') == previous and not pg.is_disabled('#b-send'), f'{step}／第 2 組：過關後應保留當題與可按的送出按鈕'
         assert pg.inner_text('#code'), f'{step}：過關後成績碼為空，判定={verdict!r}'
+        assert pg.evaluate('CODEC.decode(document.getElementById("code").textContent).mask') == 1, f'{step}：過關後成績碼應標記第一關完成'
+        pg.click('#b-next')
+        assert pg.evaluate('APP.ri') == 1 and pg.locator('#streak .on').count() == 0 and pg.is_disabled('#b-send') and not pg.is_visible('#verdict'), f'{step}：下一關應重設連對、等待填答並隱藏判定'
     try:
         pg.goto(BASE + '115-g9/u2-02/'); manual(1)
         pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})'); pass_guest('999 班 1 號／首次寫入 unavailable')

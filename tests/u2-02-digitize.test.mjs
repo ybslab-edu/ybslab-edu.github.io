@@ -25,6 +25,7 @@ test('四關、週次、結語與活動登記同步；不使用音訊 API',()=>{
   const run=setup(),cfg=run('APP');assert.equal(cfg.week,4);assert.equal(cfg.termWeek,10);
   assert.equal(cfg.finale,'全部完成！下一站：燈牌只有亮和暗，數字到底怎麼存？');
   assert.deepEqual(Array.from(cfg.rounds,r=>[r.name,r.lv]),[['聲音取樣',1],['影像像素',1],['影片組成',2],['錄滿一整場',2]]);
+  assert.ok(cfg.rounds.every(r=>r.confirmations===undefined),'四關均沿用 shell 預設兩組確認');
   assert.doesNotMatch(script,/AudioContext|webkitAudioContext|AudioWorklet|new\s+Audio\b|createOscillator|getUserMedia|speechSynthesis|<audio/i);
   const data=JSON.parse(readFileSync(new URL('../assets/activities.json',import.meta.url),'utf8'));
   assert.deepEqual(data.activities.find(a=>a.course==='115-g9'&&a.week===4).rounds,Array.from(cfg.rounds,r=>r.name));
@@ -110,7 +111,7 @@ test('沿用真實 shell 判題流程：錯答重設、每關兩組不同資料�
     // 新題未作答就送出必須歸零，不能沿用上一題的設定。
     submit();assert.equal(state.streak,0);assert.equal(done.has(ri),false);
     state.handle.fill();submit();assert.equal(state.streak,1);
-    state.handle.fill();submit();assert.equal(done.has(ri),true);
+    state.handle.fill();submit();assert.equal(state.streak,2);assert.equal(done.has(ri),true);
   }
   assert.equal(state.prog.mask,15);assert.equal(uploads,4);assert.equal(saves,4);
   assert.match(verdict.innerHTML,/全部完成！下一站：燈牌只有亮和暗/);

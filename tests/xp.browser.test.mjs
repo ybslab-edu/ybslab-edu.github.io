@@ -22,17 +22,17 @@ for(const [width,reduced,dark] of [[1440,false,false],[390,false,true],[320,true
 const ACTIVITIES=[1,2].map(week=>({course:'115-g9',week,codes:['資D-IV-1'],rounds:['甲','乙','丙','丁']}));
 const activityOpenAt=()=>Date.now()-864e5,isActivityOpen=()=>true;
 localStorage.setItem('it9:w1:999-1',JSON.stringify({mask:15,tries:[2,2,2,2],time:1}));
-localStorage.setItem('ybs:xp:115-g9:seat:999-1',JSON.stringify({1:{wrong:[0,0,0,0],passes:Object.fromEntries([0,1,2,3].map(i=>[i,{passedAt:Date.now(),wrongAnswers:0}]))}}));</script>
+localStorage.setItem('ybs:xp:115-g9:seat:999-1',JSON.stringify({1:{passes:Object.fromEntries([0,1,2,3].map(i=>[i,{passedAt:Date.now()}]))}}));</script>
 <script src="/assets/shell.js"></script><script>let n=0;const APP=SHELL({course:'115-g9',week:2,title:'合成手機標題列與成長紀錄',rounds:[0,1,2,3].map(i=>({name:'合成關卡'+i,lv:1,now:'目前',goal:'目標',gen:()=>({n:++n}),view:()=>({get:()=>null}),check:()=>true}))});</script></body></html>`});
       });
       await page.goto('http://synthetic.test/115-g9/u2-03/');
       await page.waitForFunction(()=>typeof YBSXP!=='undefined');
       await page.fill('#in-cls','999');await page.fill('#in-seat','1');await page.click('#g-go');
-      assert.equal(await page.locator('#xp-total').textContent(),'100 XP');
+      assert.equal(await page.locator('#xp-total').textContent(),'80 XP');
       const disabled=await page.locator('#xp-link').getAttribute('aria-disabled');assert.equal(disabled,'true');
       for(let i=0;i<4;i++)await page.evaluate(i=>{APP.load(i);document.getElementById('b-send').click();document.getElementById('b-send').click()},i);
-      assert.equal(await page.locator('#xp-total').textContent(),'200 XP');
-      assert.match(await page.locator('#verdict').textContent(),/\+10 過關、\+5 一次答對、\+5 準時、\+20 全過/);
+      assert.equal(await page.locator('#xp-total').textContent(),'160 XP');
+      assert.match(await page.locator('#verdict').textContent(),/\+10 過關、\+5 準時、\+20 全過/);
       assert.match(await page.locator('.xp-title-card').textContent(),/升級！Lv 2編碼學徒/);
       assert.equal(await page.locator('.xp-title-card').evaluate(el=>getComputedStyle(el).animationName),reduced?'none':'xp-arrive');
       const layout=await page.locator('header.top').evaluate(el=>({scroll:el.scrollWidth,width:el.clientWidth}));assert.ok(layout.scroll<=layout.width+1);

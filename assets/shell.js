@@ -25,7 +25,7 @@ const shellXPReady = (() => {
   if (!src) return Promise.resolve();
   return new Promise(resolve => {
     const script = document.createElement('script');
-    script.src = new URL('xp.js?v=20261105a', src).href;
+    script.src = new URL('xp.js?v=20261105b', src).href;
     script.onload = script.onerror = resolve;
     document.head.appendChild(script);
   });
@@ -173,7 +173,7 @@ const shellHighlightQuestion = ($, previous) => {
   });
 };
 
-// XP 的本機佐證獨立儲存，不加入 prog 或 submit 的欄位。
+// XP 的本機過關時間獨立儲存，不加入 prog 或 submit 的欄位。
 const shellCreateXP = s => {
   const {cfg, $, esc} = s;
   let owner = null, key = null, meta = {}, cloud = [], ready = false, generation = 0;
@@ -184,18 +184,14 @@ const shellCreateXP = s => {
   const read = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
   const persist = () => { try { localStorage.setItem(key, JSON.stringify(meta)); } catch { /* XP 儲存失敗不阻擋既有進度與上傳。 */ } };
   function evidence(a) {
-    if (!meta[a.week] || typeof meta[a.week] !== 'object') meta[a.week] = {wrong:[], passes:{}};
+    if (!meta[a.week] || typeof meta[a.week] !== 'object') meta[a.week] = {passes:{}};
     const item = meta[a.week];
-    if (!Array.isArray(item.wrong)) item.wrong = [];
     if (!item.passes || typeof item.passes !== 'object') item.passes = {};
     return item;
   }
   function records() {
     if (owner) {
-      const result = cloud.map(r => {
-        const local = meta[r.activity]?.passes?.[r.round];
-        return local?.cloudChecked ? {...r, wrongAnswers:local.wrongAnswers} : r;
-      });
+      const result = [...cloud];
       for (const a of catalog()) for (const [round, r] of Object.entries(evidence(a).passes)) {
         if (!result.some(x => x.activity === a.week && x.round === +round)) result.push({...r, course, activity:a.week, round:+round});
       }
@@ -227,14 +223,11 @@ const shellCreateXP = s => {
     const current = generation;
     owner = s.loginEnabled() && typeof YBS.profile === 'function' ? YBS.profile()?.uid || null : null;
     key = 'ybs:xp:' + course + ':' + (owner ? 'uid:' + owner : 'seat:' + s.ident.cls + '-' + s.ident.seat);
-    meta = read(key) || {}; cloud = []; ready = !owner;
-    const activity = catalog().find(a => a.week === cfg.week);
-    if (activity) {
-      const item = evidence(activity);
-      activity.rounds.forEach((_, i) => {
-        if (item.wrong[i] === undefined) item.wrong[i] = !s.done.has(i) && s.prog.tries[i] === 0 ? 0 : null;
-      });
-    }
+    // 舊 XP 附加資料只保留過關時間；不碰 it9 既有進度。
+    const saved = read(key) || {};
+    meta = Object.fromEntries(Object.entries(saved).filter(([, item]) => item && typeof item === 'object').map(([week, item]) =>
+      [week, {passes:Object.fromEntries(Object.entries(item.passes || {}).map(([round, r]) => [round, {passedAt:r?.passedAt}]))}]));
+    cloud = []; ready = !owner;
     persist(); render();
     shellXPReady.then(() => { if (current === generation) render(); });
     if (!owner || typeof YBS.firebaseSession !== 'function') return;
@@ -247,18 +240,13 @@ const shellCreateXP = s => {
       cloud = result.docs.map(d => ({...d.data(), course})).filter(r => r.uid === uid); ready = true; render();
     }).catch(() => { if (current === generation) { ready = false; render(); } });
   }
-  function wrong() {
-    if (!s.ident || s.teacher || s.done.has(s.ri)) return;
-    const item = meta[cfg.week];
-    if (Number.isInteger(item?.wrong?.[s.ri])) { item.wrong[s.ri]++; persist(); }
-  }
   function pass() {
     if (!s.ident || s.teacher || s.done.has(s.ri)) return '';
     const activity = catalog().find(a => a.week === cfg.week);
     if (!activity) return '';
     const item = evidence(activity), activities = catalog(), previous = records();
     if (item.passes[s.ri] || (owner && cloud.some(r => r.activity === cfg.week && r.round === s.ri))) return '<p class="xp-detail">這關已領過 XP。</p>';
-    item.passes[s.ri] = {passedAt:Date.now(), wrongAnswers:owner && !ready ? null : item.wrong[s.ri], cloudChecked:!!owner && ready};
+    item.passes[s.ri] = {passedAt:Date.now()};
     persist();
     // 班座的 mask 在原過關流程稍後才更新；只在本次計算加入這筆新證據。
     const index = s.ri, current = generation, canLevelUp = ready, awaitingCloud = !!owner && !ready;
@@ -271,7 +259,6 @@ const shellCreateXP = s => {
       const detail = after.activities.find(a => a.activity === cfg.week), round = detail.rounds[index];
       const allBefore = before.activities.find(a => a.activity === cfg.week)?.completeXP || 0;
       const bits = ['+' + round.passXP + ' 過關'];
-      if (round.firstXP) bits.push('+' + round.firstXP + ' 一次答對');
       if (round.onTimeXP) bits.push('+' + round.onTimeXP + ' 準時');
       if (detail.completeXP > allBefore) bits.push('+' + detail.completeXP + ' 全過');
       const card = canLevelUp && after.level > before.level
@@ -286,7 +273,7 @@ const shellCreateXP = s => {
     });
     return typeof YBSXP !== 'undefined' ? message() : '<div id="xp-pending">正在計算本關 XP…</div>';
   }
-  return {start, stop, wrong, pass, render};
+  return {start, stop, pass, render};
 };
 
 // 管理關卡切換、題目重抽與作答狀態。
@@ -351,7 +338,6 @@ const shellCreateJudging = (s) => {
     const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
     if (!r.manualAttempt) s.attempt();
     if (res !== true) {
-      s.xp?.wrong();
       v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">' + (r.manualAttempt ? '調整後再演出一次。' : '已換新題；答錯不歸零，累積答對 2/2 就過關。') + '</p>';
       v.querySelector('p').textContent = res; v.hidden = false;
       // 演出型活動自行檢查固定雙組資料，須保留播放、斷電及逐步示範狀態。

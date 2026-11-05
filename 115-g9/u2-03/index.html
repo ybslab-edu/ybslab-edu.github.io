@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261105d">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261105g">
 <style>
 /* 第 11 週：二進位。燈牌＝一排燈泡，每顆只有亮（1）和暗（0） */
 .board{background:#15131c;border-radius:16px;padding:18px 14px;display:flex;justify-content:center;gap:clamp(6px,1.6vw,16px);flex-wrap:nowrap;overflow-x:auto}
@@ -19,17 +19,24 @@
 .bulb span{font-family:var(--f-mono);font-size:clamp(12px,2.6vw,16px);font-weight:700;color:#d8d2e6;min-height:1.3em}
 .bits{font-family:var(--f-mono);font-size:26px;font-weight:700;letter-spacing:.2em;color:var(--a)}
 .sum{font-family:var(--f-mono);font-size:18px;color:var(--ink)}
+.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.compare .board{gap:clamp(3px,.6vw,8px);padding:18px 8px}
+.compare .bulb button{width:clamp(23px,3.6vw,42px)}
+.compare .num-in{width:100%}
+.compare-status{margin:0;font-size:17px;overflow-wrap:anywhere}
+#says{font-size:17px}
+@media(max-width:559px){.compare{grid-template-columns:minmax(0,1fr)}.compare .bulb button{width:clamp(23px,7vw,42px)}}
 .target{font-size:20px}
 .target b{font-family:var(--f-mono);font-size:34px;color:var(--b)}
 </style>
 </head>
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
-<script src="../../assets/lock.js?v=20261105a"></script>
+<script src="../../assets/lock.js?v=20261105m"></script>
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
-<script src="../../assets/activities.js?v=20261105a"></script>
-<script src="../../assets/shell.js?v=20261105d"></script>
+<script src="../../assets/activities.js?v=20261105m"></script>
+<script src="../../assets/shell.js?v=20261105j"></script>
 <script>
 const toBits=(v,n)=>v.toString(2).padStart(n,'0').split('').map(Number);
 const val=b=>b.reduce((s,x)=>s*2+x,0);
@@ -45,6 +52,10 @@ const sumText=b=>{const n=b.length,parts=b.map((x,i)=>x?2**(n-1-i):0).filter(Boo
 const peekBits=(b,withSum)=>'<section class="panel"><div class="ptitle"><h3>燈牌存的其實是這串 0 和 1</h3><span class="tag">二進位</span></div><div class="bits">'+b.join('')+'</div>'+(withSum?'<div class="sum">'+sumText(b)+'</div>':'')+'<p class="small">亮＝1、暗＝0，一顆燈就是一個位元。最右邊代表 1，往左每一顆都是右邊的 2 倍。</p></section>';
 
 const BDAY=[['阿晴',3],['莓莓',14],['米米',22],['柚柚',9],['海海',27],['小葡',18],['阿晴',30],['米米',11],['海海',6],['小葡',25],['柚柚',21],['莓莓',13]];
+// 標示容量採十進位；KiB 另以 1024 位元組計算，避免混用。
+const CAPACITY_UNITS=['KB','MB','GB'];
+const capacityGoal=i=>i.bits+' 顆燈（位元）要幾個位元組？<br>'+i.kib+' KiB 要幾個位元組？<br>演唱會燈牌動畫 '+i.amount+' '+CAPACITY_UNITS[i.from]+'＝幾 '+CAPACITY_UNITS[i.to]+'？（此題每級用 1000）';
+const capacityAnswer=i=>({bytes:i.bits/8,kibBytes:i.kib*1024,capacity:i.from>=i.to?i.amount*1000**(i.from-i.to):i.amount/1000**(i.to-i.from)});
 const ROUNDS=[
  {lv:1,name:'點亮生日',
   now:i=>'後援會做了一塊 5 顆燈的燈牌，每顆燈下面寫著它代表的數字。跨年那天剛好有成員要慶生。',
@@ -82,6 +93,8 @@ const ROUNDS=[
   peek:(i,b)=>peekBits(b,false)},
 
  {lv:2,name:'要幾顆燈才夠',
+  // 情境文字不同但數值相同，仍是同一組計算題。
+  questionKey:({n,b,max})=>({n,b,max}),
   now:i=>'後援會要做一塊新燈牌，用來顯示'+i.what+'，最大會到 '+i.n+'。',
   goal:'最少要幾顆燈才夠？用這麼多顆燈，最大能顯示到多少？',
   tip:'1 顆燈最大 1、2 顆最大 3、3 顆最大 7……每多一顆，能表示的數量就加倍。',
@@ -98,8 +111,63 @@ const ROUNDS=[
     if(a.m!==inst.max)return '燈的數量對了！最大值再算一次：全部點亮時，每顆代表的數字加起來是多少？';
     return true;
   },
-  peek:i=>'<section class="panel"><div class="ptitle"><h3>燈越多，能表示的數字越多</h3></div><div class="sum">'+[1,2,3].map(k=>k+' 顆 → 0～'+(2**k-1)).join('<br>')+'<br>……</div><p class="small">每多一顆燈，能表示的數量就加倍。</p></section>'}
+  peek:i=>'<section class="panel"><div class="ptitle"><h3>燈越多，能表示的數字越多</h3></div><div class="sum">'+[1,2,3].map(k=>k+' 顆 → 0～'+(2**k-1)).join('<br>')+'<br>……</div><p class="small">每多一顆燈，能表示的數量就加倍。</p></section>'},
+
+ {lv:2,name:'燈牌要幾個位元組',
+  now:'演唱會要把燈牌的亮暗和動畫存進記憶卡。8 顆燈各存 1 位元，合起來是 1 位元組。',
+  goal:capacityGoal,
+  instruction:i=>'換算 '+i.bits+' 位元、'+i.kib+' KiB，以及 '+i.amount+' '+CAPACITY_UNITS[i.from]+' 的燈牌動畫容量。',
+  tip:'8 位元＝1 位元組；2 的 10 次方＝1024，1 KiB＝1024 位元組。記憶卡標示用十進位：1 KB＝1000 位元組、1 MB＝1000 KB、1 GB＝1000 MB。大單位換小單位要乘，小換大要除。',
+  learn:'燈牌只有亮暗，每顆用 1 位元；每 8 位元組成 1 位元組。KiB 用 1024；KB、MB、GB 標示每級用 1000，換算前要先看清楚單位。',
+  gen(rnd){
+    const [from,to]=PICK(rnd,[[0,1],[1,0],[1,2],[2,1],[0,2],[2,0]]),n=RINT(rnd,1,9);
+    return {bits:8*RINT(rnd,1,32),kib:RINT(rnd,1,8),from,to,amount:n*1000**Math.max(0,to-from)};
+  },
+  view(i,el,api){
+    el.innerHTML='<div class="compare"><section class="panel compare-target"><h3>目標</h3><div class="target-content" data-changed="target"><p>'+capacityGoal(i)+'</p><p class="small">8 位元＝1 位元組；1 KiB＝1024 位元組。KB／MB／GB 每級用 1000。</p></div></section><section class="panel compare-mine"><h3>我的</h3><div class="my-controls">'+[['bytes','燈牌需要的位元組','位元組'],['kibBytes','KiB 換成位元組','位元組'],['capacity','動畫換算結果',CAPACITY_UNITS[i.to]]].map(([key,label,unit])=>'<label style="display:block;margin-bottom:12px">'+label+'<input class="num-in" id="cap-'+key+'" inputmode="numeric" autocomplete="off"> '+unit+'</label>').join('')+'</div><p class="compare-status" aria-live="polite"></p></section></div>';
+    const keys=['bytes','kibBytes','capacity'],inputs=keys.map(k=>el.querySelector('#cap-'+k)),status=el.querySelector('.compare-status');
+    const get=()=>Object.fromEntries(keys.map((k,j)=>[k,NUMOK(inputs[j].value)]));
+    const update=()=>{status.textContent=inputs.some(x=>x.value==='')?'尚未填入全部換算結果':'目前填入：'+inputs[0].value+' 位元組；'+inputs[1].value+' 位元組；'+inputs[2].value+' '+CAPACITY_UNITS[i.to]};
+    inputs.forEach(x=>x.oninput=()=>{update();api.changed()});update();
+    return {get,ready:()=>inputs.every(x=>NUMOK(x.value)!==null),fill:()=>{const a=capacityAnswer(i);inputs.forEach((x,j)=>x.value=a[keys[j]]);update()}};
+  },
+  check(i,a){
+    const expected=capacityAnswer(i);
+    if(a.bytes!==expected.bytes)return '每顆燈用 1 位元，每 8 位元才是 1 位元組：請把燈數除以 8。';
+    if(a.kibBytes!==expected.kibBytes)return '這裡標的是 KiB：2 的 10 次方＝1024，請用 KiB 數乘 1024，不能乘 1000。';
+    if(a.capacity!==expected.capacity)return '動畫容量標的是 KB／MB／GB，每級用 1000：大單位換小單位乘 1000，小換大除以 1000；跨兩級要換兩次。';
+    return true;
+  },
+  peek:()=>'<section class="panel"><h3>從亮暗到容量</h3><p>8 顆燈＝8 位元＝1 位元組。2¹⁰＝1024，所以 1 KiB＝1024 位元組。</p><p>記憶卡標示：1 KB＝1000 位元組；1 MB＝1000 KB；1 GB＝1000 MB。</p></section>'}
 ];
+// 保留各關 view 的操作及答案形狀，只加上目標／目前值比較。
+ROUNDS.forEach((round,index)=>{
+  if(index===4)return; // 容量關使用自己的多欄目標／我的比較卡。
+  const originalView=round.view;
+  round.instruction=[
+    i=>'點亮燈泡，拼出'+i.who+'的生日 '+i.t+' 號。',
+    ()=>'加總亮燈的位值，填入燈牌顯示的數字。',
+    i=>'調整 8 顆燈，拼出 '+i.t+'（'+i.why+'）。',
+    i=>'找出能顯示 0～'+i.n+' 的最少燈數及其最大值。'
+  ][index];
+  round.view=(inst,el,api)=>{
+    el.innerHTML='<div class="compare"><section class="panel compare-target"><h3>目標</h3><div class="target-content" data-changed="target"></div></section><section class="panel compare-mine"><h3>我的</h3><div class="my-controls"></div><p class="compare-status" aria-live="polite"></p></section></div>';
+    const target=el.querySelector('.target-content'),controls=el.querySelector('.my-controls'),status=el.querySelector('.compare-status');
+    if(index===1) BOARD(target,6,{locked:true,init:toBits(inst.t,6)});
+    else target.innerHTML='<p class="target">'+(index===3?'顯示 '+inst.what+'，最大到 <b>'+inst.n+'</b>':'數值 <b>'+inst.t+'</b>')+'</p>';
+    const update=()=>{
+      const answer=handle.get();
+      const current=index===0||index===2?val(answer):index===1?answer:answer.m;
+      const goal=index===3?inst.n:inst.t;
+      status.textContent=(index===3?'目前燈數：'+(answer.b??'尚未填入')+'；最大值：':'目前值：')+(current??'尚未填入')+(current===null?'':'；'+(current===goal?'與目標相同':current>goal?'比目標多 '+(current-goal):'比目標少 '+(goal-current)));
+    };
+    const handle=originalView(inst,controls,{...api,changed:()=>{update();api.changed()}});
+    // 看燈猜數字的原目標燈牌移到左卡，右卡只留作答欄。
+    if(index===1) controls.querySelector('.board').hidden=true;
+    update();
+    return {...handle,fill:()=>{handle.fill();update()}};
+  };
+});
 const APP=SHELL({week:5,termWeek:11,title:'燈牌只有亮和暗',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！數字可以用 0 和 1 存，那文字呢？下一站：傳給阿嬤的方塊。'});
 </script>
 </body>

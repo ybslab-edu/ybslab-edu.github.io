@@ -87,19 +87,19 @@ test('check 回饋含 img/onerror 或跳脫段落標記時，只建立文字節�
   }
 });
 
-test('一般回饋完整顯示，錯答仍須重新連續答對兩組才過關', () => {
+test('一般回饋完整顯示，錯答保留累積次數並換題，兩組即過關', () => {
   const h = setup(), verdict = h.get('verdict');
   h.send(); assert.equal(verdict.className, 'verdict mid');
   const message = '第 2 項再想想：A & B，3 < 5，8 > 6，「引號」。';
   h.reply(message); h.send();
   assert.equal(verdict.querySelector('h3').textContent, '還不對');
   assert.equal(verdict.querySelector('p').textContent, message);
-  assert.equal(verdict.querySelectorAll('p')[1].textContent, '修改後再送出一次。');
+  assert.equal(verdict.querySelectorAll('p')[1].textContent, '已換新題；答錯不歸零，累積答對 2/2 就過關。');
   assert.equal(verdict.className, 'verdict no');
   h.reply(true); const previous = h.app.inst.id;
-  h.send(); assert.equal(verdict.className, 'verdict mid');
-  assert.notEqual(h.app.inst.id, previous, '第一組答對後換新資料');
   h.send(); assert.equal(verdict.className, 'verdict ok');
+  assert.equal(h.app.inst.id, previous, '累積第二次答對後保留當題');
+  assert.match(h.get('streak').textContent, /累積答對 2\/2/);
   assert.equal(verdict.querySelector('p').textContent, '合成過關說明');
   assert.equal(h.get('prog').querySelectorAll('span')[0].className, 'ok');
 });

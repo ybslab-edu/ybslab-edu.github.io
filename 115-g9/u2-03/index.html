@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261105e">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261105f">
 <style>
 /* 第 11 週：二進位。燈牌＝一排燈泡，每顆只有亮（1）和暗（0） */
 .board{background:#15131c;border-radius:16px;padding:18px 14px;display:flex;justify-content:center;gap:clamp(6px,1.6vw,16px);flex-wrap:nowrap;overflow-x:auto}
@@ -36,7 +36,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261102a"></script>
-<script src="../../assets/shell.js?v=20261105e"></script>
+<script src="../../assets/shell.js?v=20261105f"></script>
 <script>
 const toBits=(v,n)=>v.toString(2).padStart(n,'0').split('').map(Number);
 const val=b=>b.reduce((s,x)=>s*2+x,0);
@@ -117,7 +117,7 @@ ROUNDS.forEach((round,index)=>{
     i=>'找出能顯示 0～'+i.n+' 的最少燈數及其最大值。'
   ][index];
   round.view=(inst,el,api)=>{
-    el.innerHTML='<div class="compare"><section class="panel compare-target"><h3>目標</h3><div class="target-content"></div></section><section class="panel compare-mine"><h3>我的</h3><div class="my-controls"></div><p class="compare-status" aria-live="polite"></p></section></div>';
+    el.innerHTML='<div class="compare"><section class="panel compare-target"><h3>目標</h3><div class="target-content" data-changed="target"></div></section><section class="panel compare-mine"><h3>我的</h3><div class="my-controls"></div><p class="compare-status" aria-live="polite"></p></section></div>';
     const target=el.querySelector('.target-content'),controls=el.querySelector('.my-controls'),status=el.querySelector('.compare-status');
     if(index===1) BOARD(target,6,{locked:true,init:toBits(inst.t,6)});
     else target.innerHTML='<p class="target">'+(index===3?'顯示 '+inst.what+'，最大到 <b>'+inst.n+'</b>':'數值 <b>'+inst.t+'</b>')+'</p>';

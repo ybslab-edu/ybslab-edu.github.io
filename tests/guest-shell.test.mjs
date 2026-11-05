@@ -56,7 +56,7 @@ for(const [mode,options] of [
   assert.equal(progress.mask,1);assert.equal(progress.tries[0],2);assert.equal(h.el('code'),null);
   assert.equal(h.run('JSON.parse(localStorage.getItem("it9:w4:999-1")).mask'),1);
   assert.equal(h.run('JSON.stringify(APP.inst)'),second,'第二組過關不再換題');
-  assert.equal(h.el('streak').querySelectorAll('.on').length,1,'過關不重繪燈號，不能拿燈號當內部連對數');
+  assert.equal(h.el('streak').querySelectorAll('.on').length,2,'過關同步顯示累積答對 2/2');
   assert.equal(h.el('b-send').disabled,false,'既有過關畫面保留可按的送出按鈕');
   if(mode==='帳號登入'){
     assert.equal(h.calls[0].path,'ybsCourses/115-g9/attempts/google1_4_0');assert.deepEqual(h.authCalls,[]);

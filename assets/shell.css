@@ -116,3 +116,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .sync.ok{color:var(--out);border-color:var(--out)} .sync.warn{color:var(--warn);border-color:var(--warn)}
 .foot{font-size:13.5px;color:var(--muted);text-align:center;margin:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* 題目數值改變：不增加尺寸，約兩秒後只留下原本文字。 */
+#task-instructions{scroll-margin-top:16px}
+.question-changed{background:#ffe066;color:#211b17;border-radius:2px;animation:question-change-fade 2s ease-out forwards}
+@keyframes question-change-fade{0%,20%{background:#ffe066;color:#211b17}100%{background:transparent;color:inherit}}
+@media(prefers-reduced-motion:reduce){.question-changed{animation-timing-function:steps(1,end)}}

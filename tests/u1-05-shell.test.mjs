@@ -129,7 +129,7 @@ test('儲存失敗沿用 shell 提示；教師示範不儲存也不上傳',async
 });
 
 
-test('其餘使用預設選項的 27 頁，沿用兩次送出、錯答重置與六格進度',()=>{
+test('其餘使用預設選項的 27 頁，沿用兩次送出、錯答保留累積次數與六格進度',()=>{
   let count=0;
   for(const dir of readdirSync(new URL('../115-g9/',import.meta.url))){
     if(['u1-05','u1-06','u2-01'].includes(dir)||!/^u\d+-\d+$/.test(dir))continue;
@@ -150,11 +150,10 @@ test('其餘使用預設選項的 27 頁，沿用兩次送出、錯答重置與�
     const key='it9:w'+cfg.week+':999-1',send=()=>h.get('b-send').onclick();
     send();assert.equal(h.get('verdict').className,'verdict mid',dir);
     h.evaluate('reply="合成錯答"');send();assert.equal(h.get('verdict').className,'verdict no',dir);
-    h.evaluate('reply=true');send();assert.equal(h.get('verdict').className,'verdict mid',dir);
-    send();assert.equal(h.get('verdict').className,'verdict ok',dir);
+    h.evaluate('reply=true');send();assert.equal(h.get('verdict').className,'verdict ok',dir);
     const progress=JSON.parse(h.stored.get(key));
-    assert.equal(progress.mask,1,dir);assert.deepEqual(progress.tries,[4,0,0,0,0,0],dir);
-    assert.equal(h.uploads.length,1,dir);assert.equal(h.uploads[0].tries,4,dir);
+    assert.equal(progress.mask,1,dir);assert.deepEqual(progress.tries,[3,0,0,0,0,0],dir);
+    assert.equal(h.uploads.length,1,dir);assert.equal(h.uploads[0].tries,3,dir);
     count++;
   }
   // u2-01 遷移前未載入 shell，原本也未計入；明確排除後實際仍為 27 頁。

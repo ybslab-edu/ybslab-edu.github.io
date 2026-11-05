@@ -91,7 +91,7 @@ test('四關實際 view：初始不可送出、教師填答可過、輸入後即
   }
 });
 
-test('沿用真實 shell 判題流程：錯答重設、每關兩組不同資料、四關完整結束',()=>{
+test('沿用真實 shell 判題流程：錯答保留累積次數、每關兩組不同資料、四關完整結束',()=>{
   const run=setup(),shell=readFileSync(new URL('../assets/shell.js',import.meta.url),'utf8');
   const judging=shell.slice(shell.indexOf('const shellCreateJudging ='),shell.indexOf('// 保存既有進度'));
   // 取用未修改的共用判題函式，DOM 呈現與儲存以合成物件隔離。
@@ -108,9 +108,8 @@ test('沿用真實 shell 判題流程：錯答重設、每關兩組不同資料�
     assert.equal(state.handle.ready(),false);submit();assert.equal(state.streak,0);
     state.handle.fill();const first=JSON.stringify(state.inst);submit();
     assert.equal(state.streak,1);assert.equal(done.has(ri),false);assert.notEqual(JSON.stringify(state.inst),first);
-    // 新題未作答就送出必須歸零，不能沿用上一題的設定。
-    submit();assert.equal(state.streak,0);assert.equal(done.has(ri),false);
-    state.handle.fill();submit();assert.equal(state.streak,1);
+    // 新題未作答送出仍不過關，但保留先前答對次數。
+    submit();assert.equal(state.streak,1);assert.equal(done.has(ri),false);
     state.handle.fill();submit();assert.equal(state.streak,2);assert.equal(done.has(ri),true);
   }
   assert.equal(state.prog.mask,15);assert.equal(uploads,4);assert.equal(saves,4);

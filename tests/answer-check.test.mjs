@@ -69,13 +69,13 @@ function setup(gen, options={}) {
   return {app,get,send:()=>get('b-send').onclick(),reply:v=>{correct=v;}};
 }
 
-test('第二組依內容排除重複（含不同鍵序），錯答留原題，兩組才過關',()=>{
+test('第二組依內容排除重複（含不同鍵序），錯答換題，兩組才過關',()=>{
   let calls=0;
   const h=setup(()=>++calls===1 ? {a:1,b:[2]} : calls<4 ? {b:[2],a:1} : {a:1,b:[3]});
-  h.reply(false);h.send();assert.equal(calls,1);
-  h.reply(true);h.send();assert.equal(calls,4);assert.equal(h.get('verdict').className,'verdict mid');
+  h.reply(false);h.send();assert.equal(calls,4);
+  h.reply(true);h.send();assert.equal(calls,24);assert.equal(h.get('verdict').className,'verdict mid');
   assert.equal(h.app.inst.b[0],3);
-  h.send();assert.equal(h.get('verdict').className,'verdict ok');assert.equal(calls,4);
+  h.send();assert.equal(h.get('verdict').className,'verdict ok');assert.equal(calls,24);
 });
 
 test('題庫僅一組或連續抽同題：最多抽 20 次後照常出題',()=>{

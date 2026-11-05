@@ -8,7 +8,7 @@
 // 相容既有演出型活動：round.confirmations=1 表示 check 已自行檢查兩組資料；
 // round.manualAttempt=true 時，由 view 的 api.attempt() 在演出開始時記次。
 // cfg.progressLength（預設 6）、rememberIdentity（預設 false）保留舊頁儲存形狀。
-// 過關規則：連續答對兩組不同的資料。答錯留在同一組讓學生修正，答對才換新的一組。
+// 過關規則：累積答對兩組不同的資料。答錯不歸零；未過關時送出後換新題。
 // 僅供頁面顯示；不寫入既有過關紀錄或雲端欄位。
 const shellScore = (passed, total) => passed <= 0 || total <= 0 ? 0
   : passed >= total ? 100 : passed === 1 ? 70 : passed === 2 ? 80 : 90;
@@ -85,7 +85,7 @@ const shellMainHTML = (cfg, esc) => {
     </div>
     <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分</div>
   </header>
-  <section class="sec">
+  <section class="sec" id="task-instructions">
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
     <div class="order" id="says" aria-live="polite"></div>
   </section>
@@ -122,6 +122,36 @@ const shellCreateInterface = (s) => {
   document.body.insertAdjacentHTML('afterbegin', shellGateHTML(cfg, esc) + shellMainHTML(cfg, esc));
 };
 
+// 任務說明自動比對數字；活動可用 data-changed="穩定名稱" 標記額外題目區域。
+// 只包住改變的文字數字，不改屬性、輸入值或事件；首次出題與跨關不標示。
+const shellQuestionRegions = $ => [$('says'), ...$('stage').querySelectorAll('[data-changed]')];
+const shellNumberPattern = /[-−]?\d+(?:[,，]\d{3})*(?:\.\d+)?/g;
+const shellQuestionNumbers = $ => shellQuestionRegions($).map(el => (el.textContent || '').match(shellNumberPattern) || []);
+const shellHighlightQuestion = ($, previous) => {
+  if (!previous || typeof document.createTextNode !== 'function') return;
+  shellQuestionRegions($).forEach((el, region) => {
+    let index = 0;
+    const visit = parent => [...parent.childNodes].forEach(node => {
+      if (node.nodeType === 1) {
+        if (!['SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA', 'SELECT'].includes(node.tagName)) visit(node);
+      } else if (node.nodeType === 3) {
+        const text = node.textContent;
+        let start = 0;
+        for (const match of text.matchAll(shellNumberPattern)) {
+          const changed = previous[region]?.[index++] !== match[0];
+          if (!changed) continue;
+          parent.insertBefore(document.createTextNode(text.slice(start, match.index)), node);
+          const mark = document.createElement('span');
+          mark.className = 'question-changed'; mark.textContent = match[0];
+          parent.insertBefore(mark, node); start = match.index + match[0].length;
+        }
+        if (start) node.textContent = text.slice(start);
+      }
+    });
+    visit(el);
+  });
+};
+
 // 管理關卡切換、題目重抽與作答狀態。
 const shellCreateRoundFlow = (s) => {
   const { $, esc, R } = s;
@@ -133,8 +163,8 @@ const shellCreateRoundFlow = (s) => {
     $('score-value').textContent = shellScore(R.filter((_, i) => s.done.has(i)).length, R.length);
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
-  // 顯示連續答對的組數。
-  function renderStreak() { $('streak').innerHTML = '連續答對兩組才過關 ' + [0, 1].map(i => '<i class="' + (i < s.streak ? 'on' : '') + '"></i>').join(''); }
+  // 顯示累積答對的組數；保留 streak 名稱相容舊計數。
+  function renderStreak() { $('streak').innerHTML = '累積答對 ' + Math.min(s.streak, 2) + '/2 ' + [0, 1].map(i => '<i class="' + (i < s.streak ? 'on' : '') + '"></i>').join(''); }
   // 同步送出狀態與電腦內部說明。
   function changed() {
     const ok = !s.handle.ready || s.handle.ready();
@@ -145,8 +175,9 @@ const shellCreateRoundFlow = (s) => {
   const contentKey = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
     ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
   // 依原上限重抽資料並建立作答區。
-  function fresh() {
+  function fresh(afterSubmit = false) {
     const r = R[s.ri], rnd = seed();
+    const previousNumbers = s.previousKey === null ? null : shellQuestionNumbers($);
     let key;
     // 最多抽 20 次；單一題庫或一直抽到同題時仍可繼續操作。
     for (let draw = 0; draw < 20; draw++) {
@@ -156,9 +187,11 @@ const shellCreateRoundFlow = (s) => {
     s.previousKey = key;
     $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
     $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), { changed: () => changed(), attempt, esc });
+    shellHighlightQuestion($, previousNumbers);
     renderStreak(); changed();
+    if (afterSubmit) $('task-instructions')?.scrollIntoView?.({behavior: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   }
-  // 切換關卡並重設連續答對狀態。
+  // 切換關卡並重設累積答對狀態。
   function load(i) { if (s.ri !== i) s.previousKey = null; s.ri = i; s.streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
   // 保留既有測試／頁面使用的入口；等級不再影響關卡顯示。
   function setLevel(l) { const i = R.findIndex(r => r.lv === l); load(i >= 0 ? i : 0); }
@@ -171,30 +204,32 @@ const shellCreateRoundFlow = (s) => {
   return { renderRounds, renderStreak, fresh, load, setLevel, attempt, changed };
 };
 
-// 沿用判題、連續確認與過關呈現流程。
+// 沿用判題、累積確認與過關呈現流程。
 const shellCreateJudging = (s) => {
   const { cfg, $, esc, R } = s;
   const NEED = 2;
-  // 依原判題結果更新連續確認與過關紀錄。
+  // 依原判題結果更新累積確認與過關紀錄。
   function submit() {
     const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
     if (!r.manualAttempt) s.attempt();
     if (res !== true) {
-      s.streak = 0; s.renderStreak();
-      v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">修改後再送出一次。</p>';
-      v.querySelector('p').textContent = res; v.hidden = false; return;
+      v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">' + (r.manualAttempt ? '調整後再演出一次。' : '已換新題；答錯不歸零，累積答對 2/2 就過關。') + '</p>';
+      v.querySelector('p').textContent = res; v.hidden = false;
+      // 演出型活動自行檢查固定雙組資料，須保留播放、斷電及逐步示範狀態。
+      if (!r.manualAttempt) s.fresh(true);
+      return;
     }
-    s.streak++;
+    s.streak += r.confirmations === 1 ? 2 : 1;
     if (s.streak < (r.confirmations ?? NEED)) {
-      v.className = 'verdict mid'; v.innerHTML = '<h3>答對了！再一組確認</h3><p>已經換成一組新的資料，再做一次，連續答對兩組就過關。</p>'; v.hidden = false;
-      s.fresh(); return;
+      v.className = 'verdict mid'; v.innerHTML = '<h3>答對了！再一組確認</h3><p>已經換成一組新的資料，再做一次，累積答對 2/2 就過關。</p>'; v.hidden = false;
+      s.fresh(true); return;
     }
     if (!s.teacher) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
     const next = R.findIndex((x, i) => i > s.ri);
     v.className = 'verdict ok';
     v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + '<div class="btns">' +
       (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : endMsg()) + '</div>';
-    v.hidden = false; s.renderRounds();
+    v.hidden = false; s.renderStreak(); s.renderRounds();
     if ($('b-next')) $('b-next').onclick = () => s.load(next);
   }
   // 最後一關過了，不代表整個活動完成：照實際過了幾關說（教師模式示範時直接顯示結語）

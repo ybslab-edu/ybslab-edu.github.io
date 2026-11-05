@@ -167,7 +167,7 @@ test('選格、點卡、拿回、上下移動、清空與拖曳（取代、插�
   assert.deepEqual(Array.from(h.evaluate('slots')),[1,null,0,3]);
   h.get('b-clear').onclick();assert.equal(h.evaluate('filled()'),0);
   h.evaluate('APP.handle.fill();play()');
-  let canceled=false;h.get('main').listeners.click[0]({target:h.get('tab-2'),preventDefault(){canceled=true},stopImmediatePropagation(){}});
+  let canceled=false;h.get('main').listeners.click[0]({target:h.get('rounds').querySelector('button'),preventDefault(){canceled=true},stopImmediatePropagation(){}});
   assert.equal(canceled,true);
   canceled=false;h.get('main').listeners.click[0]({target:h.get('b-retry'),preventDefault(){canceled=true},stopImmediatePropagation(){}});
   assert.equal(canceled,false,'播放時仍可重試上傳');

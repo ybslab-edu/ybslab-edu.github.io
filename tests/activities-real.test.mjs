@@ -25,7 +25,7 @@ for(const dir of dirs){
   test(`${dir}：所有實際 gen/view/fill/get/check，多種子有界產題、正解與錯答`,()=>{
     const {run,context}=activity(dir);
     const count=run('APP.rounds.length');
-    assert.equal(count,4,dir+' 關卡數；合計 30 活動 × 4 關 = 120 關');
+    assert.equal(count,dir==='u2-03'?5:4,dir+' 關卡數；合計 121 關');
     for(let index=0;index<count;index++)for(const seed of seeds){
       context.index=index;context.seed=seed;
       const result=run(`(()=>{

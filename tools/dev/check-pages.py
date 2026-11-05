@@ -230,7 +230,7 @@ def guest_cycle(b):
                 assert pg.evaluate('JSON.stringify(APP.inst)') == previous and not pg.is_disabled('#b-send'), f'{step}／第 2 組：過關後應保留當題與可按的送出按鈕'
         assert pg.locator('#code').count() == 0, f'{step}：活動不應產生成績碼'
         pg.click('#b-next')
-        assert pg.evaluate('APP.ri') == 1 and pg.locator('#streak .on').count() == 0 and pg.is_disabled('#b-send') and not pg.is_visible('#verdict'), f'{step}：下一關應重設連對、等待填答並隱藏判定'
+        assert pg.evaluate('APP.ri') == 1 and pg.locator('#streak .on').count() == 0 and pg.is_disabled('#b-send') and not pg.is_visible('#verdict'), f'{step}：下一關應重設累積計數、等待填答並隱藏判定'
     try:
         pg.goto(BASE + '115-g9/u2-02/'); manual(1)
         pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})'); pass_guest('999 班 1 號／首次寫入 unavailable')

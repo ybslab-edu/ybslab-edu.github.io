@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {Element} from './fixtures/activity-dom.mjs';
 
 const shell = readFileSync(new URL('../assets/shell.js', import.meta.url), 'utf8');
 function activity(dir) {
@@ -19,11 +20,11 @@ for (const [dir, index, inst, answer] of [
   ['u2-06', 2, {rows:[], clean:[4,2,0], raw:[5,3,1]}, [4,2,0]]
 ]) test(`${dir} 關卡 ${index + 1}：整串作答、教師填答與合成產題`, () => {
   const c = activity(dir);
-  const inputs = answer.map(() => ({value:''}));
   c.inst = inst;
-  c.el = {insertAdjacentHTML(){}, querySelectorAll:() => dir === 'u2-06' ? inputs : [],
-    querySelector:selector => inputs[selector === '#n-m' ? 1 : 0]};
+  c.el = new Element('div');
   vm.runInContext(`const r=APP.rounds[${index}], h=r.view(inst,el,{changed(){}});`, c);
+  const inputs = c.el.querySelectorAll('input');
+  assert.equal(inputs.length,answer.length);
   const check = () => vm.runInContext('r.check(inst,h.get()) === true', c);
   const enter = values => values.forEach((value,i) => {inputs[i].value=String(value); inputs[i].oninput();});
   enter(answer); assert.equal(check(), true);
@@ -68,13 +69,13 @@ function setup(gen, options={}) {
   return {app,get,send:()=>get('b-send').onclick(),reply:v=>{correct=v;}};
 }
 
-test('第二組依內容排除重複（含不同鍵序），錯答留原題，兩組才過關',()=>{
+test('第二組依內容排除重複（含不同鍵序），錯答換題，兩組才過關',()=>{
   let calls=0;
   const h=setup(()=>++calls===1 ? {a:1,b:[2]} : calls<4 ? {b:[2],a:1} : {a:1,b:[3]});
-  h.reply(false);h.send();assert.equal(calls,1);
-  h.reply(true);h.send();assert.equal(calls,4);assert.equal(h.get('verdict').className,'verdict mid');
+  h.reply(false);h.send();assert.equal(calls,4);
+  h.reply(true);h.send();assert.equal(calls,24);assert.equal(h.get('verdict').className,'verdict mid');
   assert.equal(h.app.inst.b[0],3);
-  h.send();assert.equal(h.get('verdict').className,'verdict ok');assert.equal(calls,4);
+  h.send();assert.equal(h.get('verdict').className,'verdict ok');assert.equal(calls,24);
 });
 
 test('題庫僅一組或連續抽同題：最多抽 20 次後照常出題',()=>{
@@ -106,6 +107,21 @@ test('生日題實際產題：連抽同組後會換成另一組內容',()=>{
   const h=setup(()=>round.gen(()=>++calls<=3?0:1/12));
   const first=JSON.stringify(h.app.inst);h.send();
   assert.equal(calls,4);assert.notEqual(JSON.stringify(h.app.inst),first);
+});
+
+test('共用換題鍵：送出與教師換題皆忽略情境差異，換關不排除前關資料',()=>{
+  for(const action of ['correct','wrong','teacher','reload']){
+    let calls=0;
+    const h=setup(()=>({n:++calls<=3?101:102,b:7,max:127,what:'合成情境'+calls}),{
+      questionKey:({n,b,max})=>({n,b,max})
+    });
+    if(action==='teacher')h.get('tb-new').onclick();
+    else if(action==='reload')h.app.load(0);
+    else {h.reply(action==='correct');h.send();}
+    assert.equal(calls,4,action+' 應排除兩次重複計算題');
+    assert.equal(h.app.inst.n,102);
+    h.app.load(1);assert.equal(calls,5,'跨關不重抽');
+  }
 });
 
 test('保留既有容錯：前後空白、千分位、數列分隔與文字空白／大小寫',()=>{

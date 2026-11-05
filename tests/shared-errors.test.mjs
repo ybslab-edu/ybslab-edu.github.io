@@ -54,9 +54,9 @@ test('元件載入失敗顯示 Error.message，登入表單恢復可操作',asyn
   assert.equal(h.errors[0],'無法載入登入元件，請確認網路連線。');
   assert.equal(h.form.p.value,'');assert.equal(h.submitButton.disabled,false);assert.equal(h.submitButton.textContent,'登入');
 });
-for(const asyncFailure of [false,true]) test(`登出${asyncFailure?'非同步':'同步'}失敗透過原錯誤回呼提示，不改回傳格式`,async()=>{
+for(const asyncFailure of [false,true]) test(`登出${asyncFailure?'非同步':'同步'}失敗透過原錯誤回呼提示，等待登出序列完成`,async()=>{
   const h=setup({signOut(){if(asyncFailure)return Promise.reject(Error('synthetic'));throw Error('synthetic');}});
-  await h.button();assert.equal(h.context.api.logout(),undefined);await Promise.resolve();
+  await h.button();await h.context.api.logout();
   assert.deepEqual(h.errors,['登出未完成，請重新整理後再試。']);assert.equal(h.context.api.profile(),null);
 });
 test('教師解鎖記憶失敗仍可操作，讀取失敗維持鎖定',()=>{
@@ -64,4 +64,11 @@ test('教師解鎖記憶失敗仍可操作，讀取失敗維持鎖定',()=>{
   vm.runInContext(read('teacher.js')+'\nglobalThis.api=TEACHER;',context);
   assert.doesNotThrow(()=>context.api.remember(true));assert.doesNotThrow(()=>context.api.remember(false));
   assert.equal(context.api.remembered(),false);
+});
+test('登入等待期間要求登出，遲到登入不能恢復舊 profile',async()=>{
+  let release;const waiting=new Promise(resolve=>release=resolve);
+  const h=setup();h.context.setFB({auth:{signInWithEmailAndPassword:async()=>{await waiting;return{user:{uid:'synthetic'}};},signOut:async()=>{}}});
+  const login=h.context.signIn('9990001','synthetic-password');await Promise.resolve();
+  const loggedOut=h.context.api.logout();release();
+  await assert.rejects(login,e=>e.code==='auth/login-cancelled');await loggedOut;assert.equal(h.context.api.profile(),null);
 });

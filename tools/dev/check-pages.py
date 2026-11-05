@@ -197,6 +197,66 @@ def weaknet_permission(c, pg, exists):
         check_records(pg, [0])
 
 
+def guest_cycle(b):
+    """九年級真實作答 → 弱網／重新開頁 → 換班座 → owner 教師表；全程 mock。"""
+    c = ctx_of(b); pg = c.new_page(); errors = []
+    pg.on('pageerror', lambda e: errors.append(str(e)[:150]))
+    def manual(seat):
+        pg.click('#g-manual'); pg.fill('#in-cls', '999'); pg.fill('#in-seat', str(seat))
+        pg.click('#g-next'); pg.click('#g-go')
+        pg.wait_for_selector('#main', state='visible')
+        wait_evaluate(pg, "sessionStorage.getItem('ybslab:guest-identity') !== null")
+    def pass_guest():
+        pg.evaluate("() => { for(let n=0;n<2;n++){APP.handle.fill();document.getElementById('b-send').click();} }")
+        assert '過關' in pg.inner_text('#verdict') and pg.inner_text('#code')
+    try:
+        pg.goto(BASE + '115-g9/u2-02/'); manual(1)
+        pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})'); pass_guest()
+        wait_evaluate(pg, "document.getElementById('sync').textContent.includes('紀錄暫存在本機')")
+        assert pg.evaluate("JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length") == 1
+        assert pg.evaluate("JSON.parse(localStorage.getItem('it9:w4:999-1')).mask") == 1
+        pg.reload()  # mock 重建；沿用 session UID，自動重送，不需要學生再登入。
+        wait_evaluate(pg, "JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length === 0")
+        manual(1)
+        assert pg.evaluate('__authCalls') == [], '同班座重新整理不重登'
+        pg.click('#b-swap'); manual(2)
+        wait_evaluate(pg, "JSON.parse(sessionStorage.getItem('ybslab:guest-identity')).seat === 2")
+        assert pg.evaluate('__authCalls') == ['signOut', 'anonymous']
+        pass_guest(); wait_evaluate(pg, '__writes.length === 2')
+        writes = pg.evaluate('__writes')
+        assert [x[0] for x in writes] == ['ybsCourses/115-g9/guestAttempts/guest1_4_0', 'ybsCourses/115-g9/guestAttempts/guest2_4_0']
+        expected = {'activity', 'round', 'level', 'tries', 'termWeek', 'passedAt', 'app', 'cls', 'seat', 'verified'}
+        for path, data in writes:
+            assert set(data) == expected and data['cls'] == '999' and data['verified'] is False and data['passedAt'] == 'TS'
+        pg.goto(BASE + '115-g9/teacher/'); pg.click('#cloud-login')
+        wait_evaluate(pg, "!document.getElementById('cloud-read').disabled")
+        pg.evaluate("""writes => {
+            __firebaseMock.documents.set('ybsCourses/115-g9', {ownerUid:'teacher1'});
+            for(const [path,data] of writes)__firebaseMock.documents.set(path,data);
+            __firebaseMock.documents.set('ybsCourses/115-g9/roster/synthetic@example.invalid',{cls:999,seat:1});
+            __firebaseMock.documents.set('ybsCourses/115-g9/attempts/real1_4_0',{
+                uid:'real1',email:'synthetic@example.invalid',activity:4,round:0,level:1,tries:2,passedAt:'TS'});
+        }""", writes)
+        pg.click('#cloud-read'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('已讀取 3 列')")
+        assert pg.locator('#cloud-table tbody tr').count() == 3
+        assert '未驗證' in pg.inner_text('#cloud-table') and '帳號名單' in pg.inner_text('#cloud-table')
+        with pg.expect_download() as download:
+            pg.click('#cloud-export')
+        assert download.value.suggested_filename.endswith('.xlsx')
+        pg.click('#cloud-logout'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('已登出')")
+        assert pg.inner_text('#cloud-table') == ''
+        pg.evaluate('window.__mockTeacherUid = "otherTeacher"'); pg.click('#cloud-login')
+        wait_evaluate(pg, "!document.getElementById('cloud-read').disabled")
+        pg.click('#cloud-read'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('無權限')")
+        assert pg.inner_text('#cloud-table') == '' and not errors
+        print('OK  guest/作答、斷網待送、開頁重送、換班座、owner 合併表／匯出與非 owner 拒絕')
+        return 0
+    except Exception as e:
+        print('FAIL guest/cycle', str(e)[:300], errors[:1]); return 1
+    finally:
+        c.close()
+
+
 fail = 0
 with sync_playwright() as p:
     b = p.chromium.launch()
@@ -283,7 +343,7 @@ with sync_playwright() as p:
         pg.click('#g-manual')
         ok = ok and pg.locator('#g-form').is_visible() and not pg.locator('#g-login').is_visible()
         pg.fill('#in-cls', '917'); pg.fill('#in-seat', '5'); pg.click('#g-next'); pg.click('#g-go')
-        ok = ok and pg.locator('#main').is_visible() and not pg.locator('#sync').is_visible()
+        ok = ok and pg.locator('#main').is_visible() and pg.locator('#sync').is_visible()
         fail += not ok; print(('OK  ' if ok else 'FAIL'), f'{ACTIVITY_DIRS[week]} swap/manual'); c.close()
 
     # 弱網情境各用獨立 context；全部由活動實際過關產生紀錄。
@@ -296,6 +356,7 @@ with sync_playwright() as p:
         ('permission-existing', lambda c, pg: weaknet_permission(c, pg, True)),
     ):
         fail += weaknet_case(b, name, run)
+    fail += guest_cycle(b)
 
     # login.js 載入失敗或停用時，仍可用班座開始，且初始化不能拋出例外。
     for week in (1, 2, 3, 5):

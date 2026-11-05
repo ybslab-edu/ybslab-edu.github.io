@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const read=path=>readFileSync(new URL('../../'+path,import.meta.url),'utf8');
 const html=read('115-g9/teacher/index.html');
 const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
-export function setup({stored=new Map(),storageErrors={}}={}){
+export function setup({stored=new Map(),storageErrors={},cloud}={}){
   const elements=new Map(), downloads=[], blobs=[], storageCalls=[], events=new EventTarget();
   function storage(method,key,value){
     storageCalls.push({method,key});
@@ -25,7 +25,7 @@ export function setup({stored=new Map(),storageErrors={}}={}){
     querySelectorAll(){return [...this.innerHTML.matchAll(/data-v="([^"]+)"/g)].map(m=>{const el=new Element();el.dataset.v=m[1];return el;});}
     addEventListener(name,fn){this.listeners[name]=fn;}
     focus(){}
-    appendChild(){}
+    appendChild(child){(this.children ||= []).push(child);}
     remove(){}
     click(){downloads.push({name:this.download,url:this.href});}
   }
@@ -37,8 +37,10 @@ export function setup({stored=new Map(),storageErrors={}}={}){
     document:{getElementById:id=>{assert.ok(elements.has(id),id);return elements.get(id);},createElement:()=>new Element(),body:new Element()},
     localStorage:{getItem:key=>storage('getItem',key),setItem:(key,value)=>storage('setItem',key,value),removeItem:key=>storage('removeItem',key)},
     Blob,URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic';},revokeObjectURL(){}},setTimeout:()=>0,
+    YBS:cloud?.ybs, firebase:cloud?.firebase,
   });
   for(const path of ['assets/vendor/xlsx-0.20.3.full.min.js','assets/codec.js','assets/curriculum.js','assets/activities.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
+  if(cloud)vm.runInContext(read('assets/guest-teacher.js'),context,{filename:'assets/guest-teacher.js'});
   vm.runInContext(scripts,context,{filename:'115-g9/teacher/index.html',timeout:1000});
   const evaluate=source=>vm.runInContext(source,context,{timeout:1000});
   const get=id=>elements.get(id);

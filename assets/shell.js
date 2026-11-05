@@ -270,12 +270,13 @@ const shellCreateIdentity = (s) => {
     s.done.clear(); for (let i = 0; i < R.length; i++) if (s.prog.mask & (1 << i)) s.done.add(i);
     $('who').textContent = id.cls + ' 班 ' + id.seat + ' 號' + (id.name ? ' ' + id.name : '');
     if (loginEnabled() && YBS.profile()) { try { sessionStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; $('rep-note').innerHTML = '每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以把成績碼交給老師當備份。'; YBS.flush() }
+    else if (loginEnabled()) { $('sync').hidden = false; YBS.guest(id); }
     $('gate').hidden = true; $('main').hidden = false;
     s.setLevel(1); s.renderReport();
   }
   $('b-swap').onclick = () => {
     if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('report').hidden = false; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
-    s.ident = null; if (loginEnabled()) { YBS.logout(); s.showLogin() }
+    s.ident = null; if (loginEnabled()) { if (YBS.profile()) YBS.logout(); else YBS.leaveGuest(); s.showLogin() }
     $('sync').hidden = true; $('main').hidden = true; $('gate').hidden = false; $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
   };
   return { start };
@@ -320,7 +321,7 @@ const shellCreateLogin = (s) => {
     }, msg => { $('g-lerr').textContent = msg });
   }
   $('g-notme').onclick = () => { YBS.logout(); showLogin() };
-  $('g-manual').onclick = () => { YBS.logout(); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '這次不登入：過關後請把成績碼交給老師。'; $('in-cls').focus() };
+  $('g-manual').onclick = () => { if (YBS.profile()) YBS.logout(); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '班座紀錄會自動上傳；班座尚未驗證，請保留成績碼備份。'; $('in-cls').focus() };
   return { showLogin };
 };
 
@@ -336,7 +337,7 @@ const shellCreateSync = (s) => {
     const el = $('sync'); if (!s.ident) return;
     el.className = 'sync' + (st === 'ok' ? ' ok' : st === 'sending' ? '' : ' warn');
     if (st === 'relogin') { el.innerHTML = '登入過期，重新登入才能上傳 <span id="sync-btn"></span>'; YBS.button($('sync-btn'), () => { }, msg => { el.textContent = msg }) }
-    else el.textContent = st === 'ok' ? '✓ 紀錄已上傳給老師' : st === 'sending' ? '上傳中…' : '還沒上傳成功，會自動重試';
+    else el.textContent = st === 'ok' ? '✓ 紀錄已上傳給老師' : st === 'sending' ? '上傳中…' : st === 'guest-pending' ? '紀錄暫存在本機，稍後自動上傳' : '還沒上傳成功，會自動重試';
   });
   (()=>{const a=document.getElementById('sync'),b=document.getElementById('sync2');if(!a||!b||!window.MutationObserver)return;const f=()=>{b.hidden=a.hidden;b.className=a.className;b.textContent=a.querySelector('#sync-btn')?'登入過期，請按右上角重新登入才能上傳':a.textContent};new MutationObserver(f).observe(a,{attributes:true,childList:true,subtree:true,characterData:true});f()})();
   return { upload };

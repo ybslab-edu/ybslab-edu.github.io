@@ -20,7 +20,7 @@ before(async()=>{
   browser=await chromium.launch({headless:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(ok=>server.close(ok))});
-for(const width of [1440,390])test(`30 活動共用標題與四關切換，${width}px 排版及示範比較卡`,async()=>{
+for(const width of [1440,390])test(`30 活動共用標題與關卡切換，${width}px 排版及示範比較卡`,async()=>{
   const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage(),errors=[];
   try{
     page.on('pageerror',e=>errors.push(e.message));
@@ -40,10 +40,11 @@ for(const width of [1440,390])test(`30 活動共用標題與四關切換，${wid
       await page.locator('#main').waitFor({state:'visible'});
       assert.match(await page.locator('#main h1').textContent(),/^第 \d+ 週｜/);
       assert.equal(await page.locator('nav.unit, [role=tablist]').count(),0);
-      assert.equal(await page.locator('#rounds button').count(),4);
+      const rounds=dir==='u2-03'?5:4;
+      assert.equal(await page.locator('#rounds button').count(),rounds);
       const header=await page.locator('header.top').evaluate(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right,scroll:el.scrollWidth,width:el.clientWidth}));
       assert.ok(header.left>=0&&header.right<=width&&header.scroll<=header.width+1,dir+' 標題列不溢出');
-      for(let i=0;i<4;i++){
+      for(let i=0;i<rounds;i++){
         await page.locator('#rounds button').nth(i).click();
         assert.equal(await page.evaluate(()=>APP.ri),i);
         if(dir==='u2-03'){

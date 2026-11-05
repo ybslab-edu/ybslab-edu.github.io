@@ -11,7 +11,7 @@
 // 過關規則：累積答對兩組不同的資料。答錯不歸零；未過關時送出後換新題。
 // 僅供頁面顯示；不寫入既有過關紀錄或雲端欄位。
 const shellScore = (passed, total) => passed <= 0 || total <= 0 ? 0
-  : passed >= total ? 100 : passed === 1 ? 70 : passed === 2 ? 80 : 90;
+  : Math.max(0, 100 - 10 * Math.max(0, total - passed));
 const shellTitle = cfg => {
   const activity = typeof ACTIVITIES !== 'undefined' ? ACTIVITIES.find(a => a.course === cfg.course && a.week === cfg.week) : null;
   const week = cfg.termWeek ?? (activity && typeof termWeekOf === 'function' ? termWeekOf(activity) : null);
@@ -83,7 +83,7 @@ const shellMainHTML = (cfg, esc) => {
       <div class="title-rounds"><h1>${esc(shellTitle(cfg))}</h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div>
       <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
     </div>
-    <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分</div>
+    <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分<span class="small">（滿分 100，每少過一關扣 10；0 關過＝0 分）</span></div>
   </header>
   <section class="sec" id="task-instructions">
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>

@@ -6,8 +6,8 @@ import {Element} from './fixtures/activity-dom.mjs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const source=read('assets/shell.js');
 const score=vm.runInNewContext(source+'\nshellScore');
-for(const [total,expected] of [[4,[0,70,80,90,100]],[6,[0,70,80,90,90,90,100]]]){
-  test(`${total} 關：0／1／2／3／全部過關計分`,()=>expected.forEach((value,passed)=>assert.equal(score(passed,total),value)));
+for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[0,50,60,70,80,90,100]]]){
+  test(`${total} 關：逐關計分`,()=>expected.forEach((value,passed)=>assert.equal(score(passed,total),value)));
 }
 function setup(){
   const body=new Element('body'),stored=new Map(),uploads=[];
@@ -25,9 +25,9 @@ test('標題、所有關卡、任意順序計分、重做不加分、還原／�
   const h=setup();
   assert.equal(h.body.querySelector('#main h1').textContent,'第 11 週｜燈牌只有亮和暗');
   assert.equal(h.el('unit'),null);assert.equal(h.el('tab-1'),null);
-  assert.equal(h.el('rounds').querySelectorAll('button').length,4);
+  assert.equal(h.el('rounds').querySelectorAll('button').length,5);
   const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.run('APP.handle.fill()');h.el('b-send').click()}};
-  for(const [i,expected] of [[2,70],[0,80],[3,90],[2,90],[1,100]]){
+  for(const [i,expected] of [[2,60],[0,70],[3,80],[2,80],[1,90],[4,100]]){
     pass(i);assert.equal(+h.el('score-value').textContent,expected);
     assert.match(h.el('rounds').querySelectorAll('button')[i].textContent,/✓/);
   }
@@ -37,9 +37,9 @@ test('標題、所有關卡、任意順序計分、重做不加分、還原／�
   h.start(2);assert.equal(+h.el('score-value').textContent,0);
   h.start(1);assert.equal(+h.el('score-value').textContent,100);
 });
-test('示範頁四關都有比較卡，燈泡及輸入即時更新，原判定與兩組過關保留',()=>{
+test('示範頁五關都有比較卡，燈泡及輸入即時更新，原判定與兩組過關保留',()=>{
   const h=setup();
-  for(let i=0;i<4;i++){
+  for(let i=0;i<5;i++){
     h.run(`APP.load(${i})`);
     assert.equal(h.body.querySelector('.compare-target h3').textContent,'目標');
     assert.equal(h.body.querySelector('.compare-mine h3').textContent,'我的');

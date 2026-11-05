@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 for(const dir of ['u2-03','u2-04','u2-05','u2-06','u2-07'])test(dir+' 每關多種子拆步驟使用題目內容、保留資料且不列最終答案',()=>{
@@ -276,5 +276,83 @@ for(const dir of ['u0-01','u1-02','u1-03','u1-04','u1-05','u1-06','u2-01'])test(
   if(dir==='u1-04'&&index===0)assert.ok(text.includes('輸入也輸出'));
   if(dir==='u1-02'&&index===3)for(const label of ['留著','關掉'])assert.ok(text.includes(label));
   if(r.manualAttempt)assert.ok(text.length>35,'演出型關卡也能取得第 2 層');
+ }
+});
+
+
+// 從分類元件取得畫面項目、類別及示範填答；不碰 DOM、Firebase 或正式資料。
+const plain=text=>String(text).replace(/<[^>]*>/g,'').replace(/\s+/g,'');
+function assertClassificationSteps(text,items,labels,answers){
+ const hint=plain(text);
+ // 題目文字本身可能含類別名（例如「台北」）；先移除每項的一次引用，
+ // 避免把重述題目誤認為額外提供分類答案。
+ let guidance=hint;
+ for(const item of [...items].sort((a,b)=>plain(b.html).length-plain(a.html).length))
+  guidance=guidance.replace(plain(item.html),'');
+ assert.ok(!(items.every(item=>hint.includes(plain(item.html)))&&answers.every(k=>guidance.includes(plain(labels[k])))),
+  '不得同時列出所有分類項目與其正解類別');
+}
+function assertOrderSteps(text){
+ // 即使階段名稱全被同義改寫，也不能用箭頭串出三個以上階段。
+ for(const clause of text.split(/[。！？；\n]|<\/li>/))
+  assert.ok((clause.match(/→|⇒|➜|->/g)||[]).length<=1,'不得以箭頭串接超過兩個階段');
+}
+function assertImageSettings(text,values){
+ for(const value of values)
+  assert.doesNotMatch(text,new RegExp('(?:調到|設為|設成|設定為|選定)\\s*'+value+'(?![0-9])'),'不得直接指定正確設定值');
+}
+
+for(const dir of readdirSync(new URL('../115-g9/',import.meta.url)).filter(d=>/^u\d+-\d+$/.test(d)))
+ test(dir+' 分類與排序提示不可列完整解答（30 種子及洩漏注入）',()=>{
+  const node={innerHTML:'',hidden:false,append(){},addEventListener(){},insertAdjacentHTML(){},setAttribute(){},classList:{toggle(){}}};
+  node.querySelector=()=>node;node.querySelectorAll=()=>[];node.previousElementSibling=node;
+  const c=vm.createContext({SHELL:cfg=>cfg,console,document:{getElementById:()=>node,addEventListener(){},body:node}});
+  const shell=read('assets/shell.js');
+  vm.runInContext(shell.slice(shell.indexOf('const PICK ='))+'\n'+[...read('115-g9/'+dir+'/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')+'\nthis.rounds=APP.rounds;',c);
+  let captured;
+  c.captureClassify=(_el,items,labels)=>{
+   captured={items,labels};let answers=items.map(()=>null);
+   return {get:()=>answers,fill:a=>{answers=a;captured.answers=a},ready:()=>true};
+  };
+  vm.runInContext('CLASSIFY=captureClassify;',c);
+  for(const r of c.rounds)for(let seed=1;seed<=30;seed++){
+   const view=String(r.view);
+   const classification=/\bCLASSIFY\(/.test(view),ordering=/\b(?:ORDERBOX|ORDER|scheduleView)\(/.test(view);
+   if(!classification&&!ordering)continue;
+   let state=seed,calls=0;const rnd=()=>{if(++calls>100000)throw Error('產題超過上限');state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296};
+   const i=r.gen(rnd),text=r.steps(i);
+   if(ordering){
+    assertOrderSteps(text);
+    assert.throws(()=>assertOrderSteps(text+'先有資料 → 幫資料標答案 → 拿來訓練 → 測試準不準 → 上線給大家用。'),/箭頭串接/);
+   }
+   if(classification){
+    captured=null;
+    const ui=r.view(i,node,{esc:String,changed(){}});ui.fill();
+    assert.ok(captured,r.name+' 應取得分類元件');
+    // 單選與已揭示的分組圖不是待作答的逐項分類。
+    if(captured.labels.length<2)continue;
+    assert.ok(captured.answers,r.name+' 應取得示範分類答案');
+    // 分組比較關的元件只展示已知分組，check 檢查的是另一個單選答案。
+    if(dir==='u5-07'&&r.name==='把中心搬到中間')continue;
+    assert.equal(r.check(i,captured.answers),true,r.name+' 分類示範答案須能通過判定');
+    const {items,labels,answers}=captured;
+    assertClassificationSteps(text,items,labels,answers);
+    const leaked=items.map((item,k)=>plain(item.html)+'：'+labels[answers[k]]).join('；');
+    assert.throws(()=>assertClassificationSteps(text+'。'+leaked,items,labels,answers),/正解類別/);
+   }
+  }
+ });
+
+test('影像與 fps 提示會攔截直接指定正解值，仍允許引用題目要求',()=>{
+ const c=vm.createContext({SHELL:cfg=>cfg,console});
+ const shell=read('assets/shell.js');
+ vm.runInContext(shell.slice(shell.indexOf('const PICK ='))+'\n'+[...read('115-g9/u2-02/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')+'\nthis.rounds=ROUNDS;',c);
+ for(const index of [1,2])for(let seed=1;seed<=30;seed++){
+  let state=seed;const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296};
+  const r=c.rounds[index],i=r.gen(rnd),text=r.steps(i),values=index===1?[i.minRes,i.minColors]:[i.target];
+  assertImageSettings(text,values);
+  assert.match(text,/兩種/,'引導學生實際比較兩種設定');
+  for(const value of values)for(const verb of ['調到','設為','設成','設定為','選定'])
+   assert.throws(()=>assertImageSettings(text+'。'+verb+' '+value,values),/正確設定值/);
  }
 });

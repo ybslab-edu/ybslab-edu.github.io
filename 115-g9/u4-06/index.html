@@ -64,7 +64,7 @@ const ROUNDS=[
   now:'期末考前一晚，小安半夜卡在一題數學，拿起手機問 AI。按下送出，幾秒後答案就出現了。',
   goal:'把這幾秒鐘裡發生的事，照順序排好。',
   tip:'想像你是那個問題：先被打出來、變成 0 和 1、打包、出門、過海、被算、再回家。',
-  steps:i=>'這次有 '+i.cards.length+' 張卡片要排。第一步：先找「最開始」的卡片——問題被打出來、還在你手上的那一刻。第二步：再找「最後」的卡片——答案回到你的螢幕。第三步：中間的卡片照「變成 0 和 1 → 打包 → 出門 → 過海或過基地台 → 在遠方被算 → 回程」的順序一張張插進去，每放一張都問：前一步做完了，才輪得到它嗎？',
+  steps:i=>'這次有 '+i.cards.length+' 張卡片要排。第一步：任選一張，找出它處理的資料在哪裡、要送去哪裡。第二步：問這張卡開始前，需要哪張卡先提供資料或完成工作？拿兩張卡交換，檢查是否仍然說得通。第三步：逐對檢查相鄰卡片的資料能否接上，遇到缺少前提的地方就重新安排。',
   learn:'一個問題的旅程，把整學期串起來：輸入和輸出是第 1 單元的系統平台，變成 0 和 1 是第 2 單元的數位化，封包、Wi-Fi、海纜、資料中心是第 4 單元的網路。幾秒鐘裡，三個單元全都用上了。最後別忘了：AI 算出來的數學解答也可能錯，自己再驗算一次。',
   gen(rnd){const pick=[0,...SAMPLE(rnd,[1,2,3,4,5,6],4).sort((a,b)=>a-b),7];let order;do{order=SHUF(rnd,pick.map((k,i)=>i))}while(order.every((v,i)=>v===i));return {cards:order.map(i=>({k:pick[i],t:PICK(rnd,TRIP[pick[i]])}))}},
   view(inst,el,api){const h=ORDER(el,inst.cards.map(c=>c.t),api);const sol=inst.cards.map((c,i)=>i).sort((a,b)=>inst.cards[a].k-inst.cards[b].k);return {...h,fill:()=>h.fill(sol)}},

@@ -44,7 +44,7 @@ const ROUNDS=[
   now:'小安把猜拳 AI 的程式畫成流程，可是卡片被打亂了。',
   goal:'把程式的每一步排好順序。',
   tip:'先要「看到」玩家的手，AI 才能判斷；兩邊都出拳了，才能比輸贏。',
-  steps:i=>'這次有 '+i.cards.length+' 張程式卡。第一步：找出最先的那張，程式一開始要先準備好。第二步：照「看到玩家的手 → 判斷是什麼手勢 → AI 出拳 → 比輸贏 → 顯示結果」的順序排；每放一張都問：前一步沒做完，這一步做得了嗎？',
+  steps:i=>'這次有 '+i.cards.length+' 張程式卡。第一步：任選一張，圈出它需要讀取的資料，想想這些資料從哪裡來。第二步：找其他卡是否能提供所需的資料；交換兩張卡，檢查會不會讀到還沒準備好的東西。第三步：逐對說明相鄰卡片如何交接資料，檢查每張開始時所需的條件都已具備。',
   learn:'一個 AI 應用，是「AI 模型」加上「一般程式」：模型負責認手勢，其他步驟（出拳、比輸贏、記分）都是照順序寫好的程式。這就是第 1 單元說的：輸入 → 處理 → 輸出。',
   gen(rnd){const pick=[0,...SAMPLE(rnd,[1,2,3,4,5,6],5).sort((a,b)=>a-b)];let o;do{o=SHUF(rnd,pick.map((_,i)=>i))}while(o.every((v,i)=>v===i));return {cards:o.map(i=>pick[i])}},
   view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>FLOW[k]),api,{pool:'程式卡片',slots:'執行順序',first:'先做',last:'最後'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},

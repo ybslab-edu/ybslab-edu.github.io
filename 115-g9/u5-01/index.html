@@ -73,7 +73,7 @@ const ROUNDS=[
   now:'園遊會的猜拳 AI 要從零開始做。小安上網查，整理出做一個 AI 的步驟，但順序亂掉了。',
   goal:'把做出一個 AI 的步驟排好。',
   tip:'先想清楚要做什麼，再準備資料、訓練、測試，最後才給大家用。',
-  steps:i=>'這次有 '+i.cards.length+' 張步驟卡。第一步：找出「最先」的那張——還沒動手前要先決定的事。第二步：找出「最後」的那張——大家用了之後再改進。第三步：中間照「先有資料 → 幫資料標答案 → 拿來訓練 → 測試準不準 → 上線給大家用」的順序插進去；每放一張都問：前一步沒做完，這一步做得了嗎？',
+  steps:i=>'這次有 '+i.cards.length+' 張步驟卡。第一步：任選一張，問它開始前必須先有什麼資料或成果，回到其他卡找線索。第二步：拿兩張卡試著交換；如果某張所需的東西還沒準備好，就重新考慮先後。第三步：逐對檢查相鄰卡片，說明前一張的成果如何讓後一張能進行，再檢查整段是否接得起來。',
   learn:'做 AI 的流程：定義問題 → 收集資料 → 標註 → 訓練 → 測試 → 上線 → 回饋改進。這學期我們會一站一站走過，最後做出猜拳 AI。',
   gen(rnd){const pick=[0,...SAMPLE(rnd,[1,2,3,4,5],4).sort((a,b)=>a-b),6];let o;do{o=SHUF(rnd,pick.map((_,i)=>i))}while(o.every((v,i)=>v===i));return {cards:o.map(i=>pick[i])}},
   view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>STEPS[k]),api,{pool:'步驟卡',slots:'做 AI 的順序',first:'最先',last:'最後'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},

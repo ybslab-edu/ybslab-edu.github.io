@@ -86,7 +86,7 @@ const ROUNDS=[
   now:'AI 寫好的五頁故事印出來，結果順序全亂了。',
   goal:'把五頁排成一個完整的故事。',
   tip:'故事通常是：開頭介紹主角 → 遇到問題 → 試著解決 → 出現轉折 → 結局。',
-  steps:i=>'這次有 '+i.cards.length+' 頁要排。故事骨架是：介紹主角 → 遇到問題 → 試著解決 → 出現轉折 → 結局。第一步：找出介紹主角、還沒發生事情的那頁放第一。第二步：找出問題解決後、故事收尾的那頁放最後。第三步：中間照「出問題 → 試著解決 → 轉折」排；每放一頁都問：前面那頁發生了，這頁才說得通嗎？',
+  steps:i=>'這次有 '+i.cards.length+' 頁要排。第一步：讀每頁的人物、事件和指代詞，找出這一頁假設讀者已經知道什麼。第二步：拿兩頁試著交換，檢查人物是否突然出現、事件是否缺少原因。第三步：逐對讀相鄰頁，確認後一頁能接住前一頁的情節；遇到接不上的地方，回到其他頁找缺少的線索。',
   learn:'AI 可以幫忙寫，但要把文字、圖片整合成一本好讀的繪本，還是要靠人來安排順序、檢查前後有沒有接得上。',
   gen(rnd){const s=RINT(rnd,0,STORY.length-1);let o;do{o=SHUF(rnd,[0,1,2,3,4])}while(o.every((v,i)=>v===i));return {s,cards:o}},
   view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>STORY[inst.s][k]),api,{pool:'故事頁',slots:'繪本順序',first:'第 1 頁',last:'最後一頁'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},

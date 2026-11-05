@@ -81,3 +81,40 @@ for(const dir of dirs)test(dir+' 全關示範隔離：不同題、填答正確�
 test('全站覆蓋 121 關：109 關自動示範、12 關演出說明',()=>{
  assert.deepEqual(coverage,{total:121,automatic:109,manual:12});
 });
+
+test('u5-10 信心值示範：種子 38 觸發同答案修正，包裝 gen 後仍能開啟且不改原題',()=>{
+ const {run}=activity('u5-10');
+ const result=run(`(()=>{
+  document.getElementById('in-cls').value='999';document.getElementById('in-seat').value='1';document.getElementById('g-go').click();
+  const r=APP.rounds[2],view=r.view;
+  r.view=(inst,el,api)=>{if(el.id==='stage')globalThis.answerChanged=api.changed;return view(inst,el,api)};
+  APP.load(2);APP.handle.fill();answerChanged();document.getElementById('b-send').click();
+  for(let n=0;n<3;n++)document.getElementById('b-hint').click();
+  const inst=APP.inst,handle=APP.handle,answer=JSON.stringify(handle.get()),gen=r.gen;
+  // 與瀏覽器驗收相同：包裝器以一般函式呼叫原產題器。
+  r.gen=rnd=>gen(rnd);state=38;calls=0;
+  document.getElementById('b-demo').click();
+  const shown=!document.getElementById('hint-demo').hidden,filled=!!document.getElementById('demo-content').querySelector('fieldset');
+  document.getElementById('b-demo-back').click();
+  return {shown,filled,same:APP.inst===inst&&APP.handle===handle&&JSON.stringify(handle.get())===answer};
+ })()`);
+ assert.equal(result.shown,true);assert.equal(result.filled,true);assert.equal(result.same,true);
+});
+
+test('u5-10 信心值產題有界：多種子與固定亂數皆有不同答案，正解可過、錯答不可過',()=>{
+ const {run,context}=activity('u5-10');
+ const validate=()=>{
+  const result=run(`(()=>{
+   const gen=APP.rounds[2].gen,inst=gen(testRandom),expected=inst.rows.map(p=>p.some(v=>v>=60)?p.findIndex(v=>v>=60):3);
+   return {valid:inst.rows.length===4&&inst.rows.every(p=>p.length===3&&p.every(Number.isInteger)&&p.reduce((a,b)=>a+b,0)===100&&new Set(p).size===3&&Math.max(...p)!==60),
+    diverse:new Set(inst.ans).size>=2,answersMatch:inst.ans.every((v,i)=>v===expected[i]),correct:APP.rounds[2].check(inst,expected),wrong:APP.rounds[2].check(inst,expected.map(v=>(v+1)%4))};
+  })()`);
+  assert.equal(result.valid,true);assert.equal(result.diverse,true);assert.equal(result.answersMatch,true);assert.equal(result.correct,true);assert.notEqual(result.wrong,true);
+ };
+ for(let seed=1;seed<=200;seed++){
+  run('state='+seed+';calls=0;globalThis.testRandom=rnd');validate();
+ }
+ for(const value of [0,0.5,0.999999]){
+  let calls=0;context.testRandom=()=>{assert.ok(++calls<=400,'固定亂數不得無限重抽');return value};validate();
+ }
+});

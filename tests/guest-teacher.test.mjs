@@ -73,6 +73,34 @@ test('單一來源顯示過關數，全過顯示勾號，保留未驗證標記',
   h.get('cloud-class').value='999';h.get('cloud-class').onchange();
   const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.equal(cell.textContent,'✓（未驗證）');
 });
+// 模擬 details 的可見文字；textContent 會包含摺疊內容，無法抓到此回歸。
+function visibleText(node){
+  if(node.hidden)return '';
+  if(node.nodeType===3)return node.textContent;
+  if(node.tagName==='DETAILS'&&!node.open)return visibleText(node.querySelector('summary'));
+  return node.childNodes.map(visibleText).join('');
+}
+test('選班後來源提示常駐可見；先展開名冊外紀錄仍看得到班內兩種來源',async()=>{
+  const h=setup({guests:[guest('anon1_1_0'),guest('outside_1_0',{seat:2}),guest('other_1_0',{cls:'998'})],
+    roster:[{id:'student@example.invalid',data:()=>({cls:999,seat:1})},{id:'empty@example.invalid',data:()=>({cls:997,seat:1})}]});
+  await h.login();await h.read();
+  const table=h.get('cloud-table');
+  assert.doesNotMatch(visibleText(table),/本班紀錄來源/);
+  h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.match(visibleText(table),/本班紀錄來源：帳號名單、未驗證/);
+  assert.equal(table.querySelectorAll('tbody tr').length,1);
+  assert.equal(table.querySelectorAll('tbody td')[1].textContent,'待核對');
+  const first=table.querySelector('details');
+  assert.match(first.querySelector('summary').textContent,/待核對：名冊外紀錄/);
+  first.open=true;
+  assert.match(visibleText(table),/帳號名單/);assert.match(visibleText(table),/未驗證/);
+  assert.doesNotMatch(visibleText(table),/UID：real1/,'名冊列詳細資料仍摺疊');
+  h.get('cloud-class').value='997';h.get('cloud-class').onchange();
+  assert.doesNotMatch(visibleText(table),/本班紀錄來源|帳號名單|未驗證/,'切到無紀錄班級不可殘留前班提示');
+  h.get('cloud-class').value='';h.get('cloud-class').onchange();
+  assert.doesNotMatch(visibleText(table),/本班紀錄來源/);
+  await h.logout();assert.equal(visibleText(table),'');
+});
 for(const roster of [[],[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}]]){
   test((roster.length?'名冊有其他班級':'空名冊')+'時，名冊外紀錄不必選班即可展開並逐筆顯示班座',async()=>{
     const h=setup({roster,attempts:[],guests:[guest('outside1_1_0',{cls:'998',seat:2}),guest('outside2_1_0',{cls:'997',seat:3})]});

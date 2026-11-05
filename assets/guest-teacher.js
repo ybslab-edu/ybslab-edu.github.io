@@ -87,6 +87,8 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
     const outside=rows.filter(r=>!people.some(p=>p.cls===r.cls&&p.seat===r.seat));
     if(outside.length)target.appendChild(details(outside,'待核對：名冊外紀錄（'+outside.length+' 列，不計入表格）'));
     const cls=Number(el('cloud-class').value); if(!cls)return;
+    const sources=[...new Set(rows.filter(r=>r.cls===cls).map(r=>r.source))];
+    if(sources.length)target.appendChild(node('p','本班紀錄來源：'+sources.join('、')+'。標示「未驗證」的班座尚未驗證；「待核對」的紀錄請展開詳細資料核對，不合併計分。'));
     const table=node('table'), thead=node('thead'), head=node('tr');
     const ids=Object.keys(activities).map(Number).sort((a,b)=>a-b);
     head.appendChild(node('th','座號'));

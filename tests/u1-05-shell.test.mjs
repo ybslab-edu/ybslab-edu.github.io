@@ -64,7 +64,7 @@ function setup({old,failSave=false,teacher=false,random=0.5,source=page}={}) {
     sessionStorage:{setItem(){}},TEACHER:{remembered:()=>teacher,remember(){}},
     YBS:{enabled:()=>true,profile:()=>({email:'synthetic@example.invalid'}),flush(){},button(){},status(){},submit:x=>uploads.push(x)},
     setTimeout:f=>{f()},matchMedia:()=>({matches:true})});
-  vm.runInContext(read('assets/codec.js')+'\n'+read('assets/shell.js')+'\n'+source,context,{timeout:1000});
+  vm.runInContext(read('assets/shell.js')+'\n'+source,context,{timeout:1000});
   const get=id=>document.getElementById(id), evaluate=s=>vm.runInContext(s,context,{timeout:1000});
   if(!teacher){get('in-cls').value='999';get('in-seat').value='1';get('g-go').onclick()}
   return {context,evaluate,get,stored,uploads,progress:()=>JSON.parse(stored.get('it9:w1:999-1')),
@@ -103,18 +103,18 @@ test('四關順序、兩組資料及解答固定；所有排列依實際 check �
   }
 });
 
-test('一次演出檢查雙資料、錯答與斷電不過；記次、上傳、舊進度與成績碼相容',async()=>{
+test('一次演出檢查雙資料、錯答與斷電不過；記次、上傳、舊進度與進度相容',async()=>{
   const old={mask:2,tries:[3,4,0,0],time:1790000000000},h=setup({old});
   assert.deepEqual(h.progress(),old);
-  assert.equal(h.evaluate('CODEC.decode(document.getElementById("code").textContent).mask'),2);
+  assert.equal(h.evaluate('JSON.parse(localStorage.getItem("it9:w1:999-1")).mask'),2);
   await h.play([2,1,0]);assert.equal(h.progress().mask,2);assert.equal(h.progress().tries[0],4);assert.equal(h.uploads.length,0);
   h.get('b-off').onclick();await h.play();assert.equal(h.progress().mask,2);assert.equal(h.progress().tries[0],4);
   assert.match(h.get('verdict').textContent,/店裡停電了/);
   h.get('b-on').onclick();await h.play();
   assert.equal(h.progress().mask,3);assert.equal(h.progress().tries[0],5);assert.equal(h.uploads.length,1);
   assert.deepEqual(JSON.parse(h.stored.get('it9:last')),{cls:999,seat:1});
-  const decoded=h.evaluate('CODEC.decode(document.getElementById("code").textContent)');
-  assert.equal(decoded.week,1);assert.equal(decoded.mask,3);assert.equal(decoded.tries[0],5);
+  const decoded=h.evaluate('JSON.parse(localStorage.getItem("it9:w1:999-1"))');
+  assert.equal(decoded.mask,3);assert.equal(decoded.tries[0],5);
   assert.equal(h.uploads[0].activity,1);assert.equal(h.uploads[0].termWeek,7);assert.equal(h.uploads[0].round,0);assert.equal(h.uploads[0].tries,5);
   await h.play();assert.equal(h.progress().tries[0],5);
   for(const i of [2,3]){h.evaluate('APP.setLevel(2);APP.load('+i+')');await h.play();assert.ok(h.progress().mask&(1<<i))}
@@ -123,7 +123,7 @@ test('一次演出檢查雙資料、錯答與斷電不過；記次、上傳、�
 test('儲存失敗沿用 shell 提示；教師示範不儲存也不上傳',async()=>{
   const h=setup({failSave:true});await h.play();
   assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);
-  assert.equal(h.evaluate('CODEC.decode(document.getElementById("code").textContent).mask'),1);
+  assert.match(h.get('prog').textContent,/✓/);assert.equal(h.uploads.length,1);
   const t=setup({teacher:true});await t.play();
   assert.equal(t.stored.size,0);assert.equal(t.uploads.length,0);assert.equal(t.get('report').hidden,true);
 });

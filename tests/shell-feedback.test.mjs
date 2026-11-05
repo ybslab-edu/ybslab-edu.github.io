@@ -56,7 +56,7 @@ function setup() {
   const document = {body, createElement:tag => new Element(tag), getElementById:id => body.querySelector('#' + id)};
   const context = vm.createContext({
     document, window:{}, localStorage:{getItem:key => stored.get(key) ?? null, setItem:(key, value) => stored.set(key, value)},
-    TEACHER:{remembered:() => false}, CODEC:{encode:() => 'synthetic-code'}
+    TEACHER:{remembered:() => false}
   });
   let result = true, generation = 0;
   const round = {

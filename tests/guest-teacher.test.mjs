@@ -5,13 +5,12 @@ import {setup as teacher} from './fixtures/teacher-export.mjs';
 import {settle,error} from './fixtures/guest-firebase.mjs';
 const stamp={toMillis:()=>Date.UTC(2026,10,5)};
 const guest=(id,extra={})=>({id,data:()=>({cls:'999',seat:1,activity:1,round:0,level:1,tries:2,verified:false,passedAt:stamp,...extra})});
-function setup({owner='teacher1',guests=[guest('anon1_1_0'),guest('anon1_1_1',{round:1}),guest('anon2_1_0')],hold,fail=false}={}){
+function setup({owner='teacher1',guests=[guest('anon1_1_0'),guest('anon1_1_1',{round:1}),guest('anon2_1_0')],hold,fail=false,roster=[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}],attempts=[{id:'real1_1_0',data:()=>({uid:'real1',email:'student@example.invalid',activity:1,round:0,level:1,tries:3,passedAt:stamp})}]}={}){
   const queries=[],observers=[];
   const auth={currentUser:null,onAuthStateChanged(fn){observers.push(fn);queueMicrotask(()=>fn(this.currentUser));return()=>{};},
     async signInWithPopup(){auth.currentUser={uid:'teacher1'};observers.forEach(f=>f(auth.currentUser));},
     async signOut(){auth.currentUser=null;observers.forEach(f=>f(null));}};
-  const docs={guestAttempts:guests,roster:[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}],
-    attempts:[{id:'real1_1_0',data:()=>({uid:'real1',email:'student@example.invalid',activity:1,round:0,level:1,tries:3,passedAt:stamp})}]};
+  const docs={guestAttempts:guests,roster,attempts};
   const db={doc(path){return{async get(options){queries.push([path,options]);return{exists:true,data:()=>({ownerUid:owner})};}};},
     collection(path){return{async get(options){queries.push([path,options]);if(hold)await hold;if(fail)throw error('unavailable');return{docs:docs[path.split('/').at(-1)]};}};}};
   function GoogleAuthProvider(){this.setCustomParameters=()=>{};}
@@ -19,17 +18,17 @@ function setup({owner='teacher1',guests=[guest('anon1_1_0'),guest('anon1_1_1',{r
   return {...h,queries,auth,async login(){await h.get('cloud-login').onclick();await settle();},read:()=>h.get('cloud-read').onclick(),logout:()=>h.get('cloud-logout').onclick()};
 }
 const json=(h,source)=>JSON.parse(h.evaluate(`JSON.stringify(${source})`));
-test('owner 同時讀 attempts、guestAttempts 與 roster；未驗證分列、不覆蓋成績碼',async()=>{
-  const h=setup();h.add();const before=json(h,'recs');await h.login();await h.read();
+test('owner 同時讀 attempts、guestAttempts 與 roster；未驗證明細完整保留',async()=>{
+  const h=setup();await h.login();await h.read();
   assert.deepEqual(h.queries.map(x=>x[0]),['ybsCourses/115-g9','ybsCourses/115-g9/attempts','ybsCourses/115-g9/guestAttempts','ybsCourses/115-g9/roster']);
-  assert.ok(h.queries.every(x=>x[1].source==='server'));assert.deepEqual(json(h,'recs'),before);
+  assert.ok(h.queries.every(x=>x[1].source==='server'));
   assert.match(h.get('cloud-status').textContent,/3 列/);h.get('cloud-export').onclick();
   const bytes=[...new Uint8Array(await h.blobs[0].arrayBuffer())];
   h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
   const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:""})');
   assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳']);
   assert.equal(rows.filter(r=>r[4]==='未驗證').length,2);assert.equal(rows.find(r=>r[5]==='anon1')[6],2);
-  assert.equal(rows.find(r=>r[5]==='real1')[4],'帳號名單');assert.deepEqual(json(h,'recs'),before);
+  assert.equal(rows.find(r=>r[5]==='real1')[4],'帳號名單');
 });
 test('非 owner 拒絕列舉；無法讀到 guestAttempts',async()=>{
   const h=setup({owner:'other'});await h.login();await h.read();
@@ -44,9 +43,9 @@ test('登出期間的遲到查詢不能重現前教師紀錄',async()=>{
   await h.logout();release();await reading;
   assert.equal(h.get('cloud-export').disabled,true);assert.equal(h.get('cloud-table').textContent,'');assert.match(h.get('cloud-status').textContent,/已登出/);
 });
-test('查詢失敗清除雲端表，不更動既有成績碼紀錄',async()=>{
-  const h=setup({fail:true});h.add();const before=json(h,'recs');await h.login();await h.read();
-  assert.equal(h.get('cloud-export').disabled,true);assert.deepEqual(json(h,'recs'),before);assert.match(h.get('cloud-status').textContent,/讀取失敗/);
+test('查詢失敗清除雲端表',async()=>{
+  const h=setup({fail:true});await h.login();await h.read();
+  assert.equal(h.get('cloud-export').disabled,true);assert.match(h.get('cloud-status').textContent,/讀取失敗/);
 });
 test('同匿名 UID 的不同班座不得合併過關數',async()=>{
   const h=setup({guests:[guest('same_1_0'),guest('same_1_1',{round:1,seat:2})]});await h.login();await h.read();
@@ -57,4 +56,87 @@ test('教師 Google 彈出登入沿用 DF 教師頁既有 CSP 來源，避免廣
   const current=policy('115-g9/teacher/index.html'),existing=policy('115-df/teacher/index.html');
   assert.equal(current,existing);assert.match(current,/script-src[^;]*https:\/\/apis\.google\.com(?:;|\s)/);
   assert.ok(!current.includes("'unsafe-eval'"));assert.ok(!current.includes('*'));
+});
+
+test('先選班，名冊每座號一列、每活動一欄；多 UID 不混算，名冊外收詳細資料',async()=>{
+  const h=setup({roster:[1,2,3].map(seat=>({id:'student'+seat+'@example.invalid',data:()=>({cls:'999',seat})})),attempts:[]});
+  await h.login();await h.read();assert.equal(h.get('cloud-table').textContent,'');
+  h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  const rows=h.get('cloud-table').querySelectorAll('tbody tr');assert.equal(rows.length,3);
+  assert.equal(rows[0].querySelectorAll('td')[1].textContent,'待核對');
+  assert.match(rows[0].querySelector('details').textContent,/anon1/);assert.match(rows[0].querySelector('details').textContent,/anon2/);
+  assert.match(rows[1].querySelectorAll('td')[1].textContent,/^0\//);
+  await h.logout();assert.equal(h.get('cloud-class').value,'');assert.equal(h.get('cloud-table').textContent,'');
+});
+test('單一來源顯示過關數，全過顯示勾號，保留未驗證標記',async()=>{
+  const h=setup({attempts:[],guests:[0,1,2,3].map(round=>guest('only_1_'+round,{round}))});await h.login();await h.read();
+  h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.equal(cell.textContent,'✓（未驗證）');
+});
+// 模擬 details 的可見文字；textContent 會包含摺疊內容，無法抓到此回歸。
+function visibleText(node){
+  if(node.hidden)return '';
+  if(node.nodeType===3)return node.textContent;
+  if(node.tagName==='DETAILS'&&!node.open)return visibleText(node.querySelector('summary'));
+  return node.childNodes.map(visibleText).join('');
+}
+test('選班後來源提示常駐可見；先展開名冊外紀錄仍看得到班內兩種來源',async()=>{
+  const h=setup({guests:[guest('anon1_1_0'),guest('outside_1_0',{seat:2}),guest('other_1_0',{cls:'998'})],
+    roster:[{id:'student@example.invalid',data:()=>({cls:999,seat:1})},{id:'empty@example.invalid',data:()=>({cls:997,seat:1})}]});
+  await h.login();await h.read();
+  const table=h.get('cloud-table');
+  assert.doesNotMatch(visibleText(table),/本班紀錄來源/);
+  h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.match(visibleText(table),/本班紀錄來源：帳號名單、未驗證/);
+  assert.equal(table.querySelectorAll('tbody tr').length,1);
+  assert.equal(table.querySelectorAll('tbody td')[1].textContent,'待核對');
+  const first=table.querySelector('details');
+  assert.match(first.querySelector('summary').textContent,/待核對：名冊外紀錄/);
+  first.open=true;
+  assert.match(visibleText(table),/帳號名單/);assert.match(visibleText(table),/未驗證/);
+  assert.doesNotMatch(visibleText(table),/UID：real1/,'名冊列詳細資料仍摺疊');
+  h.get('cloud-class').value='997';h.get('cloud-class').onchange();
+  assert.doesNotMatch(visibleText(table),/本班紀錄來源|帳號名單|未驗證/,'切到無紀錄班級不可殘留前班提示');
+  h.get('cloud-class').value='';h.get('cloud-class').onchange();
+  assert.doesNotMatch(visibleText(table),/本班紀錄來源/);
+  await h.logout();assert.equal(visibleText(table),'');
+});
+for(const roster of [[],[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}]]){
+  test((roster.length?'名冊有其他班級':'空名冊')+'時，名冊外紀錄不必選班即可展開並逐筆顯示班座',async()=>{
+    const h=setup({roster,attempts:[],guests:[guest('outside1_1_0',{cls:'998',seat:2}),guest('outside2_1_0',{cls:'997',seat:3})]});
+    await h.login();await h.read();
+    const check=()=>{
+      const box=h.get('cloud-table').querySelector('details');assert.ok(box);
+      assert.match(box.querySelector('summary').textContent,/待核對：名冊外紀錄（2 列，不計入表格）/);
+      box.open=true;
+      const records=box.querySelectorAll('p');assert.equal(records.length,2);
+      assert.match(records[0].textContent,/班級：997・座號：3・.+・未驗證・UID：outside2・1\/4・各關嘗試：2/);
+      assert.match(records[1].textContent,/班級：998・座號：2・.+・未驗證・UID：outside1・1\/4・各關嘗試：2/);
+    };
+    assert.equal(h.get('cloud-class').value,'');check();
+    assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,0);
+    if(roster.length){
+      h.get('cloud-class').value='999';h.get('cloud-class').onchange();check();
+      assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,1);
+      h.get('cloud-class').value='';h.get('cloud-class').onchange();check();
+      assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,0);
+    }
+    await h.logout();assert.equal(h.get('cloud-table').textContent,'');
+  });
+}
+test('跨班座共用 UID 及名冊重複均待核對，名冊外不擠進學生列',async()=>{
+  const h=setup({attempts:[],guests:[guest('same_1_0'),guest('same_1_1',{round:1,seat:2})]});await h.login();await h.read();
+  h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,1);assert.match(h.get('cloud-table').textContent,/待核對.*名冊外/);
+});
+test('同座號名冊重複列為待核對；單一未全過顯示分數',async()=>{
+  const roster=[1,2].map(seat=>({id:'s'+seat+'@example.invalid',data:()=>({cls:999,seat:1})}));
+  const h=setup({roster,attempts:[],guests:[guest('only_1_0')]});await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,1);assert.equal(h.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'待核對');
+  const single=setup({attempts:[],guests:[guest('only_1_0')]});await single.login();await single.read();single.get('cloud-class').value='999';single.get('cloud-class').onchange();assert.equal(single.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'1/4（未驗證）');
+});
+test('教師 Auth 換人立即清空選班及學生表',async()=>{
+  const h=setup();await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.ok(h.get('cloud-table').textContent);await h.login();
+  assert.equal(h.get('cloud-table').textContent,'');assert.equal(h.get('cloud-class').value,'');assert.equal(h.get('cloud-export').disabled,true);
 });

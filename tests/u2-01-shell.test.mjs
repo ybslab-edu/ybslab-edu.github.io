@@ -87,7 +87,7 @@ function setup({old,failSave=false,teacher=false,random}={}){
     sessionStorage:{setItem:(k,v)=>session.set(k,v)},TEACHER:{remembered:()=>teacher,remember(){}},
     YBS:{enabled:()=>true,profile:()=>({email:'synthetic@example.invalid'}),flush(){flushed++},logout(){loggedOut++},
       button:(el,cb)=>{login=cb},status:cb=>{status=cb},submit:x=>uploads.push(x)}});
-  vm.runInContext(read('assets/codec.js')+'\n'+read('assets/shell.js')+'\n'+page,context,{timeout:3000});
+  vm.runInContext(read('assets/shell.js')+'\n'+page,context,{timeout:3000});
   const get=id=>document.getElementById(id),evaluate=(s,timeout=3000)=>vm.runInContext(s,context,{timeout});
   if(!teacher){get('in-cls').value='999';get('in-seat').value='1';get('g-go').onclick()}
   return {evaluate,get,stored,uploads,session,status,login,flushed:()=>flushed,loggedOut:()=>loggedOut,
@@ -166,16 +166,16 @@ test('實際拍照保留所有判定分支、清空答案與照片更換時機',
   h.fill();h.shoot();assert.equal(h.progress().mask,15);assert.match(h.get('verdict').textContent,/全部完成！/);
 });
 
-test('舊進度、week=3、it9:last、成績碼及四關上傳欄位相容，完成關不再記次',()=>{
+test('舊進度、week=3、it9:last、進度及四關上傳欄位相容，完成關不再記次',()=>{
   const old={mask:2,tries:[2,3,0,0],time:1234567890000},h=setup({old});
   assert.deepEqual(h.progress(),old);assert.equal(h.flushed(),1);
-  const decoded=()=>h.evaluate('CODEC.decode(document.getElementById("code").textContent)');
-  assert.equal(decoded().week,3);assert.equal(decoded().mask,2);
+  const decoded=()=>h.evaluate('JSON.parse(localStorage.getItem("it9:w3:999-1"))');
+  assert.equal(decoded().mask,2);
   for(let i=0;i<4;i++){
     h.load(i);h.fill();h.shoot();const u=h.uploads[i];
     assert.deepEqual([u.course,u.activity,u.termWeek,u.title,u.round,u.cls,u.seat],['115-g9',3,9,'看台最後一排',i,999,1]);
     assert.equal(u.roundName,h.evaluate('ROUNDS['+i+'].name'));assert.equal(u.level,i<2?'基礎':'進階');
-    assert.equal(u.tries,i===0||i===1?3:1);assert.equal(u.mask,h.progress().mask);assert.equal(u.code,h.get('code').textContent);
+    assert.equal(u.tries,i===0||i===1?3:1);assert.equal(u.mask,h.progress().mask);assert.equal('code' in u,false);
     assert.deepEqual(Array.from(u.rounds),['看清背號','認出應援色','容量剛好夠','衛星數遊覽車']);
   }
   assert.deepEqual(JSON.parse(h.stored.get('it9:last')),{cls:999,seat:1});
@@ -189,10 +189,10 @@ test('舊進度、week=3、it9:last、成績碼及四關上傳欄位相容，完
   h.get('g-manual').click();assert.equal(h.get('g-form').hidden,false);
 });
 
-test('儲存失敗使用 shell 提示，仍產生成績碼與上傳；最後關不誤報全部完成',()=>{
+test('儲存失敗使用 shell 提示，仍可上傳；最後關不誤報全部完成',()=>{
   const h=setup({failSave:true});h.fill();h.shoot();
-  assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);assert.match(h.get('rep-note').textContent,/最新的成績碼/);
-  assert.equal(h.uploads.length,1);assert.ok(h.get('code').textContent);
+  assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);assert.match(h.get('rep-note').textContent,/保留頁面並重試上傳/);
+  assert.equal(h.uploads.length,1);assert.equal(h.get('code'),null);
   const partial=setup();partial.load(3);partial.fill();partial.shoot();
   assert.match(partial.get('verdict').textContent,/目前完成 1／4 關/);assert.doesNotMatch(partial.get('verdict').textContent,/全部完成！/);
 });
@@ -206,6 +206,6 @@ test('教師填答案、原圖對照、換照片與切關、登出狀態維持�
   assert.equal(h.get('verdict').hidden,true);assert.equal(h.get('b-shot').disabled,true);
   h.get('b-next')?.click();h.load(1);assert.equal(h.get('tb-orig')['aria-pressed'],'true');
   h.load(3);h.fill();h.shoot();assert.match(h.get('verdict').textContent,/全部完成！/);
-  assert.equal(h.stored.size,0);assert.equal(h.uploads.length,0);assert.equal(h.get('code').textContent,'');
+  assert.equal(h.stored.size,0);assert.equal(h.uploads.length,0);assert.equal(h.get('code'),null);
   h.get('b-swap').click();assert.equal(h.evaluate('showOrig'),false);assert.equal(h.get('report').hidden,false);
 });

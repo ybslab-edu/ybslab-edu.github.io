@@ -177,6 +177,8 @@ const ROUNDS=[
     else if(kind==='geo')o={kind,ans:240,bad:[120,360,480,72]};
     else{const h=PICK(rnd,[600,750,900,1200]),L=200*RINT(rnd,1,4);o={kind,h,L,ans:2*h/300+L/200,bad:[h/300+L/200,2*h/200+L/200,2*h/300,2*h/300+L/300]}}
     const opts=[o.ans];for(const b of o.bad){const v=Math.round(b*10)/10;if(v>0&&!opts.includes(v)&&opts.length<4)opts.push(v)}
+    // 補足去重後不足的選項；四個候選值保證至少有三個不同於正解。
+    for(const v of [o.ans+1,o.ans+2,o.ans+3,o.ans+4]){if(opts.length===4)break;if(!opts.includes(v))opts.push(v)}
     o.opts=SHUF(rnd,opts);o.ansIdx=o.opts.indexOf(o.ans);return o;
   },
   view(inst,el,api){

@@ -38,7 +38,13 @@ const PART={任務:['寫一個小故事，主角是第一次上國中的七年�
 const KEYS=['任務','讀者','格式','語氣'];
 const TOPIC=['在學校迷路','第一次吃營養午餐','第一次參加社團'];
 const W1=['找不到','走錯','愛上','忘記'],W2=['教室','福利社','操場','保健室'],W3=['，只好問老師。','，結果遇到學長。','，好緊張。','，最後笑出來。'];
-function probs(rnd){let p;do{p=[RINT(rnd,5,60),RINT(rnd,5,60),RINT(rnd,5,60)];p.push(100-p[0]-p[1]-p[2])}while(p[3]<5||new Set(p).size<4);return p}
+function probs(rnd){
+  for(let t=0;t<100;t++){
+    const p=[RINT(rnd,5,60),RINT(rnd,5,60),RINT(rnd,5,60)];p.push(100-p[0]-p[1]-p[2]);
+    if(p[3]>=5&&new Set(p).size===4)return p;
+  }
+  return [10,20,30,40]; // 固定亂數也能結束，總和 100%，最高機率唯一。
+}
 const ROUNDS=[
  {lv:1,name:'是不是生成式 AI',
   now:'林老師說：班上要做一本《國中生存指南》繪本，送給剛入學的學弟妹，文字和插圖都可以請 AI 幫忙。可是，哪些 AI 會「做出新東西」？',

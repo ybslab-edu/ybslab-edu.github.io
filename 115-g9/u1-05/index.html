@@ -9,7 +9,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* Layout: 上方客人點單 → 中間「單子盒」點卡片放進「順序格」 → 下方店長／搖飲師／出餐口即時演出；單元顏色與簡報一致 */
 :root{--mem:var(--a);--mem-soft:var(--a-soft);--alu:var(--b);--alu-soft:var(--b-soft)}
@@ -57,22 +57,26 @@
 <script src="../../assets/teacher.js?v=20261031e"></script>
 <script src="../../assets/lock.js?v=20261105m"></script>
 <script src="../../assets/login.js?v=20261105d"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 const WEEK=1;
 const TERM_WEEK=7, TITLE='深夜手搖店 CPU', COURSE='115-g9';
 
 const ROUNDS=[
  {lv:1,name:'第 1 單',says:'我要 1 杯紅茶（25 元），加珍珠（10 元）。',
+  steps:i=>{const t=ROUNDS[i.round].tests[0];return '這單紅茶單價 '+t[11]+' 元，加料 '+t[12]+' 元。一、先在牆上找這兩個數字。二、想想搖飲師手上還沒有數字時，能直接相加嗎？三、比較卡片各自需要手上先有什麼，讓出餐口收到的是包含加料的總價；排完也要能用另一組牆上數字做對。'},
   wall:{11:'單價',12:'加料'},tests:[{11:25,12:10},{11:40,12:15}],
   cards:[{t:'拿「單價」',op:'load',c:11},{t:'加上「加料」',op:'add',c:12},{t:'送到出餐口',op:'out'}],sol:[0,1,2]},
  {lv:1,name:'第 2 單',says:'2 杯珍奶（每杯 60 元），再加一份布丁（10 元）。',tip:'先乘還是先加，算出來一樣嗎？',
+  steps:i=>{const t=ROUNDS[i.round].tests[0];return '這單每杯 '+t[11]+' 元、共 '+t[12]+' 杯，另加一份 '+t[13]+' 元的料。一、先分清楚哪些費用按杯計算，哪個只算一份。二、想想先加料再乘杯數會不會多算。三、沿著手上的數字檢查每張卡的用途，最後才把整單費用送出。'},
   wall:{11:'單價',12:'杯數',13:'加料'},tests:[{11:60,12:2,13:10},{11:50,12:3,13:5}],
   cards:[{t:'拿「單價」',op:'load',c:11},{t:'乘上「杯數」',op:'mul',c:12},{t:'加上「加料」',op:'add',c:13},{t:'送到出餐口',op:'out'}],sol:[0,1,2,3]},
  {lv:2,name:'錢夠不夠？',says:'3 杯珍奶（每杯 60 元）加布丁（10 元）。我只有 150 元，夠嗎？',tip:'盒子裡有一張用不到的卡。',
+  steps:i=>{const t=ROUNDS[i.round].tests[0];return '每杯 '+t[11]+' 元、'+t[12]+' 杯，加料 '+t[13]+' 元，預算 '+t[14]+' 元。一、先想整單費用應該怎麼算，分清每杯和一份。二、判斷預算要拿來比較還是當成費用扣掉。三、店長決定前需要先有比較結果；檢查多出的卡是否真的需要，先別替客人下結論。'},
   wall:{11:'單價',12:'杯數',13:'加料',14:'預算'},tests:[{11:60,12:3,13:10,14:150},{11:60,12:2,13:10,14:150}],
   cards:[{t:'拿「單價」',op:'load',c:11},{t:'乘上「杯數」',op:'mul',c:12},{t:'加上「加料」',op:'add',c:13},{t:'和「預算」比大小',op:'cmp',c:14},{t:'店長決定：比預算大就說「錢不夠」，不然就出餐',op:'judge'},{t:'減掉「預算」',op:'sub',c:14}],sol:[0,1,2,3,4]},
  {lv:2,name:'班級團購',says:'全班要紅茶 3 杯（每杯 25 元）和綠茶 2 杯（每杯 30 元），一共多少？',tip:'搖飲師手上只拿得動一個數字，算好的先寫回牆上的空格。',
+  steps:i=>{const t=ROUNDS[i.round].tests[0];return '紅茶每杯 '+t[11]+' 元、'+t[12]+' 杯；綠茶每杯 '+t[13]+' 元、'+t[14]+' 杯。一、把兩種茶分開想各自的小計。二、搖飲師只能拿一個數字，換拿另一種茶的單價前，前一個小計要放在哪裡？三、利用牆上暫存格保留資料，再檢查出餐前是否把兩種茶都算進去。'},
   wall:{10:'暫存（空格）',11:'紅茶單價',12:'紅茶杯數',13:'綠茶單價',14:'綠茶杯數'},tests:[{10:null,11:25,12:3,13:30,14:2},{10:null,11:20,12:4,13:35,14:1}],
   cards:[{t:'拿「紅茶單價」',op:'load',c:11},{t:'乘上「紅茶杯數」',op:'mul',c:12},{t:'寫回牆上「暫存」格',op:'store',c:10},{t:'拿「綠茶單價」',op:'load',c:13},{t:'乘上「綠茶杯數」',op:'mul',c:14},{t:'加上「暫存」',op:'add',c:10},{t:'送到出餐口',op:'out'}],sol:[0,1,2,3,4,5,6]}
 ];

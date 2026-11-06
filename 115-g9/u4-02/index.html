@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* 第 17 週：封包、IP、網域名稱。封包卡上面是「標頭」，下面是內容 */
 .pkt{display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:left}
@@ -31,7 +31,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // 「星票網 tixstar.com.tw」是虛構的購票網站，題目裡的網址都不能點
 const OFFICIAL='tixstar.com.tw';
@@ -73,6 +73,7 @@ const ROUNDS=[
   now:'小安傳一則訊息到馬祖給小澄。訊息被拆成好幾個封包，各走各的路，到的順序全亂了。',
   goal:'照封包上的編號，把訊息組回原來的樣子。',
   tip:'看每個封包上面那一行（標頭）的編號，不用看內容猜。',
+  steps:i=>'這次有 '+i.n+' 個封包，從 '+i.src+' 送到 '+i.dst+'。第一步：只看每張卡片最上面那一行標頭的「第幾號」。第二步：先找出第 1 號放最前面，再找下一號接在後面，一路排到第 '+i.n+' 號。不要靠內容猜意思，標頭的編號才是順序。',
   learn:'訊息會被拆成一個個「封包」，每包貼上編號、寄件和收件的 IP 位址，各自找路走。到了以後，電腦照編號組回去。這套約定就是 TCP/IP：IP 負責送到對的地址，TCP 負責編號、組回去、確認沒漏掉。',
   gen(rnd){const s=PICK(rnd,MSGS),n=RINT(rnd,5,7),parts=chop(rnd,s,n),[src,dst]=SAMPLE(rnd,IPS,2);let order;do{order=SHUF(rnd,[...Array(n).keys()])}while(order.every((v,i)=>v===i));return {s,n,src,dst,cards:order.map(k=>({seq:k+1,text:parts[k]}))}},
   view(inst,el,api){const h=ORDER(el,inst.cards.map(p=>pktHTML(p,inst.src,inst.dst,inst.n)),api,'組回來的訊息');const sol=inst.cards.map((p,i)=>i).sort((a,b)=>inst.cards[a].seq-inst.cards[b].seq);return {...h,fill:()=>h.fill(sol)}},
@@ -83,6 +84,7 @@ const ROUNDS=[
   now:'六連星宣布加場！群組裡一下子貼了好多購票網址。官方購票網站是 tixstar.com.tw。',
   goal:'判斷每一個網址，是不是真的官方網站。',
   tip:'先去掉開頭的 https://，再看第一個「/」前面那一段（主機名稱），從右邊讀回來：結尾一定要剛好是「.tixstar.com.tw」或就是「tixstar.com.tw」。',
+  steps:i=>'這題有 '+i.items.length+' 個網址，每一個都照同樣三步：一、去掉開頭的 https://。二、找到第一個「/」，只留前面那段主機名稱。三、從右邊往左讀，看結尾是不是剛好「.tixstar.com.tw」或就是「tixstar.com.tw」；多一個字母、換了順序，或後面還接著別的網域，都是假的。',
   learn:'去掉 https:// 之後，第一個「/」前面那段是主機名稱，從右往左讀：tw 是台灣、com 是公司、tixstar 才是網站自己的名字。冒充的網站會多一個字母、換一個很像的字，或把官方名字放在前面當裝飾。網址列的鎖頭（HTTPS）只代表傳輸有加密，不代表對方就是官方。',
   gen(rnd){let it;do{it=[];for(let k=0;k<5;k++){if(rnd()<.45)it.push({u:mkUrl(rnd,PICK(rnd,REAL)),ok:0});else{const f=PICK(rnd,FAKE);it.push({u:mkUrl(rnd,f[0]),ok:1,why:f[1]})}}}while(new Set(it.map(x=>x.ok)).size<2||new Set(it.map(x=>x.u)).size<5);return {items:it}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'<span class="url">'+x.u+'</span>'})),['官方','冒充'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x.ok))}},
@@ -93,6 +95,7 @@ const ROUNDS=[
   now:'小澄那邊的網路還不太穩，有一個封包在路上掉了，還有一個封包重複寄到兩次。',
   goal:'找出掉了的是第幾號，請對方重送。',
   tip:'標頭寫了「第幾號／一共幾號」。把收到的編號一個一個點名，重複的只算一次。',
+  steps:i=>'標頭寫著一共 '+i.n+' 包，你收到 '+i.cards.length+' 張，其中有一張是重複的。第一步：在紙上寫下 1 到 '+i.n+'。第二步：把收到的卡片編號一個一個劃掉，重複的劃過就不用再劃。第三步：最後沒被劃掉的號碼，就是要請對方重送的那一包。',
   learn:'TCP 會檢查每一個編號：掉了就請對方重送，重複的就丟掉一份。所以就算網路不穩，收到的訊息也不會少字或多字。',
   gen(rnd){const s=PICK(rnd,MSGS),n=RINT(rnd,6,8),parts=chop(rnd,s,n),[src,dst]=SAMPLE(rnd,IPS,2),lost=RINT(rnd,1,n);
     const keep=[...Array(n).keys()].map(k=>k+1).filter(k=>k!==lost),dup=PICK(rnd,keep);
@@ -105,6 +108,7 @@ const ROUNDS=[
   now:'網址是給人看的名字；電腦真正要的是 IP 位址（門牌號碼）。瀏覽器會先去查「網路電話簿」（DNS）。',
   goal:'點了這個網址，瀏覽器實際會連到哪一個 IP 位址？',
   tip:'先找出網址裡的主機名稱（第一個「/」前面那段），再到電話簿找一模一樣的那一列。',
+  steps:i=>'這次的網址是 '+i.url+'。第一步：去掉 https://，找到接下來第一個「/」，前面那段才是主機名稱；後面的字只是路徑，就算長得像官方網址也不算。第二步：拿這段主機名稱到電話簿，一個字一個字比對，找完全一樣的那一列。第三步：那一列右邊的 IP 就是要連的門牌。',
   learn:'DNS 把好記的網域名稱換成 IP 位址，瀏覽器再照 IP 位址把封包送過去。冒充的網址就算看起來很像，查出來的 IP 是另一台電腦，你輸入的帳號密碼就送到別人手上了。',
   gen(rnd){
     const realIP='203.66.'+RINT(rnd,10,250)+'.'+RINT(rnd,2,250);

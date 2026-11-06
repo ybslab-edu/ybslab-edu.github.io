@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* 第 19 週：網路服務、推薦、物聯網。觀看紀錄模仿短影音 App 的紀錄頁 */
 .hist{display:flex;flex-direction:column;gap:6px}
@@ -26,7 +26,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 const KIND=['通訊','社群','娛樂','消費'];
 const SVC=[
@@ -55,6 +55,7 @@ const ROUNDS=[
   now:'跨年後的一個星期，小安打開手機的「螢幕使用時間」，發現自己一天用了好多網路服務。',
   goal:'把每一件事分到它屬於的網路服務。',
   tip:'通訊：一對一或一小群人傳訊息、通話。社群：公開分享、追蹤、大家一起討論。娛樂：看、聽、玩。消費：買東西、付錢、訂票。',
+  steps:i=>'這題有 '+i.items.length+' 個服務。每一個都問：它最主要是拿來做什麼？跟一個人或一小群人傳訊息、通話是通訊；公開分享、追蹤別人、大家留言討論是社群；看影片、聽音樂、玩遊戲是娛樂；買東西、付錢、訂票是消費。一個 App 有很多功能時，看它「最主要」的用途。',
   learn:'網路服務大致分成通訊、社群、娛樂、消費。很多 App 其實同時做好幾種（例如社群平台也能購物），所以要看你「正在用它做什麼」。',
   gen(rnd){let p;do{p=SAMPLE(rnd,SVC,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),KIND,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -64,6 +65,7 @@ const ROUNDS=[
   now:'小安發現：短影音一直推六連星給他。他打開了自己的觀看紀錄。',
   goal:'照下面的規則，猜出 App 下一支最可能推給他哪一支。',
   tip:'簡化的推薦規則：看完的影片，它的每個標籤 +1 分；滑掉的影片，它的每個標籤 -1 分。候選影片的分數＝它的標籤分數加起來，最高分的推給你。',
+  steps:i=>'你看過或滑掉了 '+i.hist.length+' 支影片，候選有 '+i.cands.length+' 支。第一步：做一張標籤計分表；例如第 1 支「'+i.hist[0].title+'」的標籤是「'+i.hist[0].tags.join('、')+'」，你'+(i.hist[0].ok?'看完了，這兩個標籤各 +1':'滑掉了，這兩個標籤各 -1')+'。第二步：照同樣方法把 '+i.hist.length+' 支都記完。第三步：每支候選影片把它兩個標籤的分數加起來，比一比誰最高。',
   learn:'推薦系統會記下你看了什麼、看多久、滑掉什麼，替每種內容打分數，再推最可能讓你繼續看的。真實的推薦系統用的資料多得多，還會參考「跟你很像的人」看了什麼。',
   gen(rnd){
     for(let t=0;t<300;t++){
@@ -90,6 +92,7 @@ const ROUNDS=[
   now:'小安家的掃地機器人，好像知道他們什麼時候出門。',
   goal:'判斷每一個東西是不是物聯網裝置。',
   tip:'看兩件事：它能不能感測或控制真實世界的東西（量溫度、記位置、開鎖、灑水），還有它有沒有連上網路。有些只量測、把資料傳出去；有些也能收指令做動作。只會自動、沒有連網的不算。',
+  steps:i=>'這題有 '+i.items.length+' 樣東西，每一樣都檢查兩關：第一關，它能不能感測或控制真實世界（量溫度、記位置、開鎖、灑水）？第二關，它有沒有連上網路，把資料傳出去或收指令？兩關都過才是物聯網；只會自動、沒有連網的不算，只能上網、不碰真實世界的也不算。',
   learn:'物聯網（IoT）是把能感測或控制真實世界的裝置連上網路。智慧電表只量用電量、傳回電力公司，也算物聯網；掃地機器人還會收指令動起來。重點是「連網」：只會自動、不會連網的不算。',
   gen(rnd){let p;do{p=SAMPLE(rnd,IOT,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不是','是物聯網'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -99,6 +102,7 @@ const ROUNDS=[
   now:'一個完整的物聯網應用，常常分成三步。',
   goal:'每一句話，是物聯網的哪一步？',
   tip:'感測：用感測器知道外面的狀況。連網傳送：把資料傳出去，或從網路收到指令。動作：真的做出一件事。',
+  steps:i=>'這題有 '+i.items.length+' 個步驟要分類。每一個都問：它是在「知道外面發生什麼」（感測）、「把資料送出去或收到指令」（連網傳送），還是「真的做出一件事」（動作）？可以照順序想一個物聯網裝置：先感測，再透過網路傳送，最後做出動作。',
   learn:'一個完整的物聯網應用常走這三步：感測（收集資料）→ 連網（傳到雲端或手機）→ 動作（自動反應）。不是每個裝置三步都自己做，例如電表只負責感測和傳送。這些資料也會被存起來分析，所以使用物聯網裝置，也要想想它蒐集了你哪些資料。',
   gen(rnd){let p;do{p=SAMPLE(rnd,CHAIN,6)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),STEP,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},

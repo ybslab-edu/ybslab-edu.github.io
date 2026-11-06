@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 .tree{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;line-height:1.9}
 .tree .q{font-weight:700}.tree .y{color:var(--out)}.tree .n{color:var(--warn)}
@@ -26,7 +26,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // TITLE:回收分類機
 // TERMWEEK:7
@@ -52,6 +52,7 @@ const ROUNDS=[
   now:'環保股長阿哲想做一台「回收分類機」放在園遊會。他先畫了一棵「決策樹」：一題一題問下去，就能分到某一類。',
   goal:'照著決策樹，把每一件東西分到正確的類別。',
   tip:'從第 ① 題開始問，答案是「是」就走是的那條，「否」就走否的那條，走到底就是答案。',
+  steps:i=>'這題有 '+i.items.length+' 件東西。每一件都從樹最上面的第 ① 題開始：回答「是」就走是的箭頭，「否」就走否的箭頭；到了下一題再問一次，一直走到底，最後那個框就是它的分類。不要跳題，也不要憑感覺猜。',
   learn:'決策樹就是一連串「是或否」的問題，從上往下問，最後落到一個答案。電腦可以從很多已經分好類的例子，自己找出該問哪些問題——這就是機器學習。',
   gen(rnd){let p;do{p=SAMPLE(rnd,ITEM,5)}while(new Set(p.map(treeCls)).size<3);return {items:p}},
   view(inst,el,api){el.innerHTML=TREE;const c=CLASSIFY(el,inst.items.map(x=>({html:'<b>'+x[0]+'</b><br>'+attrs(x)})),CLS,api);return {...c,fill:()=>c.fill(inst.items.map(treeCls))}},
@@ -60,6 +61,7 @@ const ROUNDS=[
   now:'阿哲收集了一些例子，每一個都已經標好「可回收」或「不可回收」（這叫標籤）。他想找一個問題，一問就能把兩類分開。',
   goal:'哪一個問題，能把「可回收」和「不可回收」完全分開，一個都不錯？',
   tip:'看每一欄：如果這一欄是「是」的都在同一類、「否」的都在另一類，它就能完全分開。',
+  steps:i=>'表格有 '+i.rows.length+' 件東西、3 個問題欄。第一步：拿第一欄，把回答「是」的東西挑出來，看它們的標籤是不是全部一樣。第二步：再看回答「否」的東西，標籤是不是全部都是另一種。第三步：兩邊都清一色才算分得最乾淨；三欄都照這樣檢查一遍。',
   learn:'監督式學習：給電腦很多「有標準答案」的例子，讓它找出最能分開答案的規則。決策樹就是一次挑一個「分得最乾淨」的問題。',
   gen(rnd){
     for(;;){const k=RINT(rnd,0,2),flip=k===0?0:1,names=SAMPLE(rnd,NAMES,8);
@@ -73,6 +75,7 @@ const ROUNDS=[
   now:'阿哲又收集了一批乾淨的回收物，每一件都標好了類別。這次換你來設計決策樹。',
   goal:'選好兩個問題和三個答案，讓樹把下面每一個例子都分對。',
   tip:'先找一個問題，回答「是」的全部屬於同一類；剩下的，再用第二個問題分開。有一欄跟類別沒關係，用不到。',
+  steps:i=>'這裡有 '+i.rows.length+' 件東西。第一步：找一個問題，讓回答「是」的東西全部屬於同一類，先把它們分出去。第二步：剩下的東西，再找第二個問題把它們分開。第三步：有一欄跟類別沒關係，試過發現分不開就不要用它。',
   learn:'機器學習的「訓練」，就是不斷調整規則，直到訓練資料都分對。電腦會自動試很多種問題組合，挑出錯最少的那棵樹；跟答案無關的特徵（像顏色），就不會被選上。',
   gen(rnd){let p;do{p=SAMPLE(rnd,R3,8)}while(new Set(p.map(x=>x[4])).size<3||p.filter(x=>x[1]).length<2||p.filter(x=>x[2]).length<2);return {rows:p}},
   view(inst,el,api){
@@ -88,6 +91,7 @@ const ROUNDS=[
   now:'樹做好了，阿哲拿一批「它沒看過」的東西來測試（測試資料），每一件都附上真正的分類。',
   goal:'照決策樹分一次，算出它的準確率（分對的數量 ÷ 全部 × 100%）。',
   tip:'一件一件照著樹走，跟「真正的分類」比，對的數一數。',
+  steps:i=>'這次要考 '+i.items.length+' 件東西。第一步：每一件都照著樹從第 ① 題走到底，寫下樹給的答案。第二步：跟表上「真正的分類」比，一樣就打勾。第三步：數一數打勾的件數，除以 '+i.items.length+'，再換成百分比。',
   learn:'訓練用的資料和測試用的資料要分開，才知道模型遇到新東西準不準。準確率不是 100% 很正常：像鋁箔包是紙和鋁黏在一起，這棵簡單的樹就會分錯，要再收集這類例子改進。',
   gen(rnd){let p;do{p=SAMPLE(rnd,TEST,10)}while(p.every(x=>treeCls(x)===x[4]));return {items:p,acc:p.filter(x=>treeCls(x)===x[4]).length*10}},
   view(inst,el,api){el.innerHTML=TREE+'<div class="tblwrap" style="margin-top:10px"><table class="tbl"><tr><th>測試的東西</th><th>屬性</th><th>真正的分類</th></tr>'+inst.items.map(x=>'<tr><td>'+x[0]+'</td><td>'+attrs(x)+'</td><td>'+CLS[x[4]]+'</td></tr>').join('')+'</table></div>'+

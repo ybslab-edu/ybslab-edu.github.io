@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* 第 11 週：二進位。燈牌＝一排燈泡，每顆只有亮（1）和暗（0） */
 .board{background:#15131c;border-radius:16px;padding:18px 14px;display:flex;justify-content:center;gap:clamp(6px,1.6vw,16px);flex-wrap:nowrap;overflow-x:auto}
@@ -36,7 +36,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 const toBits=(v,n)=>v.toString(2).padStart(n,'0').split('').map(Number);
 const val=b=>b.reduce((s,x)=>s*2+x,0);
@@ -61,6 +61,7 @@ const ROUNDS=[
   now:i=>'後援會做了一塊 5 顆燈的燈牌，每顆燈下面寫著它代表的數字。跨年那天剛好有成員要慶生。',
   goal:i=>'把燈點亮，拼出'+i.who+'的生日 <b style="font-family:var(--f-mono);font-size:1.3em;color:var(--b)">'+i.t+'</b> 號。',
   tip:'亮的燈代表的數字加起來，就是燈牌顯示的數字。',
+  steps:i=>'先把 '+i.t+' 和 16 比：'+(i.t>=16?i.t+' 放得下 16，先點亮這顆，剩下 '+(i.t-16):i.t+' 放不下 16，這顆先留暗，目標還是 '+i.t)+'。再拿剩下的數和 8、4、2、1 依序比，能扣才點亮；最後把亮燈數字加回來檢查。',
   learn:'燈牌只有亮和暗，也能表示 0～31：每顆燈代表 16、8、4、2、1，亮的加起來就是答案。只用 0 和 1 表示數字，叫做二進位。',
   gen(rnd){const [who,t]=PICK(rnd,BDAY);return {who,t}},
   view(inst,el,api){const h=BOARD(el,5,{},api);return {get:h.get,fill:()=>h.set(toBits(inst.t,5))}},
@@ -71,6 +72,7 @@ const ROUNDS=[
   now:'對面看台的粉絲也舉了一塊燈牌，6 顆燈，下面有寫數字。',
   goal:'看亮著的燈，算出燈牌上是幾。',
   tip:'只加亮著的燈下面的數字。',
+  steps:i=>'這題的亮暗是 '+toBits(i.t,6).join('')+'。先從左到右對上 32、16、8、4、2、1；把 1 對到的位值圈起來，再逐個相加，0 的位置跳過。',
   learn:'把亮的燈代表的數字加起來，就能把二進位換成平常用的十進位。例如 101010 ＝ 32 + 8 + 2 ＝ 42。',
   gen(rnd){let t;do{t=RINT(rnd,5,63)}while(toBits(t,6).filter(Boolean).length<3);return {t}},
   view(inst,el,api){
@@ -86,6 +88,7 @@ const ROUNDS=[
   now:'跨年夜的大燈牌有 8 顆燈，這次燈下面沒有寫數字。',
   goal:i=>'拼出 <b style="font-family:var(--f-mono);font-size:1.3em;color:var(--b)">'+i.t+'</b>（'+i.why+'）。',
   tip:'最右邊的燈代表 1，往左每一顆是右邊的 2 倍。從最大的那顆開始想：放得下就點亮，再看剩多少。',
+  steps:i=>'目標是 '+i.t+'。8 顆燈從左到右代表 128、64、32、16、8、4、2、1。先比 128：'+(i.t>=128?'點亮後剩 '+i.t+' − 128，先算出來':'放不下，先留暗，仍要湊 '+i.t)+'；再用剩下的數和 64 比。往右照做，能扣才點亮，最後確認剩下 0。',
   learn:'十進位換二進位：從最大的位值開始，放得下就是 1、扣掉；放不下就是 0。8 顆燈（8 位元）最多能表示 0～255，這就是 1 個位元組。',
   gen(rnd){return PICK(rnd,[{t:RINT(rnd,100,255),why:'跨年場的座位區號碼'},{t:RINT(rnd,60,200),why:'今年的應援場次'},{t:RINT(rnd,128,255),why:'燈牌上的倒數秒數'}])},
   view(inst,el,api){const h=BOARD(el,8,{labels:false},api);return {get:h.get,fill:()=>h.set(toBits(inst.t,8))}},
@@ -98,6 +101,7 @@ const ROUNDS=[
   now:i=>'後援會要做一塊新燈牌，用來顯示'+i.what+'，最大會到 '+i.n+'。',
   goal:'最少要幾顆燈才夠？用這麼多顆燈，最大能顯示到多少？',
   tip:'1 顆燈最大 1、2 顆最大 3、3 顆最大 7……每多一顆，能表示的數量就加倍。',
+  steps:i=>'這次要放得下 '+i.n+'。先從 1 顆燈最大 1 開始，往下列：上一個最大值乘 2 再加 1。找到第一個不小於 '+i.n+' 的值，再數用了幾顆燈；少一顆也要試，確認放不下。',
   learn:'n 顆燈（n 個位元）能表示 2ⁿ 種狀態，最大是 2ⁿ − 1。燈太少放不下，太多又浪費：資料要用幾個位元，就是這樣算出來的。',
   gen(rnd){let n;do{n=RINT(rnd,9,999)}while(Number.isInteger(Math.log2(n+1)));const b=Math.ceil(Math.log2(n+1));return {n,b,max:2**b-1,what:PICK(rnd,['跨年倒數的秒數','排隊的號碼牌','應援棒的編號','座位號碼'])}},
   view(inst,el,api){
@@ -118,6 +122,7 @@ const ROUNDS=[
   goal:capacityGoal,
   instruction:i=>'換算 '+i.bits+' 位元、'+i.kib+' KiB，以及 '+i.amount+' '+CAPACITY_UNITS[i.from]+' 的燈牌動畫容量。',
   tip:'8 位元＝1 位元組；2 的 10 次方＝1024，1 KiB＝1024 位元組。記憶卡標示用十進位：1 KB＝1000 位元組、1 MB＝1000 KB、1 GB＝1000 MB。大單位換小單位要乘，小換大要除。',
+  steps:i=>'先算 '+i.bits+' ÷ 8，得到燈牌的位元組。再列 '+i.kib+' × 1024，換算 KiB。最後把 '+i.amount+' '+CAPACITY_UNITS[i.from]+' 沿 KB → MB → GB 的順序移到 '+CAPACITY_UNITS[i.to]+'；往右每級除以 1000，往左每級乘以 1000，算完再填。',
   learn:'燈牌只有亮暗，每顆用 1 位元；每 8 位元組成 1 位元組。KiB 用 1024；KB、MB、GB 標示每級用 1000，換算前要先看清楚單位。',
   gen(rnd){
     const [from,to]=PICK(rnd,[[0,1],[1,0],[1,2],[2,1],[0,2],[2,0]]),n=RINT(rnd,1,9);

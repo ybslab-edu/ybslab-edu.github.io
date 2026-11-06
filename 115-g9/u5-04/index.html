@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 .scene{position:relative;width:100%;max-width:260px;aspect-ratio:4/3;border-radius:12px;overflow:hidden;border:2px solid var(--line)}
 .scene .sky{position:absolute;inset:0}
@@ -25,7 +25,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // TITLE:繪本需要插圖
 // TERMWEEK:6
@@ -55,6 +55,7 @@ const ROUNDS=[
   now:'繪本需要插圖。小禾用 AI 畫了一張，可是忘了自己打了什麼提示詞。',
   goal:'哪一句提示詞，最可能畫出這張圖？',
   tip:'一項一項對照：主角是誰、手上拿什麼或在做什麼、在哪裡、什麼時間。',
+  steps:i=>'有 '+i.opts.length+' 句提示詞，只有一句和圖完全一樣。第一步：先看圖，說出四件事：主角是誰、在做什麼或拿什麼、在哪裡、什麼時間。第二步：每一句提示詞逐項對照，四項中有一項不一樣就刪掉。第三步：剩下的那一句就是。',
   learn:'圖片生成 AI 會把提示詞裡的每個條件畫出來。寫提示詞就像點菜：主角、動作、地點、時間、風格，寫得越清楚，越接近你要的。',
   gen(rnd){const s=rndScene(rnd),opts=[s];const ks=SAMPLE(rnd,[0,1,2,3],3);ks.forEach(k=>opts.push(tweak(rnd,s,k)));const o=SHUF(rnd,opts.map(x=>promptOf(x)));return {s,opts:o,ans:o.indexOf(promptOf(s))}},
   view(inst,el,api){el.innerHTML=sceneHTML(inst.s,true);const c=CLASSIFY(el,inst.opts.map(o=>({html:o})),['就是這句'],api);return {get:()=>c.get().findIndex(v=>v===0),fill:()=>c.fill(inst.opts.map((_,i)=>i===inst.ans?0:null)),ready:()=>c.get().filter(v=>v===0).length===1}},
@@ -63,6 +64,7 @@ const ROUNDS=[
   now:'小安把提示詞改了一個詞，再請 AI 畫一次。',
   goal:'改過的提示詞，會畫出哪一張？',
   tip:'先找出兩句提示詞哪裡不一樣，再找出只有那個地方改變的圖。',
+  steps:i=>'第一步：把兩句提示詞並排，一個詞一個詞比，找出唯一不一樣的地方（是主角、動作、地點，還是時間）。第二步：在 '+i.opts.length+' 張圖裡，找「只有那一項變了、其他都和原本一樣」的那張；改了兩個地方以上的不算。',
   learn:'提示詞改一個詞，AI 就會改畫面裡對應的部分。想微調圖，就一次只改一個條件，比較容易找到你要的版本。',
   gen(rnd){const a=rndScene(rnd),k=RINT(rnd,0,3),b=tweak(rnd,a,k);const others=[];while(others.length<3){const x=tweak(rnd,a,PICK(rnd,[0,1,2,3].filter(j=>j!==k)));if(!others.some(o=>o.join()===x.join())&&x.join()!==b.join())others.push(x)}
     const opts=SHUF(rnd,[b,...others]);return {a,b,opts,ans:opts.findIndex(o=>o.join()===b.join())}},
@@ -75,6 +77,7 @@ const ROUNDS=[
   now:'繪本要印出來送給學弟妹，班上收集了很多圖。林老師提醒：不是網路上找得到的圖都能用。',
   goal:'判斷每一張圖可不可以放進繪本。',
   tip:'可以用的：自己做的、有授權而且照規定標示的、作者同意的。不行：別人的作品沒授權、知名角色、沒經同意的人像、拿掉作者標示。',
+  steps:i=>'這題有 '+i.items.length+' 個素材。每一個都問：它是誰做的？自己做的可以用；別人做的，要有授權並照規定標示，或作者同意才可以。知名卡通角色、沒經同意的人像、拿掉作者標示的，都不能放進繪本。',
   learn:'使用別人的作品要有授權，並照規定標示來源；知名角色有著作權，就算請 AI 畫出來也一樣不行；拍到別人要先問過。用了 AI 生成的圖，也要誠實標示。',
   gen(rnd){let p;do{p=SAMPLE(rnd,OKUSE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不可以','可以'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -83,6 +86,7 @@ const ROUNDS=[
   now:'AI 寫好的五頁故事印出來，結果順序全亂了。',
   goal:'把五頁排成一個完整的故事。',
   tip:'故事通常是：開頭介紹主角 → 遇到問題 → 試著解決 → 出現轉折 → 結局。',
+  steps:i=>'這次有 '+i.cards.length+' 頁要排。第一步：讀每頁的人物、事件和指代詞，找出這一頁假設讀者已經知道什麼。第二步：拿兩頁試著交換，檢查人物是否突然出現、事件是否缺少原因。第三步：逐對讀相鄰頁，確認後一頁能接住前一頁的情節；遇到接不上的地方，回到其他頁找缺少的線索。',
   learn:'AI 可以幫忙寫，但要把文字、圖片整合成一本好讀的繪本，還是要靠人來安排順序、檢查前後有沒有接得上。',
   gen(rnd){const s=RINT(rnd,0,STORY.length-1);let o;do{o=SHUF(rnd,[0,1,2,3,4])}while(o.every((v,i)=>v===i));return {s,cards:o}},
   view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>STORY[inst.s][k]),api,{pool:'故事頁',slots:'繪本順序',first:'第 1 頁',last:'最後一頁'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},

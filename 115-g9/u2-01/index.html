@@ -9,7 +9,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* Layout：由上而下三段，沿用 w02：① 任務說明 → ② 調設定、拍照、回答（兩張照片＝兩組資料）→ ③ 看電腦怎麼存（每格的數字與檔案大小）；顏色與簡報一致 */
 :root{
@@ -143,7 +143,7 @@ body.showorig .frame .orig{opacity:1}
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 const WEEK=3, TERM_WEEK=9, TITLE='看台最後一排', COURSE='115-g9';
 // ===== 照片產生器：全部用程式畫，不用真人照片 =====
@@ -251,12 +251,16 @@ function digitize(p,n,bits){
 // fixRes／fixDep：固定不能調的設定；sol：過關的設定（看得出來的最小值）；cap：容量上限（位元），null 表示不告訴學生，越小越好
 const ROUNDS=[
  {lv:1,name:'看清背號',now:'小安坐在看台最後一排，把手機放到最大拍偶像，結果背號糊成一團。',goal:'演唱會現場網路超塞，照片越小越快傳出去。用最少的格子，讓在家的朋友還看得出兩張照片的背號是幾號。',tip:'顏色先固定用最多的。格子越多越清楚，但檔案也越大。',
+  steps:i=>'這關是「'+ROUNDS[i.round].name+'」，目前每邊 '+curRes()+' 格、每格 '+curDep()+' 位元，共 '+photos.length+' 張照片。一、顏色數固定，先只觀察格子數改變時背號筆畫能否分開。二、逐格調整設定，兩張都要看得清楚，不能只憑其中一張猜。三、試著降低一級，確認是否仍能辨認，再決定最小可用設定並作答。',
   kind:'idol',ask:['digit'],fixDep:24,startRes:0,sol:{res:32,dep:24}},
  {lv:1,name:'認出應援色',now:'偶像轉身了，看不到背號，只看得到衣服和應援棒的顏色。六連星每個人都有自己的應援色，其中有幾個很像。',goal:'用最少的顏色數，讓朋友還認得出兩張照片各是哪一位成員。',tip:'格子數先固定。每格能用的位元越少，能分的顏色就越少，很像的顏色會被併成同一個。',
+  steps:i=>'這關是「'+ROUNDS[i.round].name+'」，每邊固定 '+curRes()+' 格，目前每格 '+curDep()+' 位元，共 '+photos.length+' 張照片。一、先看衣服和應援棒的色塊。二、只改顏色數，對照成員色票觀察相近顏色能不能分開。三、兩張都要認得出來，再往下試一級；不要靠照片位置猜成員，也不要把更大的檔案當成目標。',
   kind:'idol',ask:['member'],noDigit:true,fixRes:48,startDep:0,sol:{res:48,dep:6}},
  {lv:2,name:'容量剛好夠',now:'網路塞到每張照片只能傳 768 位元組（0.75 KiB）。',goal:'在容量內，讓朋友同時看出背號和應援色。格子數和顏色數都要自己決定。',tip:'背號要靠格子數，應援色要靠顏色數。超過容量就傳不出去。',
+  steps:i=>'這關每張上限 '+(ROUNDS[i.round].cap/8)+' 位元組，目前每邊 '+curRes()+' 格、每格 '+curDep()+' 位元，共 '+photos.length+' 張照片。一、用 '+curRes()+' × '+curRes()+' × '+curDep()+' 算位元數，再除以 8 和上限比較。二、筆畫糊了就檢查格子數，顏色混在一起就檢查顏色數。三、每次只調一項，同時確認兩張的背號和應援色，再檢查容量。',
   kind:'idol',ask:['digit','color'],cap:32*32*6,startRes:3,startDep:4,sol:{res:32,dep:6}},
  {lv:2,name:'衛星數遊覽車',now:'散場後要去搭後援會包的遊覽車，小安打開地圖 App 的衛星圖。衛星圖一格代表地面幾公尺，越清楚檔案越大。',goal:'用最小的衛星圖，數出兩個停車場各有幾台遊覽車。',tip:'遊覽車大約 12 公尺長；三台白色小客車排在一起，遠看也差不多長。',
+  steps:i=>'這關停車場寬 '+GROUND+' 公尺，目前每邊 '+curRes()+' 格，一格代表 '+(GROUND/curRes())+' 公尺、每格固定 '+curDep()+' 位元，共 '+photos.length+' 張衛星圖。一、用遊覽車約 12 公尺長的線索，觀察白色長條和車窗間隔。二、縮小每格代表的範圍，看看一台長車和連排小客車能否分開。三、兩張各自數完，再試較小檔案是否仍能辨認，不要把所有白色長條都直接算成遊覽車。',
   kind:'sat',ask:['count'],fixDep:24,startRes:0,sol:{res:32,dep:24}}
 ];
 const resList=R=>R.kind==='sat'?SAT.map(m=>GROUND/m):RES;

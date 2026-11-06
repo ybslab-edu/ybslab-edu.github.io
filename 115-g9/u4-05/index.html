@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* 第 20 週：物聯網應用、雲端運算與服務模式 */
 .layers{display:flex;flex-direction:column-reverse;gap:6px;max-width:460px}
@@ -27,7 +27,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 const WHERE=[
  ['把跨年影片備份到雲端相簿',1],['和幹部一起線上編輯同一份企劃書',1],['用網頁版信箱收信',1],['用線上表單收後援會問卷',1],['問聊天機器人一個問題，它要到很遠的機房去算',1],['在不同電腦上，打開同一個雲端硬碟資料夾',1],
@@ -52,6 +52,7 @@ const ROUNDS=[
   now:'小安先確認跨年影片已經完整備份到雲端相簿，才把手機裡的那一份刪掉。（有些相簿是「同步」，在手機刪了雲端也會跟著刪，一定要先搞清楚。）那影片現在在哪裡？',
   goal:'每一件事，主要是在你自己的手機（電腦）上做的，還是在雲端做的？',
   tip:'想一想：拔掉網路還做得到嗎？換一台電腦還找得到嗎？這只是線索（有些雲端服務會先存一份在手機裡），但大多數情況可以這樣判斷。',
+  steps:i=>'這題有 '+i.items.length+' 樣東西。每一樣都在腦中做兩個小實驗：一、把網路拔掉，還能打開、還能用嗎？二、換一台別人的電腦或手機登入，還找得到嗎？拔網路還能用、換裝置就找不到，多半在自己的裝置；拔網路就不行、換裝置登入還在，多半在雲端。',
   learn:'雲端運算就是「用網路租別人的電腦」：資料存在、程式跑在雲端公司的資料中心，你只要連得上網，換哪一台裝置都能用。代價是沒有網路就不能用，資料也放在別人家。',
   gen(rnd){let p;do{p=SAMPLE(rnd,WHERE,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['自己的裝置','雲端'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -61,6 +62,7 @@ const ROUNDS=[
   now:'後援會要做一個售票和報名的網站，大家提出好幾種用雲端的方法。',
   goal:'每一種用法，是 IaaS、PaaS 還是 SaaS？',
   tip:'像開店：IaaS 是租一間空店面，裝潢、設備自己來；PaaS 是租裝潢好、有廚房的店，只要專心做菜；SaaS 是直接去別人的店吃，什麼都不用管。',
+  steps:i=>'這題有 '+i.items.length+' 個服務。每一個都問：「我要自己管到哪裡？」只租機器、作業系統和程式都要自己裝的是 IaaS；只要把自己寫的程式放上去、機器和執行環境都不用管的是 PaaS；打開就直接用、什麼都不用裝的是 SaaS。',
   learn:'IaaS 租的是機器（基礎設施），系統和程式自己裝；PaaS 租的是平台，只要寫自己的程式；SaaS 直接用做好的軟體，開瀏覽器就能用。越往 SaaS，自己要管的越少，能改的也越少。',
   gen(rnd){let p;do{p=SAMPLE(rnd,SVCS,5)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),MODEL,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -70,6 +72,7 @@ const ROUNDS=[
   now:i=>i.text+'。',
   goal:'這樣做的話，後援會自己要管哪幾層？把要自己管的都點起來。',
   tip:'還記得第 1 單元的三層嗎？硬體 → 作業系統 → 應用程式。雲端再多切兩層：執行環境、資料。不管哪一種，資料都是自己的責任。',
+  steps:i=>'這次的情境是：'+i.text+' 第一步：先判斷它是自己買機器、IaaS、PaaS，還是 SaaS。第二步：由下往上 5 層是硬體、作業系統、執行環境、應用程式、資料；租得越多，下面越多層交給別人管。第三步：不管哪一種，最上面的「資料」一定是自己管。',
   learn:'自己架：五層全部自己管。IaaS：雲端公司管硬體，系統以上自己管。PaaS：連作業系統和執行環境都交給平台，只管程式和資料。SaaS：只剩資料要自己顧。這就是第 1 單元那張分層圖，被切給不同的人管。',
   gen(rnd){const [m,text]=PICK(rnd,SCN);return {m,text,own:OWN[m]}},
   view(inst,el,api){const on=new Set();
@@ -87,6 +90,7 @@ const ROUNDS=[
   now:'雲端相簿的公司要在台灣蓋一座新的資料中心，候選地點有四個。',
   goal:'依照公司的條件，選出最適合的地點。',
   tip:'先刪掉不符合「一定要」的地點：電力要夠、不能在斷層帶上、離海纜登陸站 50 公里內。剩下的選年均溫最低的（冷卻比較省電）。',
+  steps:i=>'有 '+i.s.map(x=>x.n).join('、')+' '+i.s.length+' 個地點。第一步：刪掉電力不夠的。第二步：刪掉在斷層帶上的。第三步：看離海纜登陸站的距離（'+i.s.map(x=>x.n+' '+x.km+' 公里').join('、')+'），超過 50 公里的也刪掉。最後只在剩下的地點裡比年均溫，選最低的；地價不是必要條件。',
   learn:'資料中心裡成千上萬台電腦日夜不停，要大量的電，也要很多電來冷卻；它要靠海纜和世界連線，也怕地震。所以選地點就像地理考題：電力、氣候、交通（網路）、地質都要一起考慮。',
   gen(rnd){
     for(let t=0;t<500;t++){

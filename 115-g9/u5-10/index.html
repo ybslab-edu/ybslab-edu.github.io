@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 .hist{font-size:26px;letter-spacing:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
 .prob{font-family:var(--f-mono)}
@@ -20,7 +20,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // TITLE:猜拳贏 AI
 // TERMWEEK:13
@@ -35,6 +35,7 @@ const ROUNDS=[
   now:'攤位的程式要先知道猜拳的規則。程式不會「懂」，每一種情況都要寫清楚。',
   goal:'每一種情況，是玩家贏、平手，還是電腦贏？',
   tip:'石頭贏剪刀、剪刀贏布、布贏石頭；一樣就平手。',
+  steps:i=>'這題有 '+i.items.length+' 局。每一局都分兩步：一、先看兩邊是不是出一樣的，一樣就是平手。二、不一樣的話，用「石頭贏剪刀、剪刀贏布、布贏石頭」找出贏的一方。可以在紙上畫一個三角形：石頭 → 剪刀 → 布 → 石頭，箭頭指向的是被打敗的那個。',
   learn:'寫程式時，所有情況都要列出來：3 × 3＝9 種組合，每一種都要有答案。AI 只負責「看懂手勢」，判斷輸贏還是靠我們寫的規則。',
   gen(rnd){const all=[];for(let p=0;p<3;p++)for(let c=0;c<3;c++)all.push([p,c]);let s;do{s=SAMPLE(rnd,all,5)}while(new Set(s.map(x=>res(x[0],x[1]))).size<3);return {items:s}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:'玩家 '+E[x[0]]+' '+G[x[0]]+'　電腦 '+E[x[1]]+' '+G[x[1]]})),['玩家贏','平手','電腦贏'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>res(x[0],x[1])))}},
@@ -43,6 +44,7 @@ const ROUNDS=[
   now:'小安把猜拳 AI 的程式畫成流程，可是卡片被打亂了。',
   goal:'把程式的每一步排好順序。',
   tip:'先要「看到」玩家的手，AI 才能判斷；兩邊都出拳了，才能比輸贏。',
+  steps:i=>'這次有 '+i.cards.length+' 張程式卡。第一步：任選一張，圈出它需要讀取的資料，想想這些資料從哪裡來。第二步：找其他卡是否能提供所需的資料；交換兩張卡，檢查會不會讀到還沒準備好的東西。第三步：逐對說明相鄰卡片如何交接資料，檢查每張開始時所需的條件都已具備。',
   learn:'一個 AI 應用，是「AI 模型」加上「一般程式」：模型負責認手勢，其他步驟（出拳、比輸贏、記分）都是照順序寫好的程式。這就是第 1 單元說的：輸入 → 處理 → 輸出。',
   gen(rnd){const pick=[0,...SAMPLE(rnd,[1,2,3,4,5,6],5).sort((a,b)=>a-b)];let o;do{o=SHUF(rnd,pick.map((_,i)=>i))}while(o.every((v,i)=>v===i));return {cards:o.map(i=>pick[i])}},
   view(inst,el,api){const h=ORDERBOX(el,inst.cards.map(k=>FLOW[k]),api,{pool:'程式卡片',slots:'執行順序',first:'先做',last:'最後'});const sol=inst.cards.map((k,i)=>i).sort((a,b)=>inst.cards[a]-inst.cards[b]);return {...h,fill:()=>h.fill(sol)}},
@@ -51,15 +53,25 @@ const ROUNDS=[
   now:'模型每次都會給出三個手勢的「信心值」。有時候手拍糊了，它也只能猜。小禾設定：最高的信心值要到 60% 以上才算數，不然就請玩家再出一次。',
   goal:'每一次的判斷結果，程式該怎麼處理？',
   tip:'先找出三個數字裡最大的。≥ 60% → 就當作那個手勢；< 60% → 請玩家再出一次。',
+  steps:i=>'這題有 '+i.rows.length+' 次辨識結果。每一次都分兩步：一、在三個百分比裡找出最大的。二、最大的大於或等於 60% 就當作那個手勢；小於 60% 就請玩家再出一次。注意：剛好 60% 也算有把握。',
   learn:'AI 的輸出常常是機率，不是絕對的答案。好的程式會設定門檻：沒把握的時候，請人再確認一次，而不是硬猜。門檻太高會一直要人重來，太低又容易認錯，要試著調整。',
-  gen(rnd){const rows=[];for(let k=0;k<4;k++){let p;do{const a=RINT(rnd,5,85),b=RINT(rnd,5,90-a);p=SHUF(rnd,[a,b,100-a-b])}while(new Set(p).size<3||Math.max(...p)===60);rows.push(p)}
-    const ans=rows.map(p=>{const m=Math.max(...p);return m>=60?p.indexOf(m):3});if(new Set(ans).size<2)return this.gen(rnd);return {rows,ans}},
+  gen(rnd){const rows=[],valid=p=>new Set(p).size===3&&Math.max(...p)!==60;
+    for(let k=0;k<4;k++){let p;
+      // 固定亂數或連續撞題時也能結束；備用資料仍是合法的信心值。
+      for(let draw=0;draw<20;draw++){const a=RINT(rnd,5,85),b=RINT(rnd,5,90-a);p=SHUF(rnd,[a,b,100-a-b]);if(valid(p))break}
+      rows.push(valid(p)?p:SHUF(rnd,[65,25,10]));
+    }
+    const answer=p=>{const m=Math.max(...p);return m>=60?p.indexOf(m):3},ans=rows.map(answer);
+    // 全部同答案時直接補入另一類，不遞迴呼叫 this.gen，供提示示範獨立使用。
+    if(new Set(ans).size<2){rows[3]=SHUF(rnd,ans[0]===3?[65,25,10]:[40,35,25]);ans[3]=answer(rows[3])}
+    return {rows,ans}},
   view(inst,el,api){const c=CLASSIFY(el,inst.rows.map(p=>({html:G.map((g,i)=>E[i]+' '+g+' <span class="prob">'+p[i]+'%</span>').join('　')})),[...G,'請再出一次'],api);return {...c,fill:()=>c.fill(inst.ans)}},
   check(inst,a){const w=inst.ans.map((v,i)=>a[i]===v?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 次再看一次：最大的信心值有沒有到 60%？':true}},
  {lv:2,name:'讓 AI 會贏',
   now:'攤位試玩時，林老師發現：人其實很難「隨機」出拳，常常有自己的習慣。小安想讓電腦從玩家剛剛的出拳學習。',
   goal:'照這個策略，電腦下一次該出什麼？「猜玩家下一次會出他最常出的那個，電腦就出能贏它的。」',
   tip:'先數玩家最近 10 次出了幾次石頭、剪刀、布，最多的那個是他的習慣。再想：什麼能贏它？',
+  steps:i=>'玩家最近 '+i.h.length+' 次出拳都在表上。第一步：分別數石頭、剪刀、布各出了幾次，寫成三個數字。第二步：次數最多的就是他的習慣。第三步：想一想「什麼能贏這個手勢」，AI 就出那個。',
   learn:'這就是「從資料預測」：AI 記下你的習慣，猜你下一步。真正的系統會看更多規律（例如輸了以後常換什麼）。也提醒我們：你的使用紀錄，會被拿來預測你的行為。',
   gen(rnd){for(;;){const h=Array.from({length:10},()=>RINT(rnd,0,2));const n=[0,1,2].map(g=>h.filter(x=>x===g).length),m=Math.max(...n);if(n.filter(x=>x===m).length>1)continue;const fav=n.indexOf(m);return {h,fav,ans:counter(fav)}}},
   view(inst,el,api){el.innerHTML='<p>玩家最近 10 次（由左到右）：</p><div class="hist" aria-label="'+inst.h.map(x=>G[x]).join('、')+'">'+inst.h.map(x=>E[x]).join(' ')+'</div><p style="margin-top:10px">電腦下一次出：</p>';return PICKONE(el,G.map((g,i)=>E[i]+' '+g),api,inst.ans)},

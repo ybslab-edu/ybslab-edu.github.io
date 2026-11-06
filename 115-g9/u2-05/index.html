@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 /* 第 13 週：資料與資訊、問卷設計。題目卡模仿表單的樣子 */
 .form-q{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:10px;padding:10px 14px;font-size:17px}
@@ -22,7 +22,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 const fq=(q,o)=>'<div class="form-q">'+q+(o?'<div class="opts">'+o+'</div>':'')+'</div>';
 const DI=[
@@ -60,6 +60,7 @@ const ROUNDS=[
   now:'後援會用問卷問大家跨年的事，表單後台收回一大堆東西。',
   goal:'分出每一項是「資料」（原始的紀錄）還是「資訊」（整理過、能幫忙做決定的）。',
   tip:'問自己：看到這一項，能不能直接做決定？能的話多半是資訊。',
+  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 項「'+x[0]+'」：先找它在記錄什麼，再看是否已經比較、計算或提出決定，最後才分類。</li>').join('')+'</ol>',
   learn:'資料是一筆一筆的原始紀錄；把資料整理、計算、比較之後，能幫我們做決定的，才是資訊。同一份問卷，要經過整理才會變成資訊。',
   gen(rnd){let p;do{p=SAMPLE(rnd,DI,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['資料','資訊'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -69,6 +70,7 @@ const ROUNDS=[
   now:'幹部寫好問卷初稿，請小安幫忙檢查。',
   goal:'每一題都有一個毛病，選出是哪一種。',
   tip:'看選項有沒有重疊或缺漏、題目有沒有偷偷帶答案、是不是一次問兩件事、題型適不適合。',
+  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 題：'+x[0]+['先拿邊界值試放：'+(x[0].includes('100 元')?'100 元':'6 點')+' 能放幾格？再試另一個邊界，最後選出對應的毛病。','先想一個選項以外的人或地方；他能照實作答嗎？再檢查選項是否足夠。','先圈出「大家都說」或「你不覺得」；拿掉這些話，受訪者的選擇會不會比較自由？','先找出用「和」連著的兩件事；如果兩件事的答案不同，這一格能說清楚嗎？','先想收回來要做什麼：可不可以買多種周邊？自由文字能不能直接拿來比較程度？再檢查目前題型。'][x[1]]+'</li>').join('')+'</ol>',
   learn:'好問卷的條件：選項不重疊、選項要完整（不確定就加「其他」）、不引導作答、一題只問一件事、題型要配合想知道的事。',
   gen(rnd){return {items:SAMPLE(rnd,BAD,3)}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FLAWS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -78,6 +80,7 @@ const ROUNDS=[
   now:'找到毛病之後，幹部寫了幾種改法。',
   goal:'每一題選出改得最好的版本。',
   tip:'改完的版本不能有新的毛病：選項重疊、缺漏、引導、問兩件事、題型不對。',
+  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 題：'+x.q+'先圈出原題不清楚的地方；再逐一讀這題的 '+x.o.length+' 個改法，檢查問題有沒有解決、是否又多了新毛病。</li>').join('')+'</ol>',
   learn:'修問卷時，常用的方法是：區間的邊界不要重複、加上「其他」、把引導的話拿掉、一題拆成兩題、換成適合的題型。',
   gen(rnd){const it=SAMPLE(rnd,FIX,3).map(f=>{const order=SHUF(rnd,[0,1,2]);return {q:f.q,o:order.map(k=>f.o[k]),ans:order.indexOf(0)}});return {items:it}},
   view(inst,el,api){
@@ -93,6 +96,7 @@ const ROUNDS=[
   now:'問卷內容定好了，接下來要在表單裡選題型。',
   goal:'每一個想知道的事，選最適合的題型。',
   tip:'只能選一個用單選；可以選很多個用核取方塊；要讓大家自由寫用簡答；想比較「有多……」的程度用線性刻度。題型要看你想拿資料做什麼：想聽理由用簡答，想比較程度用刻度。',
+  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 項「'+x[0]+'」：先想一個人需要填幾個答案，再想要收文字還是比較程度，最後對照題型。</li>').join('')+'</ol>',
   learn:'題型決定收回來的資料長什麼樣子：單選、複選好統計；簡答能收到意見，但很難整理；線性刻度能比較程度。下一週就要整理這些回覆。',
   gen(rnd){let p;do{p=SAMPLE(rnd,NEED,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),TYPES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},

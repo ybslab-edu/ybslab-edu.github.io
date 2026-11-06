@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 .plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
 .plot svg{width:100%;height:auto;display:block}
@@ -27,7 +27,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // TITLE:服務台放哪裡
 // TERMWEEK:11
@@ -48,6 +48,7 @@ const ROUNDS=[
   now:'畢業園遊會的場地是一個 10 × 10 的方格圖，點是人潮最多的攤位。學務處先放了兩個服務台（方框 A、B），每個攤位歸最近的服務台管。',
   goal:'判斷每一個攤位，離 A 近還是離 B 近。',
   tip:'用格數算：橫的差幾格、直的差幾格，用畢氏定理（或直接比「橫差² ＋ 直差²」）比大小。',
+  steps:i=>'A 服務台在（'+i.cs[0].join(', ')+'），B 在（'+i.cs[1].join(', ')+'），有 '+i.pts.length+' 個攤位。每個攤位都分三步：一、算它和 A 的橫差、直差，再算「橫差² ＋ 直差²」。二、和 B 也算一次。三、數字小的那個服務台比較近。例如攤位 1 在（'+i.pts[0].join(', ')+'），先算它和 A、B 各差多少。',
   learn:'二維的 K 平均分群，「最近」用平面上的直線距離來比。跟一維一樣：每個點加入最近的中心。',
   gen(rnd){for(;;){const pts=blobs(rnd,2,8),cs=[[RINT(rnd,0,10),RINT(rnd,0,10)],[RINT(rnd,0,10),RINT(rnd,0,10)]];const g=pts.map(p=>near(p,cs));if(g.includes(-1)||new Set(g).size<2||d2(cs[0],cs[1])<16)continue;return {pts,cs,g}}},
   view(inst,el,api){el.innerHTML=mapSVG(inst.pts,inst.cs)+'<div class="ctr"><span>A 在（'+inst.cs[0]+'）</span><span>B 在（'+inst.cs[1]+'）</span></div>';const c=CLASSIFY(el,inst.pts.map((p,i)=>({html:'攤位 '+(i+1)+'（'+p.join(', ')+'）'})),['A','B'],api);return {...c,fill:()=>c.fill(inst.g)}},
@@ -56,6 +57,7 @@ const ROUNDS=[
   now:'分好組了。服務台要搬到自己這一組攤位的正中間，大家走過去才近。',
   goal:'算出 A 組的新位置：所有 A 組攤位的「橫座標平均」和「直座標平均」。',
   tip:'橫座標全部加起來 ÷ 個數，直座標也一樣。',
+  steps:i=>'這題要把 A 服務台搬到 A 組攤位的正中間，A 組有 '+i.g.filter(x=>x===0).length+' 個攤位。第一步：挑出屬於 A 組的攤位，把它們的橫座標全部加起來，除以個數。第二步：直座標也照做一次。第三步：（橫的平均, 直的平均）就是新位置。',
   learn:'二維的中心＝橫座標的平均、直座標的平均，叫做「重心」。K 平均分群就是一直「指派、搬到重心」。',
   gen(rnd){for(;;){const pts=blobs(rnd,2,8),cs=[[2,2],[8,8]].map(c=>[c[0]+RINT(rnd,-1,1),c[1]+RINT(rnd,-1,1)]);const g=pts.map(p=>near(p,cs));if(g.includes(-1))continue;const A=pts.filter((_,i)=>g[i]===0);if(A.length<3)continue;const m=[A.reduce((s,p)=>s+p[0],0)/A.length,A.reduce((s,p)=>s+p[1],0)/A.length];if(m.every(Number.isInteger))return {pts,g,m}}},
   view(inst,el,api){el.innerHTML=mapSVG(inst.pts,[],inst.g)+'<p class="small">藍色是 A 組，橘色是 B 組。</p><p>A 組：'+inst.pts.filter((_,i)=>inst.g[i]===0).map(p=>'（'+p.join(', ')+'）').join('、')+'</p><div class="ctr"><label>新的 A：橫 <input class="num-in" data-k="0" inputmode="numeric" autocomplete="off"></label><label>直 <input class="num-in" data-k="1" inputmode="numeric" autocomplete="off"></label></div>';
@@ -65,6 +67,7 @@ const ROUNDS=[
   now:'兩位幹部各自分了組，都說自己的比較好。',
   goal:'哪一種分法，攤位離自己的服務台比較近（總距離比較小）？',
   tip:'看每一組的點是不是都靠近自己的方框。也可以算：每個點到自己方框的「橫差² ＋ 直差²」，全部加起來，越小越好。',
+  steps:i=>'這題共有 '+i.pts.length+' 個點，有兩種分法，各有兩個方框（中心）。第一步：每一種分法，看每個點是不是都靠近自己那組的方框。第二步：想精確比較，就把每個點到自己方框的「橫差² ＋ 直差²」全部加起來。第三步：總和比較小的那種分得比較好。',
   learn:'分群好不好，可以算「每個點到自己中心的距離平方和」：越小，表示每一群越集中。K 平均分群就是在讓這個數字變小。',
   gen(rnd){for(;;){const pts=blobs(rnd,2,8);const good=[[0,1]];const g1=pts.map(p=>near(p,[[2,2],[8,8]]));if(g1.includes(-1)||new Set(g1).size<2)continue;
     const cen=g=>[0,1].map(k=>{const A=pts.filter((_,i)=>g[i]===k);return [Math.round(A.reduce((s,p)=>s+p[0],0)/A.length),Math.round(A.reduce((s,p)=>s+p[1],0)/A.length)]});
@@ -76,6 +79,7 @@ const ROUNDS=[
   now:'服務台放越多，大家走越近，但也越花人力。小安用電腦試了 1～6 個服務台，算出「總距離」。',
   goal:'用「手肘法」選出最划算的服務台數量：再多放一個，總距離也不會少很多的那個點。',
   tip:'看每多一個服務台，總距離少了多少。少很多 → 值得；突然只少一點點 → 前一個就是「手肘」。',
+  steps:i=>'表上依序是放 1、2、3……個服務台時的總距離：'+i.v.join('、')+'。第一步：算每多放一個，總距離減少多少（前一個減後一個）。第二步：找出「本來每次都少很多，突然只少一點點」的地方。第三步：那個轉折前面的數量就是手肘，也就是該放的服務台數。',
   learn:'K 要選多少？常用「手肘法」：畫出 K 和總距離的關係，找曲線突然變平的轉折點。再多分幾群，改善也很有限，就不划算了。',
   gen(rnd){const k=RINT(rnd,2,4);let d=RINT(rnd,25,40)*10;const dec=[];for(let i=1;i<6;i++){if(i<k){dec.push(d);d=Math.round(d*(0.7+rnd()*0.2))}else dec.push(RINT(rnd,8,20))}
     const v=[dec.reduce((a,b)=>a+b,0)+RINT(rnd,40,90)];dec.forEach(x=>v.push(v[v.length-1]-x));return {v,k}},   // 手肘之前每次都少很多，之後每次只少一點點

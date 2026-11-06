@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 .plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
 .plot svg{width:100%;height:auto;display:block}
@@ -25,7 +25,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // TITLE:跟誰最像
 // TERMWEEK:8
@@ -50,6 +50,7 @@ const ROUNDS=[
   now:'園遊會攤位要準備飲料。小禾調查了全班：每個人喜歡的「甜度」和「冰塊量」（0～10），還有他是奶茶派還是果茶派。轉學生小晴只填了甜度和冰塊。',
   goal:'找出離星星（小晴）最近的那一個同學，猜小晴是哪一派。',
   tip:'用眼睛量距離：橫的格數和直的格數都算進去，最靠近星星的那一點是誰？',
+  steps:i=>'圖上有 '+i.pts.length+' 個點和一顆星星。第一步：從星星往外看，先挑出看起來最近的 2～3 個點。第二步：每個點都數「橫的差幾格」和「直的差幾格」，想成兩點之間的直線距離來比較。第三步：最近的那一個點是哪一派，星星就判成哪一派。',
   learn:'這就是「最近鄰居」：跟你最像的人喜歡什麼，就猜你也喜歡什麼。它不用先學規則，每次都直接去找最像的例子。',
   gen(rnd){return knnInst(rnd,1)},
   view(inst,el,api){el.innerHTML=legend+plotSVG([...inst.pts,inst.q],{label:'甜度與冰塊的散布圖'})+'<p class="small">橫軸：甜度　直軸：冰塊量</p>';return PICKONE(el,C2.map(c=>c[2]+' '+c[0]),api,inst.ans)},
@@ -58,6 +59,7 @@ const ROUNDS=[
   now:'只看最近的一個人，萬一他剛好比較特別呢？小禾決定找最近的 3 個人來投票。',
   goal:'找出離星星最近的 3 個同學，多數是哪一派，就猜小晴是哪一派。',
   tip:'先找最近的，再找第二近、第三近。三個裡面哪一派比較多？',
+  steps:i=>'圖上有 '+i.pts.length+' 個點。第一步：照距離由近到遠，找出離星星最近的 3 個點，每找到一個就在心裡編號 1、2、3。第二步：看這 3 個點各是哪一派。第三步：3 票裡比較多的那一派，就是星星的預測；不要被第 4 近以後的點影響。',
   learn:'K 個最近鄰居（KNN）：找最像的 K 個例子投票。K 太小容易被特例影響，K 太大又會被遠方的人拉走，K 要自己試著挑。',
   gen(rnd){return knnInst(rnd,3)},
   view(inst,el,api){el.innerHTML=legend+plotSVG([...inst.pts,inst.q],{label:'甜度與冰塊的散布圖'})+'<p class="small">橫軸：甜度　直軸：冰塊量</p>';return PICKONE(el,C2.map(c=>c[2]+' '+c[0]),api,inst.ans)},
@@ -67,6 +69,7 @@ const ROUNDS=[
   now:'攤位試營運時，小安記錄了「排隊人數」和「要等幾分鐘」。他想畫一條線，用來預測人多的時候要等多久。',
   goal:'先選出最貼近這些點的那條線，再用它預測：排隊人數到了題目給的數字，大約要等幾分鐘？',
   tip:'最貼近的線，點會平均分布在線的兩邊，而且離線都不遠。預測時，從橫軸找到人數，往上碰到線，再看左邊是幾分鐘。',
+  steps:i=>'有 '+i.cand.length+' 條候選線，要預測 '+i.qx+' 人時大約要等幾分鐘。第一步：每條線都看看，點是不是平均落在線的上下兩邊、離線都不遠，選最貼近的那條。第二步：在橫軸找到 '+i.qx+'，往上碰到你選的線。第三步：從交點往左看縱軸，讀出分鐘數。',
   learn:'線性迴歸：找一條最貼近資料的直線，用它來預測沒看過的情況。電腦會算每個點離線多遠，挑「總誤差最小」的那條。',
   gen(rnd){
     for(;;){const a=PICK(rnd,[0.5,1,1.5]),b=RINT(rnd,1,4)*2;const xs=SAMPLE(rnd,[2,4,6,8,10,12,14,16],7);
@@ -86,6 +89,7 @@ const ROUNDS=[
   now:'園遊會當天，攤位要不要開「AI 猜拳」？小禾用一個「感知器」來決定：每個條件有一個分數（權重），加起來達到門檻就開。',
   goal:'算一算每一種情況的總分，判斷開還是不開。',
   tip:'條件成立（是）就加上它的權重，不成立就不加。總分 ≥ 門檻 → 開；小於門檻 → 不開。',
+  steps:i=>'門檻是 '+i.th+'，四個條件的權重是 '+i.names.map((n,j)=>n+' '+i.w[j]).join('、')+'。每一列都分三步：一、打 ✔ 的條件才加它的權重，✘ 的不加。二、把加起來的總分記在旁邊。三、總分大於或等於 '+i.th+' 就開，小於就不開。',
   learn:'感知器是最簡單的「神經元」：每個輸入乘上權重、加起來，超過門檻就輸出 1。AI 學習時，就是一直調整這些權重和門檻，讓答案越來越準。',
   gen(rnd){const names=['天氣晴朗','排隊的人很多','平板有電','班上有人顧攤'];let w,th,rows;
     for(let t=0;;t++){w=names.map(()=>RINT(rnd,1,5));th=RINT(rnd,4,Math.max(4,w.reduce((a,b)=>a+b,0)-1));

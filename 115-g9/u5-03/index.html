@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106a">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
 <style>
 .prompt{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:10px;padding:12px 14px;font-size:17px;line-height:1.6}
 .goalbox{background:var(--c-soft);border-radius:10px;padding:10px 14px;font-size:16px}
@@ -23,7 +23,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261105j"></script>
+<script src="../../assets/shell.js?v=20261106p"></script>
 <script>
 // TITLE:寫給學弟妹的繪本
 // TERMWEEK:5
@@ -44,6 +44,7 @@ const ROUNDS=[
   now:'林老師說：班上要做一本《國中生存指南》繪本，送給剛入學的學弟妹，文字和插圖都可以請 AI 幫忙。可是，哪些 AI 會「做出新東西」？',
   goal:'判斷每一件事，是不是生成式 AI 在做。',
   tip:'生成式 AI 會做出原本不存在的新內容：文字、圖片、聲音、影片。只是認出來、猜未來、幫你挑的，不算生成。',
+  steps:i=>'這題有 '+i.items.length+' 個例子。每一個都問：做完之後，世界上有沒有多出一個「原本不存在」的新內容（一段文字、一張圖、一段聲音或影片）？有才是生成式 AI；只是認出來、猜接下來會怎樣、從現有的東西裡幫你挑，都不算生成。',
   learn:'生成式 AI 會「做出新的內容」，像寫文章、畫圖、作曲、配音。它是從大量的文字、圖片裡學會「通常長什麼樣子」，再組合出新的。',
   gen(rnd){let p;do{p=SAMPLE(rnd,GEN,6)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不是生成','生成式 AI'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -52,6 +53,7 @@ const ROUNDS=[
   now:'小禾寫了一段給 AI 的指令（提示詞），可是 AI 寫出來的總是怪怪的。',
   goal:'這段提示詞少了哪一個要素？',
   tip:'好的提示詞通常有：任務（要寫什麼）、讀者（寫給誰）、格式（多長、分幾段）、語氣（什麼感覺）。',
+  steps:i=>'這段提示詞是：「'+i.txt+'」。第一步：拿四個項目一個一個對：任務（要寫什麼）、讀者（寫給誰）、格式（多長、分幾段）、語氣（什麼感覺）。第二步：在句子裡找到哪一項，就在心裡打一個勾。第三步：沒打到勾的那一項，就是這段提示詞少了的。',
   learn:'提示詞越清楚，AI 越能寫出你要的東西：說清楚任務、讀者、格式和語氣。少了一項，AI 就只好自己亂猜。',
   gen(rnd){const miss=RINT(rnd,0,3);const txt=KEYS.map((k,i)=>i===miss?'':PICK(rnd,PART[k])).filter(Boolean).join('');return {txt:'你是一位繪本作家。'+txt,miss}},
   view(inst,el,api){el.innerHTML='<div class="prompt">'+inst.txt+'</div><p style="margin-top:10px">少了哪一個？</p>';return PICKONE(el,KEYS,api,inst.miss)},
@@ -60,6 +62,7 @@ const ROUNDS=[
   now:'繪本要分頁印出來給七年級看。小安寫了好幾個版本的提示詞，不知道該用哪一個。',
   goal:'哪一個提示詞，最能做出下面這個目標？',
   tip:'對照目標：主題、讀者、頁數和字數、語氣，四個都要說到，而且不能說錯。',
+  steps:i=>'目標是：'+i.goal+'。共有 '+i.opts.length+' 個選項。第一步：把目標拆成四項：主題、讀者、頁數和字數、語氣。第二步：每個選項逐項對照，少一項或寫錯一項就刪掉（讀者不對、頁數或字數不對、只說「越長越好」都算錯）。第三步：留下四項都對的那一個。',
   learn:'選提示詞時，把目標拆成幾個條件，一個一個對照。說得太少，AI 只能亂猜；說錯了，AI 會很認真地做錯。',
   gen(rnd){
     const t=PICK(rnd,TOPIC),pg=RINT(rnd,3,5),n=PICK(rnd,[30,40,50]),tone=PICK(rnd,['溫暖','好笑','鼓勵人']);
@@ -77,6 +80,7 @@ const ROUNDS=[
   now:'小安好奇：AI 怎麼寫出一整句話？原來語言模型每次只做一件事——猜「下一個詞最可能是什麼」。',
   goal:'從「國中的第一天，我」開始，每一步都選機率最高的詞，接出一句話。',
   tip:'每一列是一步，括號裡是模型算出來的機率。每一步都挑最高的那個。',
+  steps:i=>'這題有 '+i.S.length+' 步，每一步有 '+i.S[0].p.length+' 個候選字。第一步：只看第 1 列，比較括號裡的機率（這一列是 '+i.S[0].p.join('、')+'），挑最大的那個字。第二步：第 2、3 列照做，每一列各自挑機率最高的。模型每一步都挑機率最高，不是挑你覺得最順口的。',
   learn:'語言模型就是一直猜下一個詞：算出每個詞的機率，挑一個接上去，再猜下一個。實際的 AI 會加一點隨機，不一定每次都挑最高的，所以同一個問題問兩次，答案會不一樣，也可能接出錯的內容。',
   gen(rnd){const S=[W1,W2,W3].map(ws=>{const p=probs(rnd),o=SHUF(rnd,[0,1,2,3]);return {w:o.map(i=>ws[i]),p:o.map(i=>p[i])}});return {S,ans:S.map(s=>s.p.indexOf(Math.max(...s.p)))}},
   view(inst,el,api){

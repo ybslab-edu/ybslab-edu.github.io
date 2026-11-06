@@ -1,6 +1,6 @@
 /* 教師雲端成績：單次伺服器查詢，僅 owner 可讀；不寫入、刪除或持久化教師資料。 */
 'use strict';
-window.YBSGuestTeacher = function ({course, activities, saveBook}) {
+window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = () => {}}) {
   const el = id => document.getElementById(id);
   let auth, db, ready, generation = 0, busy = false, rows = [], people = [];
   const message = text => { el('cloud-status').textContent = text; };
@@ -10,7 +10,7 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
     el('cloud-logout').disabled = !auth?.currentUser;
     el('cloud-export').disabled = !rows.length;
   }
-  function clear() { rows = []; people = []; el('cloud-table').textContent = ''; el('cloud-class').innerHTML = ''; el('cloud-class').value = ''; el('cloud-class').disabled = true; controls(); }
+  function clear() { rows = []; people = []; onRecords(null); el('cloud-table').textContent = ''; el('cloud-class').innerHTML = ''; el('cloud-class').value = ''; el('cloud-class').disabled = true; controls(); }
   function error(e) {
     return /permission-denied/.test(e?.code || '') ? '無權限：只有此課程的擁有者可以讀取雲端成績。'
       : /popup-closed|cancelled-popup/.test(e?.code || '') ? '登入已取消。'
@@ -39,9 +39,9 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
         db.collection('ybsCourses/' + course + '/' + name).get({source:'server'})));
       if (!active()) return;
       const listed = new Map(roster.docs.map(d => [d.id, d.data()]));
-      people = [...listed.values()].filter(p => /^[1-9]\d{2}$/.test(String(p.cls)) && Number.isInteger(p.seat) && p.seat >= 1 && p.seat <= 60)
-        .map(p => ({cls:Number(p.cls), seat:p.seat}));
-      const grouped = new Map(); let skipped = 0;
+      people = [...listed.entries()].filter(([,p]) => /^[1-9]\d{2}$/.test(String(p.cls)) && Number.isInteger(p.seat) && p.seat >= 1 && p.seat <= 60)
+        .map(([email,p]) => ({email, cls:Number(p.cls), seat:p.seat}));
+      const grouped = new Map(), healthRecords = []; let skipped = 0;
       const integer = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
       for (const [snapshot, guest] of [[attempts, false], [guests, true]]) for (const doc of snapshot.docs) {
         const d = doc.data(), n = activities[d.activity]?.rounds?.length;
@@ -54,6 +54,7 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
             || !integer(cls, 100, 999) || !integer(seat, 1, 60) || !Number.isFinite(at) || at <= 0
             || !id || id.length > 128 || doc.id !== id + '_' + d.activity + '_' + d.round
             || (guest ? d.verified !== false : d.uid !== id)) { skipped++; continue; }
+        if (!guest) healthRecords.push({email:d.email, uid:id, activity:d.activity, round:d.round, tries:d.tries, at});
         // 不同來源與 UID 分列；同班座多個匿名 UID 不自動算作同一人。
         const key = JSON.stringify([guest, id, d.activity, cls, seat]);
         let row = grouped.get(key);
@@ -66,19 +67,21 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
       option('', '請選班級');
       for (const cls of [...new Set(people.map(p => p.cls))].sort((a,b)=>a-b)) option(String(cls), cls + ' 班');
       select.value = ''; select.disabled = false;
+      onRecords({records:healthRecords, roster:people});
       render(); message('已讀取 ' + rows.length + ' 列；略過 ' + skipped + ' 筆格式或名單不符紀錄。班座來源「未驗證」，重複班座及名冊外紀錄待核對，不合併計分。');
     } catch (e) { if (active()) { clear(); message(error(e)); } }
     finally { busy = false; controls(); }
   }
   const headers = ['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳'];
   const count = mask => { let n=0; while(mask){n+=mask&1;mask>>>=1;} return n; };
+  const score = r => activityScore(count(r.mask), activities[r.activity].rounds.length);
   const values = r => [r.cls,r.seat,r.activity,activities[r.activity].title,r.source,r.uid,count(r.mask),r.tries.length,r.tries.join(' / '),new Date(r.at)];
   const node = (tag, text) => { const n=document.createElement(tag); if(text!==undefined)n.textContent=String(text); return n; };
   function details(records, warning) {
     const box=node('details'); box.appendChild(node('summary',warning || '詳細資料'));
     for(const r of records) box.appendChild(node('p',
       '班級：' + r.cls + '・座號：' + r.seat + '・' + activities[r.activity].title + '・' + r.source + '・UID：' + r.uid + '・' + count(r.mask) + '/' + r.tries.length +
-      '・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW')));
+      '・分數：' + score(r) + ' 分・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW')));
     return box;
   }
   function render() {
@@ -104,8 +107,8 @@ window.YBSGuestTeacher = function ({course, activities, saveBook}) {
       for(const id of ids){
         const found=records.filter(r=>r.activity===id), td=node('td');
         if(found.length>1||duplicate||sharedUID){td.textContent='待核對';conflict=true;}
-        else if(found.length){const r=found[0], n=count(r.mask);td.textContent=(n===r.tries.length?'✓':n+'/'+r.tries.length)+(r.source==='未驗證'?'（未驗證）':'');}
-        else td.textContent='0/'+activities[id].rounds.length;
+        else if(found.length){const r=found[0], n=count(r.mask);td.textContent=score(r)+' 分（'+(n===r.tries.length?'✓':n+'/'+r.tries.length)+'）'+(r.source==='未驗證'?'（未驗證）':'');}
+        else td.textContent=activityScore(0,activities[id].rounds.length)+' 分（0/'+activities[id].rounds.length+'）';
         tr.appendChild(td);
       }
       const td=node('td');td.appendChild(details(records,conflict?'待核對：來源、UID 或名冊衝突':'詳細資料'));tr.appendChild(td);tbody.appendChild(tr);

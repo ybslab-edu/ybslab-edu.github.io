@@ -38,6 +38,7 @@ const SHELL = (cfg) => {
   const s = { cfg, $, esc, loginEnabled, R: cfg.rounds, level: 1, ri: 0,
     inst: null, handle: null, streak: 0, teacher: false, done: new Set(), previousKey: null, ident: null };
   shellCreateInterface(s);
+  if (typeof document.createElement === 'function') import('/assets/warmup.js?v=20261105w1').then(m => m.mountWarmup({cfg, main: $('main')})).catch(() => {});
   s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
   Object.assign(s, shellCreateHints(s));
   Object.assign(s, shellCreateRoundFlow(s), shellCreateJudging(s), shellCreateProgress(s));

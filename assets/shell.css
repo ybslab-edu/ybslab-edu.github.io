@@ -23,15 +23,15 @@
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
 .wrap{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:14px}
-header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
 h1{font-family:var(--f-display);font-size:clamp(26px,4vw,34px);margin:0;line-height:1.1}
 .activity-heading{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
-.title-rounds{display:flex;align-items:center;flex-wrap:wrap;gap:12px 8px}
-.title-rounds h1{max-width:100%;overflow-wrap:anywhere;margin-right:12px}
-.title-rounds .rounds{display:contents}
+.title-rounds{display:flex;flex-direction:column;gap:12px}
+.title-rounds h1{max-width:100%;overflow-wrap:anywhere}
 .score{flex:none;max-width:100%;margin-left:auto;font-size:15px}
 .score .small{display:block;font-size:13px;overflow-wrap:anywhere}
 .score strong{font-family:var(--f-mono);font-size:28px;color:var(--out)}
+@media (max-width:640px){header.top{grid-template-columns:minmax(0,1fr)}}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--a);outline-offset:2px}
 .rounds{display:flex;gap:8px;flex-wrap:wrap}
 .rounds button{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}

@@ -93,7 +93,7 @@ const ROUNDS=[
   tip:'一件一件照著樹走，跟「真正的分類」比，對的數一數。',
   steps:i=>'這次要考 '+i.items.length+' 件東西。第一步：每一件都照著樹從第 ① 題走到底，寫下樹給的答案。第二步：跟表上「真正的分類」比，一樣就打勾。第三步：數一數打勾的件數，除以 '+i.items.length+'，再換成百分比。',
   learn:'訓練用的資料和測試用的資料要分開，才知道模型遇到新東西準不準。準確率不是 100% 很正常：像鋁箔包是紙和鋁黏在一起，這棵簡單的樹就會分錯，要再收集這類例子改進。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,TEST,10)}while(p.every(x=>treeCls(x)===x[4]));return {items:p,acc:p.filter(x=>treeCls(x)===x[4]).length*10}},
+  gen(rnd){let p;do{p=SAMPLE(rnd,TEST,10)}while(p.every(x=>treeCls(x)===x[4]));return {items:p,acc:p.filter(x=>treeCls(x)===x[4]).length/p.length*100}},
   view(inst,el,api){el.innerHTML=TREE+'<div class="tblwrap" style="margin-top:10px"><table class="tbl"><tr><th>測試的東西</th><th>屬性</th><th>真正的分類</th></tr>'+inst.items.map(x=>'<tr><td>'+x[0]+'</td><td>'+attrs(x)+'</td><td>'+CLS[x[4]]+'</td></tr>').join('')+'</table></div>'+
     '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:18px">準確率 <input class="num-in" id="acc" inputmode="numeric" autocomplete="off"> %</label>';
     const i=el.querySelector('#acc');i.oninput=()=>api.changed();return {get:()=>NUMOK(i.value),fill:()=>{i.value=inst.acc},ready:()=>i.value.trim()!==''}},

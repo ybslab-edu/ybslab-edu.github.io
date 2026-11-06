@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {Element} from './fixtures/activity-dom.mjs';
 
 // 直接載入活動的產題、輸入處理與判定；不啟動登入、不連網。
 function activity(dir) {
@@ -19,10 +20,10 @@ for (const dir of ['u2-04', 'u2-07']) {
     const inst = dir === 'u2-04' ? {w:'LOVE'} : {b:[...Array(12).fill(1), ...Array(12).fill(0)], r:[12,12]};
     const numbers = dir === 'u2-04' ? [76,79,86,69] : inst.r;
     c.inst = inst;
-    // 用活動原本的 view/get/ready/check 路徑，僅替代文字輸入 DOM。
-    c.el = {insertAdjacentHTML(){}, querySelectorAll(){return [];}, querySelector(){return c.input;}};
-    c.input = {value:'', oninput:null};
-    vm.runInContext('const R=APP.rounds[1], handle=R.view(inst,el,{changed(){}});', c);
+    // 用活動原本的 view/get/ready/check 路徑，以共用 DOM 替身保留比較卡結構。
+    c.el = new Element('div');
+    vm.runInContext('const R=APP.rounds[1], handle=R.view(inst,el,{changed(){},esc:s=>String(s)});', c);
+    c.input = c.el.querySelector('input');
     for (const text of [numbers.join(' '), numbers.join('\n'), numbers.join('，'), '  '+numbers.join(' ')+'  ']) {
       c.input.value = text;
       assert.equal(vm.runInContext('handle.ready() && R.check(inst,handle.get()) === true', c), true, text);

@@ -132,3 +132,28 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .warmup-options{display:flex;flex-wrap:wrap;gap:8px;margin-block:12px}
 .warmup ol{padding-inline-start:24px}
 .warmup li+li{border-top:1px solid var(--line);margin-top:12px;padding-top:8px}
+
+/* 提示階梯沒有動畫，鍵盤沿用原生按鈕；長文字在手機內換行。 */
+.hint-ladder{margin-top:18px;border-top:1px solid var(--line);padding-top:16px;overflow-wrap:anywhere}
+.hint-ladder h3{font-size:18px;margin:14px 0 8px}
+.hint-ladder #hint-content{line-height:1.8}
+.hint-ladder fieldset{min-width:0;border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+.hint-ladder fieldset:disabled{opacity:1}
+.hint-ladder .demo-question{margin-bottom:12px}
+.hint-ladder #b-demo-back{margin-top:14px}
+
+#original-work{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* 成長資訊與原有成績分開顯示；窄螢幕可獨立換行。 */
+.xp-header{flex:0 1 230px;min-width:0;max-width:100%;margin-left:auto}
+.xp-header a{display:flex;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-decoration:none;overflow-wrap:anywhere;cursor:default}
+.xp-header [hidden]{display:none}
+.xp-login-hint{color:var(--muted);margin:0}
+.xp-header b{flex:1 1 100%;color:var(--a)}
+.xp-header progress{display:block;flex:1 1 100%;width:100%;height:10px;accent-color:var(--a)}
+.xp-header .small{flex-basis:100%}
+.xp-detail{font-weight:700;color:var(--out)}
+.xp-title-card{border:2px solid var(--a);border-radius:12px;padding:12px;background:var(--a-soft);color:var(--ink);animation:xp-arrive .3s ease-out}
+@keyframes xp-arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){.xp-header{flex-basis:100%;margin-left:0}.activity-heading{flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.xp-title-card{animation:none}}

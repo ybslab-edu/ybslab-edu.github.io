@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106m">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261106n">
 <style>
 .hist{font-size:26px;letter-spacing:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
 .prob{font-family:var(--f-mono)}
@@ -20,7 +20,7 @@
 <script src="../../assets/login.js?v=20261105d"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261106m"></script>
+<script src="../../assets/shell.js?v=20261106n"></script>
 <script>
 // TITLE:猜拳贏 AI
 // TERMWEEK:13
@@ -52,8 +52,16 @@ const ROUNDS=[
   goal:'每一次的判斷結果，程式該怎麼處理？',
   tip:'先找出三個數字裡最大的。≥ 60% → 就當作那個手勢；< 60% → 請玩家再出一次。',
   learn:'AI 的輸出常常是機率，不是絕對的答案。好的程式會設定門檻：沒把握的時候，請人再確認一次，而不是硬猜。門檻太高會一直要人重來，太低又容易認錯，要試著調整。',
-  gen(rnd){const rows=[];for(let k=0;k<4;k++){let p;do{const a=RINT(rnd,5,85),b=RINT(rnd,5,90-a);p=SHUF(rnd,[a,b,100-a-b])}while(new Set(p).size<3||Math.max(...p)===60);rows.push(p)}
-    const ans=rows.map(p=>{const m=Math.max(...p);return m>=60?p.indexOf(m):3});if(new Set(ans).size<2)return this.gen(rnd);return {rows,ans}},
+  gen(rnd){const rows=[],valid=p=>new Set(p).size===3&&Math.max(...p)!==60;
+    for(let k=0;k<4;k++){let p;
+      // 固定亂數或連續撞題時也能結束；備用資料仍是合法的信心值。
+      for(let draw=0;draw<20;draw++){const a=RINT(rnd,5,85),b=RINT(rnd,5,90-a);p=SHUF(rnd,[a,b,100-a-b]);if(valid(p))break}
+      rows.push(valid(p)?p:SHUF(rnd,[65,25,10]));
+    }
+    const answer=p=>{const m=Math.max(...p);return m>=60?p.indexOf(m):3},ans=rows.map(answer);
+    // 全部同答案時直接補入另一類，不遞迴呼叫 this.gen，供提示示範獨立使用。
+    if(new Set(ans).size<2){rows[3]=SHUF(rnd,ans[0]===3?[65,25,10]:[40,35,25]);ans[3]=answer(rows[3])}
+    return {rows,ans}},
   view(inst,el,api){const c=CLASSIFY(el,inst.rows.map(p=>({html:G.map((g,i)=>E[i]+' '+g+' <span class="prob">'+p[i]+'%</span>').join('　')})),[...G,'請再出一次'],api);return {...c,fill:()=>c.fill(inst.ans)}},
   check(inst,a){const w=inst.ans.map((v,i)=>a[i]===v?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 次再看一次：最大的信心值有沒有到 60%？':true}},
  {lv:2,name:'讓 AI 會贏',

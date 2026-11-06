@@ -26,7 +26,7 @@ test('標題、所有關卡、任意順序計分、重做不加分、還原／�
   assert.equal(h.body.querySelector('#main h1').textContent,'第 11 週｜燈牌只有亮和暗');
   assert.equal(h.el('unit'),null);assert.equal(h.el('tab-1'),null);
   assert.equal(h.el('rounds').querySelectorAll('button').length,5);
-  const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.run('APP.handle.fill()');h.el('b-send').click()}};
+  const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.el('tb-ans').click();h.el('b-send').click()}};
   for(const [i,expected] of [[2,60],[0,70],[3,80],[2,80],[1,90],[4,100]]){
     pass(i);assert.equal(+h.el('score-value').textContent,expected);
     assert.match(h.el('rounds').querySelectorAll('button')[i].textContent,/✓/);
@@ -46,9 +46,9 @@ test('示範頁五關都有比較卡，燈泡及輸入即時更新，原判定�
     assert.equal(h.el('says').querySelector('.tk'),null);
     if(i===0){h.body.querySelector('.my-controls button').click();assert.match(h.body.querySelector('.compare-status').textContent,/目前值：16；比目標/)}
     if(i===1){h.el('n-v').value='0';h.el('n-v').oninput();assert.match(h.body.querySelector('.compare-status').textContent,/目前值：0；比目標少/)}
-    h.run('APP.handle.fill()');assert.equal(h.run('ROUNDS[APP.ri].check(APP.inst,APP.handle.get())'),true);
+    h.el('tb-ans').click();assert.equal(h.run('ROUNDS[APP.ri].check(APP.inst,APP.handle.get())'),true);
     h.el('b-send').click();assert.match(h.el('verdict').textContent,/再一組確認/);
-    h.run('APP.handle.fill()');h.el('b-send').click();assert.match(h.el('verdict').textContent,/過關/);
+    h.el('tb-ans').click();h.el('b-send').click();assert.match(h.el('verdict').textContent,/過關/);
     if(i===1){assert.equal(h.el('b-next').textContent,'下一關');h.el('b-next').click();assert.equal(h.run('APP.ri'),2)}
   }
 });

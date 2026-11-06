@@ -5,17 +5,17 @@ import vm from 'node:vm';
 import {Element} from './fixtures/activity-dom.mjs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const source=read('assets/shell.js');
-const score=vm.runInNewContext(source+'\nshellScore');
+const score=vm.runInNewContext(source+'\nactivityScore');
 for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[0,50,60,70,80,90,100]]]){
   test(`${total} 關：逐關計分`,()=>expected.forEach((value,passed)=>assert.equal(score(passed,total),value)));
 }
-function setup(){
+function setup(total){
   const body=new Element('body'),stored=new Map(),uploads=[];
   const c=vm.createContext({document:{body,getElementById:id=>body.querySelector('#'+id)},window:{},
     localStorage:{getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)},sessionStorage:{setItem(){}},
     TEACHER:{remembered:()=>false,remember(){}},YBS:{enabled:()=>true,button(){},status(){},guest(){},submit:x=>uploads.push(x),profile:()=>null}});
   const run=s=>vm.runInContext(s,c,{timeout:2000});
-  const html=read('115-g9/u2-03/index.html');run(source+'\n'+[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'));
+  const html=read('115-g9/u2-03/index.html');run(source+'\n'+(total ? `let draw=0;const APP=SHELL({week:99,title:'合成活動',rounds:Array.from({length:${total}},(_,i)=>({name:'合成關'+i,lv:1,gen:()=>({n:++draw}),view:()=>({get:()=>true,fill(){}}),check:(_,answer)=>answer===true}))});` : [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')));
   const el=id=>body.querySelector('#'+id);
   const start=seat=>{el('in-cls').value='999';el('in-seat').value=String(seat);el('g-go').click()};
   start(1);
@@ -56,3 +56,14 @@ test('未提供 termWeek 時以課程與活動 ID 找登記資料，使用 termW
   const title=vm.runInNewContext(source+'\nshellTitle',{ACTIVITIES:[{course:'115-g9',week:5,date:'合成日期'}],termWeekOf:()=>11});
   assert.equal(title({course:'115-g9',week:5,title:'合成活動'}),'第 11 週｜合成活動');
 });
+
+for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[0,50,60,70,80,90,100]]]){
+  test(`${total} 關：活動頁實際逐關顯示與教師計分預期一致`,()=>{
+    const h=setup(total);assert.equal(+h.el('score-value').textContent,0);
+    for(let i=0;i<total;i++){
+      h.run(`APP.load(${i})`);
+      h.el('b-send').click();assert.equal(+h.el('score-value').textContent,expected[i],'一組答對尚未過關');
+      h.el('b-send').click();assert.equal(+h.el('score-value').textContent,expected[i+1]);
+    }
+  });
+}

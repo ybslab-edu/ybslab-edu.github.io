@@ -65,13 +65,13 @@ test('先選班，名冊每座號一列、每活動一欄；多 UID 不混算，
   const rows=h.get('cloud-table').querySelectorAll('tbody tr');assert.equal(rows.length,3);
   assert.equal(rows[0].querySelectorAll('td')[1].textContent,'待核對');
   assert.match(rows[0].querySelector('details').textContent,/anon1/);assert.match(rows[0].querySelector('details').textContent,/anon2/);
-  assert.match(rows[1].querySelectorAll('td')[1].textContent,/^0\//);
+  assert.match(rows[1].querySelectorAll('td')[1].textContent,/^0 分（0\//);
   await h.logout();assert.equal(h.get('cloud-class').value,'');assert.equal(h.get('cloud-table').textContent,'');
 });
 test('單一來源顯示過關數，全過顯示勾號，保留未驗證標記',async()=>{
   const h=setup({attempts:[],guests:[0,1,2,3].map(round=>guest('only_1_'+round,{round}))});await h.login();await h.read();
   h.get('cloud-class').value='999';h.get('cloud-class').onchange();
-  const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.equal(cell.textContent,'✓（未驗證）');
+  const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.equal(cell.textContent,'100 分（✓）（未驗證）');
 });
 // 模擬 details 的可見文字；textContent 會包含摺疊內容，無法抓到此回歸。
 function visibleText(node){
@@ -110,8 +110,8 @@ for(const roster of [[],[{id:'student@example.invalid',data:()=>({cls:999,seat:1
       assert.match(box.querySelector('summary').textContent,/待核對：名冊外紀錄（2 列，不計入表格）/);
       box.open=true;
       const records=box.querySelectorAll('p');assert.equal(records.length,2);
-      assert.match(records[0].textContent,/班級：997・座號：3・.+・未驗證・UID：outside2・1\/4・各關嘗試：2/);
-      assert.match(records[1].textContent,/班級：998・座號：2・.+・未驗證・UID：outside1・1\/4・各關嘗試：2/);
+      assert.match(records[0].textContent,/班級：997・座號：3・.+・未驗證・UID：outside2・1\/4・分數：70 分・各關嘗試：2/);
+      assert.match(records[1].textContent,/班級：998・座號：2・.+・未驗證・UID：outside1・1\/4・分數：70 分・各關嘗試：2/);
     };
     assert.equal(h.get('cloud-class').value,'');check();
     assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,0);
@@ -133,10 +133,35 @@ test('同座號名冊重複列為待核對；單一未全過顯示分數',async(
   const roster=[1,2].map(seat=>({id:'s'+seat+'@example.invalid',data:()=>({cls:999,seat:1})}));
   const h=setup({roster,attempts:[],guests:[guest('only_1_0')]});await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
   assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,1);assert.equal(h.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'待核對');
-  const single=setup({attempts:[],guests:[guest('only_1_0')]});await single.login();await single.read();single.get('cloud-class').value='999';single.get('cloud-class').onchange();assert.equal(single.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'1/4（未驗證）');
+  const single=setup({attempts:[],guests:[guest('only_1_0')]});await single.login();await single.read();single.get('cloud-class').value='999';single.get('cloud-class').onchange();assert.equal(single.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'70 分（1/4）（未驗證）');
 });
 test('教師 Auth 換人立即清空選班及學生表',async()=>{
   const h=setup();await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
   assert.ok(h.get('cloud-table').textContent);await h.login();
   assert.equal(h.get('cloud-table').textContent,'');assert.equal(h.get('cloud-class').value,'');assert.equal(h.get('cloud-export').disabled,true);
 });
+
+for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[0,50,60,70,80,90,100]]]){
+  test(`${total} 關：教師彙整與班座明細逐關使用活動計分；Excel 原欄位、型別與值不變`,async()=>{
+    for(let passed=0;passed<=total;passed++){
+      const h=setup({attempts:[],guests:Array.from({length:passed},(_,round)=>guest('synthetic_1_'+round,{round}))});
+      // 關卡數只取活動登記資料，使用合成的 4／5／6 關配置。
+      h.evaluate(`W[1]={...W[1],rounds:Array.from({length:${total}},(_,i)=>'合成關'+i)}`);
+      await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+      const cell=h.get('cloud-table').querySelectorAll('tbody td')[1];
+      assert.equal(cell.textContent,`${expected[passed]} 分（${passed===total?'✓':passed+'/'+total}）${passed?'（未驗證）':''}`);
+      assert.equal(h.evaluate(`activityScore(${passed},${total})`),expected[passed]);
+      if(!passed){assert.equal(h.get('cloud-export').disabled,true);continue;}
+      assert.match(h.get('cloud-table').querySelector('details').textContent,new RegExp('分數：'+expected[passed]+' 分'));
+      h.get('cloud-export').onclick();
+      assert.equal(h.downloads[0].name,'資訊科技_雲端紀錄_115-g9.xlsx');
+      const bytes=[...new Uint8Array(await h.blobs[0].arrayBuffer())];
+      h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
+      assert.deepEqual(json(h,'book.SheetNames'),['帳號與未驗證班座']);
+      const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:""})');
+      assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳']);
+      assert.deepEqual(rows[1],[999,1,1,h.evaluate('W[1].title'),'未驗證','synthetic',passed,total,Array.from({length:total},(_,i)=>i<passed?2:0).join(' / '),new Date(stamp.toMillis()).toISOString()]);
+      assert.equal(h.evaluate("book.Sheets[book.SheetNames[0]].J2.t"),'d');
+    }
+  });
+}

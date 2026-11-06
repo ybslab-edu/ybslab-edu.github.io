@@ -66,6 +66,7 @@ function orderCheck(inst,a,hint){if(!Array.isArray(a)||a.length!==inst.cards.len
   const w=a.findIndex((v,i)=>v!==inst.sol[i]);return w<0?true:'從第 '+(w+1)+' 格開始順序不對。'+hint}
 const ROUNDS=[
  {lv:1,name:'登入因材網',
+  steps:i=>'這題有 '+i.cards.length+' 張登入步驟卡。先逐張讀，問它需要先到哪個畫面、完成什麼事才能操作。再找相鄰兩步的依賴：還沒進網站能按登入嗎？還沒登入能看到任務嗎？排完從頭模擬一次，確認每一步需要的畫面都已出現。',
   now:'每一堂課的前 12 分鐘，都要先在因材網看影片、做練習題。今天先確認每個人都登入得進去。',
   goal:'把登入因材網的步驟，照順序排好。',
   tip:'先要找到網站，才能按登入；登入以後才看得到老師指派的任務。帳號、密碼照老師說的格式輸入。',
@@ -74,6 +75,7 @@ const ROUNDS=[
   view(inst,el,api){const ob=ORDERBOX(el,inst.cards,api,{pool:'步驟卡',slots:'登入的順序',first:'第一步',last:'最後一步'});return {...ob,fill:()=>ob.fill(inst.sol)}},
   check(inst,a){return orderCheck(inst,a,'這一步需要上一步先做好什麼？')}},
  {lv:1,name:'電腦教室規則',
+  steps:i=>'這題有 '+i.items.length+' 個狀況，先讀「'+i.items[0][0]+'」，找它描述的行為。再逐項對照「'+RULES.join('」、「')+'」：問題發生在座位、飲食、學習、同學互動，還是離開前？每項只選最直接違反的一條，最後逐項重讀檢查。',
   now:'電腦教室有五條規則。下面這些狀況，各違反了哪一條？',
   goal:'把每一個狀況，放到它違反的那一條規則。',
   tip:'座位、飲食、上課做的事、有沒有影響別人、離開前有沒有收好，一條一條對。',
@@ -82,6 +84,7 @@ const ROUNDS=[
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),RULES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){return CR(inst.items,a,'放錯了。這個狀況和座位、飲食、上課做的事、別人，還是離開前有關？')}},
  {lv:2,name:'成績怎麼算',
+  steps:i=>'這題有 '+i.items.length+' 件事，先讀「'+i.items[0][0]+'」。一、判斷它是在測知識、看態度與互助，還是動手做作品。二、對照「'+PARTS.join('」、「')+'」三個標籤。三、每件事都依同一標準分類，不要只因為有用電腦就選同一類。',
   now:'這一科的學期成績分成三部分：認知 30%、情意 30%、技能 40%。',
   goal:'把每一件事，放到它算在哪一部分。',
   tip:'考試是認知；上課的態度、幫助同學是情意；動手完成的作業和作品是技能。',
@@ -90,6 +93,7 @@ const ROUNDS=[
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),PARTS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){return CR(inst.items,a,'放錯了。它是考試、上課的態度和互助，還是動手完成的作業？')}},
  {lv:2,name:'這學期的故事',
+  steps:i=>'這題抽到 '+i.cards.length+' 張故事卡。先讀完所有卡片，圈出開賣、演唱會、跨年或學期最後等時間線索。再比較兩件事：其中一件是否必須先發生，另一件才有可能？只排這次出現的卡片，排完逐對檢查前後是否接得起來。',
   now:'這學期每一週，都會跟著小安和偶像團體「六連星」的後援會走一段故事。',
   goal:'照故事發生的先後，把這些事排好。',
   tip:'先要搶到票，才會去看演唱會；跨年之後，後援會才擴大到外島。最後一站是問 AI。',

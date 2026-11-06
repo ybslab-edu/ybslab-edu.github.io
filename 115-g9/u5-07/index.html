@@ -44,6 +44,7 @@ const ROUNDS=[
   now:'林老師想把全班分成兩組讀書會，可是她不想自己訂標準，想讓資料自己分組。這種 AI 跟上次的回收分類機不一樣。',
   goal:'判斷每一件事，是監督式學習（有標準答案的例子），還是非監督式學習（沒有答案，讓 AI 自己分組）。',
   tip:'監督式：訓練資料已經標好答案。非監督式：資料沒有答案，AI 自己找出「誰跟誰比較像」。',
+  steps:i=>'這題有 '+i.items.length+' 個例子。每一個都問：訓練的時候，每筆資料旁邊有沒有寫好「正確答案」？有寫好、讓 AI 照著學的是監督式；沒有答案、讓 AI 自己找出誰跟誰比較像、分成幾群的是非監督式。',
   learn:'監督式學習要有標好答案的例子（像分類機）；非監督式學習沒有答案，讓電腦自己把相像的資料分成一群（分群），常用來發現原本沒想到的分組。',
   gen(rnd){let p;do{p=SAMPLE(rnd,SUP,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['監督式','非監督式'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -52,6 +53,7 @@ const ROUNDS=[
   now:'K 平均分群的第一步：先隨便放兩個「中心」A 和 B，每個人加入離自己比較近的那一個中心。',
   goal:'每位同學每天讀書的分鐘數，離 A 近就分到 A 組，離 B 近就分到 B 組。',
   tip:'算距離：讀書分鐘數和中心相差多少？差得少的那一組就是答案。',
+  steps:i=>'A 組中心是 '+i.c[0]+' 分鐘，B 組中心是 '+i.c[1]+' 分鐘，有 '+i.names.length+' 個人要分。每個人都分兩步：一、算他的分鐘數和 '+i.c[0]+' 差多少、和 '+i.c[1]+' 差多少（大減小）。二、差得少的那一組就是他的組。例如'+i.names[0]+'是 '+i.vals[0]+' 分鐘，就先算 '+i.vals[0]+' 和 '+i.c[0]+'、'+i.c[1]+' 各差多少。',
   learn:'K 平均分群的「指派」：每一筆資料都去找最近的中心。K 是要分成幾群，這裡 K＝2。',
   gen(rnd){for(;;){const c=[RINT(rnd,2,6)*10,RINT(rnd,9,13)*10],names=SAMPLE(rnd,NAMES,8),vals=names.map(()=>RINT(rnd,1,29)*5);if(vals.some(v=>Math.abs(v-c[0])===Math.abs(v-c[1])))continue;const g=vals.map(v=>nearest(v,c));if(new Set(g).size<2)continue;return {c,names,vals,g}}},
   view(inst,el,api){el.innerHTML=lineSVG(inst.vals,inst.c)+'<div class="ctr"><span>中心 A：<b>'+inst.c[0]+'</b> 分鐘</span><span>中心 B：<b>'+inst.c[1]+'</b> 分鐘</span></div>';
@@ -61,6 +63,7 @@ const ROUNDS=[
   now:'K 平均分群的第二步：每一組分好之後，把中心搬到這一組的「平均」位置。',
   goal:'算出 A 組和 B 組新的中心（這一組所有人的平均分鐘數）。',
   tip:'平均＝這一組的分鐘數加起來 ÷ 人數。',
+  steps:i=>'這次要算兩組的新中心，每組各 '+i.g.filter(x=>x===0).length+' 人。第一步：把 A 組的人挑出來，把他們的分鐘數全部加起來。第二步：除以 A 組的人數，得到 A 組的平均。第三步：B 組照同樣方法再算一次。',
   learn:'K 平均分群會一直重複兩件事：①每個人找最近的中心，②中心搬到組員的平均位置。重複到中心不再移動，就分好了。',
   gen(rnd){for(;;){const names=SAMPLE(rnd,NAMES,8),g=SHUF(rnd,[0,0,0,0,1,1,1,1]),vals=g.map(k=>k?RINT(rnd,16,29)*5:RINT(rnd,2,14)*5);const m=[mean(vals.filter((_,i)=>g[i]===0)),mean(vals.filter((_,i)=>g[i]===1))];if(m.every(Number.isInteger))return {names,g,vals,m}}},
   view(inst,el,api){el.innerHTML=lineSVG(inst.vals);const c=CLASSIFY(el,inst.names.map((n,i)=>({html:n+'：<b>'+inst.vals[i]+'</b> 分鐘'})),['A 組','B 組'],api);c.fill(inst.g);el.querySelectorAll('.pk').forEach(b=>b.disabled=true);
@@ -72,6 +75,7 @@ const ROUNDS=[
   now:'林老師給了起始的兩個中心，請你一直重複「指派 → 搬中心」，直到中心不再移動。',
   goal:'最後兩組的中心分別是幾分鐘？',
   tip:'每一輪：先把每個人分到最近的中心，再算兩組的平均當新中心。新中心和上一輪一樣，就停。',
+  steps:i=>'一開始的兩個中心是 '+i.c[0]+' 和 '+i.c[1]+'。每一輪做兩件事：一、把 '+i.names.length+' 個人各自分到比較近的中心。二、分別算兩組的平均，當成新中心。把新中心和上一輪比，一樣就停；不一樣就用新中心再做一輪。建議把每一輪的兩個中心寫成一列，方便比對。',
   learn:'K 平均分群一定會停下來，但起點不同，結果可能不一樣；所以實際使用時，常常換幾個起點多跑幾次，挑分得最好的。',
   gen(rnd){for(;;){const names=SAMPLE(rnd,NAMES,8),vals=names.map(()=>RINT(rnd,2,29)*5),c=[RINT(rnd,1,6)*10,RINT(rnd,7,14)*10];
     if(vals.some(v=>Math.abs(v-c[0])===Math.abs(v-c[1])))continue;const r=kmeans(vals,[...c]);if(!r||r.it<3||!r.c.every(Number.isInteger)||r.c[0]===r.c[1])continue;

@@ -54,6 +54,7 @@ const XY={'美國':[700,96],'台灣':[372,150],'馬來西亞':[250,236],'印度'
 const CR=(items,a,h)=>Array.isArray(a)?CHECKROWS(items,a,h):'每一項都要選好。';
 const ROUNDS=[
  {lv:1,name:'倒帶時間軸',
+  steps:i=>'這題有 '+i.items.length+' 張事件卡。先讀「'+i.items[0][1]+'」，找零件大小、整合程度和用途的線索。再逐張比較：是還要很多分開的零件，還是已能把更多功能放在一片晶片？把較早技術放前面，最後檢查相鄰事件有沒有出現先用到尚未發展的技術。',
   now:'新手機發表會上，主持人說：「這支手機比 1946 年那台占滿整個房間的電腦還強幾百萬倍。」小安想知道中間發生了什麼事。',
   goal:'把這些事件由早到晚排好。',
   tip:'先找最大、最耗電的那一個；零件越做越小，電腦就越來越小。',
@@ -62,6 +63,7 @@ const ROUNDS=[
   view(inst,el,api){const ob=ORDERBOX(el,inst.items.map(x=>x[1]),api,{pool:'事件卡',slots:'時間軸',first:'最早',last:'最近'});return {...ob,fill:()=>ob.fill(inst.sol)}},
   check(inst,a){if(!Array.isArray(a)||a.some(v=>v==null||!inst.items[v]))return '每一格都要放一張事件卡。';const y=a.map(v=>inst.items[v][0]);const w=y.findIndex((v,i)=>i&&v<y[i-1]);return w<0?true:'第 '+w+' 格和第 '+(w+1)+' 格的順序反了，哪一個比較早？'}},
  {lv:1,name:'它是哪一代',
+  steps:i=>'這題有 '+i.items.length+' 張說明牌，先讀「'+i.items[0][0]+'」。一、找它描述的是燈泡般的零件、單顆開關，還是整合在晶片上的開關。二、若已整合，再看是一部分電路還是整顆 CPU。三、對照「'+GEN.join('」、「')+'」的原標籤放回去，逐張用相同問題檢查。',
   now:'小安在科技館看到一面「電腦的四個世代」展示牆，說明牌被風吹亂了。',
   goal:'把每一張說明牌放回它屬於的世代。',
   tip:'真空管像燈泡；電晶體是單獨一顆的小開關；積體電路把幾個零件做在同一片；超大型積體電路一片就裝下整顆 CPU 甚至更多。',
@@ -70,6 +72,7 @@ const ROUNDS=[
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),GEN,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
   check(inst,a){return CR(inst.items,a,'放錯世代了。想想那時候的零件長什麼樣子、電腦有多大。')}},
  {lv:2,name:'晶片環遊世界',
+  steps:i=>'這題有 '+i.cards.length+' 張旅程卡，卡上地點有 '+i.cards.map(x=>x[0]).join('、')+'。先看每張卡在做什麼，不要照國家遠近排。再問：這項工作要先拿到什麼，做完又能交給下一站什麼？把前後需要的東西接起來，最後確認手機出廠前已完成必要的製造和檢查。',
   now:'小安的新手機裡那顆晶片，在送到他手上之前，已經繞了大半個地球。',
   goal:'照晶片真正經過的順序，排出它的旅程。',
   tip:'先要有設計圖，才能做出晶片；晶片要先包好、測試過，才能裝進手機。',
@@ -86,6 +89,7 @@ const ROUNDS=[
     pts.forEach((k,i)=>{const [x,y]=XY[k],dup=pts.slice(0,i).filter(q=>q===k).length;s+='<text x="'+(x+14+dup*18)+'" y="'+(y-12)+'" font-size="18" font-weight="700" fill="var(--b)">'+(i+1)+'</text>'});
     return '<section class="panel"><div class="ptitle"><h3>照你排的順序，晶片這樣跑</h3><span class="tag">'+pts.join(' → ')+'</span></div>'+s+'</svg></section>'}},
  {lv:2,name:'每兩年翻一倍',
+  steps:i=>'從 '+i.y1+' 年到 '+i.y2+' 年，起初有 '+i.n+' 億個電晶體。一、先算（'+i.y2+' − '+i.y1+'）÷ 2，知道經過幾個兩年。二、每過兩年就把手上的數字乘 2，不是加 2。三、'+(i.q==='x'?'題目問幾倍，從 1 倍開始連乘，最後填倍數。':'題目問幾億個，從 '+i.n+' 億開始連乘，最後填數量。'),
   now:e=>'發表會說：晶片裡的電晶體數量，大約每兩年就增加一倍。'+e.y1+' 年的一顆晶片有 '+e.n+' 億個電晶體。',
   goal:e=>e.q==='x'?'照「每兩年翻一倍」算，到 '+e.y2+' 年，電晶體數量會變成 '+e.y1+' 年的幾倍？':'照「每兩年翻一倍」算，到 '+e.y2+' 年，一顆晶片大約會有幾億個電晶體？',
   tip:'先算經過幾個「兩年」，就乘幾次 2。',

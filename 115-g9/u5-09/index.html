@@ -47,6 +47,7 @@ const ROUNDS=[
   now:'猜拳 AI 要先學會認「石頭、剪刀、布」。全班分組拍照片當訓練資料，林老師一組一組檢查。',
   goal:'每一組的照片，夠好嗎？如果不夠好，問題出在哪？',
   tip:'好的訓練資料：數量夠多、各種情況都有（人、光線、背景、角度）、每一類差不多多、標籤正確。',
+  steps:i=>'這題有 '+i.items.length+' 批照片。每一批都檢查四件事：一、數量夠不夠多？二、各種情況都有嗎（不同的人、光線、背景、角度）？三、每一類的張數差不多嗎？四、標籤有沒有標對？四項都過才算好的訓練資料；不行的要說得出卡在哪一項。',
   learn:'影像 AI 學到的，就是你給它看的照片。照片太少學不會；情況太單一，換個環境就認不出；標錯了，它就學錯。收集資料是做 AI 最花時間、也最重要的一步。',
   gen(rnd){let p;do{p=SAMPLE(rnd,DATA,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),DQ,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -55,6 +56,7 @@ const ROUNDS=[
   now:'模型訓練好了。小禾說：「用剛剛的照片測一次，100% 都對耶！」林老師搖搖頭。',
   goal:'判斷每一種做法對不對。',
   tip:'就像考試：考卷題目如果早就給你看過，考 100 分也不代表你真的會。',
+  steps:i=>'這題有 '+i.items.length+' 個做法。每一個都問：拿來「考」AI 的照片，AI 訓練時是不是已經看過了？看過了就像考試前先看過考卷，分數再高也不算數；測試用的照片要另外留一份，AI 從沒看過才公平。',
   learn:'測試資料一定要是模型「沒看過」的，才知道它遇到新的手會不會認。也不能為了分數好看，偷偷把測試照片拿去訓練。',
   gen(rnd){let p;do{p=SAMPLE(rnd,SPLIT,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['不對','對'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
@@ -63,6 +65,7 @@ const ROUNDS=[
   now:'用沒看過的照片測試後，電腦給了一張「混淆矩陣」：每一列是真正的手勢，每一欄是 AI 猜的手勢。',
   goal:'算出準確率，再找出 AI 最常把哪一種認成哪一種。',
   tip:'對角線（綠色）是猜對的。準確率＝對角線加起來 ÷ 全部 × 100%。不在對角線上、數字最大的格子，就是最常認錯的。',
+  steps:i=>'這張表一共 '+i.tot+' 張照片。第一步：找出對角線（綠色）上的三格，那是猜對的張數，把它們加起來。第二步：準確率＝對角線總和 ÷ '+i.tot+' × 100%。第三步：再看不在對角線上的格子，數字最大的那一格，就是 AI 最常把哪一個認成哪一個。',
   learn:'混淆矩陣不只告訴你準不準，還告訴你「錯在哪裡」：知道 AI 常把布認成剪刀，就知道該多收集哪一種照片。',
   gen(rnd){for(;;){const m=G.map((_,r)=>G.map((_,c)=>r===c?0:RINT(rnd,0,4)));const tot=PICK(rnd,[50,100]);let off=m.flat().reduce((a,b)=>a+b,0);const rest=tot-off;if(rest<30)continue;
     const d=[Math.floor(rest/3),Math.floor(rest/3)];d.push(rest-d[0]-d[1]);d.forEach((v,i)=>m[i][i]=v);
@@ -78,6 +81,7 @@ const ROUNDS=[
   now:'園遊會前試玩，大家發現 AI 在某些情況常常認錯。',
   goal:'每一個問題，最該怎麼改進？',
   tip:'先找出 AI 在「哪種情況」錯，再補那種情況的照片；如果是標籤錯了，再多照片也沒用，要先改標籤。',
+  steps:i=>'這題有 '+i.items.length+' 個問題。每一個都先判斷 AI 是在「哪種情況」認錯：某種光線、背景或手的角度沒學過，就補那種情況的照片；標籤本身標錯了，再多照片也沒用，要先改標籤；照片整體太少，就多收一些。',
   learn:'改進模型的關鍵在資料：哪裡錯就補哪種資料，標籤錯就先修正，再重新訓練、重新測試。這個「收集 → 訓練 → 測試 → 改進」的循環會一直重複。',
   gen(rnd){let p;do{p=SAMPLE(rnd,FIXQ,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
   view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FIX,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},

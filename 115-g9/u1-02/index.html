@@ -67,6 +67,7 @@ function schedCheck(inst,seq){
 const MEMAPP=['音樂','LINE','直播','相機','地圖','遊戲','修圖','瀏覽器','計算機','行事曆'];
 const ROUNDS=[
  {lv:1,name:'輪流用 CPU',
+  steps:i=>'這次有 '+i.t.length+' 個 App、'+i.cards.length+' 格 CPU 時間。先讀「'+i.t[0].n+'」：要用 '+i.t[0].need+' 格，最晚第 '+i.t[0].dl+' 格做完。一、比較所有 App 的時限。二、每排一格就把該 App 剩餘工作減一格，再比較還沒做完的工作。三、數每個 App 最後出現在哪一格，檢查有沒有超時。',
   now:'加場開賣前，小安手機裡有幾個 App 同時要用 CPU。手機裡有一個看不見的「管家」，負責決定這一格時間給誰。',
   goal:'把每一格時間排給一個 App，讓每個 App 都在時限內做完。',
   tip:'時限最早的先做。排好之後，數一數每個 App 最後一格是第幾格，有沒有超過時限。',
@@ -75,6 +76,7 @@ const ROUNDS=[
   view(inst,el,api){return schedView(inst,el,api,false)},
   check:schedCheck},
  {lv:1,name:'看懂工作管理員',
+  steps:i=>'這題問的是 '+(i.q==='cpu'?'CPU 百分比':'記憶體 MB')+'，有 '+i.n.length+' 個 App。一、先遮住另一欄，只讀題目要比的數字：'+(i.q==='cpu'?i.cpu.map(v=>v+'%'):i.mem.map(v=>v+' MB')).join('、')+'。二、從表格第一列往下，每次保留較大的數字。三、回到表格，找最後保留的數字所屬的 App 再選。',
   now:'手機開始發燙、變卡。小安打開「工作管理員」，看每個 App 正在用多少 CPU 和記憶體。',
   goal:e=>e.q==='cpu'?'現在最吃 CPU（讓手機發燙）的是哪一個 App？':'現在占用記憶體最多的是哪一個 App？',
   tip:'看清楚題目問的是哪一欄，再比大小。',
@@ -87,6 +89,7 @@ const ROUNDS=[
     return PICKONE(el,inst.n,api,inst.ans)},
   check(inst,v){if(v===inst.ans)return true;if(v==null||!inst.n[v])return '選一個 App。';return inst.q==='cpu'?'「'+inst.n[v]+'」的 CPU 不是最高。看 CPU 那一欄，百分比最大的是誰？':'「'+inst.n[v]+'」的記憶體不是最多。看記憶體那一欄，MB 最大的是誰？'}},
  {lv:2,name:'有人插隊',
+  steps:i=>'這次有 '+i.t.length+' 個 App、'+i.cards.length+' 格 CPU 時間。「'+i.t[0].n+'」從第 '+i.t[0].rel+' 格有工作，要做 '+i.t[0].need+' 格，最晚第 '+i.t[0].dl+' 格完成。一、每一格先排除尚未出現或已做完的工作。二、比較剩下工作誰的時限最早。三、排完這格再更新剩餘格數；下一格重新檢查，不要一次排到底。',
   now:'開賣倒數中，有一個 App 晚一點才有工作要做（例如 LINE 第幾格才跳出新訊息）。管家要邊做邊調整。',
   goal:'把每一格時間排給一個 App：還沒出現的工作不能先做，每個 App 都要在時限內做完。',
   tip:'每一格都問：現在已經出現、還沒做完的 App 裡，誰的時限最早？就給它。',
@@ -95,6 +98,7 @@ const ROUNDS=[
   view(inst,el,api){return schedView(inst,el,api,true)},
   check:schedCheck},
  {lv:2,name:'記憶體不夠了',
+  steps:i=>'RAM 共 '+i.cap+' GB，系統先用 2 GB；「'+i.fg+'」正在用，搶票 App 需要 '+i.need+' GB。一、用總容量扣掉系統和表中 '+i.rows.length+' 個 App 的占用量。二、保護前景 App，只比較背景 App 的上次使用時間。三、從最久沒用的開始累加可釋放容量，夠用就停；再用「留著」「關掉」完成每列。',
   now:e=>'手機記憶體（RAM）共 '+e.cap+' GB，作業系統自己用掉 2 GB，其他 App 用掉的如下表。小安正在用「'+e.fg+'」，現在要打開「搶票 App」，它需要 '+e.need+' GB。',
   goal:'像管家一樣，決定要關掉哪些背景 App，空出夠用的記憶體。',
   tip:'正在用的（前景）不能關。從最久沒用的開始關，空間夠了就停，不要多關。',

@@ -27,7 +27,7 @@ export function setup({stored=new Map(),storageErrors={},cloud}={}){
     Blob,URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic';},revokeObjectURL(){}},setTimeout:()=>0,
     YBS:cloud?.ybs, firebase:cloud?.firebase,
   });
-  for(const path of ['assets/vendor/xlsx-0.20.3.full.min.js','assets/curriculum.js','assets/activities.js','assets/item-health.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
+  for(const path of ['assets/vendor/xlsx-0.20.3.full.min.js','assets/curriculum.js','assets/activities.js','assets/shell.js','assets/item-health.js']) vm.runInContext(read(path),context,{filename:path,timeout:3000});
   if(cloud)vm.runInContext(read('assets/guest-teacher.js'),context,{filename:'assets/guest-teacher.js'});
   vm.runInContext(scripts,context,{filename:'115-g9/teacher/index.html',timeout:1000});
   const evaluate=source=>vm.runInContext(source,context,{timeout:1000});

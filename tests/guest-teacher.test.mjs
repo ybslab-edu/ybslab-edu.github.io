@@ -26,7 +26,7 @@ test('owner 同時讀 attempts、guestAttempts 與 roster；未驗證明細完�
   const bytes=[...new Uint8Array(await h.blobs[0].arrayBuffer())];
   h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
   const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:""})');
-  assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數']);
+  assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數','等級','XP']);
   assert.equal(rows.filter(r=>r[4]==='未驗證').length,2);assert.equal(rows.find(r=>r[5]==='anon1')[6],2);
   assert.equal(rows.find(r=>r[5]==='real1')[4],'帳號名單');
 });
@@ -159,7 +159,7 @@ for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[
       h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
       assert.deepEqual(json(h,'book.SheetNames'),['帳號與未驗證班座']);
       const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:""})');
-      assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數']);
+      assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數','等級','XP']);
       assert.deepEqual(rows[1].slice(0,10),[999,1,1,h.evaluate('W[1].title'),'未驗證','synthetic',passed,total,Array.from({length:total},(_,i)=>i<passed?2:0).join(' / '),new Date(stamp.toMillis()).toISOString()]);
       assert.equal(h.evaluate("book.Sheets[book.SheetNames[0]].J2.t"),'d');
     }
@@ -187,7 +187,7 @@ for(const [label,offset,expected] of [['截止前',-1,'準時'],['截止當下',
     timed.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
     const row=json(timed,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1})')[1];
     assert.equal(row[10].split(' / ')[0],formatted);assert.equal(row[11].split(' / ')[0],expected);
-    assert.deepEqual(row.slice(12),[expected==='準時'?1:0,expected==='補做'?1:0,expected==='未判定'?1:0]);
+    assert.deepEqual(row.slice(12,15),[expected==='準時'?1:0,expected==='補做'?1:0,expected==='未判定'?1:0]);
   });
 }
 test('同關多筆取最早，其他關較晚的時間不會將準時關改成補做',async()=>{
@@ -204,4 +204,41 @@ test('同關多筆取最早，其他關較晚的時間不會將準時關改成�
 test('補做截止視窗與 XP 維持七天一致',()=>{
   const xp=readFileSync(new URL('../assets/xp.js',import.meta.url),'utf8');
   assert.match(xp,/windowMs:7 \* 864e5/);
+});
+
+
+test('教師與學生以同一組全帳號 attempts 計算 XP；跨活動、UID、重複關卡及時間回退一致',async()=>{
+  const probe=setup(), open=probe.evaluate("activityOpenAt(W[1])");
+  const records=[
+    ...Array.from({length:4},(_,round)=>({uid:'old',email:'student@example.invalid',activity:1,round,level:1,tries:2,at:new Date(open+1000).toISOString(),passedAt:{toMillis:()=>open+8*864e5}})),
+    {uid:'new',email:'student@example.invalid',activity:1,round:0,level:1,tries:1,passedAt:{toMillis:()=>open+9*864e5}},
+    {uid:'new',email:'student@example.invalid',activity:2,round:0,level:1,tries:1,passedAt:{toMillis:()=>open}},
+    {uid:'new',email:'student@example.invalid',activity:3,round:0,level:1,tries:1},
+  ];
+  const h=setup({guests:[],attempts:records.map(d=>({id:d.uid+'_'+d.activity+'_'+d.round,data:()=>d}))});
+  await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  const expected=json(h,`YBSXP.calculate(Object.values(W).map(a=>({...a,openedAt:activityOpenAt(a)})),${JSON.stringify(records.map(d=>({...d,course:'115-g9',passedAt:d.passedAt?.toMillis()})))})`);
+  assert.equal(expected.totalXP,100,'全過 80、另兩關 20；重複不計，無時間不加成');
+  const cell=h.get('cloud-table').querySelector('.cloud-xp');
+  assert.equal(cell.textContent,'Lv '+expected.level+' '+expected.title+expected.totalXP+' XP');
+  h.get('cloud-export').onclick();
+  const bytes=[...new Uint8Array(await h.blobs[0].arrayBuffer())];
+  h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
+  const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1})');
+  assert.ok(rows.slice(1).every(r=>r[15]===expected.level&&r[16]===expected.totalXP));
+});
+test('班座來源的等級與匯出皆為破折號；無紀錄帳號顯示 Lv 1；座號排序不受 XP 影響',async()=>{
+  const h=setup({roster:[3,1,2].map(seat=>({id:'s'+seat+'@example.invalid',data:()=>({cls:999,seat})})),
+    guests:[guest('guest_1_0')],attempts:[{id:'account_1_0',data:()=>({uid:'account',email:'s3@example.invalid',activity:1,round:0,level:1,tries:1,passedAt:stamp})}]});
+  await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  const rows=h.get('cloud-table').querySelectorAll('tbody tr');
+  assert.deepEqual(rows.map(r=>r.querySelector('td').textContent),['1','2','3']);
+  assert.equal(rows[0].querySelector('.cloud-xp').textContent,'—');
+  assert.equal(rows[1].querySelector('.cloud-xp').textContent,'Lv 1 位元見習生0 XP');
+  assert.match(rows[2].querySelector('.cloud-xp').textContent,/10 XP$/);
+  h.get('cloud-export').onclick();
+  const bytes=[...new Uint8Array(await h.blobs[0].arrayBuffer())];
+  h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
+  const exported=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1})');
+  assert.deepEqual(exported[1].slice(-2),['—','—']);
 });

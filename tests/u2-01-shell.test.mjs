@@ -166,20 +166,23 @@ test('實際拍照保留所有判定分支、清空答案與照片更換時機',
   h.fill();h.shoot();assert.equal(h.progress().mask,15);assert.match(h.get('verdict').textContent,/全部完成！/);
 });
 
-test('舊進度、week=3、it9:last、進度及四關上傳欄位相容，完成關不再記次',()=>{
+test('舊進度、week=3、it9:last、進度及上傳欄位相容，完成關不再記次或上傳',()=>{
   const old={mask:2,tries:[2,3,0,0],time:1234567890000},h=setup({old});
   assert.deepEqual(h.progress(),old);assert.equal(h.flushed(),1);
   const decoded=()=>h.evaluate('JSON.parse(localStorage.getItem("it9:w3:999-1"))');
   assert.equal(decoded().mask,2);
   for(let i=0;i<4;i++){
-    h.load(i);h.fill();h.shoot();const u=h.uploads[i];
+    const count=h.uploads.length;h.load(i);h.fill();h.shoot();
+    assert.equal(h.uploads.length,count+(i===1?0:1));
+    if(i===1)continue; // 舊存檔已過關，重做不得再次上傳。
+    const u=h.uploads.at(-1);
     assert.deepEqual([u.course,u.activity,u.termWeek,u.title,u.round,u.cls,u.seat],['115-g9',3,9,'看台最後一排',i,999,1]);
     assert.equal(u.roundName,h.evaluate('ROUNDS['+i+'].name'));assert.equal(u.level,i<2?'基礎':'進階');
     assert.equal(u.tries,i===0||i===1?3:1);assert.equal(u.mask,h.progress().mask);assert.equal('code' in u,false);
     assert.deepEqual(Array.from(u.rounds),['看清背號','認出應援色','容量剛好夠','衛星數遊覽車']);
   }
   assert.deepEqual(JSON.parse(h.stored.get('it9:last')),{cls:999,seat:1});
-  const before=h.progress().tries;h.shoot();assert.deepEqual(h.progress().tries,before);
+  const before=h.progress().tries;h.shoot();assert.deepEqual(h.progress().tries,before);assert.equal(h.uploads.length,3);
   assert.equal(decoded().mask,15);assert.deepEqual(Array.from(decoded().tries).slice(0,4),before);
   h.status('sending');assert.match(h.get('sync').textContent,/上傳中/);
   h.status('pending');assert.match(h.get('sync').textContent,/自動重試/);

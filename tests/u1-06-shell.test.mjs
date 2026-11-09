@@ -122,7 +122,7 @@ test('四關順序、固定雙組資料、所有排卡的實際判定與獨立�
   }
 });
 
-test('錯答不過、播放開始記次、一次雙資料過關、四關上傳與舊進度/進度相容',()=>{
+test('錯答不過、播放開始記次、一次雙資料過關、僅新過關上傳與舊進度/進度相容',()=>{
   const old={mask:2,tries:[3,4,0,0],time:1790000000000},h=setup({old});
   assert.deepEqual(h.progress(),old);
   assert.equal(h.evaluate('JSON.parse(localStorage.getItem("it9:w2:999-1")).mask'),2);
@@ -133,8 +133,8 @@ test('錯答不過、播放開始記次、一次雙資料過關、四關上傳�
   for(const i of [1,2,3]){h.evaluate('APP.load('+i+')');h.play();assert.ok(h.progress().mask&(1<<i))}
   const decoded=h.evaluate('JSON.parse(localStorage.getItem("it9:w2:999-1"))');
   assert.equal(decoded.mask,15);assert.deepEqual(Array.from(decoded.tries).slice(0,4),[5,4,1,1]);
-  assert.deepEqual(h.uploads.map(x=>[x.activity,x.termWeek,x.round,x.tries]),[[2,8,0,5],[2,8,1,4],[2,8,2,1],[2,8,3,1]]);
-  h.play();assert.equal(h.progress().tries[3],1);
+  assert.deepEqual(h.uploads.map(x=>[x.activity,x.termWeek,x.round,x.tries]),[[2,8,0,5],[2,8,2,1],[2,8,3,1]]);
+  h.play();assert.equal(h.progress().tries[3],1);assert.equal(h.uploads.length,3,'重做已過關卡不再上傳');
 });
 
 test('儲存失敗顯示 shell 提示；教師暫停、前後步、跳步、停止、鍵盤且不記分',()=>{

@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261109b">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261109d">
 <style>
 /* Layout: 由上而下三段：① 任務說明 → ② 排出運作流程（可用的步驟／你的順序）→ ③ 播放（RAM、儲存空間、小安看到、觸控螢幕／CPU／螢幕畫面）；顏色與簡報一致 */
 :root{
@@ -166,7 +166,7 @@ body.teacher .slot .card{cursor:pointer}
 <script src="../../assets/teacher.js?v=20261031e"></script>
 <script src="../../assets/lock.js?v=20261105m"></script>
 <script src="../../assets/login.js?v=20261109c"></script>
-<script src="../../assets/shell.js?v=20261109b"></script>
+<script src="../../assets/shell.js?v=20261109d"></script>
 <script>
 const WEEK=2, TERM_WEEK=8, TITLE='打王前記得存檔', COURSE='115-g9';
 const GAME='遊戲', PROG='（程式）', CMD='這次指令';
@@ -621,7 +621,7 @@ const APP=SHELL({week:WEEK,termWeek:TERM_WEEK,title:TITLE,course:COURSE,
     // shell 在 gen 後清空 stage；先保留判定節點，再於 view 放回播放區。
     gen:()=>{$('main').append($('verdict'));return {round:i}},
     view(inst,el,api){
-      activityApi=api;teacher=$('report').hidden;
+      activityApi=api;teacher=!$('tbar').hidden;
       document.body.classList.toggle('teacher',teacher);
       el.innerHTML=STAGE_HTML;
       $('playback').append($('verdict'));
@@ -638,7 +638,7 @@ const APP=SHELL({week:WEEK,termWeek:TERM_WEEK,title:TITLE,course:COURSE,
     }
   }))});
 $('b-send').hidden=true;$('streak').hidden=true;$('send-hint').hidden=true;
-$('stage').previousElementSibling.innerHTML='<span class="num">2</span>排出運作流程';
+$('stage').previousElementSibling.querySelector('h2').innerHTML='<span class="num">2</span>排出運作流程';
 $('says').insertAdjacentHTML('afterend','<p class="small">每個步驟上面是小安看到的，下面是電腦其實在做的。從「可用的步驟」點選，依序排進「你的順序」，再按「播放」，到第 3 部分看電腦怎麼跑。不一定要從第 1 步開始：先點一個空格（例如最後一步），再點步驟，就能放進那一格。排錯了可以直接拖曳步驟（或按 ▲▼）調整，點一下步驟就拿回去。</p>');
 // 學生播放時不可換關或換人；教師仍能用播放列、點步驟跳步或登出中止。
 $('main').addEventListener('click',e=>{

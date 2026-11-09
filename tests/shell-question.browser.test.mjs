@@ -114,21 +114,18 @@ const contrast=(a,b)=>{
   const luminance=color=>color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
   const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
 };
-test('過關按鈕深淺色 AA、選中外框；上傳旁分數在桌面及手機可換行且不重疊',async t=>{
+test('過關按鈕深淺色 AA、選中外框；頁首上傳狀態在桌面及手機不溢出',async t=>{
   for(const theme of ['light','dark'])for(const width of [1280,390]){
     const page=await setup(t);
     await page.setViewportSize({width,height:1000});
     await page.evaluate(theme=>{
       document.documentElement.dataset.theme=theme;
-      const sync=document.getElementById('sync2');sync.hidden=false;sync.textContent='✓ 紀錄已上傳給老師';
+      const sync=document.getElementById('sync');sync.hidden=false;sync.textContent='✓ 紀錄已上傳給老師';
     },theme);
     assert.equal(await page.locator('#prog').count(),0);
     assert.doesNotMatch(await page.locator('#main').innerText(),/我的過關進度|滿分 100|每少過一關/);
-    assert.equal(await page.locator('header #score').count(),0);
-    assert.equal(await page.locator('.report-status > #score').count(),1);
-    assert.equal(await page.locator('#score-value').textContent(),'90');
+    assert.equal(await page.locator('#report, #score, #sync2, #rep-note').count(),0);
     await page.evaluate(()=>{document.getElementById('b-send').click();document.getElementById('b-send').click();APP.load(1)});
-    assert.equal(await page.locator('#score-value').textContent(),'100');
     assert.equal(await page.locator('#rounds button.passed').count(),2);
     // 選中與鍵盤焦點是獨立狀態；先移除殘留焦點，再檢查選中外框。
     await page.evaluate(()=>document.activeElement?.blur());
@@ -148,24 +145,16 @@ test('過關按鈕深淺色 AA、選中外框；上傳旁分數在桌面及手�
       selected:el.getAttribute('aria-pressed'),visible:el.matches(':focus-visible'),outline:getComputedStyle(el).outlineWidth
     }));
     assert.deepEqual(focus,{selected:'false',visible:true,outline:'3px'});
-    const layout=await page.locator('.report-status').evaluate(el=>{
-      const rect=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}};
-      return {sync:rect(el.querySelector('#sync2')),score:rect(el.querySelector('#score')),width:document.documentElement.scrollWidth};
-    });
-    assert.ok(layout.score.left>=layout.sync.right||layout.score.top>=layout.sync.bottom);
-    if(width===1280)assert.ok(layout.score.left>=layout.sync.right,'桌面分數在上傳狀態右側');
-    assert.ok(layout.width<=width);assert.ok(layout.score.right<=width);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   }
 });
 
-for(const width of [1280,390])for(const teacher of [false,true])test(`分數真實可見性與截圖：${width}px，${teacher?'教師':'學生'}，零關及部分過關`,async t=>{
+for(const width of [1280,390])for(const teacher of [false,true])test(`移除分數與教師模式截圖：${width}px，${teacher?'教師':'學生'}，零關及部分過關`,async t=>{
   const page=await setup(t,{teacher,mask:0});
   await page.setViewportSize({width,height:1000});
   for(const passed of [0,1]){
     if(passed)await page.evaluate(()=>{document.getElementById('b-send').click();document.getElementById('b-send').click()});
-    assert.equal(await page.locator('#score').isVisible(),true);
-    assert.equal(await page.locator('#score-value').textContent(),passed&&!teacher?'90':'0');
-    assert.equal(await page.locator('#rep-note').isVisible(),!teacher);
+    assert.equal(await page.locator('#score, #report, #rep-note').count(),0);
     if(passed)assert.match(await page.locator('#verdict').innerText(),/過關/);
     if(passed&&!teacher){
       assert.equal(await page.getByRole('button',{name:'合成關1 已過關',exact:true}).count(),1);
@@ -183,7 +172,7 @@ for(const width of [1280,390])for(const teacher of [false,true])test(`分數真�
     await page.click('#b-swap');
     // 此合成頁未載入 login.js；沿用 setup 的班座進場方式，只驗證退出示範後的顯示。
     await page.evaluate(()=>{document.getElementById('in-cls').value='999';document.getElementById('in-seat').value='1';document.getElementById('g-go').click()});
-    assert.equal(await page.locator('#score').isVisible(),true);
-    assert.equal(await page.locator('#rep-note').isVisible(),true,'退出教師模式後恢復上傳說明');
+    assert.equal(await page.locator('#score, #report, #rep-note').count(),0);
+    assert.equal(await page.locator('#b-hint').isVisible(),true,'退出教師模式後恢復提示按鈕');
   }
 });

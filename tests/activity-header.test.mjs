@@ -25,14 +25,12 @@ test('標題、所有關卡、任意順序計分、重做不加分、還原／�
   const h=setup();
   assert.equal(h.body.querySelector('#main h1').textContent,'第 11 週｜燈牌只有亮和暗');
   assert.equal(h.el('prog'),null);assert.doesNotMatch(h.body.textContent,/我的過關進度|滿分 100|每少過一關/);
-  assert.equal(h.el('score').parentElement,h.el('report').parentElement);
-  assert.equal(h.el('report').querySelector('#score'),null);
-  assert.equal(h.body.querySelector('header #score'),null);
+  for(const id of ['score','score-value','report','sync2','rep-note'])assert.equal(h.el(id),null);
   assert.equal(h.el('unit'),null);assert.equal(h.el('tab-1'),null);
   assert.equal(h.el('rounds').querySelectorAll('button').length,5);
   const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.el('tb-ans').click();h.el('b-send').click()}};
   for(const [i,expected] of [[2,60],[0,70],[3,80],[2,80],[1,90],[4,100]]){
-    pass(i);assert.equal(+h.el('score-value').textContent,expected);
+    pass(i);assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,5),expected);
     assert.match(h.el('rounds').querySelectorAll('button')[i].textContent,/已過關/);
     assert.equal(h.el('rounds').querySelectorAll('button')[i].querySelector('.done').getAttribute('aria-hidden'),'true');
     assert.equal(h.el('rounds').querySelectorAll('button')[i].className,'passed');
@@ -42,9 +40,9 @@ test('標題、所有關卡、任意順序計分、重做不加分、還原／�
   assert.equal(h.uploads[0].level,'進階');assert.equal(h.uploads[1].level,'基礎');
   assert.equal(h.uploads[0].activity,5);assert.equal(h.uploads[0].termWeek,11);
   assert.equal('score' in h.uploads[0],false);
-  h.start(2);assert.equal(+h.el('score-value').textContent,0);
+  h.start(2);assert.equal(h.el('rounds').querySelectorAll('.passed').length,0);
   assert.ok(h.el('rounds').querySelectorAll('button').every(b=>b.className===''));
-  h.start(1);assert.equal(+h.el('score-value').textContent,100);
+  h.start(1);assert.equal(h.el('rounds').querySelectorAll('.passed').length,5);
   assert.ok(h.el('rounds').querySelectorAll('button').every(b=>b.className==='passed'&&b.textContent.includes('✓')));
 });
 test('示範頁五關都有比較卡，燈泡及輸入即時更新，原判定與兩組過關保留',()=>{
@@ -68,12 +66,12 @@ test('未提供 termWeek 時以課程與活動 ID 找登記資料，使用 termW
 });
 
 for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[0,50,60,70,80,90,100]]]){
-  test(`${total} 關：活動頁實際逐關顯示與教師計分預期一致`,()=>{
-    const h=setup(total);assert.equal(+h.el('score-value').textContent,0);
+  test(`${total} 關：活動頁逐關進度與教師計分預期一致`,()=>{
+    const h=setup(total);assert.equal(h.el('rounds').querySelectorAll('.passed').length,0);
     for(let i=0;i<total;i++){
       h.run(`APP.load(${i})`);
-      h.el('b-send').click();assert.equal(+h.el('score-value').textContent,expected[i],'一組答對尚未過關');
-      h.el('b-send').click();assert.equal(+h.el('score-value').textContent,expected[i+1]);
+      h.el('b-send').click();assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,total),expected[i],'一組答對尚未過關');
+      h.el('b-send').click();assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,total),expected[i+1]);
     }
   });
 }

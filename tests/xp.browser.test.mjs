@@ -96,7 +96,7 @@ for(const [width,reduced,dark] of [[1440,false,false],[390,false,true],[320,true
       assert.deepEqual(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('it9:w2:999-1')))).then(keys=>keys.sort()),['mask','time','tries']);
       const layout=await page.locator('header.top').evaluate(el=>({scroll:el.scrollWidth,width:el.clientWidth}));assert.ok(layout.scroll<=layout.width+1);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-      assert.equal(await page.locator('#score-value').textContent(),'100');assert.deepEqual(errors,[]);
+      assert.equal(await page.locator('#score').count(),0);assert.deepEqual(errors,[]);
     }finally{await page.close()}
   });
 }

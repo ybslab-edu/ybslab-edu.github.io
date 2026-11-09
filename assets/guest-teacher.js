@@ -58,8 +58,12 @@ window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = ()
         // 不同來源與 UID 分列；同班座多個匿名 UID 不自動算作同一人。
         const key = JSON.stringify([guest, id, d.activity, cls, seat]);
         let row = grouped.get(key);
-        if (!row) { row = {cls, seat, activity:d.activity, uid:id, source:guest ? '未驗證' : '帳號名單', mask:0, tries:Array(n).fill(0), at:0}; grouped.set(key, row); }
-        row.mask |= 1 << d.round; row.tries[d.round] = d.tries; row.at = Math.max(row.at, at);
+        if (!row) { row = {cls, seat, activity:d.activity, uid:id, source:guest ? '未驗證' : '帳號名單', mask:0, tries:Array(n).fill(0), passedAt:Array(n).fill(null), at:0}; grouped.set(key, row); }
+        row.mask |= 1 << d.round;
+        if (row.passedAt[d.round] === null || at < row.passedAt[d.round]) {
+          row.passedAt[d.round] = at; row.tries[d.round] = d.tries;
+        }
+        row.at = Math.max(row.at, at);
       }
       rows = [...grouped.values()].sort((a,b) => a.cls-b.cls || a.seat-b.seat || a.activity-b.activity || a.source.localeCompare(b.source) || a.uid.localeCompare(b.uid));
       const select = el('cloud-class'); select.innerHTML = '';
@@ -72,16 +76,44 @@ window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = ()
     } catch (e) { if (active()) { clear(); message(error(e)); } }
     finally { busy = false; controls(); }
   }
-  const headers = ['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳'];
+  const headers = ['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數'];
   const count = mask => { let n=0; while(mask){n+=mask&1;mask>>>=1;} return n; };
   const score = r => activityScore(count(r.mask), activities[r.activity].rounds.length);
-  const values = r => [r.cls,r.seat,r.activity,activities[r.activity].title,r.source,r.uid,count(r.mask),r.tries.length,r.tries.join(' / '),new Date(r.at)];
+  // 與 xp.js RULES.windowMs 相同；截止當下仍屬準時，不依最後上傳判斷。
+  const windowMs = 7 * 864e5;
+  const time = at => new Date(at + 8 * 36e5).toISOString().slice(5,16).replace('-','/').replace('T',' ');
+  const status = (r, at) => {
+    const open = activityOpenAt(activities[r.activity]);
+    return !Number.isFinite(open) ? '未判定' : at > open + windowMs ? '補做' : '準時';
+  };
+  const totals = records => {
+    const n = {'準時':0,'補做':0,'未判定':0};
+    for (const r of records) for (const at of r.passedAt) if (at !== null) n[status(r,at)]++;
+    return n;
+  };
+  const summary = records => {
+    const n=totals(records);
+    return '準時 '+n['準時']+' 關、補做 '+n['補做']+' 關'+(n['未判定']?'、未判定 '+n['未判定']+' 關':'');
+  };
+  const roundText = r => r.passedAt.map((at,i)=>'第 '+(i+1)+' 關：'+(at===null?'未過關':time(at)+' '+status(r,at)));
+  function roundNodes(r) {
+    const box=node('div'); box.className='cloud-rounds';
+    roundText(r).forEach((text,i)=>{
+      const line=node('div',text), at=r.passedAt[i];
+      line.className=at===null?'':status(r,at)==='補做'?'cloud-late':status(r,at)==='準時'?'cloud-on-time':'cloud-unknown';
+      box.appendChild(line);
+    });
+    return box;
+  }
+  const values = r => [r.cls,r.seat,r.activity,activities[r.activity].title,r.source,r.uid,count(r.mask),r.tries.length,r.tries.join(' / '),new Date(r.at),r.passedAt.map(at=>at===null?'':time(at)).join(' / '),r.passedAt.map(at=>at===null?'未過關':status(r,at)).join(' / '),...Object.values(totals([r]))];
   const node = (tag, text) => { const n=document.createElement(tag); if(text!==undefined)n.textContent=String(text); return n; };
   function details(records, warning) {
     const box=node('details'); box.appendChild(node('summary',warning || '詳細資料'));
-    for(const r of records) box.appendChild(node('p',
+    for(const r of records) { const entry=node('div'); entry.appendChild(node('p',
       '班級：' + r.cls + '・座號：' + r.seat + '・' + activities[r.activity].title + '・' + r.source + '・UID：' + r.uid + '・' + count(r.mask) + '/' + r.tries.length +
-      '・分數：' + score(r) + ' 分・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW')));
+      '・分數：' + score(r) + ' 分・各關嘗試：' + r.tries.join(' / ') + '・最後上傳：' + new Date(r.at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})+'・'+summary([r])));
+      entry.appendChild(roundNodes(r)); box.appendChild(entry);
+    }
     return box;
   }
   function render() {
@@ -96,21 +128,22 @@ window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = ()
     const ids=Object.keys(activities).map(Number).sort((a,b)=>a-b);
     head.appendChild(node('th','座號'));
     for(const id of ids)head.appendChild(node('th',activities[id].title));
-    head.appendChild(node('th','詳細資料')); thead.appendChild(head); table.appendChild(thead);
+    head.appendChild(node('th','準時／補做彙總')); head.appendChild(node('th','詳細資料')); thead.appendChild(head); table.appendChild(thead);
     const tbody=node('tbody');
     const seats=[...new Set(people.filter(p=>p.cls===cls).map(p=>p.seat))].sort((a,b)=>a-b);
     for(const seat of seats){
       const records=rows.filter(r=>r.cls===cls&&r.seat===seat), tr=node('tr');tr.appendChild(node('td',seat));
       const duplicate=people.filter(p=>p.cls===cls&&p.seat===seat).length>1;
       const sharedUID=records.some(r=>rows.some(other=>other.uid===r.uid&&(other.cls!==cls||other.seat!==seat)));
-      let conflict=duplicate||sharedUID;
+      let conflict=duplicate||sharedUID; const counted=[];
       for(const id of ids){
         const found=records.filter(r=>r.activity===id), td=node('td');
         if(found.length>1||duplicate||sharedUID){td.textContent='待核對';conflict=true;}
-        else if(found.length){const r=found[0], n=count(r.mask);td.textContent=score(r)+' 分（'+(n===r.tries.length?'✓':n+'/'+r.tries.length)+'）'+(r.source==='未驗證'?'（未驗證）':'');}
+        else if(found.length){const r=found[0], n=count(r.mask);td.textContent=score(r)+' 分（'+(n===r.tries.length?'✓':n+'/'+r.tries.length)+'）'+(r.source==='未驗證'?'（未驗證）':'');td.appendChild(roundNodes(r));counted.push(r);}
         else td.textContent=activityScore(0,activities[id].rounds.length)+' 分（0/'+activities[id].rounds.length+'）';
         tr.appendChild(td);
       }
+      tr.appendChild(node('td',summary(counted)+(conflict?'（待核對紀錄未計入）':'')));
       const td=node('td');td.appendChild(details(records,conflict?'待核對：來源、UID 或名冊衝突':'詳細資料'));tr.appendChild(td);tbody.appendChild(tr);
     }
     table.appendChild(tbody);target.appendChild(table);

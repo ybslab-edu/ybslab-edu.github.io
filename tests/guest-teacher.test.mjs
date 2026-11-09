@@ -26,7 +26,7 @@ test('owner 同時讀 attempts、guestAttempts 與 roster；未驗證明細完�
   const bytes=[...new Uint8Array(await h.blobs[0].arrayBuffer())];
   h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
   const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:""})');
-  assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳']);
+  assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數']);
   assert.equal(rows.filter(r=>r[4]==='未驗證').length,2);assert.equal(rows.find(r=>r[5]==='anon1')[6],2);
   assert.equal(rows.find(r=>r[5]==='real1')[4],'帳號名單');
 });
@@ -71,7 +71,7 @@ test('先選班，名冊每座號一列、每活動一欄；多 UID 不混算，
 test('單一來源顯示過關數，全過顯示勾號，保留未驗證標記',async()=>{
   const h=setup({attempts:[],guests:[0,1,2,3].map(round=>guest('only_1_'+round,{round}))});await h.login();await h.read();
   h.get('cloud-class').value='999';h.get('cloud-class').onchange();
-  const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.equal(cell.textContent,'100 分（✓）（未驗證）');
+  const cell=h.get('cloud-table').querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];assert.match(cell.textContent,/^100 分（✓）（未驗證）第 1 關：/);
 });
 // 模擬 details 的可見文字；textContent 會包含摺疊內容，無法抓到此回歸。
 function visibleText(node){
@@ -133,7 +133,7 @@ test('同座號名冊重複列為待核對；單一未全過顯示分數',async(
   const roster=[1,2].map(seat=>({id:'s'+seat+'@example.invalid',data:()=>({cls:999,seat:1})}));
   const h=setup({roster,attempts:[],guests:[guest('only_1_0')]});await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
   assert.equal(h.get('cloud-table').querySelectorAll('tbody tr').length,1);assert.equal(h.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'待核對');
-  const single=setup({attempts:[],guests:[guest('only_1_0')]});await single.login();await single.read();single.get('cloud-class').value='999';single.get('cloud-class').onchange();assert.equal(single.get('cloud-table').querySelectorAll('tbody td')[1].textContent,'70 分（1/4）（未驗證）');
+  const single=setup({attempts:[],guests:[guest('only_1_0')]});await single.login();await single.read();single.get('cloud-class').value='999';single.get('cloud-class').onchange();assert.match(single.get('cloud-table').querySelectorAll('tbody td')[1].textContent,/^70 分（1\/4）（未驗證）第 1 關：/);
 });
 test('教師 Auth 換人立即清空選班及學生表',async()=>{
   const h=setup();await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
@@ -149,7 +149,7 @@ for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[
       h.evaluate(`W[1]={...W[1],rounds:Array.from({length:${total}},(_,i)=>'合成關'+i)}`);
       await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
       const cell=h.get('cloud-table').querySelectorAll('tbody td')[1];
-      assert.equal(cell.textContent,`${expected[passed]} 分（${passed===total?'✓':passed+'/'+total}）${passed?'（未驗證）':''}`);
+      assert.equal(cell.childNodes[0].textContent,`${expected[passed]} 分（${passed===total?'✓':passed+'/'+total}）${passed?'（未驗證）':''}`);
       assert.equal(h.evaluate(`activityScore(${passed},${total})`),expected[passed]);
       if(!passed){assert.equal(h.get('cloud-export').disabled,true);continue;}
       assert.match(h.get('cloud-table').querySelector('details').textContent,new RegExp('分數：'+expected[passed]+' 分'));
@@ -159,9 +159,49 @@ for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[
       h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
       assert.deepEqual(json(h,'book.SheetNames'),['帳號與未驗證班座']);
       const rows=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:""})');
-      assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳']);
-      assert.deepEqual(rows[1],[999,1,1,h.evaluate('W[1].title'),'未驗證','synthetic',passed,total,Array.from({length:total},(_,i)=>i<passed?2:0).join(' / '),new Date(stamp.toMillis()).toISOString()]);
+      assert.deepEqual(rows[0],['班級','座號','活動序號','活動','來源','UID','過關數','關卡數','各關嘗試次數','最後上傳','各關首次過關（台灣時間）','各關狀態','準時關數','補做關數','未判定關數']);
+      assert.deepEqual(rows[1].slice(0,10),[999,1,1,h.evaluate('W[1].title'),'未驗證','synthetic',passed,total,Array.from({length:total},(_,i)=>i<passed?2:0).join(' / '),new Date(stamp.toMillis()).toISOString()]);
       assert.equal(h.evaluate("book.Sheets[book.SheetNames[0]].J2.t"),'d');
     }
   });
 }
+
+// 合成時間與既有 activityOpenAt 規則；不讀寫正式資料。
+for(const [label,offset,expected] of [['截止前',-1,'準時'],['截止當下',0,'準時'],['截止後',1,'補做'],['無開放日期',0,'未判定']]){
+  test(label+'：依首次過關判斷並匯出台灣時間',async()=>{
+    const h=setup({attempts:[],guests:[]});
+    const date='2026-11-02';
+    const open=h.evaluate(`activityOpenAt({date:'${date}'})`);
+    const at=open+7*864e5+offset;
+    const timed=setup({attempts:[{id:'real1_1_0',data:()=>({uid:'real1',email:'student@example.invalid',activity:1,round:0,level:1,tries:3,passedAt:{toMillis:()=>at}})}],guests:[]});
+    timed.evaluate(`W[1]={...W[1],date:${label==='無開放日期'?"''":JSON.stringify(date)}}`);
+    await timed.login();await timed.read();timed.get('cloud-class').value='999';timed.get('cloud-class').onchange();
+    const cell=timed.get('cloud-table').querySelectorAll('tbody td')[1];
+    const formatted=new Date(at+8*36e5).toISOString().slice(5,16).replace('-','/').replace('T',' ');
+    assert.ok(cell.textContent.includes('第 1 關：'+formatted+' '+expected));
+    const summary=timed.get('cloud-table').querySelectorAll('tbody td').at(-2).textContent;
+    assert.ok(summary.includes('準時 '+(expected==='準時'?1:0)+' 關、補做 '+(expected==='補做'?1:0)+' 關'));
+    if(expected==='未判定')assert.match(summary,/未判定 1 關/);
+    timed.get('cloud-export').onclick();
+    const bytes=[...new Uint8Array(await timed.blobs[0].arrayBuffer())];
+    timed.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
+    const row=json(timed,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1})')[1];
+    assert.equal(row[10].split(' / ')[0],formatted);assert.equal(row[11].split(' / ')[0],expected);
+    assert.deepEqual(row.slice(12),[expected==='準時'?1:0,expected==='補做'?1:0,expected==='未判定'?1:0]);
+  });
+}
+test('同關多筆取最早，其他關較晚的時間不會將準時關改成補做',async()=>{
+  const probe=setup();const cutoff=probe.evaluate("activityOpenAt({date:'2026-11-02'})")+7*864e5;
+  for(const times of [[cutoff+60000,cutoff],[cutoff,cutoff+60000]]){
+    const h=setup({attempts:[],guests:[...times.map(at=>guest('only_1_0',{passedAt:{toMillis:()=>at}})),guest('only_1_1',{round:1,passedAt:{toMillis:()=>cutoff+60000}})]});
+    h.evaluate("W[1]={...W[1],date:'2026-11-02'}");
+    await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+    const cells=h.get('cloud-table').querySelectorAll('tbody td');
+    assert.match(cells[1].textContent,/第 1 關：11\/08 23:59 準時第 2 關：11\/09 00:00 補做/);
+    assert.equal(cells.at(-2).textContent,'準時 1 關、補做 1 關');
+  }
+});
+test('補做截止視窗與 XP 維持七天一致',()=>{
+  const xp=readFileSync(new URL('../assets/xp.js',import.meta.url),'utf8');
+  assert.match(xp,/windowMs:7 \* 864e5/);
+});

@@ -14,6 +14,7 @@ nav a{color:var(--accent)}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 
 <style>
+.cloud-rounds{font-size:12px;line-height:1.7;margin-top:6px;white-space:nowrap}.cloud-late{color:var(--warn);font-weight:700}.cloud-on-time{color:var(--ok)}.cloud-unknown{color:var(--muted)}
 /* Layout: 班級切換 → 名冊活動摘要 → 詳細紀錄；工具型頁面，安靜、好掃描 */
 :root{
   --bg:#F1F3F5; --surface:#FFFFFF; --ink:#1F2328; --muted:#5D6670; --line:#D5DBE1;
@@ -85,6 +86,7 @@ nav a{color:var(--accent)}
       <button class="btn" id="cloud-export" disabled>下載雲端紀錄</button>
     </div>
     <p class="msg" id="cloud-status" role="status">請使用課程擁有者的 Google 帳號登入。</p>
+    <p>截止規則：開放後 7 天內（含截止當下）為準時，其後首次過關標示「補做」。時間為台灣時間；無開放日期標示「未判定」，僅供教師判斷，不自動扣分。</p>
     <label for="cloud-class">班級</label> <select id="cloud-class" disabled><option value="">請先讀取雲端紀錄</option></select>
     <div class="tbl" id="cloud-table"></div>
   </section>
@@ -111,7 +113,7 @@ nav a{color:var(--accent)}
 
 <script src="../../assets/login.js?v=20261109c"></script>
 <script src="../../assets/item-health.js?v=20261106q"></script>
-<script src="../../assets/guest-teacher.js?v=20261106q"></script>
+<script src="../../assets/guest-teacher.js?v=20261109e"></script>
 <script src="../../assets/shell.js?v=20261109e"></script>
 <script>
 const $=id=>document.getElementById(id);

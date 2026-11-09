@@ -1,7 +1,10 @@
 // 真實 DOM、合成題目與本機存檔；不載入登入或任何網路服務。
 import {test, before, after} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+const shots=mkdtempSync(join(tmpdir(),'ybs-progress-'));
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 let browser;
@@ -174,7 +177,7 @@ for(const width of [1280,390])for(const teacher of [false,true])test(`分數真�
       assert.equal(await page.locator('#rounds button.passed').count(),0,'教師示範不記錄過關');
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w99:999-1')).mask),0,'教師示範不寫入學生進度');
     }
-    await page.screenshot({path:new URL(`../.shots/ybs-progress-${width}-${teacher?'teacher':'student'}-${passed}.png`,import.meta.url).pathname,fullPage:true});
+    await page.screenshot({path:join(shots,`ybs-progress-${width}-${teacher?'teacher':'student'}-${passed}.png`),fullPage:true});
   }
   if(teacher){
     await page.click('#b-swap');

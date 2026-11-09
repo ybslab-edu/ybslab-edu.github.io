@@ -33,6 +33,7 @@ for (const theme of ['light','dark']) for (const width of [1280,390]) {
         document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();window.submits++},true);
       });
       assert.equal(await page.getByText('先登入：',{exact:false}).count(),0);
+      assert.equal(await page.locator('#g-gbtn button').getAttribute('type'),'submit','既有入口仍會點到登入送出');
       const password = page.locator('input[name="p"]'), eye = page.locator('.ybs-password-toggle');
       assert.equal(await password.getAttribute('type'),'password');
       assert.equal(await eye.getAttribute('aria-pressed'),'false');
@@ -40,6 +41,7 @@ for (const theme of ['light','dark']) for (const width of [1280,390]) {
       await eye.click();
       assert.equal(await password.getAttribute('type'),'text');
       assert.equal(await eye.getAttribute('aria-label'),'隱藏密碼');
+      assert.equal(await eye.inputValue(),'隱藏');
       assert.equal(await eye.getAttribute('aria-pressed'),'true');
       await password.focus(); // 離開按鈕仍維持明碼。
       assert.equal(await password.getAttribute('type'),'text');
@@ -57,7 +59,7 @@ for (const theme of ['light','dark']) for (const width of [1280,390]) {
       assert.equal(await page.locator('.tlogin .ybs-password-toggle').count(),0);
       await password.fill('');
       assert.ok(await password.evaluate(el=>parseFloat(getComputedStyle(el).paddingRight)>=92),'輸入文字預留眼睛按鈕空間');
-      const colors = await page.locator('.ybs-login input').evaluateAll(inputs=>inputs.map(input=>({
+      const colors = await page.locator('.ybs-login input[name]').evaluateAll(inputs=>inputs.map(input=>({
         bg:getComputedStyle(input).backgroundColor, ink:getComputedStyle(input).color,
         placeholder:getComputedStyle(input,'::placeholder').color
       })));

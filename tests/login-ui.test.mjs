@@ -46,13 +46,14 @@ test('學生密碼持續顯示直到再次點擊，更新無障礙狀態且不�
   assert.equal(form.p.type, 'text');
   assert.equal(eye.getAttribute('aria-pressed'), 'true');
   assert.equal(eye.getAttribute('aria-label'), '隱藏密碼');
-  assert.equal(eye.querySelector('span').textContent, '隱藏');
+  assert.equal(eye.value, '隱藏');
   assert.equal(submit.textContent, '登入');
+  assert.equal(form.querySelector('button'), submit, '舊入口第一個 button 仍是登入送出');
   eye.click();
   assert.equal(form.p.type, 'password');
   assert.equal(eye.getAttribute('aria-pressed'), 'false');
   assert.equal(eye.getAttribute('aria-label'), '顯示密碼');
-  assert.equal(eye.querySelector('span').textContent, '顯示');
+  assert.equal(eye.value, '顯示');
   assert.equal(form.p.value, 'synthetic-test-password');
   assert.equal(submits, 0);
 });

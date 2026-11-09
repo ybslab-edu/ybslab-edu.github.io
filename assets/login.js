@@ -88,12 +88,29 @@ const YBS = (() => {
   async function button(el, ok, bad) {
     onLogin = ok; onError = bad;
     const id = 'ybs' + Math.random().toString(36).slice(2, 7);
-    const box = 'display:block;width:100%;box-sizing:border-box;font:inherit;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #4b5563;background:#0f1218;color:#e8eaee';
-    el.innerHTML = '<form id="' + id + '" autocomplete="off" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left">'
+    // 樣式隨表單提供，活動頁、專題頁與重新登入入口共用相同的主題及切換操作。
+    const box = 'display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #4b5563;background:var(--ybs-login-bg);color:var(--ybs-login-ink)';
+    el.innerHTML = `<style>
+      .ybs-login{--ybs-login-bg:#fff;--ybs-login-ink:#211b17;--ybs-login-placeholder:#5d6670}
+      @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .ybs-login{--ybs-login-bg:#0f1218;--ybs-login-ink:#e8eaee;--ybs-login-placeholder:#9aa3ad}}
+      :root[data-theme="dark"] .ybs-login{--ybs-login-bg:#0f1218;--ybs-login-ink:#e8eaee;--ybs-login-placeholder:#9aa3ad}
+      .ybs-login input::placeholder{color:var(--ybs-login-placeholder);opacity:1}
+      .ybs-password{position:relative}
+      .ybs-password-toggle{position:absolute;right:3px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;gap:4px;min-width:80px;min-height:44px;padding:4px;font:inherit;font-size:14px;border:0;border-radius:8px;background:transparent;color:var(--ybs-login-ink);cursor:pointer}
+    </style><form id="` + id + '" class="ybs-login" autocomplete="off" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left">'
       + '<label style="font-size:15px">帳號<input name="a" inputmode="text" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號" style="' + box + '"></label>'
-      + '<label style="font-size:15px">密碼<input name="p" type="password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號" style="' + box + '"></label>'
+      + '<div><label for="' + id + '-password" style="font-size:15px">密碼</label><div class="ybs-password"><input id="' + id + '-password" name="p" type="password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號" style="' + box + ';padding-right:92px">'
+      + '<button type="button" class="ybs-password-toggle" aria-label="顯示密碼" aria-pressed="false" aria-controls="' + id + '-password"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>顯示</span></button></div></div>'
       + '<button type="submit" class="btn primary" style="width:100%">登入</button></form>';
-    const f = document.getElementById(id), btn = f.querySelector('button');
+    const f = document.getElementById(id), btn = f.querySelector('button[type="submit"]');
+    const toggle = f.querySelector('.ybs-password-toggle');
+    toggle.onclick = () => {
+      const show = f.p.type === 'password';
+      f.p.type = show ? 'text' : 'password';
+      toggle.setAttribute('aria-pressed', String(show));
+      toggle.setAttribute('aria-label', show ? '隱藏密碼' : '顯示密碼');
+      toggle.querySelector('span').textContent = show ? '隱藏' : '顯示';
+    };
     f.onsubmit = async ev => {
       ev.preventDefault(); if (btn.disabled) return;
       btn.disabled = true; btn.textContent = '登入中…';

@@ -191,14 +191,14 @@ test('舊進度、week=3、it9:last、進度及四關上傳欄位相容，完成
 
 test('儲存失敗使用 shell 提示，仍可上傳；最後關不誤報全部完成',()=>{
   const h=setup({failSave:true});h.fill();h.shoot();
-  assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);assert.match(h.get('rep-note').textContent,/保留頁面並重試上傳/);
+  assert.match(h.get('sync').textContent,/這台電腦沒辦法存下進度/);assert.match(h.get('sync').textContent,/保留頁面並重試上傳/);
   assert.equal(h.uploads.length,1);assert.equal(h.get('code'),null);
   const partial=setup();partial.load(3);partial.fill();partial.shoot();
   assert.match(partial.get('verdict').textContent,/目前完成 1／4 關/);assert.doesNotMatch(partial.get('verdict').textContent,/全部完成！/);
 });
 
 test('教師填答案、原圖對照、換照片與切關、登出狀態維持；無成績碼、儲存或上傳',()=>{
-  const h=setup({teacher:true});assert.equal(h.get('report').hidden,true);
+  const h=setup({teacher:true});assert.equal(h.get('report'),null);
   h.get('tb-orig').click();assert.equal(h.evaluate('showOrig'),true);
   h.get('tb-ans').click();assert.equal(h.get('b-shot').disabled,false);h.shoot();
   assert.match(h.get('verdict').textContent,/朋友回訊息/);
@@ -207,5 +207,5 @@ test('教師填答案、原圖對照、換照片與切關、登出狀態維持�
   h.get('b-next')?.click();h.load(1);assert.equal(h.get('tb-orig')['aria-pressed'],'true');
   h.load(3);h.fill();h.shoot();assert.match(h.get('verdict').textContent,/全部完成！/);
   assert.equal(h.stored.size,0);assert.equal(h.uploads.length,0);assert.equal(h.get('code'),null);
-  h.get('b-swap').click();assert.equal(h.evaluate('showOrig'),false);assert.equal(h.get('report').hidden,false);
+  h.get('b-swap').click();assert.equal(h.evaluate('showOrig'),false);assert.equal(h.get('report'),null);
 });

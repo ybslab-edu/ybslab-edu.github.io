@@ -101,7 +101,7 @@ test('一般回饋完整顯示，錯答保留累積次數並換題，兩組即�
   assert.equal(h.app.inst.id, previous, '累積第二次答對後保留當題');
   assert.match(h.get('streak').textContent, /累積答對 2\/2/);
   assert.equal(verdict.querySelector('p').textContent, '合成過關說明');
-  assert.equal(h.get('prog').querySelectorAll('span')[0].className, 'ok');
+  assert.equal(h.get('rounds').querySelectorAll('button')[0].className, 'passed');
 });
 
 test('過關說明也以純文字顯示', () => {

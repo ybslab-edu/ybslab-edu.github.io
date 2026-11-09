@@ -114,8 +114,9 @@ def wait_queue(pg, count):
 
 def wait_sync(pg, state):
     text = {'sending': '上傳中', 'pending': '還沒上傳成功', 'ok': '已上傳給老師'}[state]
-    wait_evaluate(pg, "text => ['sync', 'sync2'].every(id => { const el = document.getElementById(id); return el && !el.hidden && el.textContent.includes(text); })", arg=text)
-    assert pg.locator('#sync').is_visible() and pg.locator('#sync2').is_visible()
+    wait_evaluate(pg, "text => ['sync'].every(id => { const el = document.getElementById(id); return el && !el.hidden && el.textContent.includes(text); })", arg=text)
+    assert pg.locator('#sync').is_visible()
+    assert pg.locator('#b-retry').is_visible() == (state == 'pending')
 
 
 def check_records(pg, rounds):
@@ -281,7 +282,7 @@ def guest_cycle(b):
         assert pg.evaluate('__authCalls') == ['signOut', 'anonymous'], '換成 999 班 2 號：應先登出再匿名登入'
         pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})')
         pass_guest('999 班 2 號／換班座後作答')
-        wait_evaluate(pg, "document.getElementById('sync2').textContent.includes('還沒上傳成功')")
+        wait_evaluate(pg, "document.getElementById('sync').textContent.includes('還沒上傳成功')")
         pg.click('#b-retry'); wait_evaluate(pg, '__writes.length === 2')
         writes = pg.evaluate('__writes')
         assert [x[0] for x in writes] == ['ybsCourses/115-g9/guestAttempts/guest1_4_0', 'ybsCourses/115-g9/guestAttempts/guest2_4_0'], f'開頁重送／換班座：寫入路徑不符，{writes!r}'
@@ -412,7 +413,7 @@ with sync_playwright() as p:
         pg.evaluate('() => { APP.handle.fill(); play(); }')
         pg.wait_for_selector('#verdict.ok', timeout=15000)
         pg.wait_for_timeout(400)
-        w = pg.evaluate('__writes'); up = pg.inner_text('#sync2')
+        w = pg.evaluate('__writes'); up = pg.inner_text('#sync')
         ok = bool(wrong and confirmed and '917 班 5 號' in who and w
                   and w[-1][1]['email'] == 'cgjh1100123@cgjh.hcc.edu.tw'
                   and w[-1][1]['activity'] == week and w[-1][1]['termWeek'] == week + 6 and '已上傳' in up)

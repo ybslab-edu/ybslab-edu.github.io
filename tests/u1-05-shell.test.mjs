@@ -122,10 +122,10 @@ test('一次演出檢查雙資料、錯答與斷電不過；記次、上傳、�
 
 test('儲存失敗沿用 shell 提示；教師示範不儲存也不上傳',async()=>{
   const h=setup({failSave:true});await h.play();
-  assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);
-  assert.match(h.get('prog').textContent,/✓/);assert.equal(h.uploads.length,1);
+  assert.match(h.get('sync').textContent,/這台電腦沒辦法存下進度/);
+  assert.match(h.get('rounds').textContent,/✓/);assert.equal(h.uploads.length,1);
   const t=setup({teacher:true});await t.play();
-  assert.equal(t.stored.size,0);assert.equal(t.uploads.length,0);assert.equal(t.get('report').hidden,true);
+  assert.equal(t.stored.size,0);assert.equal(t.uploads.length,0);assert.equal(t.get('report'),null);
 });
 
 

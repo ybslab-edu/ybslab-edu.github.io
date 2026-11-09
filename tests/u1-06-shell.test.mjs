@@ -138,8 +138,8 @@ test('錯答不過、播放開始記次、一次雙資料過關、四關上傳�
 });
 
 test('儲存失敗顯示 shell 提示；教師暫停、前後步、跳步、停止、鍵盤且不記分',()=>{
-  const h=setup({failSave:true});h.play();assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);
-  assert.match(h.get('prog').textContent,/✓/);assert.equal(h.uploads.length,1);
+  const h=setup({failSave:true});h.play();assert.match(h.get('sync').textContent,/這台電腦沒辦法存下進度/);
+  assert.match(h.get('rounds').textContent,/✓/);assert.equal(h.uploads.length,1);
   const t=setup({teacher:true});t.evaluate('APP.handle.fill();play()');
   t.get('tb-play').onclick();assert.equal(t.evaluate('pb.paused'),true);
   t.get('tb-next').onclick();assert.equal(t.evaluate('pb.i'),1);
@@ -147,7 +147,7 @@ test('儲存失敗顯示 shell 提示；教師暫停、前後步、跳步、停�
   t.evaluate('jumpTo(2)');assert.equal(t.evaluate('pb.i'),2);
   t.document.listeners.keydown({key:'ArrowLeft'});assert.equal(t.evaluate('pb.i'),1);
   t.get('tb-stop').onclick();assert.equal(t.evaluate('pb'),null);assert.equal(t.evaluate('running'),false);
-  t.play();assert.equal(t.stored.size,1);assert.equal(t.uploads.length,0);assert.equal(t.get('report').hidden,true);
+  t.play();assert.equal(t.stored.size,1);assert.equal(t.uploads.length,0);assert.equal(t.get('report'),null);
 });
 
 test('選格、點卡、拿回、上下移動、清空與拖曳（取代、插入、取消）狀態保留',()=>{

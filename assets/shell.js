@@ -56,7 +56,6 @@ const shellGateHTML = (cfg, esc) => {
 <section class="gate" id="gate">
   <h1>${esc(shellTitle(cfg))}</h1>
   <div id="g-login" style="display:flex;flex-direction:column;gap:12px;align-items:center">
-    <p>先登入：帳號是 cgjh＋學號，密碼是 cgjh＋身分證字號。每過一關，紀錄會自動交給老師。</p>
     <div id="g-gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
     <div class="gerr" id="g-lerr" role="alert"></div>
     <button class="linkbtn" id="g-manual" type="button">登入不了？改填班級座號</button>
@@ -97,7 +96,7 @@ const shellMainHTML = (cfg, esc) => {
   <header class="top">
     <div class="activity-heading">
       <div class="title-rounds"><h1>${esc(shellTitle(cfg))}</h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div>
-      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="sync" id="sync" hidden></span></div>
+      <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span></div>
     </div>
     <aside class="xp-header" id="xp-header" hidden aria-live="polite">
       <a href="../me/" id="xp-link" aria-disabled="true" tabindex="-1" title="個人成長頁準備中">
@@ -107,20 +106,17 @@ const shellMainHTML = (cfg, esc) => {
       </a>
       <p class="small xp-login-hint" id="xp-login-hint" hidden>用帳號登入就能累積等級</p>
     </aside>
-    <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分<span class="small">（滿分 100，每少過一關扣 10；0 關過＝0 分）</span></div>
   </header>
   <section class="sec" id="task-instructions">
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
     <div class="order" id="says" aria-live="polite"></div>
   </section>
   <section class="sec">
-    <div id="original-work"><h2 class="sec-h"><span class="num">2</span>動手做</h2>
+    <div id="original-work"><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div>
     <div id="stage"></div>
     <div class="btns"><button class="btn primary" id="b-send" type="button">送出</button><span class="streak" id="streak"></span><span class="small" id="send-hint"></span></div>
     <section class="verdict" id="verdict" hidden aria-live="polite"></section></div>
     <aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯">
-      <button class="btn" id="b-hint" type="button" disabled>我需要提示</button>
-      <span class="small" id="hint-status">先試著送出一次，就能看提示。</span>
       <div id="hint-content" aria-live="polite" aria-atomic="true"></div>
       <button class="btn" id="b-demo" type="button" hidden>看一題示範</button>
       <section id="hint-demo" hidden aria-label="另一題示範">
@@ -139,13 +135,6 @@ const shellMainHTML = (cfg, esc) => {
     <button class="btn" id="tb-new" type="button">換一組資料</button>
     <span class="thint">教師模式僅供示範；「顯示答案」直接填好這一組的答案，按「送出」可以示範過關畫面。</span>
   </div>
-  <section class="report" id="report" aria-live="polite">
-    <h2>我的過關進度</h2>
-    <div class="prog" id="prog"></div>
-    <button class="btn" id="b-retry" type="button" hidden>重試上傳</button>
-    <p class="small" style="width:100%" id="rep-note">每過一關會自動上傳；失敗時保留本機待送並自動重試，也可以按「重試上傳」。離開前請確認已上傳。</p>
-    <p class="sync" id="sync2" hidden style="margin:0"></p>
-  </section>
   <p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
 </div>`;
 };
@@ -174,7 +163,8 @@ const shellCreateHints = s => {
     const r = R[s.ri];
     $('hint-ladder').hidden = s.teacher;
     $('b-hint').disabled = !submitted || level >= 3 || demonstrating;
-    $('hint-status').textContent = !submitted ? '先試著送出一次，就能看提示。' : level >= 3 ? '已解鎖全部提示。看提示不影響分數與經驗值。' : '看提示不影響分數與經驗值。';
+    $('b-hint').hidden = s.teacher;
+    $('b-hint').title = !submitted ? '先試著送出一次，就能看提示。' : level >= 3 ? '已解鎖全部提示。看提示不影響分數與經驗值。' : '看提示不影響分數與經驗值。';
     $('hint-content').innerHTML = (level >= 1 ? '<h3>第 1 層：方向</h3><div>' + txt(r.tip, s.inst) + '</div>' : '') +
       (level >= 2 && r.steps ? '<h3>第 2 層：拆步驟</h3><div>' + txt(r.steps, s.inst) + '</div>' : '') +
       (level >= 3 ? '<h3>第 3 層：看一題示範</h3><p>用另一組資料練習，再回原題自己做。</p>' : '');
@@ -358,8 +348,7 @@ const shellCreateRoundFlow = (s) => {
   const seed = () => { let s = (Math.random() * 2 ** 31) >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 } };
   // 按原順序顯示所有關卡與已完成標記。
   function renderRounds() {
-    $('rounds').innerHTML = R.map((r, i) => '<button type="button" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
-    $('score-value').textContent = activityScore(R.filter((_, i) => s.done.has(i)).length, R.length);
+    $('rounds').innerHTML = R.map((r, i) => '<button type="button" class="' + (s.done.has(i) ? 'passed' : '') + '" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done" aria-hidden="true">✓</span><span class="shell-sr-only"> 已過關</span>' : '') + '</button>').join('');
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
   // 顯示累積答對的組數；保留 streak 名稱相容舊計數。
@@ -447,16 +436,11 @@ const shellCreateJudging = (s) => {
 
 // 保存既有進度。
 const shellCreateProgress = (s) => {
-  const { cfg, $, esc, R } = s;
+  const { cfg, $ } = s;
   const KEY = () => 'it9:w' + cfg.week + ':' + s.ident.cls + '-' + s.ident.seat;
   // 保存班座進度。
-  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄可能遺失，請保留頁面並重試上傳，確認老師已收到。' } renderReport(); }
-  // 呈現關卡進度。
-  function renderReport() {
-    if (!s.ident) return;
-    $('prog').innerHTML = R.map((r, i) => '<span class="' + (s.prog.mask & (1 << i) ? 'ok' : '') + '">' + esc(r.name) + (s.prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
-  }
-  return { progressKey: KEY, saveProg, renderReport };
+  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('sync').hidden = false; $('sync').className = 'sync warn'; $('sync').textContent = '這台電腦沒辦法存下進度（瀏覽器不允許）。重新整理後過關紀錄可能遺失，請保留頁面並重試上傳，確認老師已收到。' } }
+  return { progressKey: KEY, saveProg };
 };
 
 // 綁定班座輸入與確認步驟。
@@ -488,22 +472,21 @@ const shellCreateIdentity = (s) => {
   // 還原既有進度並進入活動。
   function start(id) {
     s.resetHints?.();
-    s.ident = id; $('sync').textContent = ''; $('sync2').textContent = ''; $('sync2').hidden = true; $('b-retry').disabled = false; s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
+    s.ident = id; $('sync').textContent = ''; $('sync').hidden = true; $('b-retry').hidden = true; $('b-retry').disabled = false; s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
     try { const p = JSON.parse(localStorage.getItem(s.progressKey()) || 'null'); if (p && Number.isInteger(p.mask) && p.mask >= 0 && p.mask < 2 ** R.length
       && Array.isArray(p.tries) && p.tries.length >= R.length && p.tries.length <= 6
       && p.tries.every(n => Number.isInteger(n) && n >= 0 && n <= 15)
       && Number.isFinite(p.time) && p.time >= 0 && p.time <= 8640000000000000) s.prog = p } catch (e) { }
     s.done.clear(); for (let i = 0; i < R.length; i++) if (s.prog.mask & (1 << i)) s.done.add(i);
     $('who').textContent = id.cls + ' 班 ' + id.seat + ' 號' + (id.name ? ' ' + id.name : '');
-    if (loginEnabled() && YBS.profile()) { try { sessionStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; $('rep-note').innerHTML = '每過一關會<strong>自動上傳</strong>給老師；上傳失敗時會自動重試，也可以按「重試上傳」。離開前請確認已上傳。'; YBS.flush() }
+    if (loginEnabled() && YBS.profile()) { try { sessionStorage.setItem('ybslab:me:' + YBS.profile().email, JSON.stringify({ cls: id.cls, seat: id.seat })) } catch (e) { } $('sync').hidden = false; YBS.flush() }
     else if (loginEnabled()) { $('sync').hidden = false; YBS.guest(id); }
-    $('b-retry').hidden = !loginEnabled();
     $('gate').hidden = true; $('main').hidden = false;
     s.xp?.start();
-    s.setLevel(1); s.renderReport();
+    s.setLevel(1);
   }
   $('b-swap').onclick = () => {
-    if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('report').hidden = false; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
+    if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
     s.xp?.stop();
     s.ident = null; if (loginEnabled()) { if (YBS.profile()) YBS.logout(); else YBS.leaveGuest(); s.showLogin() }
     $('sync').hidden = true; $('main').hidden = true; $('gate').hidden = false; $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
@@ -519,7 +502,7 @@ const shellCreateTeacher = (s) => {
     s.xp?.stop();
     s.teacher = true; TEACHER.remember(true); s.ident = null; s.done.clear();
     $('who').textContent = '教師模式'; $('b-swap').textContent = '登出教師模式';
-    $('report').hidden = true; $('tbar').hidden = false; $('gate').hidden = true; $('main').hidden = false;
+    $('sync').hidden = true; $('b-retry').hidden = true; $('tbar').hidden = false; $('gate').hidden = true; $('main').hidden = false;
     s.setLevel(1);
   }
   $('t-show').onclick=()=>{const i=$('in-tcode'),s=i.type==='password';i.type=s?'text':'password';$('t-show').textContent=s?'隱藏通行碼':'顯示通行碼'};
@@ -571,11 +554,11 @@ const shellCreateSync = (s) => {
   let state = null, identity = null, nodes = [];
   const retryUpload = () => { if (s.ident && loginEnabled()) return YBS.retry(); };
   function renderStatus() {
-    const current = [$('sync'), $('sync2'), $('b-retry')]; nodes = current;
-    const [el, note, retry] = current;
-    if (retry) { retry.onclick = retryUpload; retry.hidden = !s.ident || !loginEnabled(); retry.disabled = state === 'sending' && identity === s.ident; }
+    const current = [$('sync'), $('b-retry')]; nodes = current;
+    const [el, retry] = current;
+    if (retry) { retry.onclick = retryUpload; retry.hidden = !s.ident || !loginEnabled() || identity !== s.ident || !state || ['ok', 'sending', 'relogin'].includes(state); retry.disabled = state === 'sending' && identity === s.ident; }
     if (!s.ident || identity !== s.ident || !state) {
-      if (note) { note.hidden = true; note.textContent = ''; }
+      if (el) { el.hidden = true; el.textContent = ''; }
       return;
     }
     const text = state === 'ok' ? '✓ 紀錄已上傳給老師' : state === 'sending' ? '上傳中…'
@@ -588,12 +571,11 @@ const shellCreateSync = (s) => {
       if (state === 'relogin') { el.innerHTML = '登入過期，重新登入才能上傳 <span id="sync-btn"></span>'; YBS.button($('sync-btn'), () => {}, msg => { el.textContent = msg; }); }
       else el.textContent = text;
     }
-    if (note) { note.hidden = false; note.className = cls; note.textContent = text; }
   }
   if (typeof YBS !== 'undefined') YBS.status(st => { if (!s.ident) return; state = st; identity = s.ident; renderStatus(); if (st === 'ok') s.xp?.refresh(); });
   // 元素延後建立或被重建時重綁按鈕及還原目前身分的提示；不依賴首次查找成功。
   if (window.MutationObserver) new window.MutationObserver(() => {
-    const current = [$('sync'), $('sync2'), $('b-retry')];
+    const current = [$('sync'), $('b-retry')];
     if (current.some((el, i) => el !== nodes[i])) renderStatus();
   }).observe(document.body, {childList:true, subtree:true});
   renderStatus();

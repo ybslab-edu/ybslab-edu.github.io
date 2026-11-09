@@ -9,7 +9,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261106q">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261109d">
 <style>
 /* Layout：由上而下三段，沿用 w02：① 任務說明 → ② 調設定、拍照、回答（兩張照片＝兩組資料）→ ③ 看電腦怎麼存（每格的數字與檔案大小）；顏色與簡報一致 */
 :root{
@@ -140,10 +140,10 @@ body.showorig .frame .orig{opacity:1}
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
 <script src="../../assets/lock.js?v=20261105m"></script>
-<script src="../../assets/login.js?v=20261105d"></script>
+<script src="../../assets/login.js?v=20261109c"></script>
 <script src="../../assets/curriculum.js?v=20261015d"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
-<script src="../../assets/shell.js?v=20261106p"></script>
+<script src="../../assets/shell.js?v=20261109d"></script>
 <script>
 const WEEK=3, TERM_WEEK=9, TITLE='看台最後一排', COURSE='115-g9';
 // ===== 照片產生器：全部用程式畫，不用真人照片 =====
@@ -482,7 +482,7 @@ const APP=SHELL({week:WEEK,termWeek:TERM_WEEK,title:TITLE,course:COURSE,unit:2,
     // shell 換關會清空 stage；先保留共用判定節點，再於 view 放回照片下方。
     gen:()=>{$('main').append($('verdict'));return {round:i}},
     view(inst,el,api){
-      activityApi=api;teacher=$('report').hidden;
+      activityApi=api;teacher=!$('tbar').hidden;
       el.innerHTML=STAGE_HTML;
       $('photo-verdict').append($('verdict'));
       $('tbar').innerHTML=TOOLBAR_HTML;
@@ -493,7 +493,7 @@ const APP=SHELL({week:WEEK,termWeek:TERM_WEEK,title:TITLE,course:COURSE,unit:2,
     check(inst,a){return judge(r,a.n,a.d,a.answers,a.photos).k==='ok'||'調整設定或答案再試一次。'}
   }))});
 $('b-send').hidden=true;$('streak').hidden=true;$('send-hint').hidden=true;
-$('stage').previousElementSibling.innerHTML='<span class="num">2</span>調設定，拍下來';
+$('stage').previousElementSibling.querySelector('h2').innerHTML='<span class="num">2</span>調設定，拍下來';
 $('says').insertAdjacentHTML('afterend','<p class="small">拉動第 2 部分的設定，兩張照片會跟著變。找到「看得出來、檔案又最小」的設定，回答兩張照片的問題，再按「拍下來傳出去」。第 3 部分可以看到電腦把照片存成了哪些數字。</p>');
 const swap=$('b-swap').onclick;
 $('b-swap').onclick=()=>{setOrig(false);teacher=false;swap()};

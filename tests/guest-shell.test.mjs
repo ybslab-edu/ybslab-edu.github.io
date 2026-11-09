@@ -119,20 +119,20 @@ test('同班座重新開頁改填班座入口仍沿用 session 匿名 UID',async
   next.start();await settle();next.pass();await settle();
   assert.deepEqual(next.authCalls,[]);assert.equal(next.calls[0].uid,'guest1');
 });
-test('重試上傳立即略過退避，失敗與成功同步顯示於兩處，換人不送前人待送',async()=>{
+test('重試上傳立即略過退避，失敗與成功顯示於頁首，換人不送前人待送',async()=>{
   let fail=true;const h=setup({write:async()=>{if(fail)throw error('unavailable');}});
   h.start();await settle();h.pass();await settle();
-  assert.equal(h.el('b-retry').hidden,false);assert.match(h.el('sync2').textContent,/還沒上傳成功/);
+  assert.equal(h.el('b-retry').hidden,false);assert.match(h.el('sync').textContent,/還沒上傳成功/);
   fail=false;await h.el('b-retry').onclick();await settle();
-  assert.equal(h.queue().length,0);assert.match(h.el('sync2').textContent,/已上傳/);
+  assert.equal(h.queue().length,0);assert.match(h.el('sync').textContent,/已上傳/);
   fail=true;await h.api.submit({activity:4,round:1,cls:999,seat:1,tries:2,level:1});await settle();assert.equal(h.queue().length,1);
   h.el('b-swap').click();h.start(2);await settle();const before=h.calls.length;
   fail=false;await h.el('b-retry').onclick();await settle();assert.equal(h.calls.length,before);assert.equal(h.queue()[0].seat,1);
 });
 test('帳號上傳失敗可從按鈕重送，登出後按鈕不送出',async()=>{
   let fail=true;const h=setup({write:async()=>{if(fail)throw error('unavailable');}});await h.startAccount();h.pass();await settle();
-  assert.match(h.el('sync2').textContent,/還沒上傳成功/);assert.equal(h.calls.length,1);
-  fail=false;await h.el('b-retry').onclick();assert.equal(h.calls.length,2);assert.match(h.el('sync2').textContent,/已上傳/);
+  assert.match(h.el('sync').textContent,/還沒上傳成功/);assert.equal(h.calls.length,1);
+  fail=false;await h.el('b-retry').onclick();assert.equal(h.calls.length,2);assert.match(h.el('sync').textContent,/已上傳/);
   h.el('b-swap').click();await h.el('b-retry').onclick();assert.equal(h.calls.length,2);
 });
 

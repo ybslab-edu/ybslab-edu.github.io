@@ -14,6 +14,7 @@ nav a{color:var(--accent)}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 
 <style>
+.cloud-xp{min-width:10em}.cloud-xp div+div{color:var(--muted);font-size:13px}
 .cloud-rounds{font-size:12px;line-height:1.7;margin-top:6px;white-space:nowrap}.cloud-late{color:var(--warn);font-weight:700}.cloud-on-time{color:var(--ok)}.cloud-unknown{color:var(--muted)}
 /* Layout: 班級切換 → 名冊活動摘要 → 詳細紀錄；工具型頁面，安靜、好掃描 */
 :root{
@@ -73,7 +74,7 @@ nav a{color:var(--accent)}
   <nav><a href="../../">← YBS Lab</a></nav>
   <div>
     <h1>資訊科技成績彙整</h1>
-    <p class="sub">選擇班級查看名冊每個座號的活動進度；點開詳細資料核對來源與衝突。下載 Excel 保留完整明細。</p>
+    <p class="sub">選擇班級查看名冊每個座號的活動進度；點開詳細資料核對來源與衝突。等級／XP 僅累積帳號過關紀錄，與成績分開；未驗證班座顯示「—」。下載 Excel 保留完整明細。</p>
   </div>
 
   <section class="panel" aria-label="雲端過關紀錄">
@@ -112,8 +113,9 @@ nav a{color:var(--accent)}
 </div>
 
 <script src="../../assets/login.js?v=20261109c"></script>
+<script src="../../assets/xp.js?v=20261109f"></script>
 <script src="../../assets/item-health.js?v=20261106q"></script>
-<script src="../../assets/guest-teacher.js?v=20261109e"></script>
+<script src="../../assets/guest-teacher.js?v=20261109f"></script>
 <script src="../../assets/shell.js?v=20261109f"></script>
 <script>
 const $=id=>document.getElementById(id);

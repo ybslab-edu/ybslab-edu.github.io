@@ -2,7 +2,7 @@
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdir} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
@@ -66,8 +66,25 @@ for(const width of [1440,390])test(`教師補做標示 ${width}px：台灣時間
     assert.notEqual(await cell.locator('.cloud-late').evaluate(e=>getComputedStyle(e).color),await cell.locator('.cloud-on-time').evaluate(e=>getComputedStyle(e).color));
     assert.match(await page.locator('body').innerText(),/開放後 7 天內/);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    assert.equal(await row.locator('.cloud-xp').innerText(),'Lv 1 位元見習生\n25 XP');
+    assert.equal(await page.locator('#cloud-table th').filter({hasText:'等級／XP'}).count(),1);
+    assert.deepEqual(await page.locator('#cloud-table tbody tr td:first-child').allTextContents(),['1','2']);
+    const shots='/tmp/ybs-xp-p3-shots'; await mkdir(shots,{recursive:true});
+    await page.screenshot({path:shots+'/teacher-'+width+'-overview.png',fullPage:true});
+    await row.locator('.cloud-xp').scrollIntoViewIfNeeded();
+    await page.screenshot({path:shots+'/teacher-'+width+'-xp.png',fullPage:true});
     const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#cloud-export').click()]);
     assert.match(download.suggestedFilename(),/雲端紀錄/);
+    const bytes=[...await readFile(await download.path())];
+    const exported=await page.evaluate(bytes=>{
+      const book=XLSX.read(new Uint8Array(bytes),{type:'array',cellDates:true});
+      return XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1});
+    },bytes);
+    assert.deepEqual(exported[0].slice(-2),['等級','XP']);
+    assert.deepEqual(exported[1].slice(-2),[1,25]);
+    assert.deepEqual(exported.at(-1).slice(-2),['—','—']);
+    await page.locator('#cloud-class').selectOption('999');
+    assert.equal(await page.locator('#cloud-table tbody tr').nth(1).locator('.cloud-xp').innerText(),'—');
     await page.locator('#cloud-logout').click();assert.equal(await page.locator('#cloud-table').innerText(),'');
     assert.deepEqual(errors,[]);
   }finally{await context.close()}

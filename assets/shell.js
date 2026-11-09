@@ -25,7 +25,7 @@ const shellXPReady = (() => {
   if (!src) return Promise.resolve();
   return new Promise(resolve => {
     const script = document.createElement('script');
-    script.src = new URL('xp.js?v=20261105d', src).href;
+    script.src = new URL('xp.js?v=20261109f', src).href;
     script.onload = script.onerror = resolve;
     document.head.appendChild(script);
   });
@@ -99,7 +99,7 @@ const shellMainHTML = (cfg, esc) => {
       <div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span></div>
     </div>
     <aside class="xp-header" id="xp-header" hidden aria-live="polite">
-      <a href="../me/" id="xp-link" aria-disabled="true" tabindex="-1" title="個人成長頁準備中">
+      <a href="../me/" id="xp-link" title="查看我的成長紀錄">
         <b id="xp-level"></b><span id="xp-total"></span>
         <progress id="xp-progress" max="1" value="0" aria-label="升級進度"></progress>
         <span class="small" id="xp-next"></span>
@@ -277,7 +277,6 @@ const shellCreateXP = s => {
     $('xp-login-hint').hidden = !!owner;
     if (!owner) return;
     const result = ready && snapshot(cloud);
-    $('xp-link').onclick = e => e.preventDefault();
     $('xp-level').textContent = result ? 'Lv ' + result.level + ' ' + result.title : '成長紀錄';
     $('xp-total').textContent = result ? result.totalXP + ' XP' : '載入中…';
     $('xp-progress').hidden = !result;

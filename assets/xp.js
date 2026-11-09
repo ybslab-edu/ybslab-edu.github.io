@@ -64,5 +64,17 @@ const YBSXP = (() => {
     const totalXP = details.reduce((n, a) => n + a.totalXP, 0);
     return {activities:details, totalXP, ...levelOf(totalXP), exploration:Object.values(axes)};
   }
-  return Object.freeze({RULES, TITLES, THEMES, threshold, levelOf, calculate});
+  // 路線依日期排列；week 仍是雲端活動 ID，不當作學期週次。
+  function journey(activities, records) {
+    const result = calculate(activities, records);
+    const stations = result.activities.map(detail => {
+      const a = activities.find(a => a.course === detail.course && a.week === detail.activity);
+      const complete = detail.rounds.length > 0 && detail.passed === detail.rounds.length;
+      return {...detail, title:a.title, href:a.href, date:a.date,
+        visited:detail.passed > 0, complete, isOpen:a.isOpen === true,
+        state:complete ? 'complete' : detail.passed > 0 ? 'in-progress' : a.isOpen === true ? 'available' : 'upcoming'};
+    }).sort((a,b) => String(a.date || '').localeCompare(String(b.date || '')) || a.activity - b.activity);
+    return {...result, stations, badges:stations.filter(a => a.complete)};
+  }
+  return Object.freeze({RULES, TITLES, THEMES, threshold, levelOf, calculate, journey});
 })();

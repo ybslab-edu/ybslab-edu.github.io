@@ -68,3 +68,30 @@ test('重複紀錄依有效作答時間選首次；未知時間仍不補發準�
   for(const records of [[early,late],[late,early]])assert.equal(xp.calculate([activity()],records).totalXP,15);
   for(const records of [[early,record()],[record(),early]])assert.equal(xp.calculate([activity()],records).totalXP,10);
 });
+
+test('路線依日期排序；走過站實心，完整、部分、開放及未開放各自判定',()=>{
+  const activities=[activity({week:9,date:'2026-12-01',isOpen:false}),
+    activity({week:3,date:'2026-10-02'}),activity({week:7,date:'2026-10-03'}),
+    activity({week:4,date:'2026-10-01'})];
+  const records=[record({activity:4}),record({activity:4,round:1}),record({activity:3})];
+  const before=JSON.stringify([activities,records]), result=xp.journey(activities,records);
+  assert.deepEqual(Array.from(result.stations,a=>a.activity),[4,3,7,9]);
+  assert.deepEqual(Array.from(result.stations,a=>a.state),['complete','in-progress','available','upcoming']);
+  assert.deepEqual(Array.from(result.stations,a=>a.visited),[true,true,false,false]);
+  assert.equal(JSON.stringify([activities,records]),before);
+});
+test('徽章僅給非空且全過的活動；重複、錯課程、越界紀錄都不能補滿',()=>{
+  const activities=[activity(),activity({week:2}),activity({week:3,rounds:[]})];
+  const result=xp.journey(activities,[record(),record(),record({round:1}),record({activity:2}),
+    record({activity:2,round:2}),record({activity:2,round:1,course:'other'})]);
+  assert.deepEqual(Array.from(result.badges,a=>a.activity),[1]);
+  assert.equal(xp.journey(activities,[]).badges.length,0);
+});
+test('零關主題與尚未開放主題的完成率為有限的 0',()=>{
+  const result=xp.journey([activity({isOpen:false})],[record()]);
+  for(const axis of result.exploration){
+    assert.equal(axis.openTotal,0);assert.equal(axis.openValue,0);
+    assert.ok(Number.isFinite(axis.value));
+    if(!['A','P'].includes(axis.id)){assert.equal(axis.total,0);assert.equal(axis.value,0)}
+  }
+});

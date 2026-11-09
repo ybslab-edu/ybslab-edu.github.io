@@ -65,7 +65,9 @@ for(const [width,reduced,dark] of [[1440,false,false],[390,false,true],[320,true
         await page.waitForFunction(()=>document.getElementById('xp-total').textContent==='80 XP');
         assert.equal(await page.locator('#xp-link').isVisible(),true);
         assert.equal(await page.locator('#xp-progress').isVisible(),true);
-        assert.equal(await page.locator('#xp-link').getAttribute('aria-disabled'),'true');
+        assert.equal(await page.locator('#xp-link').getAttribute('aria-disabled'),null);
+        assert.equal(await page.locator('#xp-link').getAttribute('href'),'../me/');
+        assert.equal(await page.locator('#xp-link').getAttribute('tabindex'),null);
       }else{
         await page.click('#g-manual');
         await page.fill('#in-cls','999');await page.fill('#in-seat','1');

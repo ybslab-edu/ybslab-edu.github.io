@@ -24,18 +24,28 @@ function setup(total){
 test('標題、所有關卡、任意順序計分、重做不加分、還原／換人、雲端相容',()=>{
   const h=setup();
   assert.equal(h.body.querySelector('#main h1').textContent,'第 11 週｜燈牌只有亮和暗');
+  assert.equal(h.el('prog'),null);assert.doesNotMatch(h.body.textContent,/我的過關進度|滿分 100|每少過一關/);
+  assert.equal(h.el('score').parentElement,h.el('report').parentElement);
+  assert.equal(h.el('report').querySelector('#score'),null);
+  assert.equal(h.body.querySelector('header #score'),null);
   assert.equal(h.el('unit'),null);assert.equal(h.el('tab-1'),null);
   assert.equal(h.el('rounds').querySelectorAll('button').length,5);
   const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.el('tb-ans').click();h.el('b-send').click()}};
   for(const [i,expected] of [[2,60],[0,70],[3,80],[2,80],[1,90],[4,100]]){
     pass(i);assert.equal(+h.el('score-value').textContent,expected);
-    assert.match(h.el('rounds').querySelectorAll('button')[i].textContent,/✓/);
+    assert.match(h.el('rounds').querySelectorAll('button')[i].textContent,/已過關/);
+    assert.equal(h.el('rounds').querySelectorAll('button')[i].querySelector('.done').getAttribute('aria-hidden'),'true');
+    assert.equal(h.el('rounds').querySelectorAll('button')[i].className,'passed');
+    h.run(`APP.load(${(i+1)%5})`);
+    assert.equal(h.el('rounds').querySelectorAll('button')[i].className,'passed');
   }
   assert.equal(h.uploads[0].level,'進階');assert.equal(h.uploads[1].level,'基礎');
   assert.equal(h.uploads[0].activity,5);assert.equal(h.uploads[0].termWeek,11);
   assert.equal('score' in h.uploads[0],false);
   h.start(2);assert.equal(+h.el('score-value').textContent,0);
+  assert.ok(h.el('rounds').querySelectorAll('button').every(b=>b.className===''));
   h.start(1);assert.equal(+h.el('score-value').textContent,100);
+  assert.ok(h.el('rounds').querySelectorAll('button').every(b=>b.className==='passed'&&b.textContent.includes('✓')));
 });
 test('示範頁五關都有比較卡，燈泡及輸入即時更新，原判定與兩組過關保留',()=>{
   const h=setup();
@@ -67,3 +77,16 @@ for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[
     }
   });
 }
+
+test('過關按鈕文字與勾勾使用的深淺主題色均達 AA 4.5:1',()=>{
+  const css=read('assets/shell.css');
+  const luminance=hex=>hex.match(/[a-f\d]{2}/gi).map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+  for(const block of css.matchAll(/:root[^{}]*\{([^{}]+)\}/g)){
+    const vars=Object.fromEntries([...block[1].matchAll(/--([\w-]+):\s*(#[a-f\d]{6})/gi)].map(m=>[m[1],m[2]]));
+    if(!vars['round-passed-ink'])continue;
+    const values=[luminance(vars['round-passed-ink']),luminance(vars['out-soft'])].sort((a,b)=>b-a);
+    assert.ok((values[0]+.05)/(values[1]+.05)>=4.5);
+  }
+  assert.match(css,/\.rounds button\.passed\{[^}]*color:var\(--round-passed-ink\)/);
+  assert.match(css,/\.rounds \.done\{color:inherit/);
+});

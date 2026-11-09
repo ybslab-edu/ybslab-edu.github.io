@@ -107,7 +107,6 @@ const shellMainHTML = (cfg, esc) => {
       </a>
       <p class="small xp-login-hint" id="xp-login-hint" hidden>用帳號登入就能累積等級</p>
     </aside>
-    <div class="score" id="score" aria-live="polite">目前分數 <strong id="score-value">0</strong> 分<span class="small">（滿分 100，每少過一關扣 10；0 關過＝0 分）</span></div>
   </header>
   <section class="sec" id="task-instructions">
     <h2 class="sec-h"><span class="num">1</span>任務說明</h2>
@@ -139,12 +138,15 @@ const shellMainHTML = (cfg, esc) => {
     <button class="btn" id="tb-new" type="button">換一組資料</button>
     <span class="thint">教師模式僅供示範；「顯示答案」直接填好這一組的答案，按「送出」可以示範過關畫面。</span>
   </div>
-  <section class="report" id="report" aria-live="polite">
-    <h2>我的過關進度</h2>
-    <div class="prog" id="prog"></div>
-    <button class="btn" id="b-retry" type="button" hidden>重試上傳</button>
-    <p class="small" style="width:100%" id="rep-note">每過一關會自動上傳；失敗時保留本機待送並自動重試，也可以按「重試上傳」。離開前請確認已上傳。</p>
-    <p class="sync" id="sync2" hidden style="margin:0"></p>
+  <section class="report" aria-live="polite">
+    <div class="report-status">
+      <div class="report-upload" id="report">
+        <button class="btn" id="b-retry" type="button" hidden>重試上傳</button>
+        <p class="small" style="width:100%" id="rep-note">每過一關會自動上傳；失敗時保留本機待送並自動重試，也可以按「重試上傳」。離開前請確認已上傳。</p>
+        <p class="sync" id="sync2" hidden style="margin:0"></p>
+      </div>
+      <div class="activity-score" id="score">目前分數 <strong id="score-value">0</strong> 分</div>
+    </div>
   </section>
   <p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>
 </div>`;
@@ -358,7 +360,7 @@ const shellCreateRoundFlow = (s) => {
   const seed = () => { let s = (Math.random() * 2 ** 31) >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 } };
   // 按原順序顯示所有關卡與已完成標記。
   function renderRounds() {
-    $('rounds').innerHTML = R.map((r, i) => '<button type="button" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done">✓</span>' : '') + '</button>').join('');
+    $('rounds').innerHTML = R.map((r, i) => '<button type="button" class="' + (s.done.has(i) ? 'passed' : '') + '" data-i="' + i + '" aria-pressed="' + (i === s.ri) + '">' + esc(r.name) + (s.done.has(i) ? ' <span class="done" aria-hidden="true">✓</span><span class="shell-sr-only"> 已過關</span>' : '') + '</button>').join('');
     $('score-value').textContent = activityScore(R.filter((_, i) => s.done.has(i)).length, R.length);
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
@@ -447,16 +449,11 @@ const shellCreateJudging = (s) => {
 
 // 保存既有進度。
 const shellCreateProgress = (s) => {
-  const { cfg, $, esc, R } = s;
+  const { cfg, $ } = s;
   const KEY = () => 'it9:w' + cfg.week + ':' + s.ident.cls + '-' + s.ident.seat;
   // 保存班座進度。
-  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄可能遺失，請保留頁面並重試上傳，確認老師已收到。' } renderReport(); }
-  // 呈現關卡進度。
-  function renderReport() {
-    if (!s.ident) return;
-    $('prog').innerHTML = R.map((r, i) => '<span class="' + (s.prog.mask & (1 << i) ? 'ok' : '') + '">' + esc(r.name) + (s.prog.mask & (1 << i) ? ' ✓' : '') + '</span>').join('');
-  }
-  return { progressKey: KEY, saveProg, renderReport };
+  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('rep-note').innerHTML = '<strong>這台電腦沒辦法存下進度</strong>（瀏覽器不允許）。重新整理後過關紀錄可能遺失，請保留頁面並重試上傳，確認老師已收到。' } }
+  return { progressKey: KEY, saveProg };
 };
 
 // 綁定班座輸入與確認步驟。
@@ -500,7 +497,7 @@ const shellCreateIdentity = (s) => {
     $('b-retry').hidden = !loginEnabled();
     $('gate').hidden = true; $('main').hidden = false;
     s.xp?.start();
-    s.setLevel(1); s.renderReport();
+    s.setLevel(1);
   }
   $('b-swap').onclick = () => {
     if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('report').hidden = false; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }

@@ -139,7 +139,7 @@ test('錯答不過、播放開始記次、一次雙資料過關、四關上傳�
 
 test('儲存失敗顯示 shell 提示；教師暫停、前後步、跳步、停止、鍵盤且不記分',()=>{
   const h=setup({failSave:true});h.play();assert.match(h.get('rep-note').textContent,/這台電腦沒辦法存下進度/);
-  assert.match(h.get('prog').textContent,/✓/);assert.equal(h.uploads.length,1);
+  assert.match(h.get('rounds').textContent,/✓/);assert.equal(h.uploads.length,1);
   const t=setup({teacher:true});t.evaluate('APP.handle.fill();play()');
   t.get('tb-play').onclick();assert.equal(t.evaluate('pb.paused'),true);
   t.get('tb-next').onclick();assert.equal(t.evaluate('pb.i'),1);

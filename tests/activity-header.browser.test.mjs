@@ -49,20 +49,24 @@ for(const width of [1280,390])test(`30 活動共用標題與關卡切換，${wid
         assert.equal(await page.evaluate(()=>APP.ri),i);
         // 以合成滿分確認三位數也有足夠空間，不觸發計分或上傳。
         const originalScore=await page.locator('#score-value').evaluate(el=>{const value=el.textContent;el.textContent='100';return value});
+        assert.equal(await page.locator('#score').isVisible(),true,dir+' 教師模式分數可見');
+        for(const id of ['b-retry','rep-note','sync2'])assert.equal(await page.locator('#'+id).isVisible(),false,dir+' 教師模式隱藏上傳元素');
         const layout=await page.locator('header.top').evaluate(el=>{
           const rect=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width}};
-          const score=el.querySelector('#score');
+          const score=document.querySelector('#score');
           return {title:rect(el.querySelector('h1')),buttons:[...el.querySelectorAll('#rounds button')].map(rect),
             heading:rect(el.querySelector('.activity-heading')),score:rect(score),
             scoreScroll:score.scrollWidth,scoreWidth:score.clientWidth,
+            textRows:[...score.childNodes].map(node=>{const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();return {top:r.top,bottom:r.bottom}}),
             pageWidth:document.documentElement.scrollWidth};
         });
         assert.ok(layout.buttons.every(b=>b.top>=layout.title.bottom&&b.left>=0&&b.right<=width),dir+' 所有關卡都在標題下一列且不溢出');
         assert.ok(layout.score.left>=0&&layout.score.right<=width&&layout.scoreScroll<=layout.scoreWidth+1,dir+' 分數完整顯示');
-        assert.ok(width>640?layout.score.left>=layout.heading.right:layout.score.top>=layout.heading.bottom,dir+' 分數有獨立空間');
+        assert.ok(Math.max(...layout.textRows.map(r=>r.top))<Math.min(...layout.textRows.map(r=>r.bottom)),dir+' 目前分數、數字與分同一列');
+        assert.ok(layout.score.top>=layout.heading.bottom,dir+' 分數有獨立空間');
         assert.ok(layout.pageWidth<=width,dir+' 整頁無水平捲動');
         assert.ok(await page.locator('#score-value').evaluate(el=>el.getBoundingClientRect().right<=el.parentElement.getBoundingClientRect().right),dir+' 三位數分數不被擠壓');
-        await page.locator('#score-value').evaluate((el,value)=>el.textContent=value,originalScore);
+        await page.locator('#score-value').evaluate((el,value)=>{el.textContent=value},originalScore);
         if(dir==='u2-03'){
           const target=await page.locator('.compare-target').boundingBox(),mine=await page.locator('.compare-mine').boundingBox();
           assert.ok(width<560?mine.y>=target.y+target.height:mine.x>=target.x+target.width,'比較卡依螢幕並排／上下排');

@@ -47,7 +47,7 @@ async function setup(t, sub = 'u2-02') {
 const snapshot = page => page.evaluate(() => ({
   local: {...localStorage}, session: {...sessionStorage}, uploads,
   score: document.querySelector('#score').textContent,
-  progress: document.querySelector('#prog').textContent,
+  progress: document.querySelector('#rounds').textContent,
   streak: document.querySelector('#streak').textContent,
   instance: JSON.stringify(APP.inst), round: APP.ri
 }));

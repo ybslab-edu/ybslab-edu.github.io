@@ -6,12 +6,12 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>我的成長紀錄｜YBS Lab</title>
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="me.css?v=20261109f">
+<link rel="stylesheet" href="me.css?v=20261109h">
 <script defer src="../../assets/curriculum.js"></script>
 <script defer src="../../assets/activities.js"></script>
 <script defer src="../../assets/xp.js?v=20261109f"></script>
 <script defer src="../../assets/login.js?v=20261109c"></script>
-<script defer src="me.js?v=20261109f"></script>
+<script defer src="me.js?v=20261109h"></script>
 </head>
 <body>
 <main>
@@ -23,12 +23,15 @@
   </section>
   <div class="notice" role="status"><span id="status">請先登入帳號。</span> <button id="retry" hidden>重新讀取</button></div>
   <div id="growth" hidden>
-    <section class="card summary" aria-labelledby="level"><div><p class="eyebrow">一點一滴，累積成長</p><h2 id="level"></h2><p id="next"></p><progress id="progress" max="1" value="0" aria-label="升級進度"></progress></div><div><strong id="total"></strong><p id="completed"></p></div></section>
-    <div class="columns">
-      <section class="card" aria-labelledby="exploration-title"><h2 id="exploration-title">探索度六邊形</h2><p>看見自己走到哪裡；探索度反映課程進度。</p><div id="radar"></div><ul id="axes" class="axes"></ul><p class="note">圖形以全學期關數為分母；一個活動可對應多個主題。沒有安排關卡的主題顯示「尚無關卡」。</p></section>
-      <section class="card" aria-labelledby="route-title"><h2 id="route-title">每週路線圖</h2><p>實心站點＝已走過；✓＝活動全過。</p><div id="route"></div></section>
+    <section class="card summary" aria-labelledby="level"><div><p class="eyebrow">一點一滴，累積成長</p><h2 id="level"></h2><p id="next"></p><progress id="progress" max="1" value="0" aria-label="升級進度"></progress></div><div><strong id="total"></strong><p id="completed"></p><p id="badge-count"></p></div></section>
+    <div id="growth-tabs" role="tablist" aria-label="探索與路線" hidden>
+      <button id="exploration-tab" role="tab" aria-controls="exploration-panel" aria-selected="true">探索六邊形</button>
+      <button id="route-tab" role="tab" aria-controls="route-panel" aria-selected="false" tabindex="-1">每週路線</button>
     </div>
-    <section class="card" aria-labelledby="badges-title"><h2 id="badges-title">徽章牆</h2><p id="badge-count"></p><ul id="badges" class="badges"></ul></section>
+    <div class="columns">
+      <section id="exploration-panel" class="card" aria-labelledby="exploration-title"><h2 id="exploration-title">探索度六邊形</h2><p>看見自己走到哪裡；探索度反映課程進度。</p><div id="radar"></div><ul id="axes" class="axes"></ul><p class="note">圖形以全學期關數為分母；一個活動可對應多個主題。沒有安排關卡的主題顯示「尚無關卡」。</p></section>
+      <section id="route-panel" class="card" aria-labelledby="route-title"><h2 id="route-title">每週路線圖</h2><p>實心站點＝已走過；✓＝活動全過。</p><div id="route"></div></section>
+    </div>
     <section class="card" aria-labelledby="details-title"><h2 id="details-title">XP 明細</h2><p>每關首次過關 +10、開放後 7 天內過關 +5、活動全過 +20。舊紀錄沒有時間時，不計準時加成。</p><div id="details"></div></section>
   </div>
   <footer>只跟自己比。XP 與成績分開，等級提供稱號與徽章。<br>© YBS Lab · 全權保留</footer>

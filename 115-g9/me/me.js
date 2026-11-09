@@ -6,6 +6,35 @@
   const course = '115-g9';
   const labels = {complete:'✓ 全過', 'in-progress':'探索中', available:'已開放', upcoming:'尚未開放'};
   let generation = 0, request = 0, owner = null;
+  const mobile = matchMedia('(max-width:640px)');
+  const panels = ['exploration','route'];
+  let selectedPanel = 'exploration';
+  function syncTabs() {
+    $('growth-tabs').hidden = !mobile.matches;
+    for (const name of panels) {
+      const selected = name === selectedPanel, tab = $(name + '-tab'), panel = $(name + '-panel');
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      panel.hidden = mobile.matches && !selected;
+      panel.setAttribute('aria-labelledby', name + (mobile.matches ? '-tab' : '-title'));
+      if (mobile.matches) { panel.setAttribute('role','tabpanel'); panel.tabIndex = 0; }
+      else { panel.removeAttribute('role'); panel.removeAttribute('tabindex'); }
+    }
+  }
+  for (const name of panels) {
+    const tab = $(name + '-tab');
+    tab.onclick = () => { selectedPanel = name; syncTabs(); };
+    tab.onkeydown = event => {
+      let next;
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) next = panels[1 - panels.indexOf(name)];
+      else if (event.key === 'Home') next = panels[0];
+      else if (event.key === 'End') next = panels[1];
+      else return;
+      event.preventDefault(); selectedPanel = next; syncTabs(); $(next + '-tab').focus();
+    };
+  }
+  mobile.addEventListener('change', syncTabs);
+  syncTabs();
 
   // lock.js 同時含 OPEN 資料和活動守門副作用。此頁不是活動，僅讀取
   // 該課程的字串清單，不執行守門、不複製提早開放名單、不使用 eval。
@@ -48,6 +77,7 @@
     $('progress').value = result.progress;
     $('next').textContent = result.next === null ? '已達最高等級，繼續探索吧！' : '下一級還差 ' + result.remaining + ' XP';
     $('completed').textContent = '已過 ' + result.stations.reduce((n,a) => n + a.passed,0) + ' 關 · 全過 ' + result.badges.length + ' 個活動';
+    $('badge-count').textContent = '已獲得 ' + result.badges.length + ' 枚徽章';
     radar(result.exploration);
     const groups = new Map();
     for (const a of result.stations) {
@@ -58,13 +88,21 @@
     }
     // 路徑全來自本機活動登記處；未開放站點保留進度顯示，不提供活動連結。
     const title = a => a.isOpen ? '<a href="../../' + esc(a.href) + '">' + esc(a.title) + '</a>' : esc(a.title);
-    $('route').innerHTML = [...groups].map(([week,items]) => '<h3>' + esc(week) + '</h3><ul class="stations">'
+    const weeks = [...groups];
+    const nextWeek = weeks.findLastIndex(([,items]) => items.some(a => a.isOpen)) + 1;
+    const visibleWeeks = [], futureWeeks = [];
+    weeks.forEach((week,index) => (week[1].some(a => a.isOpen) || index === nextWeek ? visibleWeeks : futureWeeks).push(week));
+    const weekHTML = ([week,items]) => '<div class="route-week"><h3>' + esc(week) + '</h3><ul class="stations">'
       + items.map(a => '<li class="station ' + (a.visited ? 'visited' : '') + '" data-state="' + a.state + '">' + title(a)
-        + '<small>' + esc(a.date) + ' · ' + labels[a.state] + ' · ' + a.passed + '/' + a.rounds.length + ' 關</small></li>').join('') + '</ul>').join('');
-    $('badge-count').textContent = result.badges.length ? '已獲得 ' + result.badges.length + ' 枚活動全過徽章。' : '每全過一個活動，就獲得一枚徽章。';
-    $('badges').innerHTML = result.stations.map(a => '<li class="badge ' + (a.complete ? 'earned' : '') + '"><span class="symbol" aria-hidden="true">' + (a.complete ? '✦' : '◇') + '</span><b>' + esc(a.title) + '</b><span>' + (a.complete ? '已獲得 · 活動全過' : '尚未獲得 · ' + a.passed + '/' + a.rounds.length + ' 關') + '</span></li>').join('');
-    $('details').innerHTML = result.stations.map(a => '<details class="xp-item"><summary>' + esc(a.title) + ' · <strong>' + a.totalXP + ' XP</strong><br>過關 ' + a.rounds.reduce((n,r) => n+r.passXP,0) + '＋準時 ' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '＋全過 ' + a.completeXP + '</summary><ul>'
-      + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + '</li>').join('') + '</ul></details>').join('');
+        + (a.complete ? '<span class="route-badge"><span aria-hidden="true">✦</span> 已獲得徽章</span>' : '')
+        + '<small>' + esc(a.date) + ' · ' + labels[a.state] + ' · ' + a.passed + '/' + a.rounds.length + ' 關</small></li>').join('') + '</ul></div>';
+    $('route').innerHTML = visibleWeeks.map(weekHTML).join('') + (futureWeeks.length
+      ? '<details id="future-weeks" class="collapsed-group"><summary>還有 ' + futureWeeks.length + ' 週</summary>' + futureWeeks.map(weekHTML).join('') + '</details>' : '');
+    const xpHTML = a => '<details class="xp-item"><summary>' + esc(a.title) + ' · <strong>' + a.totalXP + ' XP</strong><br>過關 ' + a.rounds.reduce((n,r) => n+r.passXP,0) + '＋準時 ' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '＋全過 ' + a.completeXP + '</summary><ul>'
+      + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + '</li>').join('') + '</ul></details>';
+    const untouched = result.stations.filter(a => a.totalXP === 0);
+    $('details').innerHTML = result.stations.filter(a => a.totalXP > 0).map(xpHTML).join('') + (untouched.length
+      ? '<details id="zero-xp" class="collapsed-group"><summary>尚未過關 ' + untouched.length + ' 項</summary>' + untouched.map(xpHTML).join('') + '</details>' : '');
     $('growth').hidden = false;
   }
 
@@ -96,6 +134,7 @@
 
   function signedIn(profile) {
     generation++; request++;
+    selectedPanel = 'exploration'; syncTabs();
     owner = profile?.uid || null;
     $('growth').hidden = true;
     $('signin').hidden = !!owner;
@@ -108,7 +147,7 @@
     const current = generation;
     $('growth').hidden = true;
     // 換人時清空 DOM，尚未完成的舊請求也不能重新顯示資料。
-    for (const id of ['level','total','next','completed','radar','axes','route','badges','badge-count','details']) $(id).textContent = '';
+    for (const id of ['level','total','next','completed','radar','axes','route','badge-count','details']) $(id).textContent = '';
     $('progress').value = 0;
     $('signin').hidden = false; $('logout').hidden = true; $('retry').hidden = true;
     $('status').textContent = '用帳號登入就能累積等級';

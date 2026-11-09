@@ -311,10 +311,11 @@ const shellCreateXP = s => {
       if (current !== generation || auth.currentUser?.uid !== uid) return;
       // 僅查目前帳號自己的 attempts；不用教師路徑或 guestAttempts。
       const result = await db.collection('ybsCourses/' + course + '/attempts').where('uid', '==', uid).get();
-      if (current !== generation || request !== readGeneration || YBS.profile()?.uid !== uid || auth.currentUser?.uid !== uid) return;
+      if (current !== generation || request !== readGeneration || !s.ident || s.teacher || YBS.profile()?.uid !== uid || auth.currentUser?.uid !== uid) return;
       // 預設 get 離線時可回傳空快取；僅伺服器確認後才更新 XP。
       if (result.metadata?.fromCache !== false) return;
       cloud = result.docs.map(d => ({...d.data(), course})).filter(r => r.uid === uid);
+      s.restoreCloudProgress(cloud);
       ready = true; render(); renderPass();
     } catch { /* 讀取失敗保留已確認紀錄；首次讀取仍等待雲端，不顯示假 0。 */ }
   }
@@ -416,7 +417,7 @@ const shellCreateJudging = (s) => {
       s.fresh(true); return;
     }
     const xpMessage = s.xp?.pass() || '';
-    if (!s.teacher) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
+    if (!s.teacher && !s.done.has(s.ri)) { s.done.add(s.ri); s.prog.mask |= 1 << s.ri; s.prog.time = Date.now(); s.saveProg(); s.upload(s.ri); }
     s.resetHints?.();
     const next = R.findIndex((x, i) => i > s.ri);
     v.className = 'verdict ok';
@@ -469,6 +470,16 @@ const shellBindIdentityForm = (s) => {
 // 還原班座進度並處理開始與換人。
 const shellCreateIdentity = (s) => {
   const { cfg, $, R, loginEnabled } = s;
+  // 共用 XP 已確認的本人雲端紀錄，只補上本活動過關位元，不動本機待送與作答次數。
+  function restoreCloudProgress(records) {
+    const before = s.prog.mask;
+    for (const r of records) {
+      if (r.activity !== cfg.week || !Number.isInteger(r.round) || r.round < 0 || r.round >= R.length) continue;
+      s.prog.mask |= 1 << r.round;
+      s.done.add(r.round);
+    }
+    if (s.prog.mask !== before) { s.saveProg(); s.renderRounds(); }
+  }
   // 還原既有進度並進入活動。
   function start(id) {
     s.resetHints?.();
@@ -491,7 +502,7 @@ const shellCreateIdentity = (s) => {
     s.ident = null; if (loginEnabled()) { if (YBS.profile()) YBS.logout(); else YBS.leaveGuest(); s.showLogin() }
     $('sync').hidden = true; $('main').hidden = true; $('gate').hidden = false; $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
   };
-  return { start };
+  return { start, restoreCloudProgress };
 };
 
 // 綁定教師登入、填答與換題操作。

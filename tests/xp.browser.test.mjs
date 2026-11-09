@@ -100,3 +100,55 @@ for(const [width,reduced,dark] of [[1440,false,false],[390,false,true],[320,true
     }finally{await page.close()}
   });
 }
+
+test('登入還原雲端綠勾並保存，只增不減；重新整理及重做不再上傳',async t=>{
+  const page=await browser.newPage();t.after(()=>page.close());
+  await page.route('**/*',r=>r.request().url().startsWith(base+'/')?r.continue():r.abort());
+  await page.goto(base+'/115-g9/u2-03/');
+  await page.evaluate(()=>{
+    localStorage.clear();
+    records=[{uid:'synthetic-one',activity:2,round:2,passedAt:Date.now()}];
+  });
+  await page.click('#mock-login');await page.click('#g-isme');
+  assert.equal(await page.locator('#rounds button.passed').count(),0);
+  await page.evaluate(()=>confirmCloud());
+  await page.waitForFunction(()=>document.querySelectorAll('#rounds button.passed').length===1);
+  assert.match(await page.locator('#rounds button[data-i="2"]').innerText(),/✓/);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w2:999-1')).mask),4);
+  await page.evaluate(()=>{APP.load(2);document.getElementById('b-send').click();document.getElementById('b-send').click()});
+  assert.equal(await page.evaluate(()=>submissions.length),0);
+  await page.evaluate(()=>{records=[];status('ok')});
+  await page.waitForFunction(()=>document.getElementById('xp-total').textContent==='0 XP');
+  assert.equal(await page.locator('#rounds button.passed').count(),1);
+  await page.reload();await page.click('#mock-login');await page.click('#g-isme');
+  assert.match(await page.locator('#rounds button[data-i="2"]').innerText(),/✓/);
+  await page.evaluate(()=>{records=[{uid:'synthetic-one',activity:2,round:0}];confirmCloud()});
+  await page.waitForFunction(()=>document.querySelectorAll('#rounds button.passed').length===2);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w2:999-1')).mask),5);
+});
+
+test('雲端讀取未完成就換人登入，舊帳號紀錄不會套到新帳號',async t=>{
+  const page=await browser.newPage();t.after(()=>page.close());
+  await page.route('**/*',r=>r.request().url().startsWith(base+'/')?r.continue():r.abort());
+  await page.goto(base+'/115-g9/u2-03/');
+  await page.evaluate(()=>{
+    localStorage.clear();
+    db.collection=()=>({where:(field,op,uid)=>({get:async()=>{
+      await waiting;
+      return {metadata:{fromCache:false},docs:[{data:()=>({uid,activity:2,round:uid==='synthetic-one'?0:3})}]};
+    }})});
+  });
+  await page.click('#mock-login');await page.click('#g-isme');
+  await page.click('#b-swap');
+  await page.evaluate(()=>{
+    profile={uid:'synthetic-two',email:'synthetic-two@example.invalid'};
+    YBS.whoami=async()=>({ok:true,student:{cls:999,seat:2}});
+    login(profile);
+  });
+  await page.click('#g-isme');await page.evaluate(()=>confirmCloud());
+  await page.waitForFunction(()=>document.querySelectorAll('#rounds button.passed').length===1);
+  assert.match(await page.locator('#rounds button[data-i="3"]').innerText(),/✓/);
+  assert.doesNotMatch(await page.locator('#rounds button[data-i="0"]').innerText(),/✓/);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('it9:w2:999-1')),null);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w2:999-2')).mask),8);
+});

@@ -87,6 +87,7 @@ const YBS = (() => {
   // 在 el 放「帳號、密碼、登入」表單；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
   async function button(el, ok, bad) {
     onLogin = ok; onError = bad;
+    const generation = accountGeneration;
     const id = 'ybs' + Math.random().toString(36).slice(2, 7);
     // 樣式隨表單提供，活動頁、專題頁與重新登入入口共用相同的主題及切換操作。
     const box = 'display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #4b5563;background:var(--ybs-login-bg);color:var(--ybs-login-ink)';
@@ -121,6 +122,19 @@ const YBS = (() => {
       finally { btn.disabled = false; btn.textContent = '登入'; }
     };
     setTimeout(() => { try { f.a.focus(); } catch (e) { /* 自動聚焦僅方便輸入，失敗仍可手動點選。 */ } }, 0);
+    if (!enabled()) return;
+    let auth;
+    try { ({auth} = await initFirebase()); }
+    catch (e) { return; /* 初始化失敗仍保留表單，讓學生手動登入重試或改填班座。 */ }
+    // 換頁後由 Auth 的 SESSION 還原身分；登出、改填班座或新登入已開始時不套用舊狀態。
+    if (generation !== accountGeneration || onLogin !== ok) return;
+    const user = auth.currentUser, acct = normAccount(user?.email);
+    if (!user || user.isAnonymous || !/^cgjh\d{3,12}$/.test(acct)
+      || String(user.email).toLowerCase() !== acct + '@' + ACCT_DOMAIN) return;
+    leaveGuest();
+    profile = {email: acct + '@' + CONFIG.domain, account: acct, uid: user.uid};
+    onLogin && onLogin(profile);
+    flush();
   }
 
   // 名單：ybsCourses/{courseId}/roster/{email}；回傳 { ok, student:{cls,seat} } 或 { ok:false, error }
@@ -221,6 +235,7 @@ const YBS = (() => {
     const failed = () => { onError && onError('登出未完成，請重新整理後再試。'); };
     return withAuth(async () => {
       // 手動入口會作廢待完成帳密登入，但同班座可保留既有匿名 SESSION。
+      if (initializing) await initializing;
       if (fb && (!keepAnonymous || (fb.auth.currentUser && !fb.auth.currentUser.isAnonymous))) await fb.auth.signOut();
     }).catch(failed);
   }

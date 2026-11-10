@@ -83,6 +83,11 @@ def login_student(pg):
     pg.fill('#g-gbtn input[name=a]', '1100123')
     pg.fill('#g-gbtn input[name=p]', 'CGJHa123456789')
     pg.click('#g-gbtn button')
+    confirm_student(pg)
+
+
+def confirm_student(pg):
+    """確認已登入帳號的班座；SESSION 還原後也沿用同一入口。"""
     pg.wait_for_selector('#g-whobtns', state='visible')
     assert '917 班 5 號' in pg.inner_text('#g-whotext')
     pg.click('#g-isme')
@@ -201,7 +206,8 @@ def weaknet_reload(c, pg):
     c.add_init_script('window.__firebaseWritePlan = [{hold:true}];')
     pg.reload()
     assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
-    login_student(pg)
+    confirm_student(pg)
+    assert pg.evaluate('YBS.profile()?.uid === "U1" && __signin.length === 0'), '重新整理應沿用 SESSION，不重送帳密'
     wait_evaluate(pg, '__firebaseMock.attempts.length === 1')
     assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
     assert pg.evaluate('__writes.length === 0')

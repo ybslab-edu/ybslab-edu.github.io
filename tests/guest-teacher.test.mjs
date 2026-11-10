@@ -179,7 +179,7 @@ for(const [label,offset,expected] of [['截止前',-1,'準時'],['截止當下',
     const cell=timed.get('cloud-table').querySelectorAll('tbody td')[1];
     const formatted=new Date(at+8*36e5).toISOString().slice(5,16).replace('-','/').replace('T',' ');
     assert.ok(cell.textContent.includes('第 1 關：'+formatted+' '+expected));
-    const summary=timed.get('cloud-table').querySelectorAll('tbody td').at(-2).textContent;
+    const summary=timed.get('cloud-table').querySelectorAll('tbody td').at(-3).textContent;
     assert.ok(summary.includes('準時 '+(expected==='準時'?1:0)+' 關、補做 '+(expected==='補做'?1:0)+' 關'));
     if(expected==='未判定')assert.match(summary,/未判定 1 關/);
     timed.get('cloud-export').onclick();
@@ -198,7 +198,7 @@ test('同關多筆取最早，其他關較晚的時間不會將準時關改成�
     await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
     const cells=h.get('cloud-table').querySelectorAll('tbody td');
     assert.match(cells[1].textContent,/第 1 關：11\/08 23:59 準時第 2 關：11\/09 00:00 補做/);
-    assert.equal(cells.at(-2).textContent,'準時 1 關、補做 1 關');
+    assert.equal(cells.at(-3).textContent,'準時 1 關、補做 1 關');
   }
 });
 test('補做截止視窗與 XP 維持七天一致',()=>{
@@ -241,4 +241,21 @@ test('班座來源的等級與匯出皆為破折號；無紀錄帳號顯示 Lv 1
   h.evaluate(`globalThis.book=XLSX.read(new Uint8Array(${JSON.stringify(bytes)}),{type:'array',cellDates:true})`);
   const exported=json(h,'XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1})');
   assert.deepEqual(exported[1].slice(-2),['—','—']);
+});
+
+test('成長紀錄隨延遲讀取、切班及重讀重建；空紀錄帳號仍有連結，名冊外不加',async()=>{
+  let release;const hold=new Promise(r=>release=r);
+  const h=setup({hold,roster:[{id:'one@example.invalid',data:()=>({cls:'998',seat:3})},{id:'empty@example.invalid',data:()=>({cls:999,seat:2})}],attempts:[]});
+  await h.login();const reading=h.read();await settle();
+  assert.equal(h.get('cloud-table').querySelectorAll('a').length,0);
+  release();await reading;
+  for(const [cls,seat] of [[998,3],[999,2],[998,3]]){
+    h.get('cloud-class').value=String(cls);h.get('cloud-class').onchange();
+    const links=h.get('cloud-table').querySelectorAll('a');
+    assert.equal(links.length,1);assert.equal(links[0].getAttribute('href'),'../me/?cls='+cls+'&seat='+seat);
+    assert.equal(links[0].textContent,'成長紀錄');
+  }
+  await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.equal(h.get('cloud-table').querySelectorAll('a').length,1);
+  await h.logout();assert.equal(h.get('cloud-table').querySelectorAll('a').length,0);
 });

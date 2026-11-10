@@ -4,79 +4,38 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/ https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}.lbl{font-size:13px;color:var(--muted);min-width:2.5em}
-.tabs a{color:inherit}
-nav a{color:var(--accent)}
-</style>
-<title>資訊科技成績彙整</title>
+<title>教師專區｜YBS Lab</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-
-<style>
-.cloud-xp{min-width:10em}.cloud-xp div+div{color:var(--muted);font-size:13px}
-.cloud-rounds{font-size:12px;line-height:1.7;margin-top:6px;white-space:nowrap}.cloud-late{color:var(--warn);font-weight:700}.cloud-on-time{color:var(--ok)}.cloud-unknown{color:var(--muted)}
-/* Layout: 班級切換 → 名冊活動摘要 → 詳細紀錄；工具型頁面，安靜、好掃描 */
-:root{
-  --bg:#F1F3F5; --surface:#FFFFFF; --ink:#1F2328; --muted:#5D6670; --line:#D5DBE1;
-  --accent:#2C67AE; --accent-soft:#E2ECF8; --ok:#2B7A4C; --ok-soft:#DFF1E6; --warn:#B3261E; --warn-soft:#FBE4E2;
-  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
-  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
-}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#15181C; --surface:#1E2228; --ink:#ECEFF2; --muted:#9AA3AD; --line:#333A42;
-  --accent:#82B2EC; --accent-soft:#1C2A3A; --ok:#6FC995; --ok-soft:#1A3325; --warn:#F2897F; --warn-soft:#3A1F1D; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#15181C; --surface:#1E2228; --ink:#ECEFF2; --muted:#9AA3AD; --line:#333A42;
-  --accent:#82B2EC; --accent-soft:#1C2A3A; --ok:#6FC995; --ok-soft:#1A3325; --warn:#F2897F; --warn-soft:#3A1F1D; color-scheme:dark}
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
-.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:14px}
-h1{margin:0;font-size:26px}
-.sub{margin:2px 0 0;color:var(--muted)}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
-textarea{font-family:var(--f-mono);font-size:14px;width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink);resize:vertical}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.btn{font:inherit;font-weight:700;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;cursor:pointer}
-.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.btn.danger{color:var(--warn);border-color:var(--warn)}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.msg{font-size:14px} .msg.ok{color:var(--ok)} .msg.no{color:var(--warn)}
-.tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tabs button{font:inherit;font-family:var(--f-mono);font-weight:700;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 14px;cursor:pointer}
-.tabs button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
-.tabs small{font-family:var(--f-body);font-weight:400;color:var(--muted)}
-.stats{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-.stats b{color:var(--ink);font-size:18px;font-variant-numeric:tabular-nums}
-.tbl{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
-th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
-th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--surface)}
-td{font-variant-numeric:tabular-nums}
-td.code{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
-tr.health-warning td{color:var(--warn);background:var(--warn-soft)}
-.y{color:var(--ok);font-weight:700} .n{color:var(--muted)}
-tr.miss td{color:var(--muted);background:var(--warn-soft)}
-.size{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
-.size input{width:4.5em;font:inherit;font-family:var(--f-mono);padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
-.confirm{background:var(--warn-soft);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.empty{color:var(--muted);text-align:center;padding:24px}
-.lbl{font-size:13px;color:var(--muted);min-width:2.5em}
-.tabs a{color:inherit}
-nav a{color:var(--accent)}
-</style>
+<link rel="stylesheet" href="../../assets/teacher-home.css?v=20261110a">
 <script src="../../assets/vendor/xlsx-0.20.3.full.min.js?v=20261031a"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
+<script src="../../assets/lock.js?v=20261110a"></script>
+<script src="../../assets/teacher-home.js?v=20261110a" defer></script>
 
-<div class="wrap">
-  <nav><a href="../../">← YBS Lab</a></nav>
-  <div>
-    <h1>資訊科技成績彙整</h1>
-    <p class="sub">選擇班級查看名冊每個座號的活動進度；點開詳細資料核對來源與衝突。等級／XP 僅累積帳號過關紀錄，與成績分開；未驗證班座顯示「—」。下載 Excel 保留完整明細。</p>
+</head>
+<body>
+<a class="skip-link" href="#student-records">跳至學生紀錄</a>
+<header class="site-bar"><div class="site-inner">
+  <a class="brand" href="../../" aria-label="YBS Lab 首頁"><b><i>Y</i><i>B</i><i>S</i> Lab</b><span>教學與探索</span></a>
+  <nav aria-label="網站導覽"><a href="../../">學期進度</a><a href="../../map/">學習地圖</a></nav>
+</div></header>
+<main class="wrap paper">
+  <div class="page-heading">
+    <p class="eyebrow">YBS LAB <span>／</span> TEACHER</p>
+    <h1>教師專區</h1>
+    <p class="sub">從學生紀錄到課堂準備，把教學需要的工具放在一起。</p>
   </div>
-
+  <nav class="category-nav" aria-label="教師功能分類">
+    <a href="#student-records"><span>01</span>學生紀錄</a>
+    <a href="#questions-activities"><span>02</span>題目與活動</a>
+    <a href="#course-settings"><span>03</span>課程設定</a>
+    <a href="#other-tools"><span>04</span>其他工具</a>
+  </nav>
+  <section class="category" id="student-records" aria-labelledby="records-heading" tabindex="-1">
+    <div class="section-heading"><span class="section-number">01</span><h2 id="records-heading">學生紀錄</h2><span class="section-caption">進度、成長與交件</span></div>
+    <p class="section-intro">選擇班級查看每個座號的活動進度，展開詳細資料核對來源與衝突。等級／XP 僅累積帳號過關紀錄，與成績分開；未驗證班座顯示「—」。下載 Excel 保留完整明細。</p>
   <section class="panel" aria-label="雲端過關紀錄">
     <strong>雲端過關紀錄（帳號與班座）</strong>
     <p class="sub">使用 ClassScore 課程擁有者的 Google 帳號登入後讀取。班座來源為未驗證；不同來源或 UID 的衝突標示待核對，不合併計算。</p>
@@ -89,9 +48,13 @@ nav a{color:var(--accent)}
     <p class="msg" id="cloud-status" role="status">請使用課程擁有者的 Google 帳號登入。</p>
     <p>截止規則：開放後 7 天內（含截止當下）為準時，其後首次過關標示「補做」。時間為台灣時間；無開放日期標示「未判定」，僅供教師判斷，不自動扣分。</p>
     <label for="cloud-class">班級</label> <select id="cloud-class" disabled><option value="">請先讀取雲端紀錄</option></select>
-    <div class="tbl" id="cloud-table"></div>
+    <div class="tbl" id="cloud-table" tabindex="0" role="region" aria-label="雲端班級紀錄表（可橫向捲動）"></div>
   </section>
 
+  </section>
+  <section class="category" id="questions-activities" aria-labelledby="questions-heading" tabindex="-1">
+    <div class="section-heading"><span class="section-number">02</span><h2 id="questions-heading">題目與活動</h2><span class="section-caption">備課與教學回饋</span></div>
+    <details class="activity-catalog"><summary>活動入口與開放狀態</summary><div id="teacher-activities"></div></details>
   <section class="panel" aria-label="題目健檢">
     <strong>題目健檢</strong>
     <p class="sub">只計名冊中的登入學生，不含班座紀錄。人數以名冊帳號計；同帳號每關採最後上傳的過關紀錄。平均、中位數與最多次數只計已過關者，無紀錄顯示「—」。</p>
@@ -99,9 +62,21 @@ nav a{color:var(--accent)}
     <label for="health-class">健檢班級</label>
     <select id="health-class" disabled><option value="">全部班級</option></select>
     <p class="msg" id="health-status" role="status">請先登入並讀取雲端紀錄。</p>
-    <div class="tbl" id="health-table"></div>
+    <div class="tbl" id="health-table" tabindex="0" role="region" aria-label="題目健檢表（可橫向捲動）"></div>
   </section>
 
+  </section>
+  <section class="category" id="course-settings" aria-labelledby="settings-heading" tabindex="-1">
+    <div class="section-heading"><span class="section-number">03</span><h2 id="settings-heading">課程設定</h2><span class="section-caption">開放狀態 · 唯讀</span></div>
+    <p class="section-intro">課程開關維持設定檔管理；活動依提早開放清單及開放日期判定。此處僅供查閱。</p>
+    <div id="teacher-courses" class="course-grid"></div>
+  </section>
+  <section class="category" id="other-tools" aria-labelledby="tools-heading" tabindex="-1">
+    <div class="section-heading"><span class="section-number">04</span><h2 id="tools-heading">其他工具</h2><span class="section-caption">教務與專題</span></div>
+    <div class="tool-grid">
+      <a class="tool-link" href="https://class-score-86020.web.app"><span class="tool-kicker">CLASSROOM</span><h3>ClassScore <span aria-hidden="true">↗</span></h3><p>開啟成績與課程管理工具</p></a>
+      <a class="tool-link" href="../../115-df/teacher/"><span class="tool-kicker">PROJECT</span><h3>數資班彙整台 <span aria-hidden="true">→</span></h3><p>彙整本機報告檔與雲端交件</p></a>
+    </div>
   <section class="panel" id="legacy-panel" aria-label="舊資料處理" hidden>
     <p class="msg no" id="legacy-msg" role="alert"></p>
     <div class="row">
@@ -109,13 +84,15 @@ nav a{color:var(--accent)}
     </div>
     <p class="sub">原始備份保留舊成績、人數及損毀內容，並非 Excel，無法直接匯回此頁。舊資料原樣保留。</p>
   </section>
+  </section>
   <p class="msg" id="dlmsg" role="status"></p>
-</div>
+  <footer><span>YBS Lab for Education</span><span>教師工具 · 雲端資料仍依課程擁有者權限讀取</span></footer>
+</main>
 
 <script src="../../assets/login.js?v=20261110c"></script>
 <script src="../../assets/xp.js?v=20261109f"></script>
 <script src="../../assets/item-health.js?v=20261106q"></script>
-<script src="../../assets/guest-teacher.js?v=20261110b"></script>
+<script src="../../assets/guest-teacher.js?v=20261110e"></script>
 <script src="../../assets/shell.js?v=20261110d"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -152,3 +129,6 @@ const today=()=>{const d=new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2
 const updateHealth=window.YBSItemHealth?.mount({activities:W});
 if(typeof window.YBSGuestTeacher==='function')window.YBSGuestTeacher({course:COURSE,activities:W,saveBook,onRecords:updateHealth});
 </script>
+
+</body>
+</html>

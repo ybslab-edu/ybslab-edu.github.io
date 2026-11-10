@@ -142,7 +142,7 @@
     if (owner) void refresh();
   }
   $('retry').onclick = refresh;
-  $('logout').onclick = () => {
+  function signedOut() {
     generation++; request++; owner = null;
     const current = generation;
     $('growth').hidden = true;
@@ -151,11 +151,15 @@
     $('progress').value = 0;
     $('signin').hidden = false; $('logout').hidden = true; $('retry').hidden = true;
     $('status').textContent = '用帳號登入就能累積等級';
+    return current;
+  }
+  $('logout').onclick = () => {
+    const current = signedOut();
     Promise.resolve(YBS.logout()).catch(() => {
       if (generation === current) $('status').textContent = '登出尚未完成，請重新整理後登入。';
     });
   };
   YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
-  YBS.status(state => { if (state === 'ok' && owner) void refresh(); });
+  YBS.status(state => { if (state === 'relogin' && owner) signedOut(); else if (state === 'ok' && owner) void refresh(); });
   if (YBS.profile()?.uid) signedIn(YBS.profile());
 })();

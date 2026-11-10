@@ -218,19 +218,20 @@ def weaknet_reload(c, pg):
 
 def weaknet_permission(c, pg, exists):
     if exists:
-        # 同一路徑已有紀錄：拒絕覆寫後，login.js 讀回 exists 才能移除待送項目。
+        # 同一路徑已有紀錄：Web Locks 下先讀取，直接確認收件而不重寫。
         pg.evaluate("""__firebaseMock.documents.set("ybsCourses/115-g9/attempts/U1_1_0", {
             uid:"U1", email:"cgjh1100123@cgjh.hcc.edu.tw", activity:1, round:0,
             level:1, tries:1, passedAt:"TS", app:"ybs", termWeek:7
         })""")
     pg.evaluate('__firebaseMock.plan.push({code:"permission-denied"})')
     pass_round(pg)
-    wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
     if exists:
         wait_queue(pg, 0)
         wait_sync(pg, 'ok')
         assert pg.evaluate('__writes.length === 0 && __firebaseMock.documents.get("ybsCourses/115-g9/attempts/U1_1_0").round === 0')
+        assert pg.evaluate('__firebaseMock.attempts.length === (navigator.locks ? 0 : 1)')
     else:
+        wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
         wait_sync(pg, 'pending')
         wait_queue(pg, 1)
         assert pg.evaluate('__writes.length === 0')

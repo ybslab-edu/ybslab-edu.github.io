@@ -8,12 +8,14 @@ import {sessionFirebase} from './fixtures/login-session.mjs';
 const source = readFileSync(new URL('../assets/login.js', import.meta.url), 'utf8');
 const student = {uid:'session-one',email:'cgjh9990001@ybslab-edu.github.io',isAnonymous:false};
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function setup({user = student,hold = false,storage = new Map()} = {}) {
-  storage.set('mock:session-user', JSON.stringify(user));
+function setup({user = student,hold = false,storage = new Map(),cookie = true,cookiesBlocked = false} = {}) {
+  const shared = new Map([['mock:session-user', JSON.stringify(user)]]);
+  let cookieValue = cookie ? 'ybslab_browser=1' : '';
+  const storageFor = map => ({getItem:k => map.get(k) ?? null,setItem:(k,v) => map.set(k,v),removeItem:k => map.delete(k)});
   const host = new Element('div');
   const context = vm.createContext({
     location:{pathname:'/115-g9/u2-02/'},
-    localStorage:{},sessionStorage:{getItem:k => storage.get(k) ?? null,setItem:(k,v) => storage.set(k,v),removeItem:k => storage.delete(k)},
+    localStorage:storageFor(shared),sessionStorage:storageFor(storage),
     queueMicrotask,setInterval(){},setTimeout(){},addEventListener(){},__holdSessionAuth:hold,
     document:{querySelector:() => null,createElement:() => ({}),head:{appendChild:s => queueMicrotask(() => s.onload())},
       getElementById(id) {
@@ -24,9 +26,10 @@ function setup({user = student,hold = false,storage = new Map()} = {}) {
       }}
   });
   context.window = context;
+  Object.defineProperty(context.document,'cookie',{get:() => cookieValue,set:value => {if (!cookiesBlocked) cookieValue = value.split(';')[0];}});
   vm.runInContext(sessionFirebase, context);
   vm.runInContext(source + '\nglobalThis.api = YBS;', context);
-  return {api:context.api,mock:context.__sessionMock,host,storage};
+  return {api:context.api,mock:context.__sessionMock,host,storage,shared,cookie:() => cookieValue};
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 test('同分頁換頁：等待初始 Auth，再由登入信箱恢復 roster profile 並通知入口', async () => {
@@ -41,7 +44,7 @@ test('同分頁換頁：等待初始 Auth，再由登入信箱恢復 roster prof
   assert.deepEqual(received, [{uid:'session-one',account:'cgjh9990001',email:'cgjh9990001@cgjh.hcc.edu.tw'}]);
   assert.deepEqual(plain(h.api.profile()), received[0]);
   assert.deepEqual(plain(await h.api.whoami()), {ok:true,student:{cls:999,seat:1}});
-  assert.deepEqual(plain(h.mock.persistence), ['session']);
+  assert.deepEqual(plain(h.mock.persistence), ['local']);
   assert.equal(h.mock.signins.length, 0);
   assert.equal(h.mock.signouts, 0);
 });
@@ -73,7 +76,7 @@ for (const keepAnonymous of [false,true]) test(`初始化較慢時登出／改�
   await Promise.all([restoring,logout]);
   assert.equal(h.api.profile(), null);
   assert.equal(received, 0);
-  assert.equal(h.mock.auth.currentUser, null, '必須清除仍在初始化的 SESSION，避免下次換頁又恢復舊帳號');
+  assert.equal(h.mock.auth.currentUser, null, '必須清除仍在初始化的帳號，避免下次換頁又恢復舊帳號');
 });
 test('手動登入較慢時，自動恢復不可把舊帳號送給入口', async () => {
   const h = setup({hold:true}), received = [];
@@ -98,4 +101,50 @@ test('初始 Auth 出錯仍能手動登入重試', async () => {
   await form.onsubmit({preventDefault(){}});
   assert.equal(h.api.profile().uid, 'session-two');
   assert.equal(callbacks, 1);
+});
+test('LOCAL 帳號存在但瀏覽器 cookie 消失：登出並清帳號暫存，保留班座資料', async () => {
+  const storage = new Map([['ybslab:fq','[]'],['ybslab:reports:115-df','[]'],['ybslab:guest-identity','synthetic guest binding']]);
+  const h = setup({cookie:false,storage});let received = 0;
+  await h.api.button(h.host, () => received++);
+  assert.equal(h.mock.signouts, 1);
+  assert.equal(h.mock.auth.currentUser, null);
+  assert.equal(h.api.profile(), null);
+  assert.equal(received, 0);
+  assert.equal(storage.has('ybslab:fq'), false);
+  assert.equal(storage.has('ybslab:reports:115-df'), false);
+  assert.equal(storage.get('ybslab:guest-identity'), 'synthetic guest binding');
+});
+test('真正帳密登入建立瀏覽器 cookie，明確登出移除 cookie', async () => {
+  const h = setup({user:null,cookie:false});
+  await h.api.button(h.host, () => {});
+  const form = h.host.querySelector('form');
+  form.a.value = '9990001';form.p.value = 'synthetic-test-password';
+  await form.onsubmit({preventDefault(){}});
+  assert.equal(h.cookie(), 'ybslab_browser=1');
+  assert.equal(h.mock.persistence.at(-1), 'local');
+  await h.api.logout();
+  assert.equal(h.cookie(), 'ybslab_browser=');
+});
+test('cookie 遭封鎖時不留下無標記的 LOCAL 帳號，保留班座替代入口', async () => {
+  const h = setup({user:null,cookie:false,cookiesBlocked:true}), errors = [];
+  await h.api.button(h.host, () => assert.fail('不應登入成功'), message => errors.push(message));
+  const form = h.host.querySelector('form');
+  form.a.value = '9990001';form.p.value = 'synthetic-test-password';
+  await form.onsubmit({preventDefault(){}});
+  assert.equal(h.api.profile(), null);
+  assert.equal(h.mock.auth.currentUser, null);
+  assert.match(errors[0], /cookie.*班座/);
+});
+test('瀏覽器重開清理舊帳號時，已輸入的新帳密只需登入一次', async () => {
+  const h = setup({cookie:false,hold:true}), received = [], errors = [];
+  const restoring = h.api.button(h.host, p => received.push(p.uid), message => errors.push(message));
+  const form = h.host.querySelector('form');
+  form.a.value = '9990002';form.p.value = 'synthetic-test-password';
+  const signingIn = form.onsubmit({preventDefault(){}});
+  await tick();h.mock.releaseAuth();
+  await Promise.all([restoring,signingIn]);
+  assert.deepEqual(received,['session-two']);
+  assert.deepEqual(errors,[]);
+  assert.equal(h.api.profile()?.uid,'session-two');
+  assert.equal(h.mock.signouts,1);
 });

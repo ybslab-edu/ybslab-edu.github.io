@@ -66,6 +66,16 @@ test('實際 API 成功、覆寫保留 createdAt，收到時間取自伺服器',
   assert.equal(c.__fake.commits[1].data.updatedAt,first.data.updatedAt+50);
   assert.equal(c.__fake.attempts.length,0);
 });
+test('相同報告快照跨分頁重送只確認收件，不新增寫入或更新收件時間',async()=>{
+  const {c,advance}=await setup();
+  const packet={schemaVersion:1,encoding:'ascii-json',payload:'{"synthetic":"same snapshot"}',snapshotAt:c.Date.now(),cls:999,seat:1};
+  const first=await c.YBS.submitReport(1,packet);
+  await advance(50);
+  const second=await c.YBS.submitReport(1,{...packet,snapshotAt:c.Date.now()});
+  assert.equal(c.__fake.transactions,2);
+  assert.equal(c.__fake.commits.length,1);
+  assert.equal(second.updatedAt,first.updatedAt);
+});
 test('2／5／15 秒自動三次後停止；手動重試不改原快照',async()=>{
   const {c,queue,advance,now}=await setup();c.__fake.failures=Array(4).fill('unavailable');await c.queueReport(1);
   await until(()=>queue()[0]?.phase==='waiting');

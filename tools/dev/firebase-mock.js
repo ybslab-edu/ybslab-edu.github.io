@@ -61,7 +61,7 @@ window.firebase = window.firebase || (() => {
     initializeApp: (o, n) => {
       const a = {name: n, auth: () => auth, firestore: () => fs}; apps.push(a); return a;
     },
-    auth: {Auth: {Persistence: {SESSION: 's', NONE: 'n'}}, GoogleAuthProvider},
+    auth: {Auth: {Persistence: {SESSION: 's', LOCAL: 'l', NONE: 'n'}}, GoogleAuthProvider},
     firestore: {FieldValue: {serverTimestamp: () => 'TS'}}
   };
 })();

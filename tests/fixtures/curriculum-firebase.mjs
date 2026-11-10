@@ -19,5 +19,5 @@ const db = {
   return{docs:state[path.split('/').pop()]};}}}
 };
 const app={name:'ybs',auth:()=>auth,firestore:()=>db};
-window.firebase={apps:[app],auth:{Auth:{Persistence:{SESSION:'session'}},GoogleAuthProvider:class{setCustomParameters(){}}}};
+window.firebase={apps:[app],auth:{Auth:{Persistence:{SESSION:'session',LOCAL:'local'}},GoogleAuthProvider:class{setCustomParameters(){}}}};
 `;

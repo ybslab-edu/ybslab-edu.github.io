@@ -34,6 +34,6 @@ window.firebase=(()=>{
   }};
   const app={name:'ybs',auth:()=>auth,firestore:()=>db};
   const fb={apps:[],initializeApp:()=>{fb.apps.push(app);return app;},
-    auth:{Auth:{Persistence:{SESSION:'session'}}},firestore:{FieldValue:{serverTimestamp:()=>({server:true})}}};
+    auth:{Auth:{Persistence:{SESSION:'session',LOCAL:'local'}}},firestore:{FieldValue:{serverTimestamp:()=>({server:true})}}};
   return fb;
 })();`;

@@ -52,14 +52,16 @@ def lock_expectations(b, now=TEST_NOW):
     try:
         pg = page_of(c, now)
         source = '\n'.join((ROOT / 'assets' / name).read_text(encoding='utf-8')
-                           for name in ('lock.js', 'activities.js'))
+                           for name in ('curriculum.js', 'lock.js', 'activities.js'))
         paths = list(dict.fromkeys(PAGES + [f'115-g9/{new}/' for new in REDIRECTS.values()]))
         return pg.evaluate("paths => {" + source + r"""
             return Object.fromEntries(paths.map(path => {
                 const [course, sub = ''] = path.split('/');
                 const list = OPEN[course];
-                if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub) || list.includes(sub))
+                if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub))
                     return [path, false];
+                if (COURSES.some(c => c.id === course && !c.open)) return [path, true];
+                if (list.includes(sub)) return [path, false];
                 const a = ACTIVITIES.find(a => a.course === course && a.href.split('/')[1] === sub);
                 return [path, !(a && isActivityOpen(a))];
             }));

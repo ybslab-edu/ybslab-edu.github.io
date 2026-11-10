@@ -1,24 +1,26 @@
-// 活動依 date 前最近的週日 23:59（台灣時間）開放；OPEN 可額外提早開放。
+// 課程須先由 curriculum.js 的 open 開設；活動依 date 前最近的週日 23:59（台灣時間）開放。
+// OPEN 只讓已開設課程的活動提早開放，不會覆蓋課程開關。
 // 教師解鎖只在這個分頁有效；課程首頁、教師頁（teacher）不受影響。
 const OPEN = {
   '115-g9': ['u1-05', 'u1-06', 'u2-01', 'u2-02'],
-  '115-df': ['a']                                  // 數資班專題：要開放就加 'a'
+  '115-df': ['a']                                  // 數資班專題活動提早開放（仍須課程 open: true）
 };
 (() => {
   const seg = location.pathname.split('/').filter(Boolean);
   const list = OPEN[seg[0]], sub = seg[1] || '';
-  if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub) || list.includes(sub)) return;
+  if (!list || !sub || sub === 'teacher' || /\.html$/.test(sub)) return;
   const T = typeof TEACHER !== 'undefined' ? TEACHER : null;
   if (T && T.remembered()) return;
   const show = () => {
+    const courseClosed = typeof COURSES !== 'undefined' && COURSES.some(c => c.id === seg[0] && !c.open);
     // 多數活動頁稍後才載入 activities.js，等 DOM 完成後再讀取共用日期判斷。
     const a = typeof ACTIVITIES !== 'undefined'
       ? ACTIVITIES.find(a => a.course === seg[0] && a.href.split('/')[1] === sub) : null;
-    if (a && isActivityOpen(a)) return;
+    if (!courseClosed && (list.includes(sub) || (a && isActivityOpen(a)))) return;
     const d = document.createElement('div');
     d.id = 'ybs-lock';
     d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:#14161b;color:#e8eaee;font:18px/1.6 system-ui,"Noto Sans TC",sans-serif;text-align:center';
-    d.innerHTML = '<div style="max-width:420px"><div style="font-size:44px">🔒</div><h1 style="font-size:26px;margin:8px 0">這個活動還沒開放</h1>'
+    d.innerHTML = '<div style="max-width:420px"><div style="font-size:44px">🔒</div><h1 style="font-size:26px;margin:8px 0">' + (courseClosed ? '本學年未開設這門課' : '這個活動還沒開放') + '</h1>'
       + '<p style="color:#a9b0bb;margin:0 0 20px">請回到 YBS Lab 首頁，做老師這週指定的活動。</p>'
       + '<p><a href="/" style="color:#8ab4f8">← 回 YBS Lab 首頁</a></p>'
       + '<p style="margin-top:28px"><button type="button" id="ybs-unlock" style="background:none;border:0;color:#6b7280;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">教師解鎖</button></p></div>';

@@ -21,6 +21,7 @@ function setup({path='/115-g9/u2-03/', now=before, remembered=false, accepted=fa
       createElement:()=>({style:{}}),getElementById:()=>button,
       addEventListener:(name,fn)=>{events[name]=fn;}}
   });
+  vm.runInContext(read('assets/curriculum.js'),context);
   if(loadActivities && !loading) vm.runInContext(activities,context);
   vm.runInContext(lock,context); // HTML 解析期間和實際活動頁一樣，lock 先載入
   if(loadActivities && loading) vm.runInContext(activities,context);
@@ -60,7 +61,7 @@ test('已過上課日期、學期結束後保持開放；also 不使活動重新
 test('OPEN 手動清單可在上課前提早開放，未登記或日期無效仍鎖',()=>{
   const h=setup({path:'/115-g9/u2-02/',now:'2026-01-01T00:00:00Z'});
   assert.equal(h.open('115-g9/u2-02/'),true);assert.equal(h.elements.length,0);
-  assert.equal(setup({path:'/115-df/a/',loadActivities:false}).elements.length,0);
+  assert.equal(setup({path:'/115-df/a/',loadActivities:false}).elements.length,1);
   assert.equal(setup({path:'/115-g9/unknown/'}).elements.length,1);
   for(const date of ['', 'bad', '2026-02-30']){
     h.context.badDate=date;
@@ -83,4 +84,13 @@ test('未載入活動資料時保持鎖定；DOM 完成後載入 lock 仍可判�
   assert.equal(setup({loadActivities:false}).elements.length,1);
   assert.equal(setup({loading:false}).elements.length,1);
   assert.equal(setup({loading:false,now:boundary}).elements.length,0);
+});
+
+test('未開設課程優先於 OPEN 及日期，教師仍可解鎖與回訪',async()=>{
+  for(const now of ['2026-01-01T00:00:00Z','2028-01-01T00:00:00Z']){
+    const h=setup({path:'/115-df/a/',now,accepted:true});
+    assert.match(h.elements[0].innerHTML,/本學年未開設這門課/);
+    await h.button.onclick();assert.equal(h.saved(),true);assert.equal(h.reloads(),1);
+    assert.equal(setup({path:'/115-df/a/',now,remembered:true}).elements.length,0);
+  }
 });

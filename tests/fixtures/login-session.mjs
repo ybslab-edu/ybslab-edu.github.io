@@ -36,12 +36,12 @@ window.firebase = (() => {
     },
     async signInWithEmailAndPassword(email) {
       state.signins.push(email);
-      changed({uid:email.includes('9990002') ? 'session-two' : 'session-one',email,isAnonymous:false});
+      changed({uid:email.includes('9990002') ? 'session-two' : 'session-one',email,isAnonymous:false,providerData:[{providerId:'password'}]});
       return {user};
     },
     async signOut() { state.signouts++; changed(null); }
   };
-  auth.signInWithPopup = async () => {changed({uid:'teacher',isAnonymous:false});return {user};};
+  auth.signInWithPopup = async () => {changed({uid:'teacher',email:'teacher@example.invalid',isAnonymous:false,providerData:[{providerId:'google.com'}]});return {user};};
   const db = {
     doc(path) { return {
       async get() {

@@ -41,7 +41,7 @@ window.firebase = window.firebase || (() => {
     signInWithEmailAndPassword: async (e, p) => {
       __signin.push([e, p]);
       if (e === 'cgjh1100123@ybslab-edu.github.io' && p === 'cgjhA123456789') {
-        changed({uid: 'U1', email: e, isAnonymous:false}); return {user: auth.currentUser};
+        changed({uid: 'U1', email: e, isAnonymous:false, providerData:[{providerId:'password'}]}); return {user: auth.currentUser};
       }
       const err = new Error('x'); err.code = 'auth/invalid-credential'; throw err;
     },

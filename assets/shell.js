@@ -36,7 +36,8 @@ const SHELL = (cfg) => {
   const loginEnabled = () => typeof YBS !== 'undefined' && YBS.enabled();
   // 每次呼叫各自保存狀態，供同檔案的內部功能共用。
   const s = { cfg, $, esc, loginEnabled, R: cfg.rounds, level: 1, ri: 0,
-    inst: null, handle: null, streak: 0, teacher: false, done: new Set(), previousKey: null, ident: null };
+    inst: null, handle: null, streak: 0, teacher: false, done: new Set(), previousKey: null, ident: null,
+    identityGeneration: 0, identityRevoked: false, accountUid: null };
   shellCreateInterface(s);
   if (typeof document.createElement === 'function') import('/assets/warmup.js?v=20261105w1').then(m => m.mountWarmup({cfg, main: $('main')})).catch(() => {});
   s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
@@ -355,6 +356,7 @@ const shellCreateRoundFlow = (s) => {
   function renderStreak() { $('streak').innerHTML = '累積答對 ' + Math.min(s.streak, 2) + '/2 ' + [0, 1].map(i => '<i class="' + (i < s.streak ? 'on' : '') + '"></i>').join(''); }
   // 同步送出狀態與電腦內部說明。
   function changed() {
+    if (s.identityRevoked || !s.handle) { $('b-send').disabled = true; return; }
     const ok = !s.handle.ready || s.handle.ready();
     $('b-send').disabled = !ok; $('send-hint').textContent = ok ? '' : '全部完成後才能送出。';
     if (R[s.ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[s.ri].peek(s.inst, s.handle.get()); } else $('sec3').hidden = true;
@@ -375,7 +377,10 @@ const shellCreateRoundFlow = (s) => {
     }
     s.previousKey = key;
     $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (s.teacher && r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
-    $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), { changed: () => changed(), attempt, esc });
+    const identity = s.identityGeneration;
+    $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), {
+      changed: () => { if (identity === s.identityGeneration && !s.identityRevoked) changed(); },
+      attempt: () => { if (identity === s.identityGeneration && !s.identityRevoked) attempt(); }, esc });
     shellHighlightQuestion($, previousNumbers);
     renderStreak(); changed(); s.renderHints?.();
     if (afterSubmit) $('task-instructions')?.scrollIntoView?.({behavior: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
@@ -387,6 +392,7 @@ const shellCreateRoundFlow = (s) => {
 
   // 自行演出的活動可在開始演出時記次；預設仍由送出按鈕記次。
   function attempt() {
+    if (s.isIdentityCurrent?.() === false) return;
     if (!s.teacher && !s.done.has(s.ri)) { s.prog.tries[s.ri] = Math.min(15, s.prog.tries[s.ri] + 1); s.saveProg(); }
   }
   $('b-send').onclick = () => s.submit();
@@ -399,7 +405,7 @@ const shellCreateJudging = (s) => {
   const NEED = 2;
   // 依原判題結果更新累積確認與過關紀錄。
   function submit() {
-    if (s.isHintDemo?.()) return;
+    if (!s.handle || s.isIdentityCurrent?.() === false || s.isHintDemo?.()) return;
     const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
     if (!r.manualAttempt) s.attempt();
     s.hintSubmitted?.(res !== true);
@@ -437,9 +443,9 @@ const shellCreateJudging = (s) => {
 // 保存既有進度。
 const shellCreateProgress = (s) => {
   const { cfg, $ } = s;
-  const KEY = () => 'it9:w' + cfg.week + ':' + s.ident.cls + '-' + s.ident.seat;
+  const KEY = () => s.ident ? 'it9:w' + cfg.week + ':' + s.ident.cls + '-' + s.ident.seat : null;
   // 保存班座進度。
-  function saveProg() { try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('sync').hidden = false; $('sync').className = 'sync warn'; $('sync').textContent = '這台電腦沒辦法存下進度（瀏覽器不允許）。重新整理後過關紀錄可能遺失，請保留頁面並重試上傳，確認老師已收到。' } }
+  function saveProg() { if (!s.ident || s.isIdentityCurrent?.() === false) return; try { localStorage.setItem(KEY(), JSON.stringify(s.prog)); localStorage.setItem('it9:last', JSON.stringify(cfg.rememberIdentity ? s.ident : { cls: s.ident.cls, seat: s.ident.seat })) } catch (e) { $('sync').hidden = false; $('sync').className = 'sync warn'; $('sync').textContent = '這台電腦沒辦法存下進度（瀏覽器不允許）。重新整理後過關紀錄可能遺失，請保留頁面並重試上傳，確認老師已收到。' } }
   return { progressKey: KEY, saveProg };
 };
 
@@ -469,6 +475,27 @@ const shellBindIdentityForm = (s) => {
 // 還原班座進度並處理開始與換人。
 const shellCreateIdentity = (s) => {
   const { cfg, $, R, loginEnabled } = s;
+  const isIdentityCurrent = () => !s.identityRevoked && (s.teacher || !!s.ident
+    && (!s.accountUid || (loginEnabled() && YBS.profile()?.uid === s.accountUid)));
+  // 解除記憶體綁定，不刪除前一位已儲存的本機進度；遲到 view 回呼也失效。
+  function resetIdentity() {
+    s.identityGeneration++; s.identityRevoked = true;
+    s.handle?.dispose?.();
+    s.xp?.stop(); s.resetHints?.();
+    s.ident = null; s.accountUid = null; s.inst = null; s.handle = null;
+    s.streak = 0; s.previousKey = null; s.ri = 0; s.done.clear();
+    s.prog = {mask:0, tries:Array(cfg.progressLength ?? 6).fill(0), time:Date.now()};
+    // 演出頁會把共用 verdict 放進 stage，先取回再清掉作答節點。
+    if ($('verdict').closest('#stage')) $('main').append($('verdict'));
+    $('stage').innerHTML = ''; $('says').innerHTML = ''; $('verdict').innerHTML = ''; $('verdict').hidden = true;
+    $('peek').innerHTML = ''; $('sec3').hidden = true; $('send-hint').textContent = '';
+    $('who').textContent = ''; $('sync').textContent = ''; $('sync').hidden = true; $('b-retry').hidden = true; $('b-send').disabled = true;
+    $('main').hidden = true; $('gate').hidden = false; $('g-who').hidden = true;
+    $('g-whotext').textContent = ''; $('g-isme').onclick = null;
+    $('g-me').textContent = ''; $('g-me').hidden = true; $('g-confirm').textContent = '';
+    $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
+    s.renderRounds(); s.renderStreak();
+  }
   // 共用 XP 已確認的本人雲端紀錄，只補上本活動過關位元，不動本機待送與作答次數。
   function restoreCloudProgress(records) {
     const before = s.prog.mask;
@@ -481,6 +508,8 @@ const shellCreateIdentity = (s) => {
   }
   // 還原既有進度並進入活動。
   function start(id) {
+    s.identityGeneration++; s.identityRevoked = false;
+    s.accountUid = loginEnabled() ? YBS.profile()?.uid || null : null;
     s.resetHints?.();
     s.ident = id; $('sync').textContent = ''; $('sync').hidden = true; $('b-retry').hidden = true; $('b-retry').disabled = false; s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
     try { const p = JSON.parse(localStorage.getItem(s.progressKey()) || 'null'); if (p && Number.isInteger(p.mask) && p.mask >= 0 && p.mask < 2 ** R.length
@@ -496,12 +525,12 @@ const shellCreateIdentity = (s) => {
     s.setLevel(1);
   }
   $('b-swap').onclick = () => {
+    const wasTeacher = s.teacher;
     if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
-    s.xp?.stop();
-    s.ident = null; if (loginEnabled()) { if (YBS.profile()) YBS.logout(); else YBS.leaveGuest(); s.showLogin() }
-    $('sync').hidden = true; $('main').hidden = true; $('gate').hidden = false; $('g-back').click(); $('in-cls').value = ''; $('in-seat').value = ''; $('gerr').textContent = '';
+    resetIdentity();
+    if (loginEnabled()) { if (wasTeacher || YBS.profile()) YBS.logout(); else YBS.leaveGuest(); s.showLogin() }
   };
-  return { start, restoreCloudProgress };
+  return { start, resetIdentity, isIdentityCurrent, restoreCloudProgress };
 };
 
 // 綁定教師登入、填答與換題操作。
@@ -509,6 +538,7 @@ const shellCreateTeacher = (s) => {
   const { $ } = s;
   // 進入不記分的教師示範模式。
   function enterTeacher() {
+    s.identityGeneration++; s.identityRevoked = false; s.accountUid = null;
     s.xp?.stop();
     s.teacher = true; TEACHER.remember(true); s.ident = null; s.done.clear();
     $('who').textContent = '教師模式'; $('b-swap').textContent = '登出教師模式';
@@ -578,11 +608,15 @@ const shellCreateSync = (s) => {
     const cls = 'sync' + (state === 'ok' ? ' ok' : state === 'sending' ? '' : ' warn');
     if (el) {
       el.hidden = false; el.className = cls;
-      if (state === 'relogin') { el.innerHTML = '登入過期，重新登入才能上傳 <span id="sync-btn"></span>'; YBS.button($('sync-btn'), () => {}, msg => { el.textContent = msg; }); }
-      else el.textContent = text;
+      el.textContent = text;
     }
   }
-  if (typeof YBS !== 'undefined') YBS.status(st => { if (!s.ident) return; state = st; identity = s.ident; renderStatus(); if (st === 'ok') s.xp?.refresh(); });
+  if (typeof YBS !== 'undefined') YBS.status(st => {
+    if (st === 'relogin' && !s.teacher) {
+      state = null; identity = null; s.resetIdentity(); s.showLogin(); return;
+    }
+    if (!s.ident) return; state = st; identity = s.ident; renderStatus(); if (st === 'ok') s.xp?.refresh();
+  });
   // 元素延後建立或被重建時重綁按鈕及還原目前身分的提示；不依賴首次查找成功。
   if (window.MutationObserver) new window.MutationObserver(() => {
     const current = [$('sync'), $('b-retry')];

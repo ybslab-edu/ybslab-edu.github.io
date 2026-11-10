@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import {Element} from './fixtures/activity-dom.mjs';
 import {sessionFirebase} from './fixtures/login-session.mjs';
 const source = readFileSync(new URL('../assets/login.js', import.meta.url), 'utf8');
-const student = {uid:'session-one',email:'cgjh9990001@ybslab-edu.github.io',isAnonymous:false};
+const student = {uid:'session-one',email:'cgjh9990001@ybslab-edu.github.io',isAnonymous:false,providerData:[{providerId:'password'}]};
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function setup({user = student,hold = false,storage = new Map(),cookie = true,cookiesBlocked = false} = {}) {
   const shared = new Map([['mock:session-user', JSON.stringify(user)]]);
@@ -147,4 +147,12 @@ test('瀏覽器重開清理舊帳號時，已輸入的新帳密只需登入一�
   assert.deepEqual(errors,[]);
   assert.equal(h.api.profile()?.uid,'session-two');
   assert.equal(h.mock.signouts,1);
+});
+test('教師 Google SESSION 不受缺少學生 cookie 影響，也不改成 LOCAL', async () => {
+  const user = {uid:'teacher',email:'teacher@example.invalid',isAnonymous:false,providerData:[{providerId:'google.com'}]};
+  const h = setup({user,cookie:false});
+  await h.api.firebaseSession();
+  assert.equal(h.mock.auth.currentUser?.uid,'teacher');
+  assert.equal(h.mock.signouts,0);
+  assert.deepEqual(plain(h.mock.persistence),['session']);
 });

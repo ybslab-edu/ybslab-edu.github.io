@@ -18,6 +18,10 @@ const YBS = (() => {
 
   let fb = null, initializing = null, profile = null, accountGeneration = 0, onLogin = null, onError = null, onStatus = () => {};
   let accountExpired = false;
+  // 僅學生帳密帳號使用瀏覽器標記；Google 教師登入維持 SESSION。
+  const studentAccount = user => !!user && !user.isAnonymous
+    && /^cgjh\d{3,12}@ybslab-edu\.github\.io$/i.test(user.email || '')
+    && !!user.providerData?.length && user.providerData.every(p => p.providerId === 'password');
   const BROWSER_COOKIE = 'ybslab_browser', LOGOUT_KEY = 'ybslab:account-logout';
   const browserSession = () => { try { return String(document.cookie || '').split(';').some(c => c.trim() === BROWSER_COOKIE + '=1'); } catch (e) { return false; } };
   function markBrowserSession() {
@@ -76,13 +80,13 @@ const YBS = (() => {
     if (auth.onAuthStateChanged) await new Promise((ok, no) => {
       const unsubscribe = auth.onAuthStateChanged(() => { ok(); Promise.resolve().then(() => unsubscribe()); }, no);
     });
-    if (auth.currentUser && !auth.currentUser.isAnonymous && !browserSession()) {
+    if (studentAccount(auth.currentUser) && !browserSession()) {
       // 清舊瀏覽器帳號不作廢學生剛輸入的新帳密；明確登出仍會取消登入。
       endBrowserSession({cancelLogin:false});
       await auth.signOut();
     }
     // 學生帳號沿用至瀏覽器工作階段結束；班座匿名登入仍只保留本分頁。
-    await auth.setPersistence(firebase.auth.Auth.Persistence[auth.currentUser && !auth.currentUser.isAnonymous ? 'LOCAL' : 'SESSION']);
+    await auth.setPersistence(firebase.auth.Auth.Persistence[studentAccount(auth.currentUser) ? 'LOCAL' : 'SESSION']);
     fb = { app, auth, db: app.firestore() };
     auth.onAuthStateChanged?.(user => { if (profile && user?.uid !== profile.uid) revokeAccount(); });
     return fb;
@@ -171,8 +175,7 @@ const YBS = (() => {
     // 換頁／新分頁由 LOCAL 與瀏覽器 cookie 還原；取消後不套用舊狀態。
     if (generation !== accountGeneration || onLogin !== ok || !browserSession()) return;
     const user = auth.currentUser, acct = normAccount(user?.email);
-    if (!user || user.isAnonymous || !/^cgjh\d{3,12}$/.test(acct)
-      || String(user.email).toLowerCase() !== acct + '@' + ACCT_DOMAIN) return;
+    if (!studentAccount(user)) return;
     leaveGuest();
     profile = {email: acct + '@' + CONFIG.domain, account: acct, uid: user.uid};
     accountExpired = false;
@@ -475,7 +478,7 @@ const YBS = (() => {
     revokeAccount();
     void withAuth(async () => {
       if (initializing) await initializing;
-      if (!browserSession() && fb?.auth.currentUser && !fb.auth.currentUser.isAnonymous) await fb.auth.signOut();
+      if (!browserSession() && studentAccount(fb?.auth.currentUser)) await fb.auth.signOut();
     }).catch(() => { onError && onError('登出未完成，請重新整理後再試。'); });
   });
 

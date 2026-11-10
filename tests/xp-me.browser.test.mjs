@@ -34,6 +34,7 @@ before(async()=>{
   await new Promise(ok=>server.listen(0,'127.0.0.1',ok));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true});
   await mkdir('/tmp/ybs-xp-p2-shots',{recursive:true});
+  await mkdir('/tmp/ybs-me-icon-shots',{recursive:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(ok=>server.close(ok))});
 async function pageFor(t,options={},suffix=''){
@@ -49,6 +50,18 @@ async function pageFor(t,options={},suffix=''){
   await page.goto(base+'/115-g9/me/'+suffix);
   t.after(()=>{assert.deepEqual(errors,[]);assert.deepEqual(outside,[])});
   return page;
+}
+for(const width of [1440,390]){
+  test(`未登入密碼眼睛圖示維持小尺寸：${width}px`,async t=>{
+    const page=await pageFor(t,{viewport:{width,height:width===390?844:1000}},'?real-login');
+    assert.equal(await page.locator('#growth').isVisible(),false);
+    const icon=page.locator('svg.ybs-password-icon');
+    assert.equal(await icon.count(),1);
+    const box=await icon.boundingBox();
+    assert.ok(box && box.width>0 && box.width<=24 && box.height>0 && box.height<=24,
+      `密碼眼睛圖示尺寸：${JSON.stringify(box)}`);
+    await page.screenshot({path:`/tmp/ybs-me-icon-shots/signin-${width===390?'390':'desktop'}.png`,fullPage:true});
+  });
 }
 test('沿用真正登入元件；未登入及班座本機紀錄不觸發雲端或顯示 XP',async t=>{
   const page=await pageFor(t,{viewport:{width:390,height:844},colorScheme:'dark'},'?real-login');
@@ -84,6 +97,11 @@ for(const [width,colorScheme,reducedMotion] of [[1440,'light','no-preference'],[
     assert.ok(weeks.some(w=>w.includes('下學期')));
     assert.equal(await page.locator('#axes li').count(),6);
     assert.equal(await page.locator('svg .area').count(),1);
+    const radar=await page.locator('#radar svg').boundingBox();
+    assert.ok(radar && radar.width>200,`六邊形寬度：${radar?.width}px`);
+    if(width===390 && colorScheme==='light'){
+      await page.screenshot({path:'/tmp/ybs-me-icon-shots/radar-390.png',fullPage:true});
+    }
     assert.match(await page.locator('#axes').textContent(),/已開放.*完成率/);
     const xpSummary=page.locator('#details summary').filter({hasText:'深夜手搖店'});
     await xpSummary.click();

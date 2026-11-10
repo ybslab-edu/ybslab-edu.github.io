@@ -3,6 +3,7 @@ import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir} from 'node:fs/promises';
+import {teacherFirebase} from './fixtures/me-teacher.mjs';
 import {sessionFirebase} from './fixtures/login-session.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base;
@@ -27,16 +28,17 @@ before(async()=>{
   server=createServer(async(req,res)=>{
     let path=new URL(req.url,'http://127.0.0.1').pathname;
     if(['/115-g9/me/','/115-g9/u2-03/'].includes(path))path+='index.html';
-    const allowed=['/115-g9/me/index.html','/115-g9/me/me.js','/115-g9/me/me.css','/assets/login.js','/assets/xp.js','/assets/curriculum.js','/assets/activities.js','/assets/lock.js','/assets/favicon.svg','/115-g9/u2-03/index.html','/assets/shell.js','/assets/shell.css','/assets/teacher.js','/assets/warmup.js','/assets/warmup-bank.js'];
+    const allowed=['/115-g9/me/index.html','/115-g9/me/me.js','/115-g9/me/me-teacher.js','/115-g9/me/me.css','/assets/login.js','/assets/xp.js','/assets/curriculum.js','/assets/activities.js','/assets/lock.js','/assets/favicon.svg','/115-g9/u2-03/index.html','/assets/shell.js','/assets/shell.css','/assets/teacher.js','/assets/warmup.js','/assets/warmup-bank.js'];
     if(!allowed.includes(path))return res.writeHead(404).end();
     const type=path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
-    const source=path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') ? mock : await readFile(new URL('..'+path,import.meta.url),'utf8');
+    const source=path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') && !req.headers.referer?.includes('cls=') ? mock : await readFile(new URL('..'+path,import.meta.url),'utf8');
     res.end(path==='/115-g9/u2-03/index.html' ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
   });
   await new Promise(ok=>server.listen(0,'127.0.0.1',ok));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true});
   await mkdir('/tmp/ybs-me-impl-shots',{recursive:true});
+  await mkdir('/tmp/ybs-me-teacher-shots',{recursive:true});
   await mkdir('/tmp/ybs-me-icon-shots',{recursive:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(ok=>server.close(ok))});
@@ -48,11 +50,12 @@ async function pageFor(t,options={},suffix=''){
   await page.route('**/*',r=>{
     if(r.request().url().startsWith(base+'/'))return r.continue();
     // 真正登入入口現在會主動還原 SESSION；離線提供未登入的合成 Auth。
-    if(r.request().url().startsWith('https://www.gstatic.com/firebasejs/10.14.1/'))return r.fulfill({contentType:'text/javascript',body:r.request().url().endsWith('/firebase-app-compat.js')?sessionFirebase:'// offline mock'});
+    if(r.request().url().startsWith('https://www.gstatic.com/firebasejs/10.14.1/'))return r.fulfill({contentType:'text/javascript',body:r.request().url().endsWith('/firebase-app-compat.js')?(page.url().includes('cls=')?teacherFirebase:sessionFirebase):'// offline mock'});
     outside.push(r.request().url());return r.abort();
   });
   await page.clock.setFixedTime(new Date('2026-11-09T04:00:00Z'));
   await page.goto(base+'/115-g9/me/'+suffix);
+  if(suffix.includes('cls=') && !suffix.includes('seat=61'))await page.waitForFunction(()=>window.meTeacherMock?.auths.has('ybs-me-teacher'));
   t.after(()=>{assert.deepEqual(errors,[]);assert.deepEqual(outside,[])});
   return page;
 }
@@ -322,3 +325,113 @@ for(const [width,colorScheme] of [[1440,'light'],[1440,'dark'],[390,'light']]){
     }
   });
 }
+
+for (const width of [1440,390]) {
+  test(`教師唯讀成長頁與截圖：${width}px`,async t=>{
+    const page=await pageFor(t,{viewport:{width,height:1000}},'?cls=999&seat=1');
+    assert.equal(await page.evaluate(()=>meTeacherMock.reads.length),0);
+    assert.equal(await page.locator('script[src*="assets/login.js"]').count(),0);
+    await page.click('[data-teacher-login]');
+    await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+    assert.equal(await page.locator('h1').textContent(),'教師檢視：999班1號');
+    assert.equal(await page.locator('#total').textContent(),'75 XP');
+    const reads=await page.evaluate(()=>meTeacherMock.reads);
+    assert.deepEqual(reads.map(r=>r.path),['ybsCourses/115-g9','ybsCourses/115-g9/roster','ybsCourses/115-g9/attempts']);
+    assert.ok(reads.every(r=>r.options.source==='server'));
+    assert.equal(reads[2].field,'email'); assert.equal(reads[2].value,'student@example.invalid');
+    assert.equal(await page.locator('#continue-action').isVisible(),false);
+    await page.locator('#xp-details > summary').click();
+    await page.locator('.xp-item > summary').first().click();
+    assert.match(await page.locator('.teacher-round').first().textContent(),/2026.*台灣時間.*準時/);
+    assert.match(await page.locator('.teacher-round').nth(1).textContent(),/補做/);
+    assert.match(await page.locator('.teacher-round').nth(4).textContent(),/時間不明/);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    await page.screenshot({path:'/tmp/ybs-me-teacher-shots/teacher-'+(width===1440?'desktop':'mobile')+'.png',fullPage:true});
+    await page.evaluate(()=>meTeacherMock.login(null));
+    assert.equal(await page.locator('#growth').isVisible(),false);
+    assert.equal(await page.locator('#details').textContent(),'');
+    assert.equal(await page.locator('#progress').getAttribute('aria-label'),'升級進度');
+  });
+}
+test('非擁有者與學生帶參數皆拒絕，不讀名冊或他人 attempts',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  for(const uid of ['anonymous','synthetic-student','synthetic-stranger']) {
+    await page.evaluate(uid=>meTeacherMock.login(uid),uid);
+    await page.waitForFunction(()=>document.getElementById('status').textContent.includes('需教師登入'));
+    assert.equal(await page.locator('#growth').isVisible(),false);
+  }
+  assert.ok((await page.evaluate(()=>meTeacherMock.reads)).every(r=>r.path==='ybsCourses/115-g9'));
+  await page.screenshot({path:'/tmp/ybs-me-teacher-shots/denied.png',fullPage:true});
+});
+test('教師名冊查無班座與重複班座均有明確訊息',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  await page.evaluate(()=>{meTeacherMock.roster=[];meTeacherMock.login('synthetic-owner')});
+  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('找不到該班座'));
+  await page.evaluate(()=>{meTeacherMock.roster=[1,2].map(i=>({id:i+'@example.invalid',data:()=>({cls:999,seat:1})}));meTeacherMock.login('synthetic-owner')});
+  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('重複名冊'));
+  assert.equal((await page.evaluate(()=>meTeacherMock.reads)).some(r=>r.path.endsWith('attempts')),false);
+});
+test('教師登入元素延後出現及重建仍可操作；慢回應在換人後丟棄',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  await page.evaluate(()=>document.getElementById('login').remove());
+  await page.evaluate(()=>{const host=document.createElement('div');host.id='login';document.getElementById('signin').append(host)});
+  await page.waitForSelector('[data-teacher-login]');
+  await page.evaluate(()=>document.getElementById('login').replaceChildren());
+  await page.waitForSelector('[data-teacher-login]');
+  await page.evaluate(()=>{meTeacherMock.mode='wait'});
+  await page.click('[data-teacher-login]');
+  await page.waitForFunction(()=>meTeacherMock.pending.length===1);
+  await page.evaluate(()=>{meTeacherMock.login('synthetic-stranger');meTeacherMock.pending[0]()});
+  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('需教師登入'));
+  assert.equal(await page.locator('#growth').isVisible(),false);
+  assert.equal(await page.locator('#details').textContent(),'');
+});
+test('教師離線快取不顯示假零，已確認資料在暫時讀取失敗時保留',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  await page.evaluate(()=>{meTeacherMock.mode='cache';meTeacherMock.login('synthetic-owner')});
+  await page.waitForFunction(()=>!document.getElementById('retry').hidden);
+  assert.equal(await page.locator('#growth').isVisible(),false);
+  await page.evaluate(()=>{meTeacherMock.mode='ok'}); await page.click('#retry');
+  await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+  await page.evaluate(()=>{meTeacherMock.mode='error'}); await page.click('#retry');
+  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('保留上次'));
+  assert.equal(await page.locator('#total').textContent(),'75 XP');
+});
+
+test('既有教師 Auth 可直接進入；重建明細後時間與補做仍存在且不持久化',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1&restored=owner');
+  await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+  await page.evaluate(()=>document.getElementById('details').replaceChildren());
+  await page.click('#retry');
+  await page.waitForFunction(()=>document.querySelectorAll('.teacher-round').length>0);
+  assert.match(await page.locator('.teacher-round').nth(1).textContent(),/補做/);
+  assert.deepEqual(await page.evaluate(()=>meTeacherMock.persistence),[{name:'ybs-me-teacher',value:'session'}]);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher')),null);
+});
+test('教師目標參數無效時不初始化 Auth 或讀取雲端',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=61');
+  assert.match(await page.locator('#status').textContent(),/參數無效/);
+  assert.equal(await page.locator('#growth').isVisible(),false);
+  assert.equal(await page.evaluate(()=>window.meTeacherMock),undefined);
+  assert.equal(await page.locator('script[src*="firebase-app-compat.js"]').count(),0);
+});
+
+test('教師模式有班座綁定與待送紀錄時不載入學生模組或寫入',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  await page.evaluate(()=>{
+    sessionStorage.setItem('ybslab:guest-identity',JSON.stringify({cls:'999',seat:1,uid:'guest-synthetic'}));
+    localStorage.setItem('ybslab:guest:115-g9',JSON.stringify({queue:[{cls:'999',seat:1,activity:1,round:0,level:1,tries:1}],receipts:[]}));
+    localStorage.setItem('mock:auth:ybs',JSON.stringify({uid:'synthetic-student',providerData:[{providerId:'password'}]}));
+  });
+  await page.reload();
+  await page.waitForFunction(()=>window.meTeacherMock?.auths.has('ybs-me-teacher'));
+  await page.click('[data-teacher-login]');
+  await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+  await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await page.waitForTimeout(100);
+  assert.equal(await page.locator('script[src*="assets/login.js"]').count(),0);
+  assert.deepEqual(await page.evaluate(()=>meTeacherMock.writes),[]);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher')),null);
+  assert.ok(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs')));
+  assert.ok(await page.evaluate(()=>localStorage.getItem('ybslab:guest:115-g9')));
+});

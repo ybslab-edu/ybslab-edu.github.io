@@ -1,9 +1,11 @@
-// 只顯示本人已由伺服器確認的 attempts；此頁不提交作答、不保存 XP。
+// 顯示本人或課程擁有者指定學生的已確認 attempts；不提交作答、不保存 XP。
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const course = '115-g9';
+  const teacherTarget = YBSMeTeacher.target(location.search);
+  let teacherAuth;
   let generation = 0, request = 0, owner = null;
   const mobile = matchMedia('(max-width:700px)');
   const panels = ['exploration','route'];
@@ -90,6 +92,7 @@
   const weekLabel = a => { const term = TERMS.find(t => a.date >= t.begin && a.date <= t.end); return (term?.name || '') + ' · ' + (termWeekLabel(a) || '未排定週次'); };
   function render(activities, records) {
     const result = YBSXP.journey(activities, records);
+    const roundInfo = (a,r) => teacherTarget ? '<br><span class="teacher-round">' + esc(YBSMeTeacher.round(records,a.activity,r.round,activities.find(source => source.week === a.activity)?.openedAt)) + '</span>' : '';
     // UI 所需中繼資料直接由活動登記處補入，不改 XP 核心或雲端格式。
     result.stations = result.stations.map(a => {
       const source = activities.find(source => source.week === a.activity);
@@ -102,7 +105,7 @@
     $('current-title').textContent = current?.title || '已完成所有已開放活動';
     $('current-week').textContent = current ? 'W' + String(termWeekOf(current)).padStart(2,'0') : '';
     $('current-description').textContent = current ? '已完成 ' + current.passed + ' / ' + current.rounds.length + ' 關，接著挑戰「' + current.rounds.find(r => !r.passed).name + '」。' : '每走過一站，都算自己的進步。新的活動開放後再來探索。';
-    $('continue-action').hidden = !current;
+    $('continue-action').hidden = !!teacherTarget || !current;
     if (current) { $('remaining').textContent = current.rounds.length-current.passed; $('continue-link').href = '../../' + current.href; }
     else $('continue-link').removeAttribute('href');
     $('level').textContent = result.title;
@@ -118,8 +121,8 @@
     $('badge-count').textContent = result.badges.length;
     radar(result);
     const badge = a => '<span class="badges">' + (a.themes.length ? a.themes.map(id => '<span class="badge route-badge theme-' + id + '" aria-label="' + YBSXP.THEMES[id] + '：已獲得徽章"><svg viewBox="0 0 32 32" aria-hidden="true">' + glyphs[id] + '</svg><span>已獲得徽章<small>' + YBSXP.THEMES[id] + '</small></span></span>').join('') : '<span class="badge route-badge">已獲得徽章<small>開學導覽</small></span>') + '</span>';
-    const title = a => a.isOpen ? '<a href="../../' + esc(a.href) + '">' + esc(a.title) + '</a>' : esc(a.title);
-    const stationHTML = (a,i) => '<li class="station ' + (a.complete ? 'complete' : !a.isOpen ? 'locked' : 'current') + (a.visited ? ' visited' : '') + ((i+1)%3===0 ? ' row-end' : '') + '" data-activity="' + a.activity + '" data-state="' + a.state + '"' + (a === current ? ' aria-current="step"' : '') + '><div class="week-line"><i class="route-node" aria-hidden="true">' + (a.complete ? '<svg viewBox="0 0 20 20"><path d="m5 10 3 3 7-7"/></svg>' : '') + '</i><b class="week-label mono" aria-label="' + esc(weekLabel(a)) + '">W' + String(termWeekOf(a)).padStart(2,'0') + '<span>' + esc(a.date.slice(5).replace('-','.')) + '</span></b><span class="station-state">' + (a.complete ? '已完成' : !a.isOpen ? '待開放' : a === current ? '目前活動' : '探索中') + '</span></div><div class="station-body"><h3>' + title(a) + '</h3><p class="learned"><span class="topic-label">' + (a.complete ? '學會了什麼' : '學習主題') + '</span>' + esc(a.topic) + '</p><div class="station-bottom">' + (a.complete ? badge(a) : a.isOpen ? '<a href="../../' + esc(a.href) + '" class="route-continue">繼續挑戰 ↗</a>' : '<span class="muted">尚未開放</span>') + '<span class="station-count mono">' + a.passed + ' / ' + a.rounds.length + ' 關</span></div></div></li>';
+    const title = a => a.isOpen && !teacherTarget ? '<a href="../../' + esc(a.href) + '">' + esc(a.title) + '</a>' : esc(a.title);
+    const stationHTML = (a,i) => '<li class="station ' + (a.complete ? 'complete' : !a.isOpen ? 'locked' : 'current') + (a.visited ? ' visited' : '') + ((i+1)%3===0 ? ' row-end' : '') + '" data-activity="' + a.activity + '" data-state="' + a.state + '"' + (a === current ? ' aria-current="step"' : '') + '><div class="week-line"><i class="route-node" aria-hidden="true">' + (a.complete ? '<svg viewBox="0 0 20 20"><path d="m5 10 3 3 7-7"/></svg>' : '') + '</i><b class="week-label mono" aria-label="' + esc(weekLabel(a)) + '">W' + String(termWeekOf(a)).padStart(2,'0') + '<span>' + esc(a.date.slice(5).replace('-','.')) + '</span></b><span class="station-state">' + (a.complete ? '已完成' : !a.isOpen ? '待開放' : a === current ? '目前活動' : '探索中') + '</span></div><div class="station-body"><h3>' + title(a) + '</h3><p class="learned"><span class="topic-label">' + (a.complete ? '學會了什麼' : '學習主題') + '</span>' + esc(a.topic) + '</p><div class="station-bottom">' + (a.complete ? badge(a) : a.isOpen && !teacherTarget ? '<a href="../../' + esc(a.href) + '" class="route-continue">繼續挑戰 ↗</a>' : '<span class="muted">' + (a.isOpen ? '唯讀檢視' : '尚未開放') + '</span>') + '<span class="station-count mono">' + a.passed + ' / ' + a.rounds.length + ' 關</span></div></div></li>';
     const timeline = items => '<div class="timeline"><ol class="stations">' + items.map((a,i) => (i > 0 && i%3===0 ? '<li class="row-break" aria-hidden="true">↳ 下一列由左至右</li>' : '') + stationHTML(a,i)).join('') + '</ol></div>';
     const next = result.stations.find(a => !a.isOpen);
     const nextWeek = next && weekLabel(next);
@@ -130,7 +133,7 @@
     $('route').innerHTML = timeline(shown)
       + (available.length ? '<details class="available-weeks" id="available-weeks"><summary>已開放、尚未開始 <span>' + available.length + ' 個活動</span></summary><ul>' + available.map(a => '<li data-activity="' + a.activity + '"><span class="mono">W' + String(termWeekOf(a)).padStart(2,'0') + '</span>' + title(a) + '<span class="muted">' + a.rounds.length + ' 關</span></li>').join('') + '</ul></details>' : '')
       + (future.size ? '<details id="future-weeks" class="collapsed-group"><summary>還有 ' + future.size + ' 週待開放</summary>' + [...future].map(([week,items]) => '<section class="route-week"><h3>' + esc(week) + '</h3>' + timeline(items) + '</section>').join('') + '</details>' : '');
-    const xpHTML = a => '<details class="xp-item"><summary><span>' + esc(a.title) + '</span><b class="mono">+' + a.totalXP + ' XP</b><span class="expand-icon" aria-hidden="true"></span></summary><dl class="xp-breakdown"><div><dt>首次過關</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.passXP,0) + '</dd></div><div><dt>準時加成</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '</dd></div><div><dt>活動全過</dt><dd class="mono">' + a.completeXP + '</dd></div></dl><ul class="xp-rounds">' + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + '</li>').join('') + '</ul></details>';
+    const xpHTML = a => '<details class="xp-item"><summary><span>' + esc(a.title) + '</span><b class="mono">+' + a.totalXP + ' XP</b><span class="expand-icon" aria-hidden="true"></span></summary><dl class="xp-breakdown"><div><dt>首次過關</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.passXP,0) + '</dd></div><div><dt>準時加成</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '</dd></div><div><dt>活動全過</dt><dd class="mono">' + a.completeXP + '</dd></div></dl><ul class="xp-rounds">' + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + roundInfo(a,r) + '</li>').join('') + '</ul></details>';
     const untouched = result.stations.filter(a => a.totalXP === 0);
     $('details').innerHTML = result.stations.filter(a => a.totalXP > 0).map(xpHTML).join('') + (untouched.length ? '<details id="zero-xp" class="collapsed-group"><summary>尚未過關 ' + untouched.length + ' 項</summary>' + untouched.map(xpHTML).join('') + '</details>' : '');
     $('growth').hidden = false;
@@ -139,13 +142,21 @@
   async function refresh() {
     if (!owner) return;
     const uid = owner, current = generation, read = ++request;
-    const valid = () => generation === current && request === read && YBS.profile()?.uid === uid;
-    $('status').textContent = '正在確認自己的雲端紀錄…';
+    const valid = () => generation === current && request === read && (teacherTarget ? teacherAuth?.currentUser?.uid === uid : YBS.profile()?.uid === uid);
+    $('status').textContent = teacherTarget ? '正在確認教師權限與該生雲端紀錄…' : '正在確認自己的雲端紀錄…';
     $('retry').hidden = true;
     try {
-      const {db,auth} = await YBS.firebaseSession();
+      const {db,auth} = await (teacherTarget ? YBSMeTeacher.session() : YBS.firebaseSession());
       if (!valid()) return;
       if (auth.currentUser?.uid !== uid || auth.currentUser?.isAnonymous) throw new Error('auth');
+      if (teacherTarget) {
+        const [activities, records] = await Promise.all([catalog(), YBSMeTeacher.read(db,auth,teacherTarget,valid)]);
+        if (!valid()) return;
+        render(activities,records);
+        $('status').textContent = '教師唯讀檢視・已確認該生雲端紀錄。各關時間與補做狀態見 XP 明細（開放後超過 7 天為補做）。';
+        $('retry').hidden = false;
+        return;
+      }
       const [activities, snapshot] = await Promise.all([catalog(),
         db.collection('ybsCourses/' + course + '/attempts').where('uid','==',uid).get()]);
       if (!valid()) return;
@@ -155,8 +166,13 @@
       render(activities,records);
       $('status').textContent = '已確認自己的雲端紀錄。';
       $('retry').hidden = false;
-    } catch {
+    } catch (error) {
       if (!valid()) return;
+      if (teacherTarget && ['teacher','permission-denied','missing','duplicate'].includes(error.code)) {
+        signedOut();
+        $('status').textContent = error.code === 'missing' ? '找不到該班座的學生。' : error.code === 'duplicate' ? '該班座有重複名冊，請先核對。' : '需教師登入：只有此課程擁有者可以檢視該生紀錄。';
+        return;
+      }
       $('status').textContent = $('growth').hidden ? '雲端紀錄尚未確認，請確認網路後重新讀取。' : '更新尚未完成，目前保留上次已確認的紀錄。';
       $('retry').hidden = false;
     }
@@ -179,21 +195,65 @@
     $('growth').hidden = true;
     // 換人時清空 DOM，尚未完成的舊請求也不能重新顯示資料。
     for (const id of ['level','level-number','mobile-level','mobile-next','floor','ceiling','total','xp-total','next','completed','radar','axes','route','badge-count','details','current-title','current-week','current-description','remaining','completion-rate','completion-label','completion-detail','chart-note']) $(id).textContent = '';
-    $('progress').value = 0; $('continue-link').removeAttribute('href'); $('xp-details').open = false;
+    $('progress').value = 0; $('progress').setAttribute('aria-label','升級進度'); $('continue-link').removeAttribute('href'); $('xp-details').open = false;
     $('signin').hidden = false; $('logout').hidden = true; $('retry').hidden = true;
     $('status').textContent = '用帳號登入就能累積等級';
     return current;
   }
   $('logout').onclick = () => {
     const current = signedOut();
-    Promise.resolve(YBS.logout()).catch(() => {
+    Promise.resolve(teacherTarget ? teacherAuth?.signOut() : YBS.logout()).catch(() => {
       if (generation === current) $('status').textContent = '登出尚未完成，請重新整理後登入。';
     });
   };
   const today = new Date().toLocaleDateString('sv-SE');
   const term = TERMS.find(t => today >= t.begin && today <= t.end);
   $('term').textContent = term?.name || '115 學年度';
-  YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
-  YBS.status(state => { if (state === 'relogin' && owner) signedOut(); else if (state === 'ok' && owner) void refresh(); });
-  if (YBS.profile()?.uid) signedIn(YBS.profile());
+  if (teacherTarget) {
+    document.querySelector('h1').textContent = teacherTarget.invalid ? '教師檢視' : '教師檢視：' + teacherTarget.cls + '班' + teacherTarget.seat + '號';
+    $('signin-title').textContent = '需教師登入';
+    $('signin').querySelector('p').textContent = '請使用此課程擁有者的 Google 帳號登入，唯讀查看指定學生的成長紀錄。';
+    const mount = () => {
+      const host = $('login');
+      if (host && !host.querySelector('[data-teacher-login]')) {
+        const button = document.createElement('button');
+        button.dataset.teacherLogin = ''; button.textContent = '教師 Google 登入';
+        button.disabled = !teacherAuth || teacherTarget.invalid;
+        host.replaceChildren(button);
+      }
+    };
+    new MutationObserver(mount).observe($('signin'), {childList:true,subtree:true});
+    mount();
+    document.addEventListener('click', async event => {
+      if (!event.target.closest('[data-teacher-login]') || !teacherAuth) return;
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({prompt:'select_account'});
+        await teacherAuth.signInWithPopup(provider);
+      } catch { $('status').textContent = '教師登入未完成，請重試。'; }
+    });
+    if (teacherTarget.invalid) { $('status').textContent = '班級或座號參數無效。'; return; }
+    $('status').textContent = '需教師登入：請使用此課程擁有者帳號。';
+    YBSMeTeacher.session().then(({auth}) => {
+      teacherAuth = auth;
+      document.querySelectorAll('[data-teacher-login]').forEach(button => { button.disabled = false; });
+      auth.onAuthStateChanged(user => {
+        signedOut();
+        if (user && !user.isAnonymous) {
+          owner = user.uid; $('logout').hidden = false; $('signin').hidden = true; void refresh();
+        } else $('status').textContent = '需教師登入：請使用此課程擁有者帳號。';
+      });
+    }).catch(() => { $('status').textContent = '教師登入尚未就緒，請重新整理後重試。'; });
+    return;
+  }
+  // 學生入口才載入原登入模組；教師入口不執行班座重送的初始化副作用。
+  const loginScript = document.createElement('script');
+  loginScript.src = '../../assets/login.js?v=20261110c';
+  loginScript.onload = () => {
+    YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
+    YBS.status(state => { if (state === 'relogin' && owner) signedOut(); else if (state === 'ok' && owner) void refresh(); });
+    if (YBS.profile()?.uid) signedIn(YBS.profile());
+  };
+  loginScript.onerror = () => { $('status').textContent = '登入元件載入失敗，請重新整理後重試。'; };
+  document.head.appendChild(loginScript);
 })();

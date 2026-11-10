@@ -138,7 +138,7 @@ window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = ()
     const ids=Object.keys(activities).map(Number).sort((a,b)=>a-b);
     head.appendChild(node('th','座號'));
     for(const id of ids)head.appendChild(node('th',activities[id].title));
-    head.appendChild(node('th','等級／XP')); head.appendChild(node('th','準時／補做彙總')); head.appendChild(node('th','詳細資料')); thead.appendChild(head); table.appendChild(thead);
+    head.appendChild(node('th','等級／XP')); head.appendChild(node('th','準時／補做彙總')); head.appendChild(node('th','詳細資料')); head.appendChild(node('th','成長紀錄')); thead.appendChild(head); table.appendChild(thead);
     const tbody=node('tbody');
     const seats=[...new Set(people.filter(p=>p.cls===cls).map(p=>p.seat))].sort((a,b)=>a-b);
     for(const seat of seats){
@@ -160,7 +160,12 @@ window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = ()
       else xpCell.textContent = '—';
       tr.appendChild(xpCell);
       tr.appendChild(node('td',summary(counted)+(conflict?'（待核對紀錄未計入）':'')));
-      const td=node('td');td.appendChild(details(records,conflict?'待核對：來源、UID 或名冊衝突':'詳細資料'));tr.appendChild(td);tbody.appendChild(tr);
+      const td=node('td');td.appendChild(details(records,conflict?'待核對：來源、UID 或名冊衝突':'詳細資料'));tr.appendChild(td);
+      // 由已驗證格式的名冊班座建立；每次選班／重讀都隨表格重建。
+      const growthCell=node('td'), link=node('a','成長紀錄');
+      link.setAttribute('href','../me/?cls='+cls+'&seat='+seat);
+      link.setAttribute('aria-label',cls+' 班 '+seat+' 號成長紀錄');
+      growthCell.appendChild(link);tr.appendChild(growthCell);tbody.appendChild(tr);
     }
     table.appendChild(tbody);target.appendChild(table);
   }

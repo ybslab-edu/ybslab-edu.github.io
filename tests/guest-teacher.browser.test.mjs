@@ -89,3 +89,64 @@ for(const width of [1440,390])test(`教師補做標示 ${width}px：台灣時間
     assert.deepEqual(errors,[]);
   }finally{await context.close()}
 });
+
+for(const [width,colorScheme] of [[1440,'light'],[390,'light'],[1440,'dark']])test(`教師首頁四類、唯讀狀態、鍵盤與截圖 ${width}px ${colorScheme}`,async()=>{
+  const context=await browser.newContext({viewport:{width,height:width===390?844:1000},colorScheme});
+  const page=await context.newPage(), errors=[],external=[];
+  try{
+    page.on('pageerror',e=>errors.push(e.message));
+    await context.route('**/*',route=>{
+      const url=route.request().url();
+      if(url.startsWith(base+'/assets/login.js'))return route.fulfill({contentType:'text/javascript; charset=utf-8',body:fake});
+      if(url.startsWith(base+'/'))return route.continue();
+      external.push(url);return route.abort();
+    });
+    await page.clock.setFixedTime(new Date('2026-11-10T04:00:00Z'));
+    await page.goto(base+'/115-g9/teacher/');
+    assert.deepEqual(await page.locator('.category h2').allTextContents(),['學生紀錄','題目與活動','課程設定','其他工具']);
+    assert.equal(await page.locator('.category-nav a').count(),4);
+    for(const href of ['../../','../../115-df/teacher/','https://class-score-86020.web.app'])assert.ok(await page.locator(`a[href="${href}"]`).count()>0);
+    assert.equal(await page.locator('#teacher-courses article').count(),2);
+    assert.match(await page.locator('#teacher-courses article').nth(1).innerText(),/課程未開設\s+已開放 0/);
+    assert.equal(await page.locator('#course-settings button, #course-settings input, #course-settings select').count(),0);
+    assert.equal(await page.locator('#teacher-activities a').count(),await page.evaluate(()=>ACTIVITIES.length));
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    assert.equal(await page.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),colorScheme==='dark'?'rgb(17, 22, 27)':'rgb(245, 247, 249)');
+    await page.keyboard.press('Tab');assert.equal(await page.locator('.skip-link').evaluate(e=>e===document.activeElement),true);
+    await page.keyboard.press('Enter');assert.equal(await page.locator('#student-records').evaluate(e=>e===document.activeElement),true);
+    const summary=page.locator('.activity-catalog > summary');await summary.focus();await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#teacher-activities').isVisible(),true);
+    assert.ok(await page.locator('#teacher-activities li .state-open').count()>0);
+    assert.equal(await page.locator('#teacher-activities section').nth(1).locator('.state-open').count(),0);
+    await page.keyboard.press('Enter');
+    await page.locator('h1').click();await page.evaluate(()=>scrollTo(0,0));
+    const shots='/tmp/ybs-teacher-home-shots';await mkdir(shots,{recursive:true});
+    const name=colorScheme==='dark'?'dark':width===390?'mobile':'desktop';
+    await page.screenshot({path:shots+'/'+name+'.png',fullPage:true});
+    await page.locator('#cloud-login').click();
+    await page.evaluate(()=>synthetic.hold=true);
+    await page.locator('#cloud-read').click();
+    await page.waitForFunction(()=>synthetic.release?.length===3);
+    assert.equal(await page.locator('#cloud-table a').count(),0);
+    await page.evaluate(()=>{synthetic.hold=false;synthetic.release.forEach(r=>r())});
+    await page.waitForFunction(()=>!document.getElementById('cloud-class').disabled);
+    for(const cls of ['998','999','998']){
+      await page.locator('#cloud-class').selectOption(cls);
+      const links=page.locator('#cloud-table tbody tr a');
+      assert.equal(await links.count(),cls==='998'?2:3);
+      for(let i=0;i<await links.count();i++)assert.equal(await links.nth(i).getAttribute('href'),'../me/?cls='+cls+'&seat='+(i+1));
+    }
+    // 讀取會清空並重建表格，不能留下重複或失效連結。
+    await page.locator('#cloud-read').click();
+    await page.locator('#cloud-class').selectOption('998');
+    assert.equal(await page.locator('#cloud-table tbody tr a').count(),2);
+    const link=page.locator('#cloud-table tbody tr a').first();await link.focus();
+    assert.equal(await link.evaluate(e=>e===document.activeElement),true);
+    await page.keyboard.press('ArrowRight');
+    await link.scrollIntoViewIfNeeded();
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    if(width===1440&&colorScheme==='light')await page.locator('[aria-label="雲端過關紀錄"]').screenshot({path:shots+'/cloud-table.png'});
+    await page.locator('#cloud-logout').click();assert.equal(await page.locator('#cloud-table a').count(),0);
+    assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+  }finally{await context.close()}
+});

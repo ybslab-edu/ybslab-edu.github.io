@@ -103,7 +103,7 @@ for(const width of [1280,390])test(`提示標題列、頁首重試與成功截�
     await page.click('#b-hint');assert.match(await page.locator('#hint-content').textContent(),/第 1 層/);
     assert.equal(await page.locator('#b-retry').isVisible(),false);
     await mkdir('/tmp/ybs-trim-shots',{recursive:true});
-    for(const state of ['ok','pending','guest-pending','guest-storage','sending','relogin']){
+    for(const state of ['ok','pending','guest-pending','guest-storage','sending']){
       await page.evaluate(st=>uploadStatus(st),state);
       const retry=['pending','guest-pending','guest-storage'].includes(state);
       assert.equal(await page.locator('#b-retry').isVisible(),retry);
@@ -121,6 +121,10 @@ for(const width of [1280,390])test(`提示標題列、頁首重試與成功截�
     await page.evaluate(()=>uploadStatus('pending'));await page.click('#b-retry');
     await page.waitForFunction(()=>document.querySelector('#sync').textContent.includes('已上傳'));
     assert.equal(await page.evaluate(()=>retryCount),1);assert.equal(await page.locator('#b-retry').isVisible(),false);
+    await page.evaluate(()=>uploadStatus('relogin'));
+    assert.equal(await page.locator('#main').isVisible(),false);
+    assert.equal(await page.locator('#gate').isVisible(),true);
+    assert.equal(await page.locator('#in-seat').inputValue(),'');
     assert.deepEqual(errors,[]);
   }finally{await context.close()}
 });

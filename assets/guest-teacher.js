@@ -175,6 +175,7 @@ window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = ()
   el('cloud-read').onclick = read;
   el('cloud-logout').onclick = async () => {
     generation++; clear(); message('正在登出…');
+    YBS.endBrowserSession?.();
     try { if(auth) await auth.signOut(); message('已登出，雲端成績已清除。'); }
     catch(e){message('登出未完成，雲端成績已清除；請重試。');}
   };

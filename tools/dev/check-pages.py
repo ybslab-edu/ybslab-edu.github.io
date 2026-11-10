@@ -85,6 +85,11 @@ def login_student(pg):
     pg.fill('#g-gbtn input[name=a]', '1100123')
     pg.fill('#g-gbtn input[name=p]', 'CGJHa123456789')
     pg.click('#g-gbtn button')
+    confirm_student(pg)
+
+
+def confirm_student(pg):
+    """確認已登入帳號的班座；SESSION 還原後也沿用同一入口。"""
     pg.wait_for_selector('#g-whobtns', state='visible')
     assert '917 班 5 號' in pg.inner_text('#g-whotext')
     pg.click('#g-isme')
@@ -203,7 +208,8 @@ def weaknet_reload(c, pg):
     c.add_init_script('window.__firebaseWritePlan = [{hold:true}];')
     pg.reload()
     assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
-    login_student(pg)
+    confirm_student(pg)
+    assert pg.evaluate('YBS.profile()?.uid === "U1" && __signin.length === 0'), '重新整理應沿用 SESSION，不重送帳密'
     wait_evaluate(pg, '__firebaseMock.attempts.length === 1')
     assert pg.evaluate('sessionStorage.getItem("ybslab:fq")') == before
     assert pg.evaluate('__writes.length === 0')
@@ -214,19 +220,20 @@ def weaknet_reload(c, pg):
 
 def weaknet_permission(c, pg, exists):
     if exists:
-        # 同一路徑已有紀錄：拒絕覆寫後，login.js 讀回 exists 才能移除待送項目。
+        # 同一路徑已有紀錄：Web Locks 下先讀取，直接確認收件而不重寫。
         pg.evaluate("""__firebaseMock.documents.set("ybsCourses/115-g9/attempts/U1_1_0", {
             uid:"U1", email:"cgjh1100123@cgjh.hcc.edu.tw", activity:1, round:0,
             level:1, tries:1, passedAt:"TS", app:"ybs", termWeek:7
         })""")
     pg.evaluate('__firebaseMock.plan.push({code:"permission-denied"})')
     pass_round(pg)
-    wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
     if exists:
         wait_queue(pg, 0)
         wait_sync(pg, 'ok')
         assert pg.evaluate('__writes.length === 0 && __firebaseMock.documents.get("ybsCourses/115-g9/attempts/U1_1_0").round === 0')
+        assert pg.evaluate('__firebaseMock.attempts.length === (navigator.locks ? 0 : 1)')
     else:
+        wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
         wait_sync(pg, 'pending')
         wait_queue(pg, 1)
         assert pg.evaluate('__writes.length === 0')

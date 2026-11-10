@@ -24,8 +24,8 @@ export function setup({stored=new Map(),session=new Map(),user=null,write=async(
     localStorage:storage(stored,true),sessionStorage:storage(session,false),
     setInterval(fn,ms){timers.push({fn,ms});},setTimeout,queueMicrotask,
     window:{addEventListener(name,fn){if(!events.has(name))events.set(name,[]);events.get(name).push(fn);}},
-    document:{querySelector(selector){return scripts.get(selector)||null;},createElement(){return{remove(){scripts.delete('script[src="'+this.src+'"]');}};},head:{appendChild(s){scripts.set('script[src="'+s.src+'"]',s);queueMicrotask(()=>s.onload());}}},
-    firebase:{apps:[app],auth:{Auth:{Persistence:{SESSION:'session'}}},firestore:{FieldValue:{serverTimestamp:()=> 'SERVER_TIMESTAMP'}}}});
+    document:{cookie:user && !user.isAnonymous ? 'ybslab_browser=1' : '',querySelector(selector){return scripts.get(selector)||null;},createElement(){return{remove(){scripts.delete('script[src="'+this.src+'"]');}};},head:{appendChild(s){scripts.set('script[src="'+s.src+'"]',s);queueMicrotask(()=>s.onload());}}},
+    firebase:{apps:[app],auth:{Auth:{Persistence:{SESSION:'session',LOCAL:'local'}}},firestore:{FieldValue:{serverTimestamp:()=> 'SERVER_TIMESTAMP'}}}});
   vm.runInContext(instrumented+'\nglobalThis.api=YBS;',context,{filename:'assets/login.js'});
   context.api.status(state=>statuses.push(state));
   return {api:context.api,auth,stored,session,calls,reads,authCalls,statuses,warnings,timers,

@@ -7,6 +7,7 @@ const read = file => readFileSync(new URL('../assets/' + file, import.meta.url),
 function setup({code, signOut, loaderFails = false} = {}) {
   const errors = [], button = {}, form = {a:{value:'9990001',focus(){}},p:{value:'synthetic-password'},querySelector:()=>button};
   const auth = {
+    setPersistence: async () => {},
     signInWithEmailAndPassword: async () => {
       if (code !== undefined) throw Object.assign(new Error('synthetic auth failure'), {code});
       return {user:{uid:'synthetic-user'}};
@@ -14,6 +15,7 @@ function setup({code, signOut, loaderFails = false} = {}) {
     signOut: signOut || (() => Promise.resolve())
   };
   const context = vm.createContext({Error, Promise,
+    firebase:{auth:{Auth:{Persistence:{SESSION:'session',LOCAL:'local'}}}},
     location:{pathname:'/115-g9/u1-01/'}, sessionStorage:{getItem:()=>null,removeItem(){}}, localStorage:{},
     setInterval(){}, setTimeout:fn=>fn(), window:{addEventListener(){}},
     document:{getElementById:()=>form,querySelector:()=>null,createElement:()=>({}),head:{appendChild:s=>s.onerror()}}
@@ -67,7 +69,7 @@ test('教師解鎖記憶失敗仍可操作，讀取失敗維持鎖定',()=>{
 });
 test('登入等待期間要求登出，遲到登入不能恢復舊 profile',async()=>{
   let release;const waiting=new Promise(resolve=>release=resolve);
-  const h=setup();h.context.setFB({auth:{signInWithEmailAndPassword:async()=>{await waiting;return{user:{uid:'synthetic'}};},signOut:async()=>{}}});
+  const h=setup();h.context.setFB({auth:{setPersistence:async()=>{},signInWithEmailAndPassword:async()=>{await waiting;return{user:{uid:'synthetic'}};},signOut:async()=>{}}});
   const login=h.context.signIn('9990001','synthetic-password');await Promise.resolve();
   const loggedOut=h.context.api.logout();release();
   await assert.rejects(login,e=>e.code==='auth/login-cancelled');await loggedOut;assert.equal(h.context.api.profile(),null);

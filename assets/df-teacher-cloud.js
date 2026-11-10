@@ -143,6 +143,7 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
   };
   el('cloud-logout').onclick = async () => {
     generation++; owner = null; clear(); controls(); message('已清除畫面，正在登出…');
+    if (typeof YBS !== 'undefined') YBS.endBrowserSession?.();
     try { await auth.signOut(); message('已登出，記憶體報告已清除。'); }
     catch (e) { message('登出未完成，請重試登出。'); }
     controls();

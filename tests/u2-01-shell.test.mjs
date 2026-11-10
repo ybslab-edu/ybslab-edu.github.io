@@ -187,9 +187,10 @@ test('舊進度、week=3、it9:last、進度及上傳欄位相容，完成關不
   h.status('sending');assert.match(h.get('sync').textContent,/上傳中/);
   h.status('pending');assert.match(h.get('sync').textContent,/自動重試/);
   h.status('ok');assert.match(h.get('sync').textContent,/已上傳/);
-  h.status('relogin');assert.match(h.get('sync').textContent,/登入過期/);
-  h.get('b-swap').click();assert.equal(h.loggedOut(),1);assert.equal(h.get('main').hidden,true);assert.equal(h.get('g-login').hidden,false);
-  h.get('g-manual').click();assert.equal(h.get('g-form').hidden,false);
+  h.status('relogin');assert.equal(h.get('main').hidden,true);assert.equal(h.get('g-login').hidden,false);
+  assert.equal(h.get('stage').textContent,'');assert.equal(h.get('who').textContent,'');assert.equal(h.get('in-seat').value,'');
+  const swap=setup();swap.get('b-swap').click();assert.equal(swap.loggedOut(),1);assert.equal(swap.get('main').hidden,true);assert.equal(swap.get('g-login').hidden,false);
+  swap.get('g-manual').click();assert.equal(swap.get('g-form').hidden,false);
 });
 
 test('儲存失敗使用 shell 提示，仍可上傳；最後關不誤報全部完成',()=>{

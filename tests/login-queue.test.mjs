@@ -150,7 +150,7 @@ test('送出期間換人，不把前一人的剩餘項目送到新帳號', async
   await h.api.logout(); h.login('u2'); await h.api.submit(item(3));
   gate.resolve(); await first;
   assert.deepEqual(h.calls.map(x => [x.data.uid, x.data.activity]), [['u1', 1], ['u2', 3]]);
-  assert.deepEqual(h.queue().map(x => [x.uid, x.activity]), [['u1', 2]]);
+  assert.deepEqual(h.queue(), [], '明確換人清除前一人的待送，不留給下一位');
 });
 
 test('同關在送出期間重新提交，也保留新項目接著送', async () => {

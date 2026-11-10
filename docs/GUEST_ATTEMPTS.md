@@ -1,6 +1,6 @@
 # 班座過關紀錄
 
-九年級 `115-g9/u*/` 的共用作答外框支援班座作答自動上傳。帳號登入仍寫原本的 `attempts`；班座作答背景使用 Firebase 匿名登入，寫 `ybsCourses/{courseId}/guestAttempts/{uid}_{activity}_{round}`。共用同一份 `assets/login.js` Firebase 設定、10.14.1 compat SDK 與 SESSION 登入持續方式。DF 報告交件仍依既有報告流程。
+九年級 `115-g9/u*/` 的共用作答外框支援班座作答自動上傳。帳號登入仍寫原本的 `attempts`；班座作答背景使用 Firebase 匿名登入，寫 `ybsCourses/{courseId}/guestAttempts/{uid}_{activity}_{round}`。共用同一份 `assets/login.js` Firebase 設定與 10.14.1 compat SDK；班座匿名登入維持 SESSION，學生帳號使用 LOCAL 加瀏覽器 session cookie。DF 報告交件仍依既有報告流程。
 
 資料契約以 ClassScore `docs/YBS_FIRESTORE.md` 的 guestAttempts 章節及 `firestore.rules` 為準。
 

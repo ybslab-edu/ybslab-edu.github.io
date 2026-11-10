@@ -3,6 +3,7 @@ import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir} from 'node:fs/promises';
+import {sessionFirebase} from './fixtures/login-session.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base;
 const mock=`(() => {
@@ -46,6 +47,8 @@ async function pageFor(t,options={},suffix=''){
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   await page.route('**/*',r=>{
     if(r.request().url().startsWith(base+'/'))return r.continue();
+    // 真正登入入口現在會主動還原 SESSION；離線提供未登入的合成 Auth。
+    if(r.request().url().startsWith('https://www.gstatic.com/firebasejs/10.14.1/'))return r.fulfill({contentType:'text/javascript',body:r.request().url().endsWith('/firebase-app-compat.js')?sessionFirebase:'// offline mock'});
     outside.push(r.request().url());return r.abort();
   });
   await page.clock.setFixedTime(new Date('2026-11-09T04:00:00Z'));

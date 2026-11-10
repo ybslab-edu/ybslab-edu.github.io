@@ -17,6 +17,41 @@ const YBS = (() => {
   const enabled = () => !!(CONFIG.on && courseId());
 
   let fb = null, initializing = null, profile = null, accountGeneration = 0, onLogin = null, onError = null, onStatus = () => {};
+  let accountExpired = false;
+  // 僅學生帳密帳號使用瀏覽器標記；Google 教師登入維持 SESSION。
+  const studentAccount = user => !!user && !user.isAnonymous
+    && /^cgjh\d{3,12}@ybslab-edu\.github\.io$/i.test(user.email || '')
+    && !!user.providerData?.length && user.providerData.every(p => p.providerId === 'password');
+  const BROWSER_COOKIE = 'ybslab_browser', LOGOUT_KEY = 'ybslab:account-logout';
+  const browserSession = () => { try { return String(document.cookie || '').split(';').some(c => c.trim() === BROWSER_COOKIE + '=1'); } catch (e) { return false; } };
+  function markBrowserSession() {
+    try { document.cookie = BROWSER_COOKIE + '=1; Path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : ''); }
+    catch (e) { return false; }
+    return browserSession(); // 不帶 Expires／Max-Age；標記不含帳號或憑證。
+  }
+  function clearAccountCache() {
+    queue = [];
+    try {
+      ['ybslab:fq', 'ybslab:reports:115-df', 'ybslab:login', ...Object.keys(sessionStorage).filter(k => k.startsWith('ybslab:me:'))]
+        .forEach(k => sessionStorage.removeItem(k));
+    } catch (e) { /* 記憶體佇列也已清除；不動班座作答資料。 */ }
+    try { Object.keys(localStorage).filter(k => k.startsWith('ybslab:me:') || (k.startsWith('ybs:xp:') && k.includes(':uid:'))).forEach(k => localStorage.removeItem(k)); } catch (e) { }
+  }
+  function revokeAccount(cancelLogin = true) {
+    const hadAccount = !!profile;
+    if (cancelLogin || hadAccount) accountGeneration++;
+    profile = null;
+    if (hadAccount) accountExpired = true;
+    clearAccountCache();
+    if (typeof CustomEvent === 'function') window.dispatchEvent?.(new CustomEvent('ybs-report-auth', {detail:{uid:null}}));
+    if (hadAccount) onStatus('relogin');
+  }
+  function endBrowserSession({cancelLogin = true} = {}) {
+    try { document.cookie = BROWSER_COOKIE + '=; Max-Age=0; Path=/; SameSite=Lax'; } catch (e) { }
+    revokeAccount(cancelLogin);
+    // cookie 沒有變更事件；通知其他分頁清除帳號暫存，不傳帳號或憑證。
+    try { localStorage.setItem(LOGOUT_KEY, Date.now() + ':' + Math.random()); } catch (e) { }
+  }
   // 帳號登入、登出與匿名換人依序執行，避免較慢的登入覆蓋新身分。
   let authWork = Promise.resolve();
   const withAuth = fn => { const next = authWork.then(fn); authWork = next.catch(() => {}); return next; };
@@ -41,11 +76,19 @@ const YBS = (() => {
     // 設定直接寫在這裡：ClassScore 的 init.json 不允許跨站讀取（CORS）
     const app = firebase.apps.find(a => a.name === 'ybs') || firebase.initializeApp({ apiKey: CONFIG.apiKey, authDomain: CONFIG.project + '.firebaseapp.com', projectId: CONFIG.project, messagingSenderId: CONFIG.sender }, 'ybs');
     const auth = app.auth();
-    await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);   // 關掉分頁就登出：電腦教室是共用機
+    // 先還原 Auth，避免先切 SESSION 而撤掉其他分頁的 LOCAL 登入。
     if (auth.onAuthStateChanged) await new Promise((ok, no) => {
       const unsubscribe = auth.onAuthStateChanged(() => { ok(); Promise.resolve().then(() => unsubscribe()); }, no);
     });
+    if (studentAccount(auth.currentUser) && !browserSession()) {
+      // 清舊瀏覽器帳號不作廢學生剛輸入的新帳密；明確登出仍會取消登入。
+      endBrowserSession({cancelLogin:false});
+      await auth.signOut();
+    }
+    // 學生帳號沿用至瀏覽器工作階段結束；班座匿名登入仍只保留本分頁。
+    await auth.setPersistence(firebase.auth.Auth.Persistence[studentAccount(auth.currentUser) ? 'LOCAL' : 'SESSION']);
     fb = { app, auth, db: app.firestore() };
+    auth.onAuthStateChanged?.(user => { if (profile && user?.uid !== profile.uid) revokeAccount(); });
     return fb;
   }
   // 帳號密碼登入：帳號 cgjh＋學號、密碼 cgjh＋身分證字號（老師在 ClassScore「YBS Lab 連線」第 7 區建立）。
@@ -65,6 +108,7 @@ const YBS = (() => {
     try { return await withAuth(async () => {
       const cancelled = () => loginError('auth/login-cancelled', '登入已取消，請重新登入。');
       if (generation !== accountGeneration) throw cancelled();
+      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       const cred = await auth.signInWithEmailAndPassword(acct + '@' + ACCT_DOMAIN, normPassword(password));
       if (generation !== accountGeneration) {
         // 必須在釋放 Auth 序列前清掉遲到的帳號，後續匿名登入才不會混用。
@@ -72,12 +116,14 @@ const YBS = (() => {
         throw cancelled();
       }
       if (cred.user.isAnonymous || auth.currentUser?.uid !== cred.user.uid) throw cancelled();
+      if (!markBrowserSession()) { await auth.signOut(); throw loginError('auth/browser-cookie', '瀏覽器無法保留登入標記，請允許本站 cookie 後再登入，或改填班座。'); }
+      accountExpired = false;
       profile = { email: acct + '@' + CONFIG.domain, account: acct, uid: cred.user.uid };
       return profile;
     }); }
     catch (e) {
       const c = e && e.code || '';
-      if (c === 'auth/login-cancelled') throw e;
+      if (c === 'auth/login-cancelled' || c === 'auth/browser-cookie') throw e;
       if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) throw loginError(c, '帳號或密碼不對。密碼是 cgjh 加身分證字號；還是不行請告訴老師。');
       if (/too-many-requests/.test(c)) throw loginError(c, '嘗試太多次，請等幾分鐘再試，或告訴老師。');
       if (/network/.test(c)) throw loginError(c, '連不上網路，請確認網路後再試。');
@@ -87,6 +133,7 @@ const YBS = (() => {
   // 在 el 放「帳號、密碼、登入」表單；登入成功呼叫 ok(profile)，失敗呼叫 bad(訊息)
   async function button(el, ok, bad) {
     onLogin = ok; onError = bad;
+    const generation = accountGeneration;
     const id = 'ybs' + Math.random().toString(36).slice(2, 7);
     // 樣式隨表單提供，活動頁、專題頁與重新登入入口共用相同的主題及切換操作。
     const box = 'display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #4b5563;background:var(--ybs-login-bg);color:var(--ybs-login-ink)';
@@ -121,6 +168,19 @@ const YBS = (() => {
       finally { btn.disabled = false; btn.textContent = '登入'; }
     };
     setTimeout(() => { try { f.a.focus(); } catch (e) { /* 自動聚焦僅方便輸入，失敗仍可手動點選。 */ } }, 0);
+    if (!enabled()) return;
+    let auth;
+    try { ({auth} = await initFirebase()); }
+    catch (e) { return; /* 初始化失敗仍保留表單，讓學生手動登入重試或改填班座。 */ }
+    // 換頁／新分頁由 LOCAL 與瀏覽器 cookie 還原；取消後不套用舊狀態。
+    if (generation !== accountGeneration || onLogin !== ok || !browserSession()) return;
+    const user = auth.currentUser, acct = normAccount(user?.email);
+    if (!studentAccount(user)) return;
+    leaveGuest();
+    profile = {email: acct + '@' + CONFIG.domain, account: acct, uid: user.uid};
+    accountExpired = false;
+    onLogin && onLogin(profile);
+    flush();
   }
 
   // 名單：ybsCourses/{courseId}/roster/{email}；回傳 { ok, student:{cls,seat} } 或 { ok:false, error }
@@ -135,7 +195,7 @@ const YBS = (() => {
     }
   }
 
-  // 待送佇列只放在這個分頁（sessionStorage），不把帳號留在共用電腦上
+  // 待送仍由原分頁保管，不搬到共用 localStorage；換人／瀏覽器標記失效時清除。
   const QKEY = 'ybslab:fq';
   // 首次讀取後以分頁記憶體為準；儲存空間受限時也不會丟掉待送紀錄。
   let queue = null;
@@ -183,8 +243,20 @@ const YBS = (() => {
           ref = fb.db.doc('ybsCourses/' + courseId() + '/attempts/' + me.uid + '_' + x.activity + '_' + x.round);
           const data = { uid: me.uid, email: me.email, activity: x.activity, round: x.round, level: x.level, tries: x.tries, passedAt: firebase.firestore.FieldValue.serverTimestamp(), app: 'ybs' };
           if (x.termWeek) data.termWeek = x.termWeek;
-          await ref.set(data);
-          done = true;
+          const write = async locked => {
+            if (profile?.uid !== me.uid || fb.auth.currentUser?.uid !== me.uid) return false;
+            // window.open 可能複製 sessionStorage；同源分頁排隊，已存在就不重寫。
+            if (locked) try { if ((await ref.get({source:'server'})).exists) return true; }
+            catch (e) {
+              // 既有 Rules 用 resource.data.uid 判斷本人；文件尚不存在時 get 也會被拒絕。
+              if (e?.code !== 'permission-denied') throw e;
+            }
+            if (profile?.uid !== me.uid || fb.auth.currentUser?.uid !== me.uid) return false;
+            await ref.set(data); return true;
+          };
+          done = typeof navigator !== 'undefined' && navigator.locks?.request
+            ? await navigator.locks.request('ybslab:attempt:' + courseId() + ':' + me.uid + ':' + x.key, () => write(true))
+            : await write(false); // 舊瀏覽器仍由固定 docId 與既有 Rules 防止重複紀錄。
         } catch (e) {
           // 一關只能有一筆：已經有紀錄（例如重做同一關）就算完成
           if (ref && e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) { /* 無法確認既有紀錄，保留待送並回報 pending。 */ } }
@@ -203,6 +275,7 @@ const YBS = (() => {
   const int = (v, lo, hi) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo; };
   function submit(item) {
     if (!enabled()) return;
+    if (accountExpired) { onStatus('relogin'); return; }
     if (!profile) return submitGuest(item);
     const x = {
       uid: profile.uid, activity: int(item.activity, 1, 99), round: int(item.round, 0, 5),
@@ -217,10 +290,12 @@ const YBS = (() => {
   function logout({keepAnonymous = false} = {}) {
     accountGeneration++;
     profile = null;
+    endBrowserSession();
     leaveGuest();
     const failed = () => { onError && onError('登出未完成，請重新整理後再試。'); };
     return withAuth(async () => {
       // 手動入口會作廢待完成帳密登入，但同班座可保留既有匿名 SESSION。
+      if (initializing) await initializing;
       if (fb && (!keepAnonymous || (fb.auth.currentUser && !fb.auth.currentUser.isAnonymous))) await fb.auth.signOut();
     }).catch(failed);
   }
@@ -290,7 +365,10 @@ const YBS = (() => {
         await auth.signOut();
       }
       if (generation !== guestGeneration || profile) return null;
-      if (!auth.currentUser) await auth.signInAnonymously();
+      if (!auth.currentUser) {
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        await auth.signInAnonymously();
+      }
       if (generation !== guestGeneration || profile) {
         if (auth.currentUser?.isAnonymous) await auth.signOut();
         return null;
@@ -304,6 +382,7 @@ const YBS = (() => {
   function guest(id) {
     if (!enabled() || profile) return;
     const next = identity(id); if (!next) return;
+    accountExpired = false;
     if (!sameIdentity(next, guestIdentity)) { guestGeneration++; guestFailures = 0; guestRetryAt = 0; }
     guestIdentity = next;
     const generation = guestGeneration;
@@ -394,6 +473,14 @@ const YBS = (() => {
   try { Object.keys(localStorage).filter(k => k.indexOf('ybslab:me:') === 0 || k === 'ybslab:queue').forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('ybslab:login'); } catch (e) { /* 舊版快取清理不影響目前的分頁登入。 */ }
   setInterval(() => { if (profile) flush(); }, 60000);
   window.addEventListener('online', () => { if (profile) flush(); });
+  window.addEventListener('storage', event => {
+    if (event.key !== LOGOUT_KEY) return;
+    revokeAccount();
+    void withAuth(async () => {
+      if (initializing) await initializing;
+      if (!browserSession() && studentAccount(fb?.auth.currentUser)) await fb.auth.signOut();
+    }).catch(() => { onError && onError('登出未完成，請重新整理後再試。'); });
+  });
 
   // DF 報告專用 API：不公開 db，也不沿用 attempts 的佇列或「已存在就成功」判斷。
   let reportAuthObserved = false, reportAuthUid = null, reportAuthGeneration = 0;
@@ -446,6 +533,9 @@ const YBS = (() => {
       const previous = await tx.get(ref);
       sameUser();
       const old = previous.exists ? previous.data() : null;
+      // 不同分頁若重送同一份報告，只確認收件，不再次更新時間或覆寫。
+      if (old && old.uid === me.uid && old.cls === cls && old.seat === seat && old.session === session
+        && old.schemaVersion === packet.schemaVersion && old.encoding === packet.encoding && old.payload === packet.payload) return;
       const updatedAt = old?.updatedAt?.toMillis();
       if (old && updatedAt > snapshotAt && old.payload !== packet.payload && overwriteAt !== updatedAt) {
         throw fail('report/conflict', '老師已有較新的報告，請確認後再覆寫', {updatedAt});
@@ -468,5 +558,5 @@ const YBS = (() => {
   }
   function retry() { guestRetryAt = 0; return profile ? flush() : flushGuest(); }
   return { CONFIG, enabled, button, submit, flush, logout, whoami, submitReport, guest, leaveGuest, flushGuest,
-    retry, firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
+    retry, endBrowserSession, firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
 })();

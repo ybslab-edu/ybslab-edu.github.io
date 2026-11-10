@@ -90,6 +90,7 @@
   el('report-class').onchange = render;
   el('report-logout').onclick = async () => {
     generation++; clear(); status('正在登出…');
+    YBS.endBrowserSession?.();
     try { await auth?.signOut(); status('已登出，報告已清除。'); }
     catch { status('登出未完成，報告已清除；請重試。'); }
   };

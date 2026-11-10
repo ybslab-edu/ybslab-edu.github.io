@@ -4,11 +4,10 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const course = '115-g9';
-  const labels = {complete:'✓ 全過', 'in-progress':'探索中', available:'已開放', upcoming:'尚未開放'};
   let generation = 0, request = 0, owner = null;
-  const mobile = matchMedia('(max-width:640px)');
+  const mobile = matchMedia('(max-width:700px)');
   const panels = ['exploration','route'];
-  let selectedPanel = 'exploration';
+  let selectedPanel = 'exploration', scope = 'open', confirmed = null;
   function syncTabs() {
     $('growth-tabs').hidden = !mobile.matches;
     for (const name of panels) {
@@ -49,60 +48,91 @@
       isOpen:early.includes(a.href.split('/')[1]) || isActivityOpen(a)}));
   }
 
-  function radar(axes) {
-    const point = (i, value) => {
-      const angle = i * Math.PI / 3 - Math.PI / 2;
-      return [180 + Math.cos(angle) * 112 * value, 155 + Math.sin(angle) * 112 * value];
-    };
-    const polygon = value => axes.map((_, i) => point(i, value).join(',')).join(' ');
-    $('radar').innerHTML = '<svg viewBox="0 0 360 320" role="img" aria-labelledby="radar-title radar-desc">'
-      + '<title id="radar-title">全學期探索度</title><desc id="radar-desc">六個主題的過關比例，完整數值列於圖下。</desc>'
-      + [.25,.5,.75,1].map(v => '<polygon class="grid" points="' + polygon(v) + '"/>').join('')
-      + axes.map((_, i) => '<line class="spoke" x1="180" y1="155" x2="' + point(i,1)[0] + '" y2="' + point(i,1)[1] + '"/>').join('')
-      + '<polygon class="area" points="' + axes.map((a,i) => point(i,a.value).join(',')).join(' ') + '"/>'
-      + axes.map((a,i) => {
-        const [x,y] = point(i,1.29), [cx,cy] = point(i,a.value);
-        return '<circle r="3" cx="' + cx + '" cy="' + cy + '"/><text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="middle">' + esc(a.name) + '</text>';
-      }).join('') + '</svg>';
-    const percent = value => Math.round(value * 100) + '%';
-    $('axes').innerHTML = axes.map(a => '<li><b>' + esc(a.name) + '</b>'
-      + (a.total ? '全學期 ' + a.passed + '/' + a.total + ' 關 · ' + percent(a.value) : '全學期尚無關卡')
-      + '<br>' + (a.openTotal ? '已開放 ' + a.openPassed + '/' + a.openTotal + ' 關 · 完成率 ' + percent(a.openValue) : '已開放部分：尚無關卡') + '</li>').join('');
+  function radar(result) {
+    const opened = scope === 'open';
+    const stations = result.stations.filter(a => !opened || a.isOpen);
+    const passed = stations.reduce((n,a) => n + a.passed,0), total = stations.reduce((n,a) => n + a.rounds.length,0);
+    const axes = result.exploration.map(a => ({...a, count:opened ? a.openPassed : a.passed,
+      denominator:opened ? a.openTotal : a.total, ratio:opened ? a.openValue : a.value}));
+    const scopeLabel = opened ? '已開放部分' : '全學期';
+    const percent = v => Math.round(v * 100);
+    $('completion-rate').innerHTML = percent(total ? passed / total : 0) + '<span>%</span>';
+    $('completion-label').textContent = scopeLabel + '完成率';
+    $('completion-detail').innerHTML = '<span class="mono">' + passed + ' / ' + total + '</span> 關完成<br><span class="muted">'
+      + (opened ? '目前開放 ' + stations.length + ' 個活動；還有 ' + (total-passed) + ' 關未完成。' : '全學期 ' + stations.length + ' 個活動；包含尚未開放內容。') + '</span>';
+    const point = (i,v) => [150 + Math.sin(i*Math.PI/3)*103*v,140 - Math.cos(i*Math.PI/3)*103*v];
+    const shape = v => axes.map((_,i) => point(i,v).join(',')).join(' ');
+    const plot = axes.map((a,i) => point(i,a.ratio).join(',')).join(' ');
+    $('radar').innerHTML = '<svg class="radar" viewBox="0 0 300 280" role="img" aria-labelledby="radar-title radar-desc">'
+      + '<title id="radar-title">' + scopeLabel + '的探索六邊形</title><desc id="radar-desc">'
+      + axes.map(a => a.id + ' ' + a.name + '：' + (a.denominator ? a.count + '/' + a.denominator + ' 關，' + percent(a.ratio) + '%' : '尚無關卡')).join('；') + '。各主題可重複計關。</desc>'
+      + '<polygon class="plot-fill" points="' + plot + '"/>'
+      + [.25,.5,.75,1].map(v => '<polygon class="gridline" points="' + shape(v) + '"/>').join('')
+      + axes.map((_,i) => '<line class="spoke" x1="150" y1="140" x2="' + point(i,1)[0] + '" y2="' + point(i,1)[1] + '"/>').join('')
+      + '<polygon class="plot-outline" points="' + plot + '"/>'
+      + axes.map((a,i) => { const p=point(i,a.ratio),t=point(i,1.23); return '<circle class="plot-dot" r="3.5" cx="' + p[0] + '" cy="' + p[1] + '"/><text x="' + t[0] + '" y="' + t[1] + '" text-anchor="middle" dominant-baseline="middle" font-size="15">' + a.id + '</text>'; }).join('') + '</svg>';
+    $('axes').innerHTML = axes.map(a => '<li data-axis="' + a.id + '"><span class="axis-title"><i class="axis-color axis-' + a.id + '" aria-hidden="true"></i><b class="mono axis-key">' + a.id + '</b>' + a.name + '</span><span class="axis-value">'
+      + (a.denominator ? '<span class="mono">' + percent(a.ratio) + '%</span><span class="muted"><span class="mono">' + a.count + ' / ' + a.denominator + '</span> 關</span>' : '<span class="muted">' + (opened ? '尚未開放' : '未安排關卡') + '</span>') + '</span></li>').join('');
+    $('chart-note').textContent = '以各主題「' + (opened ? '已開放' : '全學期') + '關數」為分母；同一關可對應多個主題，主題關次不等於總過關數。';
+    document.querySelectorAll('[data-scope]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.scope === scope)));
   }
+  document.querySelectorAll('[data-scope]').forEach(button => button.onclick = () => { scope = button.dataset.scope; if (confirmed) radar(confirmed); });
 
+  // 徽章以課綱主題軸區分；多主題活動同時顯示各軸，仍只計一枚活動徽章。
+  const glyphs = {
+    A:'<path d="M5 5h22v7H5zM16 12v6M5 22h8v6H5zM19 22h8v6h-8zM9 22v-4h14v4"/>',
+    P:'<path d="m11 7-8 9 8 9m10-18 8 9-8 9M18 4l-4 24"/>',
+    S:'<path d="m4 9 12-5 12 5-12 5ZM4 15l12 5 12-5M4 21l12 5 12-5"/>',
+    D:'<rect x="4" y="4" width="9" height="9"/><rect x="19" y="4" width="9" height="9"/><rect x="4" y="19" width="9" height="9"/><path d="M19 19h9v9h-9zM23.5 19v9M19 23.5h9"/>',
+    T:'<rect x="4" y="5" width="24" height="18" rx="2"/><path d="M11 28h10M16 23v5M9 11h14M9 16h9"/>',
+    H:'<path d="m16 3 11 5v8c0 7-11 13-11 13S5 23 5 16V8zM10 16l4 4 8-9"/>'
+  };
+  const weekLabel = a => { const term = TERMS.find(t => a.date >= t.begin && a.date <= t.end); return (term?.name || '') + ' · ' + (termWeekLabel(a) || '未排定週次'); };
   function render(activities, records) {
     const result = YBSXP.journey(activities, records);
-    $('level').textContent = 'Lv ' + result.level + ' ' + result.title;
-    $('total').textContent = result.totalXP + ' XP';
+    // UI 所需中繼資料直接由活動登記處補入，不改 XP 核心或雲端格式。
+    result.stations = result.stations.map(a => {
+      const source = activities.find(source => source.week === a.activity);
+      return {...a, topic:source.topic,
+        themes:[...new Set((source.codes || []).map(c => /^資([APSDTH])-/.exec(c)?.[1]).filter(Boolean))]};
+    });
+    confirmed = result;
+    const current = result.stations.findLast(a => a.isOpen && a.visited && !a.complete)
+      || result.stations.findLast(a => a.isOpen && !a.complete);
+    $('current-title').textContent = current?.title || '已完成所有已開放活動';
+    $('current-week').textContent = current ? 'W' + String(termWeekOf(current)).padStart(2,'0') : '';
+    $('current-description').textContent = current ? '已完成 ' + current.passed + ' / ' + current.rounds.length + ' 關，接著挑戰「' + current.rounds.find(r => !r.passed).name + '」。' : '每走過一站，都算自己的進步。新的活動開放後再來探索。';
+    $('continue-action').hidden = !current;
+    if (current) { $('remaining').textContent = current.rounds.length-current.passed; $('continue-link').href = '../../' + current.href; }
+    else $('continue-link').removeAttribute('href');
+    $('level').textContent = result.title;
+    $('level-number').textContent = 'Lv ' + result.level;
+    $('total').textContent = $('xp-total').textContent = result.totalXP + ' XP';
     $('progress').value = result.progress;
-    $('next').textContent = result.next === null ? '已達最高等級，繼續探索吧！' : '下一級還差 ' + result.remaining + ' XP';
-    $('completed').textContent = '已過 ' + result.stations.reduce((n,a) => n + a.passed,0) + ' 關 · 全過 ' + result.badges.length + ' 個活動';
-    $('badge-count').textContent = '已獲得 ' + result.badges.length + ' 枚徽章';
-    radar(result.exploration);
-    const groups = new Map();
-    for (const a of result.stations) {
-      const term = TERMS.find(t => a.date >= t.begin && a.date <= t.end);
-      const week = (term ? term.name + ' · ' : '') + (termWeekLabel(a) || '未排定週次');
-      if (!groups.has(week)) groups.set(week,[]);
-      groups.get(week).push(a);
-    }
-    // 路徑全來自本機活動登記處；未開放站點保留進度顯示，不提供活動連結。
+    $('progress').setAttribute('aria-label','Lv ' + result.level + ' 升級進度 ' + Math.round(result.progress * 100) + '%');
+    $('next').innerHTML = result.next === null ? '已達最高等級，繼續探索吧！' : '再累積 <b class="mono">' + result.remaining + ' XP</b><br>成為「' + YBSXP.TITLES[result.level] + '」。';
+    $('mobile-level').innerHTML = '<b class="mono">Lv ' + result.level + '</b> ' + result.title;
+    $('mobile-next').innerHTML = result.next === null ? '已達最高等級' : '差 <b class="mono">' + result.remaining + ' XP</b> 升級';
+    $('floor').textContent = result.floor + ' XP'; $('ceiling').textContent = result.next === null ? '最高等級' : result.next + ' XP';
+    $('completed').textContent = result.stations.reduce((n,a) => n + a.passed,0);
+    $('badge-count').textContent = result.badges.length;
+    radar(result);
+    const badge = a => '<span class="badges">' + (a.themes.length ? a.themes.map(id => '<span class="badge route-badge theme-' + id + '" aria-label="' + YBSXP.THEMES[id] + '：已獲得徽章"><svg viewBox="0 0 32 32" aria-hidden="true">' + glyphs[id] + '</svg><span>已獲得徽章<small>' + YBSXP.THEMES[id] + '</small></span></span>').join('') : '<span class="badge route-badge">已獲得徽章<small>開學導覽</small></span>') + '</span>';
     const title = a => a.isOpen ? '<a href="../../' + esc(a.href) + '">' + esc(a.title) + '</a>' : esc(a.title);
-    const weeks = [...groups];
-    const nextWeek = weeks.findLastIndex(([,items]) => items.some(a => a.isOpen)) + 1;
-    const visibleWeeks = [], futureWeeks = [];
-    weeks.forEach((week,index) => (week[1].some(a => a.isOpen) || index === nextWeek ? visibleWeeks : futureWeeks).push(week));
-    const weekHTML = ([week,items]) => '<div class="route-week"><h3>' + esc(week) + '</h3><ul class="stations">'
-      + items.map(a => '<li class="station ' + (a.visited ? 'visited' : '') + '" data-state="' + a.state + '">' + title(a)
-        + (a.complete ? '<span class="route-badge"><span aria-hidden="true">✦</span> 已獲得徽章</span>' : '')
-        + '<small>' + esc(a.date) + ' · ' + labels[a.state] + ' · ' + a.passed + '/' + a.rounds.length + ' 關</small></li>').join('') + '</ul></div>';
-    $('route').innerHTML = visibleWeeks.map(weekHTML).join('') + (futureWeeks.length
-      ? '<details id="future-weeks" class="collapsed-group"><summary>還有 ' + futureWeeks.length + ' 週</summary>' + futureWeeks.map(weekHTML).join('') + '</details>' : '');
-    const xpHTML = a => '<details class="xp-item"><summary>' + esc(a.title) + ' · <strong>' + a.totalXP + ' XP</strong><br>過關 ' + a.rounds.reduce((n,r) => n+r.passXP,0) + '＋準時 ' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '＋全過 ' + a.completeXP + '</summary><ul>'
-      + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + '</li>').join('') + '</ul></details>';
+    const stationHTML = (a,i) => '<li class="station ' + (a.complete ? 'complete' : !a.isOpen ? 'locked' : 'current') + (a.visited ? ' visited' : '') + ((i+1)%3===0 ? ' row-end' : '') + '" data-activity="' + a.activity + '" data-state="' + a.state + '"' + (a === current ? ' aria-current="step"' : '') + '><div class="week-line"><i class="route-node" aria-hidden="true">' + (a.complete ? '<svg viewBox="0 0 20 20"><path d="m5 10 3 3 7-7"/></svg>' : '') + '</i><b class="week-label mono" aria-label="' + esc(weekLabel(a)) + '">W' + String(termWeekOf(a)).padStart(2,'0') + '<span>' + esc(a.date.slice(5).replace('-','.')) + '</span></b><span class="station-state">' + (a.complete ? '已完成' : !a.isOpen ? '待開放' : a === current ? '目前活動' : '探索中') + '</span></div><div class="station-body"><h3>' + title(a) + '</h3><p class="learned"><span class="topic-label">' + (a.complete ? '學會了什麼' : '學習主題') + '</span>' + esc(a.topic) + '</p><div class="station-bottom">' + (a.complete ? badge(a) : a.isOpen ? '<a href="../../' + esc(a.href) + '" class="route-continue">繼續挑戰 ↗</a>' : '<span class="muted">尚未開放</span>') + '<span class="station-count mono">' + a.passed + ' / ' + a.rounds.length + ' 關</span></div></div></li>';
+    const timeline = items => '<div class="timeline"><ol class="stations">' + items.map((a,i) => (i > 0 && i%3===0 ? '<li class="row-break" aria-hidden="true">↳ 下一列由左至右</li>' : '') + stationHTML(a,i)).join('') + '</ol></div>';
+    const next = result.stations.find(a => !a.isOpen);
+    const nextWeek = next && weekLabel(next);
+    const shown = result.stations.filter(a => a.visited || a === current || (!a.isOpen && weekLabel(a) === nextWeek));
+    const available = result.stations.filter(a => a.isOpen && !shown.includes(a));
+    const future = new Map();
+    for (const a of result.stations.filter(a => !a.isOpen && !shown.includes(a))) { const week=weekLabel(a); if(!future.has(week))future.set(week,[]); future.get(week).push(a); }
+    $('route').innerHTML = timeline(shown)
+      + (available.length ? '<details class="available-weeks" id="available-weeks"><summary>已開放、尚未開始 <span>' + available.length + ' 個活動</span></summary><ul>' + available.map(a => '<li data-activity="' + a.activity + '"><span class="mono">W' + String(termWeekOf(a)).padStart(2,'0') + '</span>' + title(a) + '<span class="muted">' + a.rounds.length + ' 關</span></li>').join('') + '</ul></details>' : '')
+      + (future.size ? '<details id="future-weeks" class="collapsed-group"><summary>還有 ' + future.size + ' 週待開放</summary>' + [...future].map(([week,items]) => '<section class="route-week"><h3>' + esc(week) + '</h3>' + timeline(items) + '</section>').join('') + '</details>' : '');
+    const xpHTML = a => '<details class="xp-item"><summary><span>' + esc(a.title) + '</span><b class="mono">+' + a.totalXP + ' XP</b><span class="expand-icon" aria-hidden="true"></span></summary><dl class="xp-breakdown"><div><dt>首次過關</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.passXP,0) + '</dd></div><div><dt>準時加成</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '</dd></div><div><dt>活動全過</dt><dd class="mono">' + a.completeXP + '</dd></div></dl><ul class="xp-rounds">' + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + '</li>').join('') + '</ul></details>';
     const untouched = result.stations.filter(a => a.totalXP === 0);
-    $('details').innerHTML = result.stations.filter(a => a.totalXP > 0).map(xpHTML).join('') + (untouched.length
-      ? '<details id="zero-xp" class="collapsed-group"><summary>尚未過關 ' + untouched.length + ' 項</summary>' + untouched.map(xpHTML).join('') + '</details>' : '');
+    $('details').innerHTML = result.stations.filter(a => a.totalXP > 0).map(xpHTML).join('') + (untouched.length ? '<details id="zero-xp" class="collapsed-group"><summary>尚未過關 ' + untouched.length + ' 項</summary>' + untouched.map(xpHTML).join('') + '</details>' : '');
     $('growth').hidden = false;
   }
 
@@ -134,6 +164,7 @@
 
   function signedIn(profile) {
     generation++; request++;
+    confirmed = null; scope = 'open'; $('xp-details').open = false;
     selectedPanel = 'exploration'; syncTabs();
     owner = profile?.uid || null;
     $('growth').hidden = true;
@@ -143,18 +174,21 @@
   }
   $('retry').onclick = refresh;
   $('logout').onclick = () => {
-    generation++; request++; owner = null;
+    generation++; request++; owner = null; confirmed = null;
     const current = generation;
     $('growth').hidden = true;
     // 換人時清空 DOM，尚未完成的舊請求也不能重新顯示資料。
-    for (const id of ['level','total','next','completed','radar','axes','route','badge-count','details']) $(id).textContent = '';
-    $('progress').value = 0;
+    for (const id of ['level','level-number','mobile-level','mobile-next','floor','ceiling','total','xp-total','next','completed','radar','axes','route','badge-count','details','current-title','current-week','current-description','remaining','completion-rate','completion-label','completion-detail','chart-note']) $(id).textContent = '';
+    $('progress').value = 0; $('continue-link').removeAttribute('href'); $('xp-details').open = false;
     $('signin').hidden = false; $('logout').hidden = true; $('retry').hidden = true;
     $('status').textContent = '用帳號登入就能累積等級';
     Promise.resolve(YBS.logout()).catch(() => {
       if (generation === current) $('status').textContent = '登出尚未完成，請重新整理後登入。';
     });
   };
+  const today = new Date().toLocaleDateString('sv-SE');
+  const term = TERMS.find(t => today >= t.begin && today <= t.end);
+  $('term').textContent = term?.name || '115 學年度';
   YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
   YBS.status(state => { if (state === 'ok' && owner) void refresh(); });
   if (YBS.profile()?.uid) signedIn(YBS.profile());

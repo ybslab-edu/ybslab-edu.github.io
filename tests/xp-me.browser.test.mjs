@@ -11,7 +11,8 @@ const mock=`(() => {
   window.meMock={reads:[],mode:'ok',pending:[],login:null};
   const records=[0,1,2,3].map(round=>({uid:'synthetic-one',activity:1,round,at:Date.parse('2026-10-12T01:00:00Z')}));
   records.push({uid:'synthetic-one',activity:2,round:0});
-  window.YBS={profile:()=>profile, status:cb=>{meMock.status=cb},
+  meMock.records=records;
+  window.YBS={enabled:()=>true,whoami:async()=>({ok:true,student:{cls:999,seat:1}}),flush(){},submit(){},guest(){},profile:()=>profile, status:cb=>{meMock.status=cb},
     button:(el,ok)=>{meMock.login=uid=>{profile={uid};ok(profile)};el.innerHTML='<button id="mock-login">登入合成帳號</button>';el.firstChild.onclick=()=>meMock.login('synthetic-one')},
     logout:()=>{profile=null},firebaseSession:async()=>({auth:{get currentUser(){return profile}},db:{collection:path=>({where:(field,op,uid)=>({get:async()=>{
       if(path!=='ybsCourses/115-g9/attempts'||field!=='uid'||op!=='=='||uid!==profile.uid)throw Error('unexpected query');
@@ -25,16 +26,17 @@ const mock=`(() => {
 before(async()=>{
   server=createServer(async(req,res)=>{
     let path=new URL(req.url,'http://127.0.0.1').pathname;
-    if(path==='/115-g9/me/')path+='index.html';
-    const allowed=['/115-g9/me/index.html','/115-g9/me/me.js','/115-g9/me/me.css','/assets/login.js','/assets/xp.js','/assets/curriculum.js','/assets/activities.js','/assets/lock.js','/assets/favicon.svg'];
+    if(['/115-g9/me/','/115-g9/u2-03/'].includes(path))path+='index.html';
+    const allowed=['/115-g9/me/index.html','/115-g9/me/me.js','/115-g9/me/me.css','/assets/login.js','/assets/xp.js','/assets/curriculum.js','/assets/activities.js','/assets/lock.js','/assets/favicon.svg','/115-g9/u2-03/index.html','/assets/shell.js','/assets/shell.css','/assets/teacher.js','/assets/warmup.js','/assets/warmup-bank.js'];
     if(!allowed.includes(path))return res.writeHead(404).end();
     const type=path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
-    res.end(path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') ? mock : await readFile(new URL('..'+path,import.meta.url)));
+    const source=path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') ? mock : await readFile(new URL('..'+path,import.meta.url),'utf8');
+    res.end(path==='/115-g9/u2-03/index.html' ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
   });
   await new Promise(ok=>server.listen(0,'127.0.0.1',ok));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true});
-  await mkdir('/tmp/ybs-xp-p2-shots',{recursive:true});
+  await mkdir('/tmp/ybs-me-impl-shots',{recursive:true});
   await mkdir('/tmp/ybs-me-icon-shots',{recursive:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(ok=>server.close(ok))});
@@ -79,71 +81,75 @@ test('沿用真正登入元件；未登入及班座本機紀錄不觸發雲端�
   assert.match(await page.locator('#signin').textContent(),/用帳號登入就能累積等級/);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
 });
-for(const [width,colorScheme,reducedMotion] of [[1440,'light','no-preference'],[390,'dark','reduce'],[390,'light','no-preference']]){
-  test(`個人成長頁：未登入、本人紀錄、${width}px、${colorScheme}`,async t=>{
+for(const [width,colorScheme,reducedMotion] of [[1440,'light','no-preference'],[1440,'dark','reduce'],[390,'light','no-preference']]){
+  test(`C3 正式成長頁、本人紀錄與截圖：${width}px、${colorScheme}`,async t=>{
     const page=await pageFor(t,{viewport:{width,height:width===390?844:1000},colorScheme,reducedMotion});
-    assert.equal(await page.locator('#signin-title').textContent(),'用帳號登入就能累積等級');
     assert.equal(await page.locator('#growth').isVisible(),false);
     assert.equal(await page.evaluate(()=>meMock.reads.length),0);
     await page.click('#mock-login');
     await page.waitForFunction(()=>document.getElementById('total').textContent==='90 XP');
-    assert.equal(await page.locator('.station').count(),30);
+    assert.equal(await page.locator('.station, #available-weeks li').count(),30);
     assert.equal(await page.locator('.station.visited').count(),2);
     assert.equal(await page.locator('.station[data-state="complete"]').count(),1);
     assert.equal(await page.locator('.route-badge').count(),1);
-    assert.equal(await page.locator('#badge-count').textContent(),'已獲得 1 枚徽章');
-    assert.match(await page.locator('.station[data-state="complete"]').textContent(),/已獲得徽章/);
+    assert.equal(await page.locator('#badge-count').textContent(),'1');
+    assert.equal(await page.locator('.route-badge.theme-S').count(),1);
     assert.equal(await page.locator('.station:not([data-state="complete"]) .route-badge').count(),0);
-    assert.match(await page.locator('#route h3').first().textContent(),/第 \d+ 週/);
-    const weeks=await page.locator('#route h3').allTextContents();
-    assert.ok(weeks.some(w=>w.includes('上學期')));
-    assert.ok(weeks.some(w=>w.includes('下學期')));
+    assert.match(await page.locator('.station[data-state="complete"] .learned').textContent(),/學會了什麼/);
+    const source=await page.evaluate(()=>ACTIVITIES.find(a=>a.course==='115-g9'&&a.week===1));
+    assert.equal(await page.locator('.station[data-activity="1"] .learned').textContent(),'學會了什麼'+source.topic);
+    const current=await page.evaluate(()=>ACTIVITIES.find(a=>a.course==='115-g9'&&a.week===2));
+    assert.equal(await page.locator('#continue-link').getAttribute('href'),'../../'+current.href);
+    assert.equal(await page.locator('.station[aria-current="step"] .route-continue').getAttribute('href'),'../../'+current.href);
+    assert.equal(await page.locator('#current-week').textContent(),await page.evaluate(a=>'W'+String(termWeekOf(a)).padStart(2,'0'),current));
     assert.equal(await page.locator('#axes li').count(),6);
-    assert.equal(await page.locator('svg .area').count(),1);
+    assert.equal(await page.locator('svg .plot-outline').count(),1);
     const radar=await page.locator('#radar svg').boundingBox();
-    assert.ok(radar && radar.width>200,`六邊形寬度：${radar?.width}px`);
-    if(width===390 && colorScheme==='light'){
-      await page.screenshot({path:'/tmp/ybs-me-icon-shots/radar-390.png',fullPage:true});
-    }
-    assert.match(await page.locator('#axes').textContent(),/已開放.*完成率/);
-    const xpSummary=page.locator('#details summary').filter({hasText:'深夜手搖店'});
-    await xpSummary.click();
-    assert.match(await page.locator('#details details[open]').textContent(),/過關 40＋準時 20＋全過 20/);
-    await xpSummary.click();
+    assert.ok(radar && radar.width>=280 && radar.width<=(width===390?300:340),`六邊形寬度：${radar?.width}px`);
+    assert.equal(await page.locator('#xp-details').getAttribute('open'),null);
+    assert.equal(await page.locator('#details').isVisible(),false);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    if(colorScheme==='dark')assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(18, 29, 27)');
-    const name=width===390?'mobile-'+colorScheme:'desktop';
-    await page.screenshot({path:'/tmp/ybs-xp-p2-shots/'+name+'.png',fullPage:true});
-    t.diagnostic(name+' screenshot height: '+await page.evaluate(()=>document.documentElement.scrollHeight)+'px');
-    if(width===390 && colorScheme==='light'){
+    if(colorScheme==='dark')assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(17, 22, 27)');
+    const name=colorScheme==='dark'?'dark':width===390?'mobile':'desktop';
+    await page.screenshot({path:'/tmp/ybs-me-impl-shots/'+name+'.png',fullPage:true});
+    await page.click('#xp-details > summary');
+    const xpSummary=page.locator('#details > .xp-item > summary').filter({hasText:'深夜手搖店'});
+    await xpSummary.click();
+    const breakdown=page.locator('#details > .xp-item[open] .xp-breakdown');
+    assert.deepEqual(await breakdown.locator('dd').allTextContents(),['40','20','20']);
+    await xpSummary.click();await page.click('#xp-details > summary');
+    if(width===390){
       await page.click('#route-tab');
-      await page.screenshot({path:'/tmp/ybs-xp-p2-shots/mobile-route-tab.png',fullPage:true});
-      t.diagnostic('mobile-route-tab screenshot height: '+await page.evaluate(()=>document.documentElement.scrollHeight)+'px');
+      await page.screenshot({path:'/tmp/ybs-me-impl-shots/mobile-route.png',fullPage:true});
     }
     await page.click('#logout');
     assert.equal(await page.locator('#growth').isVisible(),false);
     assert.equal(await page.locator('#total').textContent(),'');
-    assert.match(await page.locator('#status').textContent(),/用帳號登入/);
+    assert.equal(await page.locator('#continue-link').getAttribute('href'),null);
     await page.evaluate(()=>meMock.login('synthetic-two'));
     await page.waitForFunction(()=>document.getElementById('total').textContent==='0 XP');
     assert.equal(await page.locator('.route-badge').count(),0);
-    assert.equal(await page.locator('#badge-count').textContent(),'已獲得 0 枚徽章');
+    assert.equal(await page.locator('#badge-count').textContent(),'0');
   });
 }
-test('未開放週收合為計數，保留已開放週及下一週；0 XP 活動收合並可展開',async t=>{
+test('未開放週、已開放未開始及 XP 明細均可收合',async t=>{
   const page=await pageFor(t);
   await page.click('#mock-login');
   await page.waitForFunction(()=>document.getElementById('total').textContent==='90 XP');
   const future=page.locator('#future-weeks'), zero=page.locator('#zero-xp');
   assert.equal(await future.getAttribute('open'),null);
   const count=await future.locator('.route-week').count();
-  assert.equal(await future.locator(':scope > summary').textContent(),'還有 '+count+' 週');
+  assert.equal(await future.locator(':scope > summary').textContent(),'還有 '+count+' 週待開放');
   assert.ok(count>0);
-  assert.equal(await page.locator('#route > .route-week').last().locator('.station').getAttribute('data-state'),'upcoming');
-  assert.match(await page.locator('#route > .route-week').last().textContent(),/2026-11-16/);
+  assert.match(await page.locator('#route > .timeline .station.locked').textContent(),/11.16/);
   assert.equal(await future.locator('.route-week').first().isVisible(),false);
   await future.locator(':scope > summary').click();
   assert.equal(await future.locator('.route-week').first().isVisible(),true);
+  await future.locator(':scope > summary').click();
+  assert.equal(await page.locator('#available-weeks').getAttribute('open'),null);
+  await page.click('#available-weeks > summary');
+  assert.equal(await page.locator('#available-weeks li').first().isVisible(),true);
+  await page.click('#xp-details > summary');
   assert.equal(await zero.getAttribute('open'),null);
   assert.equal(await zero.locator(':scope > summary').textContent(),'尚未過關 28 項');
   assert.equal(await page.locator('#details > .xp-item').count(),2);
@@ -151,12 +157,35 @@ test('未開放週收合為計數，保留已開放週及下一週；0 XP 活動
   await zero.locator(':scope > summary').click();
   assert.equal(await zero.locator('.xp-item').count(),28);
   assert.equal(await zero.locator('.xp-item').first().isVisible(),true);
-  await page.click('#logout');await page.evaluate(()=>meMock.login('synthetic-two'));
-  await page.waitForFunction(()=>document.getElementById('total').textContent==='0 XP');
-  assert.equal(await page.locator('#details > .xp-item').count(),0);
-  assert.equal(await page.locator('#zero-xp > summary').textContent(),'尚未過關 30 項');
 });
-test('手機分頁支援鍵盤及 640px 邊界；桌面回復並排，縮回手機保留選擇',async t=>{
+test('已開放／全學期切換同步完成率、關數、圖形、軸值與 ARIA',async t=>{
+  const page=await pageFor(t);
+  await page.clock.setFixedTime(new Date('2026-01-01T00:00:00Z'));
+  await page.click('#mock-login');
+  await page.waitForFunction(()=>document.getElementById('total').textContent==='90 XP');
+  // 加入未開放活動紀錄，已開放範圍不能錯用全學期的分子。
+  await page.evaluate(()=>meMock.records.push({uid:'synthetic-one',activity:8,round:0}));
+  await page.click('#retry');
+  await page.waitForFunction(()=>document.getElementById('total').textContent==='100 XP');
+  const openPlot=await page.locator('.plot-outline').getAttribute('points');
+  assert.match(await page.locator('#completion-detail').textContent(),/^5 \/ 16 關完成/);
+  assert.equal(await page.locator('#completion-rate').textContent(),'31%');
+  assert.match(await page.locator('#axes [data-axis="S"]').textContent(),/5 \/ 8/);
+  await page.click('[data-scope="term"]');
+  assert.equal(await page.locator('[data-scope="term"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('[data-scope="open"]').getAttribute('aria-pressed'),'false');
+  assert.equal(await page.locator('#completion-label').textContent(),'全學期完成率');
+  assert.match(await page.locator('#completion-detail').textContent(),/^6 \/ 121 關完成/);
+  assert.equal(await page.locator('#completion-rate').textContent(),'5%');
+  assert.match(await page.locator('#axes [data-axis="D"]').textContent(),/1 \/ /);
+  assert.notEqual(await page.locator('.plot-outline').getAttribute('points'),openPlot);
+  assert.match(await page.locator('#radar-desc').textContent(),/D 資料處理：1\//);
+  await page.click('[data-scope="open"]');
+  assert.equal(await page.locator('.plot-outline').getAttribute('points'),openPlot);
+  assert.match(await page.locator('#chart-note').textContent(),/已開放關數/);
+  assert.equal(await page.locator('#total').textContent(),'100 XP');
+});
+test('手機分頁支援鍵盤及 C3 的 700px 邊界；桌面回復、縮回保留選擇',async t=>{
   const page=await pageFor(t,{viewport:{width:390,height:844}});
   await page.click('#mock-login');
   await page.waitForFunction(()=>document.getElementById('total').textContent==='90 XP');
@@ -171,19 +200,19 @@ test('手機分頁支援鍵盤及 640px 邊界；桌面回復並排，縮回手�
   assert.equal(await page.locator('#exploration-panel').isVisible(),false);
   assert.equal(await page.locator('#route-panel').isVisible(),true);
   assert.equal(await page.locator('#route-panel').getAttribute('role'),'tabpanel');
+  assert.equal(await page.locator('#route-panel').getAttribute('aria-labelledby'),'route-tab');
   await page.keyboard.press('Home');assert.equal(await exploration.getAttribute('aria-selected'),'true');
   await page.keyboard.press('End');assert.equal(await route.getAttribute('aria-selected'),'true');
   await page.keyboard.press('ArrowLeft');assert.equal(await exploration.getAttribute('aria-selected'),'true');
   await page.click('#route-tab');
-  await page.setViewportSize({width:640,height:844});
+  await page.setViewportSize({width:700,height:844});
   assert.equal(await page.locator('#growth-tabs').isVisible(),true);
-  await page.setViewportSize({width:641,height:844});
+  await page.setViewportSize({width:701,height:844});
   await page.waitForFunction(()=>document.getElementById('growth-tabs').hidden);
-  assert.equal(await page.locator('#growth-tabs').isVisible(),false);
   assert.equal(await page.locator('#exploration-panel').isVisible(),true);
   assert.equal(await page.locator('#route-panel').isVisible(),true);
-  const boxes=await page.locator('.columns > .card').evaluateAll(els=>els.map(e=>({top:e.getBoundingClientRect().top,left:e.getBoundingClientRect().left})));
-  assert.equal(boxes[0].top,boxes[1].top);assert.ok(boxes[0].left<boxes[1].left);
+  assert.equal(await page.locator('#route-panel').getAttribute('role'),null);
+  assert.equal(await page.locator('#route-panel').getAttribute('aria-labelledby'),'route-title');
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>!document.getElementById('growth-tabs').hidden);
   assert.equal(await page.locator('#route-panel').isVisible(),true);
@@ -221,7 +250,75 @@ test('提早開放清單與共同日期規則皆納入；路線週次由 date �
   await page.clock.setFixedTime(new Date('2026-01-01T00:00:00Z'));
   await page.click('#mock-login');
   await page.waitForFunction(()=>document.getElementById('total').textContent==='90 XP');
-  assert.equal(await page.locator('.station a').count(),4);
+  assert.equal(await page.locator('.station h3 a, #available-weeks li a').count(),4);
   assert.equal(await page.locator('.station[data-state="upcoming"]').count(),26);
-  assert.match(await page.locator('#route').textContent(),/第 7 週/);
+  assert.match(await page.locator('.station[data-activity="1"] .week-label').getAttribute('aria-label'),/第 7 週/);
 });
+
+test('真實活動頁 C3 標題列、等級條與成長連結；本機截圖',async t=>{
+  const page=await pageFor(t,{viewport:{width:1440,height:1000}});
+  await page.goto(base+'/115-g9/u2-03/');
+  await page.click('#mock-login');await page.click('#g-isme');
+  await page.waitForFunction(()=>document.getElementById('xp-total').textContent==='90 XP');
+  assert.equal(await page.locator('#xp-link').getAttribute('href'),'../me/');
+  assert.equal(await page.locator('#xp-progress').evaluate(el=>getComputedStyle(el).height),'4px');
+  assert.equal(await page.locator('header.top').evaluate(el=>getComputedStyle(el).borderTopColor),'rgb(122, 78, 168)');
+  assert.equal(await page.locator('#xp-total').evaluate(el=>getComputedStyle(el).fontFamily.includes('JetBrains Mono')),true);
+  await page.locator('header.top').screenshot({path:'/tmp/ybs-me-impl-shots/activity-header.png'});
+});
+
+test('全過與多主題徽章：最高等級、無待挑戰活動及換人重設',async t=>{
+  const page=await pageFor(t,{viewport:{width:320,height:844},colorScheme:'dark'});
+  await page.clock.setFixedTime(new Date('2027-07-01T00:00:00Z'));
+  await page.evaluate(()=>{
+    meMock.records.splice(0,meMock.records.length,...ACTIVITIES.filter(a=>a.course==='115-g9').flatMap(a=>a.rounds.map((_,round)=>({uid:'synthetic-one',activity:a.week,round,at:activityOpenAt(a)}))));
+    meMock.login('synthetic-one');
+  });
+  await page.waitForFunction(()=>document.getElementById('total').textContent==='2415 XP');
+  assert.equal(await page.locator('#level-number').textContent(),'Lv 10');
+  assert.equal(await page.locator('#badge-count').textContent(),'30');
+  assert.equal(await page.locator('#continue-action').isVisible(),false);
+  assert.equal(await page.locator('#continue-link').getAttribute('href'),null);
+  assert.equal(await page.locator('#completion-rate').textContent(),'100%');
+  await page.click('#route-tab');
+  const multi=page.locator('.station[data-activity="17"]');
+  assert.equal(await multi.locator('.route-badge').count(),2);
+  assert.equal(await multi.locator('.theme-H').count(),1);
+  assert.equal(await multi.locator('.theme-T').count(),1);
+  assert.equal(await multi.locator('.learned').textContent(),await page.evaluate(()=> '學會了什麼'+ACTIVITIES.find(a=>a.course==='115-g9'&&a.week===17).topic));
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.evaluate(()=>meMock.login('synthetic-two'));
+  await page.waitForFunction(()=>document.getElementById('total').textContent==='0 XP');
+  assert.equal(await page.locator('#exploration-tab').getAttribute('aria-selected'),'true');
+  assert.equal(await page.locator('#continue-link').getAttribute('href'),await page.evaluate(()=> '../../'+ACTIVITIES.find(a=>a.course==='115-g9'&&a.week===25).href));
+});
+
+// 合成 attempts 僅用於本機截圖，活動、週次、topic 與 XP 計算仍走正式程式。
+for(const [width,colorScheme] of [[1440,'light'],[1440,'dark'],[390,'light']]){
+  test(`C3 多站路線截圖：${width}px、${colorScheme}`,async t=>{
+    const page=await pageFor(t,{viewport:{width,height:width===390?844:1000},colorScheme});
+    await page.evaluate(()=>{
+      const state=[[26,4,4],[27,4,4],[28,4,1],[29,4,0],[3,4,0],[5,3,0]];
+      meMock.records.splice(0,meMock.records.length,...state.flatMap(([activity,passed,timely])=>{
+        const a=ACTIVITIES.find(a=>a.course==='115-g9'&&a.week===activity);
+        return Array.from({length:passed},(_,round)=>({uid:'synthetic-one',activity,round,...(round<timely?{at:activityOpenAt(a)+864e5}:{})}));
+      }));
+      meMock.login('synthetic-one');
+    });
+    await page.waitForFunction(()=>document.getElementById('total').textContent==='375 XP');
+    assert.equal(await page.locator('#level-number').textContent(),'Lv 3');
+    assert.equal(await page.locator('#current-week').textContent(),'W11');
+    assert.equal(await page.locator('#continue-link').getAttribute('href'),'../../115-g9/u2-03/');
+    assert.equal(await page.locator('#badge-count').textContent(),'5');
+    assert.equal(await page.locator('#route > .timeline .station.complete').count(),5);
+    assert.ok(await page.locator('.row-break').count()>0);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    const name=colorScheme==='dark'?'dark':width===390?'mobile':'desktop';
+    await page.screenshot({path:'/tmp/ybs-me-impl-shots/'+name+'.png',fullPage:true});
+    if(width===390){
+      await page.click('#route-tab');
+      assert.equal(await page.locator('#route > .timeline .row-break').first().isVisible(),false);
+      await page.screenshot({path:'/tmp/ybs-me-impl-shots/mobile-route.png',fullPage:true});
+    }
+  });
+}

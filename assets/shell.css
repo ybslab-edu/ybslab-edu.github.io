@@ -140,18 +140,29 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 
 #original-work{display:flex;flex-direction:column;gap:12px;min-width:0}
 
-/* 成長資訊與原有成績分開顯示；窄螢幕可獨立換行。 */
-.xp-header{flex:0 1 230px;min-width:0;max-width:100%;margin-left:auto}
-.xp-header a{display:flex;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-decoration:none;overflow-wrap:anywhere;cursor:default}
+/* C3 活動標題列：沿用原有登入、關卡及成長頁連結。 */
+header.top{--xp-bg:#F5F7F9;--xp-track:#827989;background:var(--xp-bg);border-top:2px solid var(--cu);border-radius:14px 14px 0 0;padding:22px 20px;gap:24px}
+header.top h1{font-size:28px;line-height:1.4}
+.xp-header{width:300px;max-width:100%;min-width:0;padding-left:22px;border-left:1px solid var(--line)}
+.xp-header a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 14px;padding:8px 0;color:var(--ink);text-decoration:none;cursor:pointer}
+.xp-header a:focus-visible{outline:3px solid var(--cu);outline-offset:4px}
+.xp-header a:hover{color:var(--cu)}
 .xp-header [hidden]{display:none}
 .xp-login-hint{color:var(--muted);margin:0}
-.xp-header b{flex:1 1 100%;color:var(--a)}
-.xp-header progress{display:block;flex:1 1 100%;width:100%;height:10px;accent-color:var(--a)}
-.xp-header .small{flex-basis:100%}
+.xp-header b{font-size:14px;font-weight:500}
+.xp-mono{font:13px/1.55 var(--f-mono);white-space:nowrap}
+.xp-header progress{display:block;grid-column:1/-1;appearance:none;width:100%;height:4px;margin-top:5px;border:0;border-radius:0;overflow:hidden;background:var(--xp-track);color:var(--cu)}
+.xp-header progress::-webkit-progress-bar{background:var(--xp-track)}
+.xp-header progress::-webkit-progress-value{background:var(--cu)}
+.xp-header progress::-moz-progress-bar{background:var(--cu)}
+.xp-header .small{grid-column:1/-1;font-size:14px;color:var(--muted)}
 .xp-detail{font-weight:700;color:var(--out)}
 .xp-title-card{border:2px solid var(--a);border-radius:12px;padding:12px;background:var(--a-soft);color:var(--ink);animation:xp-arrive .3s ease-out}
 @keyframes xp-arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:640px){.xp-header{flex-basis:100%;margin-left:0}.activity-heading{flex-basis:100%}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) header.top{--xp-bg:#11161B;--xp-track:#978BA3;--line:#4A5059}}
+:root[data-theme="dark"] header.top{--xp-bg:#11161B;--xp-track:#978BA3;--line:#4A5059}
+@media(max-width:1080px){header.top{grid-template-columns:minmax(0,1fr)}.xp-header{width:100%;padding:12px 0 0;border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:700px){header.top{padding:18px 15px}.xp-header{padding-top:12px}header.top h1{font-size:26px}}
 @media(prefers-reduced-motion:reduce){.xp-title-card{animation:none}}
 
 .work-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}

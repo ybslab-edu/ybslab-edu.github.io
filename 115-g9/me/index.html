@@ -6,35 +6,30 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>我的成長紀錄｜YBS Lab</title>
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="me.css?v=20261110a">
+<link rel="stylesheet" href="me.css?v=20261110c3">
 <script defer src="../../assets/curriculum.js"></script>
 <script defer src="../../assets/activities.js"></script>
 <script defer src="../../assets/xp.js?v=20261109f"></script>
 <script defer src="../../assets/login.js?v=20261110c"></script>
-<script defer src="me.js?v=20261110b"></script>
+<script defer src="me.js?v=20261110d"></script>
 </head>
 <body>
-<main>
-  <header><div><a href="../">← 九年級活動</a><p class="eyebrow">YBS LAB · MY JOURNEY</p><h1>我的成長紀錄</h1><p>每走過一站，都算自己的進步。</p></div><button id="logout" hidden>登出</button></header>
-  <section id="signin" class="card" aria-labelledby="signin-title">
-    <h2 id="signin-title">用帳號登入就能累積等級</h2>
-    <p>班座模式的紀錄不計入這裡。登入後，查看自己已確認的過關紀錄。</p>
-    <div id="login"></div>
-  </section>
+<header class="site-bar"><div class="site-inner"><a class="brand" href="../../"><b><i>Y</i><i>B</i><i>S</i> Lab</b><span>為什麼・因為・所以</span></a><nav aria-label="網站導覽"><a href="../">九年級活動</a><button id="logout" hidden>登出</button></nav></div></header>
+<main class="paper">
+  <header class="page-heading"><div><p class="eyebrow">九年級資訊科技 <span>／</span> 115 學年度</p><h1>我的成長紀錄</h1></div><p class="term" id="term"></p></header>
+  <section id="signin" aria-labelledby="signin-title"><h2 id="signin-title">用帳號登入就能累積等級</h2><p>班座模式的紀錄不計入這裡。登入後，查看自己已確認的過關紀錄。</p><div id="login"></div></section>
   <div class="notice" role="status"><span id="status">請先登入帳號。</span> <button id="retry" hidden>重新讀取</button></div>
   <div id="growth" hidden>
-    <section class="card summary" aria-labelledby="level"><div><p class="eyebrow">一點一滴，累積成長</p><h2 id="level"></h2><p id="next"></p><progress id="progress" max="1" value="0" aria-label="升級進度"></progress></div><div><strong id="total"></strong><p id="completed"></p><p id="badge-count"></p></div></section>
-    <div id="growth-tabs" role="tablist" aria-label="探索與路線" hidden>
-      <button id="exploration-tab" role="tab" aria-controls="exploration-panel" aria-selected="true">探索六邊形</button>
-      <button id="route-tab" role="tab" aria-controls="route-panel" aria-selected="false" tabindex="-1">每週路線</button>
+    <section class="next-step" aria-labelledby="current-title"><div class="current-context"><span class="status-mark" aria-hidden="true"></span><span>目前活動</span><span class="mono" id="current-week"></span></div><div class="current-content"><div><h2 id="current-title"></h2><p id="current-description"></p></div><div class="continue-action" id="continue-action"><span>還有 <b class="mono" id="remaining"></b> 關</span><a class="continue-link" id="continue-link">繼續挑戰 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13m-5-5 5 5-5 5"/></svg></a></div></div></section>
+    <div class="overview">
+      <section class="level-panel" aria-labelledby="level"><div class="level-inline"><span id="mobile-level"></span><span id="mobile-next"></span></div><div class="level-top"><span>目前等級</span><span class="mono level-number" id="level-number"></span></div><h2 id="level"></h2><p class="level-next" id="next"></p><progress id="progress" max="1" value="0" aria-label="升級進度"></progress><div class="progress-label mono"><span id="floor"></span><span id="ceiling"></span></div><dl class="level-totals"><div><dt>已過關卡</dt><dd><b class="mono" id="completed"></b> 關</dd></div><div><dt>活動徽章</dt><dd><b class="mono" id="badge-count"></b> 枚</dd></div><div><dt>累積經驗</dt><dd class="xp-number mono" id="total"></dd></div></dl><p class="level-footnote">XP 與課堂成績分開。</p></section>
+      <div id="growth-tabs" class="mobile-tabs" role="tablist" aria-label="成長紀錄內容" hidden><button id="exploration-tab" role="tab" aria-controls="exploration-panel" aria-selected="true">探索六邊形</button><button id="route-tab" role="tab" aria-controls="route-panel" aria-selected="false" tabindex="-1">每週路線</button></div>
+      <section class="exploration" id="exploration-panel" aria-labelledby="exploration-title"><div class="section-heading"><h2 id="exploration-title">探索六邊形</h2><div class="chart-switch" role="group" aria-label="探索度計算範圍"><button type="button" data-scope="open" aria-pressed="true">已開放</button><button type="button" data-scope="term" aria-pressed="false">全學期</button></div></div><div class="learning-summary" aria-live="polite" aria-atomic="true"><p><strong class="mono" id="completion-rate"></strong><span id="completion-label"></span></p><p id="completion-detail"></p></div><div class="chart-layout"><div id="radar"></div><ul id="axes" class="axes"></ul></div><p class="chart-note" id="chart-note"></p></section>
     </div>
-    <div class="columns">
-      <section id="exploration-panel" class="card" aria-labelledby="exploration-title"><h2 id="exploration-title">探索度六邊形</h2><p>看見自己走到哪裡；探索度反映課程進度。</p><div id="radar"></div><ul id="axes" class="axes"></ul><p class="note">圖形以全學期關數為分母；一個活動可對應多個主題。沒有安排關卡的主題顯示「尚無關卡」。</p></section>
-      <section id="route-panel" class="card" aria-labelledby="route-title"><h2 id="route-title">每週路線圖</h2><p>實心站點＝已走過；✓＝活動全過。</p><div id="route"></div></section>
-    </div>
-    <section class="card" aria-labelledby="details-title"><h2 id="details-title">XP 明細</h2><p>每關首次過關 +10、開放後 7 天內過關 +5、活動全過 +20。舊紀錄沒有時間時，不計準時加成。</p><div id="details"></div></section>
+    <section class="route" id="route-panel" aria-labelledby="route-title"><div class="section-heading"><h2 id="route-title">每週路線</h2><span class="route-caption">學會了什麼・摘自課堂活動主題</span></div><div class="route-legend"><span><i class="legend-dot complete-dot"></i>已完成</span><span><i class="legend-dot current-dot"></i>探索中</span><span><i class="legend-dot future-dot"></i>待開放</span><span class="route-direction">每列左至右 →，再到下一列</span></div><div id="route"></div></section>
+    <details class="xp-details" id="xp-details"><summary><span class="xp-heading">XP 明細</span><span class="xp-brief">合計 <b class="mono" id="xp-total"></b></span><span class="expand-icon" aria-hidden="true"></span></summary><div class="xp-content"><p>首次過關 +10 · 開放後 7 天內過關 +5 · 活動全過 +20。舊紀錄無時間時，不計準時加成。</p><div id="details"></div></div></details>
   </div>
-  <footer>只跟自己比。XP 與成績分開，等級提供稱號與徽章。<br>© YBS Lab · 全權保留</footer>
+  <footer><span>只跟自己比。XP 與課堂成績分開。</span><span>© YBS Lab · 全權保留</span></footer>
 </main>
 </body>
 </html>

@@ -101,7 +101,7 @@ const shellMainHTML = (cfg, esc) => {
     </div>
     <aside class="xp-header" id="xp-header" hidden aria-live="polite">
       <a href="../me/" id="xp-link" title="查看我的成長紀錄">
-        <b id="xp-level"></b><span id="xp-total"></span>
+        <b id="xp-level"></b><span class="xp-mono" id="xp-total"></span>
         <progress id="xp-progress" max="1" value="0" aria-label="升級進度"></progress>
         <span class="small" id="xp-next"></span>
       </a>

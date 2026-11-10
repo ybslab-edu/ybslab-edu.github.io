@@ -80,7 +80,10 @@ test('點活動標題列等級條進 me、自動讀本人紀錄，再點路線�
   assert.equal(await page.locator('#total').textContent(), '10 XP');
   await assertCarried(page);
   assert.deepEqual(await page.evaluate(() => __sessionMock.reads), [{path:'ybsCourses/115-g9/attempts',uid:'session-one'}]);
-  await page.locator('#route a[href="../../115-g9/u2-02/"]').click();
+  const routeLink=page.locator('#route a[href="../../115-g9/u2-02/"]');
+  // C3 路線預設收合非本週；先展開所在週再點。
+  await routeLink.evaluate(a=>{for(let d=a.closest('details');d;d=d.parentElement&&d.parentElement.closest('details'))d.open=true;});
+  await routeLink.click();
   await confirmStudent(page);await assertCarried(page);
 });
 test('登入後新分頁、關活動分頁後重開均沿用；me 登出後新分頁也登出', async t => {

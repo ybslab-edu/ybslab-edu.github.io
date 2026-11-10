@@ -163,11 +163,12 @@ const CURRICULA = [
 // 相容：只需要國中課綱的地方
 const CURRICULUM = CURRICULA[0];
 
-// 開設中的課程（學生入口）。year 要和 TERMS 的 year 對上，學期進度才會列出這一列。
-// short：課名（學期進度粗體、本週卡片）　who：上課對象（學期進度小字）　name：完整名稱（活動清單）
+// 課程登記（學生入口只顯示 open: true）。每學年開學前，老師只改 open 欄位即可開關課程。
+// year 要和 TERMS 的 year 對上，學期進度才會列出這一列。
+// short：課名（學期進度粗體）　who：上課對象（學期進度小字）　name：完整名稱（活動清單）
 const COURSES = [
-  { id: '115-g9', name: '九年級資訊科技', short: '資訊科技', who: '九年級', year: 115, path: '115-g9/' },
-  { id: '115-df', name: '數理資優班專題研究', short: '專題研究', who: '數資班七八年級', year: 115, path: '115-df/' }
+  { id: '115-g9', name: '九年級資訊科技', short: '資訊科技', who: '九年級', year: 115, open: true, path: '115-g9/' },
+  { id: '115-df', name: '數理資優班專題研究', short: '專題研究', who: '數資班七八年級', year: 115, open: false, path: '115-df/' }
 ];
 
 // 學期：依學校行事曆填開學日（begin）與休業式（end）。週次從開學那週的星期一算起，週數自動計算。

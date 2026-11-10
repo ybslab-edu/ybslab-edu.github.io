@@ -9,6 +9,7 @@ import {resolve, extname, sep} from 'node:path';
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root=resolve(fileURLToPath(new URL('../',import.meta.url)));
 let browser, server, base;
+const openCurriculum=(await readFile(resolve(root,'assets/curriculum.js'),'utf8')).replace('open: false','open: true');
 import {fakeFirebase} from './fixtures/df-firebase.mjs';
 
 before(async()=>{
@@ -30,6 +31,8 @@ async function pageFor(t){
   page.on('pageerror',e=>errors.push(e.message));
   await context.route('**/*',route=>{
     const url=route.request().url();
+    // 報告交件回歸模擬開設中的學年；正式關閉與解鎖另由 course-enable 測試驗證。
+    if(url.startsWith(base+'/assets/curriculum.js')) return route.fulfill({contentType:'text/javascript',body:(openCurriculum)});
     if(url.startsWith(base)) return route.continue();
     if(url.startsWith('https://www.gstatic.com/firebasejs/')) return route.fulfill({contentType:'text/javascript',body:url.includes('app-compat')?fakeFirebase:''});
     return route.abort();

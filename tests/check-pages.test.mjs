@@ -48,8 +48,9 @@ test('回歸預期共用正式日期與 OPEN；所有舊轉址落點都有預期
   for (const path of ['u0-01', 'u1-01', 'u1-02', 'u1-03', 'u1-04'])
     assert.equal(expected[`115-g9/${path}/`], false, path);
   assert.equal(expected['115-g9/u2-03/'], true);
+  assert.equal(expected['115-df/a/'], true);
   assert.equal(Object.keys(expected).filter(path => path.startsWith('115-g9/u')).length, 30);
-  for (const path of ['', 'about/', 'map/', '115-g9/', '115-g9/teacher/', '115-df/', '115-df/a/', '115-df/teacher/'])
+  for (const path of ['', 'about/', 'map/', '115-g9/', '115-g9/teacher/', '115-df/', '115-df/teacher/'])
     assert.equal(expected[path], false, path);
 });
 

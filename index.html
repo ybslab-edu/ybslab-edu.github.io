@@ -253,7 +253,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 
 <footer><div class="in"><span>© 2026 YBS Lab for Education　<a href="about/#h-rights" style="color:inherit">保留所有權利</a></span><span>課綱條目依十二年國教科技領域課程綱要（資訊科技）</span></div></footer>
 
-<script src="assets/curriculum.js?v=20261015d"></script>
+<script src="assets/curriculum.js?v=20261110a"></script>
 <script src="assets/activities.js?v=20261105m"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -280,7 +280,7 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
   let term=curTerm;
 
   // 圖例：只列出有用到的路線
-  const used=[...new Set(ACTIVITIES.filter(a=>a.codes.length).map(a=>strandOf(a.codes[0])))];
+  const used=[...new Set(ACTIVITIES.filter(a=>COURSES.some(c=>c.open&&c.id===a.course)&&a.codes.length).map(a=>strandOf(a.codes[0])))];
   $('keys').innerHTML=used.map(id=>'<span><i style="background:var(--'+id+')"></i>'+esc(strandName(id))+'</span>').join('');
 
   function render(scroll){
@@ -291,7 +291,7 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
 
     const inTerm=today>=ymd(term.begin)&&today<termEnd(term);
     const cw=inTerm?weekOf(term,today):(today<ymd(term.begin)?-1:term.weeks);
-    const courses=COURSES.filter(c=>c.year===term.year);
+    const courses=COURSES.filter(c=>c.open&&c.year===term.year);
     const acts=ACTIVITIES.filter(a=>courses.some(c=>c.id===a.course)).flatMap(a=>datesOf(a).map(dt=>({...a,date:dt,w:weekOf(term,ymd(dt))}))).filter(a=>a.w>=0&&a.w<term.weeks);
 
     // 副標與本週

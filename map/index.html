@@ -270,7 +270,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 
 <footer><div class="in"><span>© 2026 YBS Lab for Education　<a href="../about/#h-rights" style="color:inherit">保留所有權利</a></span><span>課綱條目依十二年國教科技領域課程綱要（資訊科技）</span></div></footer>
 
-<script src="../assets/curriculum.js?v=20261015d"></script>
+<script src="../assets/curriculum.js?v=20261110a"></script>
 <script src="../assets/activities.js?v=20261105m"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -278,9 +278,10 @@ const $=id=>document.getElementById(id);
 requestAnimationFrame(()=>setTimeout(()=>$('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));
 const trk=a=>a.track==='選修'?'<span class="trk opt" title="進度落後的班級可以跳過">選修</span>':'<span class="trk req">必修</span>';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const courseOf=id=>COURSES.find(c=>c.id===id)||{name:id,path:'#'};
+const courseOf=id=>COURSES.find(c=>c.open&&c.id===id)||{name:id,path:'#'};
+const openActivities=ACTIVITIES.filter(a=>COURSES.some(c=>c.open&&c.id===a.course));
 const byCode={};
-ACTIVITIES.forEach(a=>a.codes.forEach(c=>(byCode[c]=byCode[c]||[]).push(a)));
+openActivities.forEach(a=>a.codes.forEach(c=>(byCode[c]=byCode[c]||[]).push(a)));
 const slug=code=>code.replace('資','');   // 資S-IV-2 → S-IV-2，用在網址 #S-IV-2
 
 /* 地圖：國中／高中必修／高中選修 三個分頁共用同一套畫法 */
@@ -455,7 +456,7 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
 
 /* 更新日期＝最新活動日期 */
 (function(){
-  const d=ACTIVITIES.flatMap(datesOf).sort().pop();
+  const d=openActivities.flatMap(datesOf).sort().pop();
   if(d){const [y,m,dd]=d.split('-');$('updated').textContent=y+' 年 '+(+m)+' 月 '+(+dd)+' 日'}
 })();
 

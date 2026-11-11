@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#edf2e8">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="data:,">
+  <title>成功國中｜校園漫遊</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head>
+<body>
+  <main id="world" aria-label="可旋轉與縮放的成功國中 3D 校園"></main>
+  <header class="masthead">
+    <a class="brand" href="./" aria-label="成功國中校園漫遊首頁"><span class="brand-mark">成</span><span>成功國中<small>校園漫遊 CAMPUS WORLD</small></span></a>
+    <span class="edition"><i></i>外觀探索版 06</span>
+  </header>
+  <section class="intro" aria-labelledby="page-title">
+    <p class="eyebrow">從校門出發，認識校園</p>
+    <h1 id="page-title">一起走走，<br>遇見成功。</h1>
+    <p>轉個角度，看見熟悉的校園風景。</p>
+  </section>
+  <aside class="guide" aria-label="校園帶路">
+    <div class="guide-heading"><span class="step">01</span><div><h2>今天想去哪裡？</h2><p>起點：校門 <span>・步行導覽</span></p></div><span class="guide-icon" aria-hidden="true">↗</span></div>
+    <label for="destination">選擇目的地</label>
+    <div class="guide-actions"><select id="destination" disabled><option>校園載入中…</option></select><button id="start" class="primary" disabled>開始帶路 <span aria-hidden="true">→</span></button></div>
+    <div class="route-status"><span id="status" role="status" aria-live="polite">正在準備校園…</span><button id="stop" disabled>停止</button></div>
+    <div class="guide-foot"><span><i class="route-dot"></i>藍色路線為步行路徑</span><span>由校門出發</span></div>
+  </aside>
+  <nav class="view-tools" aria-label="視角控制"><button id="overview" disabled><span aria-hidden="true">⌂</span> 回到全景</button></nav>
+  <div id="compass" role="img" aria-label="指北針：箭頭指向正北"><span id="compass-arrow">▲<b>N</b></span></div>
+  <footer><span class="interaction desktop">拖曳旋轉 <b>·</b> 滾輪縮放 <b>·</b> 右鍵平移</span><span class="interaction mobile">單指旋轉 <b>·</b> 雙指縮放與平移</span><span class="estimate">正射場地・部分用途與入口待確認</span></footer>
+  <a class="attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">地圖資料 © OpenStreetMap contributors</a>
+  <noscript>請開啟 JavaScript 以瀏覽 3D 校園。</noscript>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

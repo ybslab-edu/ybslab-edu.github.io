@@ -1,0 +1,5866 @@
+{
+  "meta": {
+    "name": "成功國中",
+    "estimated": true,
+    "origin": {
+      "lat": 24.819,
+      "lon": 121.0173
+    },
+    "projection": "equirectangular; x east, z south, metres",
+    "source": "ortho-2024",
+    "attribution": "© OpenStreetMap contributors",
+    "note": "相對位置依 115 安全圖、尺寸依 2024 正射影像；11/10 實地觀察修正外觀與通行，未決衝突另列。",
+    "osmFile": "data/osm/area-20261109.json",
+    "planAlignment": {
+      "anchor": [
+        32.336,
+        -71.243
+      ],
+      "angle": 0.4173105078013863,
+      "source": "osm",
+      "method": "C 棟 OSM 西北外角及北側長邊定剛體位置/方向；圖面尺寸不縮放。外牆與軸線偏差待測量。"
+    },
+    "orthoAlignment": {
+      "source": "ortho-2024",
+      "mosaicSize": [
+        1792,
+        1792
+      ],
+      "method": "z19 Web Mercator 像素逆投影 → OSM 等距圓柱 east/south 米座標；不旋轉或人工縮放",
+      "checks": [
+        "C 棟北側外角",
+        "D 棟西北外角"
+      ],
+      "note": "2018 對齊後 C 棟角點較影像約偏北 20m；本版屋頂輪廓採影像。"
+    },
+    "siteObservations": "11/11 手繪標註優先覆寫 D 南牆、走廊及拱門；2026-11-10：外觀依本機觀察紀錄，細部位置尺寸概估；平面輪廓仍依正射影像。",
+    "conflicts": [
+      "跳遠場：安全圖南端與實地西側貼牆衝突，保留圖面位置，西牆方案待確認。",
+      "11/11 確認 D 棟與體育館不直接相連；間距保留為紅磚小路，A–體育館柱廊跨越路口。"
+    ],
+    "numericSources": {
+      "/meta/origin/lat": {
+        "source": "osm"
+      },
+      "/meta/origin/lon": {
+        "source": "osm"
+      },
+      "/meta/planAlignment/anchor/0": {
+        "source": "osm"
+      },
+      "/meta/planAlignment/anchor/1": {
+        "source": "osm"
+      },
+      "/meta/planAlignment/angle": {
+        "source": "osm"
+      },
+      "/meta/orthoAlignment/mosaicSize/0": {
+        "source": "ortho-2024"
+      },
+      "/meta/orthoAlignment/mosaicSize/1": {
+        "source": "ortho-2024"
+      },
+      "/ground/width": {
+        "source": "estimated"
+      },
+      "/ground/depth": {
+        "source": "estimated"
+      },
+      "/view/position/0": {
+        "source": "estimated"
+      },
+      "/view/position/1": {
+        "source": "estimated"
+      },
+      "/view/position/2": {
+        "source": "estimated"
+      },
+      "/view/target/0": {
+        "source": "estimated"
+      },
+      "/view/target/1": {
+        "source": "estimated"
+      },
+      "/view/target/2": {
+        "source": "estimated"
+      },
+      "/view/bounds/min/0": {
+        "source": "estimated"
+      },
+      "/view/bounds/min/1": {
+        "source": "estimated"
+      },
+      "/view/bounds/max/0": {
+        "source": "estimated"
+      },
+      "/view/bounds/max/1": {
+        "source": "estimated"
+      },
+      "/roads/0/segments/0/0/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/0/segments/0/0/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/0/segments/0/1/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/0/segments/0/1/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/0/width": {
+        "source": "estimated"
+      },
+      "/roads/0/height": {
+        "source": "estimated"
+      },
+      "/roads/1/segments/0/0/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/1/segments/0/0/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/1/segments/0/1/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/1/segments/0/1/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/1/width": {
+        "source": "estimated"
+      },
+      "/roads/1/height": {
+        "source": "estimated"
+      },
+      "/roads/2/segments/0/0/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/2/segments/0/0/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/2/segments/0/1/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/2/segments/0/1/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/2/width": {
+        "source": "estimated"
+      },
+      "/roads/2/height": {
+        "source": "estimated"
+      },
+      "/roads/3/segments/0/0/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/3/segments/0/0/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/3/segments/0/1/0": {
+        "source": "ortho-2024"
+      },
+      "/roads/3/segments/0/1/1": {
+        "source": "ortho-2024"
+      },
+      "/roads/3/width": {
+        "source": "estimated"
+      },
+      "/roads/3/height": {
+        "source": "estimated"
+      },
+      "/buildings/0/osmId": {
+        "source": "osm"
+      },
+      "/buildings/0/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/0/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/0/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/0/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/0/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/0/solidFootprints/1/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/0/arcadeHeight": {
+        "source": "estimated"
+      },
+      "/buildings/1/osmId": {
+        "source": "osm"
+      },
+      "/buildings/1/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/4/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/4/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/5/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/5/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/6/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/6/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/7/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/polygon/7/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/1/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/1/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/1/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/0/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/4/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/4/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/5/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/5/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/6/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/6/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/7/0": {
+        "source": "estimated"
+      },
+      "/buildings/1/solidFootprints/1/7/1": {
+        "source": "estimated"
+      },
+      "/buildings/1/arcadeHeight": {
+        "source": "estimated"
+      },
+      "/buildings/2/osmId": {
+        "source": "osm"
+      },
+      "/buildings/2/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/4/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/4/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/5/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/5/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/6/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/6/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/7/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/polygon/7/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/2/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/2/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/2/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/0/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/4/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/4/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/5/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/5/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/6/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/6/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/7/0": {
+        "source": "estimated"
+      },
+      "/buildings/2/solidFootprints/1/7/1": {
+        "source": "estimated"
+      },
+      "/buildings/2/arcadeHeight": {
+        "source": "estimated"
+      },
+      "/buildings/3/osmId": {
+        "source": "osm"
+      },
+      "/buildings/3/polygon/0/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/0/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/1/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/1/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/2/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/2/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/3/0": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/polygon/3/1": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/polygon/4/0": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/polygon/4/1": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/polygon/5/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/polygon/5/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/position/0": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/position/1": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/floors": {
+        "source": "estimated"
+      },
+      "/buildings/3/floorHeight": {
+        "source": "estimated"
+      },
+      "/buildings/3/previousPolygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/4/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/4/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/5/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/previousPolygon/5/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/adGapWidening/distance": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/buildings/3/adGapWidening/normal/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/adGapWidening/normal/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/3/adGapWidening/baseline/0/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/0/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/1/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/1/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/2/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/2/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/3/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/3/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/4/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/4/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/5/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/baseline/5/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/buildings/3/adGapWidening/southAlignmentSlide": {
+        "source": "estimated"
+      },
+      "/buildings/4/osmId": {
+        "source": "osm"
+      },
+      "/buildings/4/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/4/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/4/floorHeight": {
+        "source": "estimated"
+      },
+      "/buildings/4/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/5/osmId": {
+        "source": "osm"
+      },
+      "/buildings/5/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/5/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/5/floorHeight": {
+        "source": "estimated"
+      },
+      "/buildings/5/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/6/osmId": {
+        "source": "osm"
+      },
+      "/buildings/6/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/6/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/6/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/6/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/7/osmId": {
+        "source": "osm"
+      },
+      "/buildings/7/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/7/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/7/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/7/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/8/osmId": {
+        "source": "osm"
+      },
+      "/buildings/8/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/8/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/8/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/8/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/8/solidFootprints/0/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/8/arcadeHeight": {
+        "source": "estimated"
+      },
+      "/buildings/9/osmId": {
+        "source": "osm"
+      },
+      "/buildings/9/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/9/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/9/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/9/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/0/0": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/0/1": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/1/0": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/1/1": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/2/0": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/2/1": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/3/0": {
+        "source": "estimated"
+      },
+      "/buildings/9/solidFootprints/0/3/1": {
+        "source": "estimated"
+      },
+      "/buildings/9/arcadeHeight": {
+        "source": "estimated"
+      },
+      "/buildings/10/osmId": {
+        "source": "osm"
+      },
+      "/buildings/10/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/10/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/10/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/10/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/11/osmId": {
+        "source": "osm"
+      },
+      "/buildings/11/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/11/floors": {
+        "source": "plan-2018"
+      },
+      "/buildings/11/floorHeight": {
+        "source": "plan-2018"
+      },
+      "/buildings/11/roof/rise": {
+        "source": "estimated"
+      },
+      "/buildings/12/osmId": {
+        "source": "osm"
+      },
+      "/buildings/12/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/position/0": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/position/1": {
+        "source": "ortho-2024"
+      },
+      "/buildings/12/floors": {
+        "source": "estimated"
+      },
+      "/buildings/12/floorHeight": {
+        "source": "estimated"
+      },
+      "/buildings/12/roof/rise": {
+        "source": "estimated"
+      },
+      "/sports/track/position/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/track/position/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/track/width": {
+        "source": "estimated"
+      },
+      "/sports/track/depth": {
+        "source": "estimated"
+      },
+      "/sports/track/angle": {
+        "source": "ortho-2024"
+      },
+      "/sports/track/lanes": {
+        "source": "school-115"
+      },
+      "/sports/courts/0/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/position/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/0/position/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/position/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/1/position/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/position/0": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/2/position/1": {
+        "source": "ortho-2024"
+      },
+      "/sports/courts/3/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/position/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/3/position/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/position/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/4/position/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/position/0": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/position/1": {
+        "source": "estimated"
+      },
+      "/sports/courts/5/divisions": {
+        "source": "estimated"
+      },
+      "/gate/position/0": {
+        "source": "ortho-2024"
+      },
+      "/gate/position/1": {
+        "source": "ortho-2024"
+      },
+      "/gate/width": {
+        "source": "estimated"
+      },
+      "/gate/height": {
+        "source": "estimated"
+      },
+      "/gate/angle": {
+        "source": "ortho-2024"
+      },
+      "/landmarks/0/position/0": {
+        "source": "estimated"
+      },
+      "/landmarks/0/position/1": {
+        "source": "estimated"
+      },
+      "/landmarks/0/height": {
+        "source": "estimated"
+      },
+      "/landmarks/1/position/0": {
+        "source": "estimated"
+      },
+      "/landmarks/1/position/1": {
+        "source": "estimated"
+      },
+      "/landmarks/1/height": {
+        "source": "estimated"
+      },
+      "/trees/rows/0/from/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/0/from/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/0/to/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/0/to/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/0/count": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/1/from/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/1/from/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/1/to/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/1/to/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/1/count": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/2/from/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/2/from/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/2/to/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/2/to/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/2/count": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/3/from/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/3/from/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/3/to/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/3/to/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/3/count": {
+        "source": "ortho-2024"
+      },
+      "/trees/rows/4/from/0": {
+        "source": "estimated"
+      },
+      "/trees/rows/4/from/1": {
+        "source": "estimated"
+      },
+      "/trees/rows/4/to/0": {
+        "source": "estimated"
+      },
+      "/trees/rows/4/to/1": {
+        "source": "estimated"
+      },
+      "/trees/rows/4/count": {
+        "source": "estimated"
+      },
+      "/trees/rows/5/from/0": {
+        "source": "estimated"
+      },
+      "/trees/rows/5/from/1": {
+        "source": "estimated"
+      },
+      "/trees/rows/5/to/0": {
+        "source": "estimated"
+      },
+      "/trees/rows/5/to/1": {
+        "source": "estimated"
+      },
+      "/trees/rows/5/count": {
+        "source": "estimated"
+      },
+      "/trees/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/2/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/2/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/3/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/3/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/4/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/4/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/5/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/5/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/6/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/6/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/7/0": {
+        "source": "ortho-2024"
+      },
+      "/trees/points/7/1": {
+        "source": "ortho-2024"
+      },
+      "/trees/exclusionZones/0/position/0": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/0/position/1": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/0/radius": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/1/position/0": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/1/position/1": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/1/radius": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/2/position/0": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/2/position/1": {
+        "source": "estimated"
+      },
+      "/trees/exclusionZones/2/radius": {
+        "source": "estimated"
+      },
+      "/sideGates/0/position/0": {
+        "source": "estimated"
+      },
+      "/sideGates/0/position/1": {
+        "source": "estimated"
+      },
+      "/sideGates/0/width": {
+        "source": "estimated"
+      },
+      "/sideGates/0/height": {
+        "source": "estimated"
+      },
+      "/sideGates/0/angle": {
+        "source": "estimated"
+      },
+      "/sideGates/1/position/0": {
+        "source": "estimated"
+      },
+      "/sideGates/1/position/1": {
+        "source": "estimated"
+      },
+      "/sideGates/1/width": {
+        "source": "estimated"
+      },
+      "/sideGates/1/height": {
+        "source": "estimated"
+      },
+      "/sideGates/1/angle": {
+        "source": "estimated"
+      },
+      "/sideGates/2/position/0": {
+        "source": "estimated"
+      },
+      "/sideGates/2/position/1": {
+        "source": "estimated"
+      },
+      "/sideGates/2/width": {
+        "source": "estimated"
+      },
+      "/sideGates/2/height": {
+        "source": "estimated"
+      },
+      "/sideGates/2/angle": {
+        "source": "estimated"
+      },
+      "/walls/0/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/2/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/2/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/3/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/3/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/4/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/4/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/5/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/5/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/6/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/points/6/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/0/width": {
+        "source": "estimated"
+      },
+      "/walls/0/height": {
+        "source": "estimated"
+      },
+      "/walls/1/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/1/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/1/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/1/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/1/points/2/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/1/points/2/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/1/width": {
+        "source": "estimated"
+      },
+      "/walls/1/height": {
+        "source": "estimated"
+      },
+      "/walls/2/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/2/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/2/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/2/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/2/points/2/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/2/points/2/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/2/width": {
+        "source": "estimated"
+      },
+      "/walls/2/height": {
+        "source": "estimated"
+      },
+      "/walls/3/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/3/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/3/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walls/3/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walls/3/width": {
+        "source": "estimated"
+      },
+      "/walls/3/height": {
+        "source": "estimated"
+      },
+      "/walkways/0/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/2/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/2/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/3/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/3/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/4/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/4/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/5/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/points/5/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/0/width": {
+        "source": "estimated"
+      },
+      "/walkways/1/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/1/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/1/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/1/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/1/width": {
+        "source": "estimated"
+      },
+      "/walkways/2/points/0/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/2/points/0/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/2/points/1/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/2/points/1/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/2/points/2/0": {
+        "source": "ortho-2024"
+      },
+      "/walkways/2/points/2/1": {
+        "source": "ortho-2024"
+      },
+      "/walkways/2/width": {
+        "source": "estimated"
+      },
+      "/walkways/3/points/0/0": {
+        "source": "estimated"
+      },
+      "/walkways/3/points/0/1": {
+        "source": "estimated"
+      },
+      "/walkways/3/points/1/0": {
+        "source": "estimated"
+      },
+      "/walkways/3/points/1/1": {
+        "source": "estimated"
+      },
+      "/walkways/3/width": {
+        "source": "estimated"
+      },
+      "/navigation/walkingSpeed": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/0/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/0/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/1/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/1/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/2/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/2/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/3/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/3/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/4/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/4/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/5/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/5/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/6/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/6/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/7/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/7/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/8/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/8/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/9/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/9/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/10/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/10/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/11/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/11/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/12/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/12/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/13/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/13/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/14/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/14/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/15/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/15/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/16/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/16/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/17/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/17/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/18/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/18/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/19/position/0": {
+        "source": "estimated"
+      },
+      "/navigation/nodes/19/position/1": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/0/entrance/0": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/0/entrance/1": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/1/entrance/0": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/1/entrance/1": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/2/entrance/0": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/2/entrance/1": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/3/entrance/0": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/3/entrance/1": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/4/entrance/0": {
+        "source": "estimated"
+      },
+      "/navigation/destinations/4/entrance/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/0/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/position/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/0/position/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/position/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/1/position/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/position/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/2/position/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/position/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/3/position/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/position/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/4/position/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/5/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/5/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/4/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/4/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/5/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/5/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/6/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/6/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/7/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/7/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/8/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/8/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/9/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/9/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/10/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/polygon/10/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/6/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/7/polygon/0/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/0/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/1/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/1/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/2/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/2/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/3/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/polygon/3/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/position/0": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/7/position/1": {
+        "source": "ortho-2024"
+      },
+      "/outdoorAreas/8/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/8/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/9/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/10/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/11/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/position/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/position/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/outdoorAreas/12/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/shelters/0/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/shelters/0/position/0": {
+        "source": "estimated"
+      },
+      "/shelters/0/position/1": {
+        "source": "estimated"
+      },
+      "/shelters/0/height": {
+        "source": "estimated"
+      },
+      "/parking/position/0": {
+        "source": "estimated"
+      },
+      "/parking/position/1": {
+        "source": "estimated"
+      },
+      "/parking/angle": {
+        "source": "estimated"
+      },
+      "/parking/rows/0/from/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/0/from/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/0/to/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/0/to/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/0/count": {
+        "source": "estimated"
+      },
+      "/parking/rows/1/from/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/1/from/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/1/to/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/1/to/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/1/count": {
+        "source": "estimated"
+      },
+      "/parking/rows/2/from/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/2/from/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/2/to/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/2/to/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/2/count": {
+        "source": "estimated"
+      },
+      "/parking/rows/3/from/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/3/from/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/3/to/0": {
+        "source": "estimated"
+      },
+      "/parking/rows/3/to/1": {
+        "source": "estimated"
+      },
+      "/parking/rows/3/count": {
+        "source": "estimated"
+      },
+      "/parking/stallSize/0": {
+        "source": "estimated"
+      },
+      "/parking/stallSize/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/stage/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/stage/position/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/stage/radius": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/stage/height": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/sculpture/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/sculpture/position/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/sculpture/height": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/0/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/0/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/1/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/1/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/2/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/2/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/3/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/points/3/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/width": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/seats/0/height": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/0/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/0/position/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/1/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/1/position/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/2/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/2/position/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/3/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/3/position/1": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/4/position/0": {
+        "source": "estimated"
+      },
+      "/courtyardFeatures/trees/4/position/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/4/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/4/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/5/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/5/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/6/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/6/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/7/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/7/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/8/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/8/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/9/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/9/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/10/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/10/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/11/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/11/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/12/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/12/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/13/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/13/1": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/14/0": {
+        "source": "estimated"
+      },
+      "/campusBoundary/polygon/14/1": {
+        "source": "estimated"
+      },
+      "/guardhouse/position/0": {
+        "source": "estimated"
+      },
+      "/guardhouse/position/1": {
+        "source": "estimated"
+      },
+      "/guardhouse/size/0": {
+        "source": "estimated"
+      },
+      "/guardhouse/size/1": {
+        "source": "estimated"
+      },
+      "/guardhouse/size/2": {
+        "source": "estimated"
+      },
+      "/siteDetails/ramp/position/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/ramp/position/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/ramp/south/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/ramp/south/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/ramp/north/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/ramp/north/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/kitchen/position/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/kitchen/position/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/recycling/position/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/recycling/position/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/figureEight/position/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/figureEight/position/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/0/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/0/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/1/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/1/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/2/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/2/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/3/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/courtsFence/3/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/practiceLanes/0/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/practiceLanes/0/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/practiceLanes/1/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/practiceLanes/1/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/south/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/south/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/north/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/north/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/entrance/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/entrance/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/dRamp/entrance/2": {
+        "source": "estimated"
+      },
+      "/siteDetails/temple/position/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/temple/position/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/0/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/0/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/0/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/1/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/1/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/2/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/2/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/3/0": {
+        "source": "estimated"
+      },
+      "/siteDetails/eastCourtyards/1/polygon/3/1": {
+        "source": "estimated"
+      },
+      "/siteDetails/templeArch/position/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/siteDetails/templeArch/position/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/siteDetails/templeArch/facing/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/siteDetails/templeArch/facing/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/siteDetails/templeArch/width": {
+        "source": "user-annotated-20261111"
+      },
+      "/siteDetails/templeArch/height": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/0/endpoints/0/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/0/endpoints/0/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/0/endpoints/1/0": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/corridors/0/endpoints/1/1": {
+        "source": "user-approved-estimate-20261111"
+      },
+      "/corridors/0/width": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/0/maxFloor": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/endpoints/0/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/endpoints/0/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/endpoints/1/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/endpoints/1/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/width": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/maxFloor": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/floorHeights/0": {
+        "source": "user-annotated-20261111"
+      },
+      "/corridors/1/floorHeights/1": {
+        "source": "user-annotated-20261111"
+      },
+      "/mainAxis/south/0": {
+        "source": "estimated"
+      },
+      "/mainAxis/south/1": {
+        "source": "estimated"
+      },
+      "/mainAxis/north/0": {
+        "source": "estimated"
+      },
+      "/mainAxis/north/1": {
+        "source": "estimated"
+      },
+      "/mainAxis/width": {
+        "source": "estimated"
+      },
+      "/mainAxis/clearHeight": {
+        "source": "estimated"
+      }
+    }
+  },
+  "ground": {
+    "width": 390,
+    "depth": 350,
+    "color": "#dce4d4",
+    "source": "estimated"
+  },
+  "view": {
+    "position": [
+      210,
+      310,
+      330
+    ],
+    "target": [
+      7.472,
+      0,
+      4.718
+    ],
+    "bounds": {
+      "min": [
+        -135.025,
+        -124.135
+      ],
+      "max": [
+        156.033,
+        121.445
+      ]
+    },
+    "source": "estimated"
+  },
+  "roads": [
+    {
+      "name": "福興東路一段",
+      "segments": [
+        [
+          [
+            -86.515,
+            -122.013
+          ],
+          [
+            146.331,
+            -47.733
+          ]
+        ]
+      ],
+      "width": 12,
+      "height": 0,
+      "source": "osm",
+      "estimated": true,
+      "note": "OSM 路名；正射影像手描校旁路段，路寬概估",
+      "sources": {
+        "segments": "ortho-2024",
+        "width": "estimated",
+        "height": "estimated"
+      }
+    },
+    {
+      "name": "自強二路",
+      "segments": [
+        [
+          [
+            -86.515,
+            -122.013
+          ],
+          [
+            -141.695,
+            37.462
+          ]
+        ]
+      ],
+      "width": 12,
+      "height": 0,
+      "source": "osm",
+      "estimated": true,
+      "note": "OSM 路名；正射影像手描校旁路段，路寬概估",
+      "sources": {
+        "segments": "ortho-2024",
+        "width": "estimated",
+        "height": "estimated"
+      }
+    },
+    {
+      "name": "自強三路",
+      "segments": [
+        [
+          [
+            146.331,
+            -47.733
+          ],
+          [
+            71.748,
+            133.573
+          ]
+        ]
+      ],
+      "width": 12,
+      "height": 0,
+      "source": "osm",
+      "estimated": true,
+      "note": "OSM 路名；正射影像手描校旁路段，路寬概估",
+      "sources": {
+        "segments": "ortho-2024",
+        "width": "estimated",
+        "height": "estimated"
+      }
+    },
+    {
+      "name": "成功八路",
+      "segments": [
+        [
+          [
+            -141.695,
+            37.462
+          ],
+          [
+            71.748,
+            133.573
+          ]
+        ]
+      ],
+      "width": 12,
+      "height": 0,
+      "source": "osm",
+      "estimated": true,
+      "note": "OSM 路名；正射影像手描校旁路段，路寬概估",
+      "sources": {
+        "segments": "ortho-2024",
+        "width": "estimated",
+        "height": "estimated"
+      }
+    }
+  ],
+  "plazas": [],
+  "buildings": [
+    {
+      "id": "A",
+      "osmId": 323405065,
+      "name": "A 棟・行政教學大樓",
+      "polygon": [
+        [
+          0.499,
+          17.452
+        ],
+        [
+          81.753,
+          53.835
+        ],
+        [
+          76.902,
+          65.052
+        ],
+        [
+          -4.352,
+          28.67
+        ]
+      ],
+      "position": [
+        38.7,
+        41.252
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#e8cdb1",
+      "context": false,
+      "label": true,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018",
+        "solidFootprints": "estimated",
+        "arcadeHeight": "estimated"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "nameSource": "school-115",
+      "solidFootprints": [
+        [
+          [
+            47.165401001539344,
+            38.34775488762406
+          ],
+          [
+            81.753,
+            53.835
+          ],
+          [
+            76.902,
+            65.052
+          ],
+          [
+            42.458117239638455,
+            49.629530428194634
+          ]
+        ],
+        [
+          [
+            0.499,
+            17.452
+          ],
+          [
+            39.496337288726274,
+            34.913788005214855
+          ],
+          [
+            34.78902034472498,
+            46.19564307211688
+          ],
+          [
+            -4.352,
+            28.67
+          ]
+        ]
+      ],
+      "arcadeHeight": 12
+    },
+    {
+      "id": "B",
+      "osmId": 323405064,
+      "name": "B 棟・學務處／健康中心",
+      "polygon": [
+        [
+          13.536,
+          -22.265
+        ],
+        [
+          43.855,
+          -8.622
+        ],
+        [
+          42.035,
+          -3.468
+        ],
+        [
+          96.912,
+          15.027
+        ],
+        [
+          90.545,
+          29.883
+        ],
+        [
+          47.19,
+          10.176
+        ],
+        [
+          49.615,
+          4.415
+        ],
+        [
+          6.866,
+          -7.712
+        ]
+      ],
+      "position": [
+        48.819,
+        2.179
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#e7d8b8",
+      "context": false,
+      "label": true,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018",
+        "solidFootprints": "estimated",
+        "arcadeHeight": "estimated"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "nameSource": "school-115",
+      "solidFootprints": [
+        [
+          [
+            61.82934381456815,
+            3.203217246759804
+          ],
+          [
+            96.912,
+            15.027
+          ],
+          [
+            90.545,
+            29.883
+          ],
+          [
+            57.049942817033624,
+            14.657833539275323
+          ]
+        ],
+        [
+          [
+            13.536,
+            -22.265
+          ],
+          [
+            43.855,
+            -8.622
+          ],
+          [
+            42.035,
+            -3.468
+          ],
+          [
+            53.84960492345533,
+            0.5138342485796663
+          ],
+          [
+            49.39911812268844,
+            11.180153865616909
+          ],
+          [
+            47.19,
+            10.176
+          ],
+          [
+            49.615,
+            4.415
+          ],
+          [
+            6.866,
+            -7.712
+          ]
+        ]
+      ],
+      "arcadeHeight": 3.4
+    },
+    {
+      "id": "C",
+      "osmId": 323405063,
+      "name": "C 棟・教學大樓",
+      "polygon": [
+        [
+          24.148,
+          -52.28
+        ],
+        [
+          55.376,
+          -38.334
+        ],
+        [
+          53.253,
+          -33.483
+        ],
+        [
+          108.736,
+          -14.989
+        ],
+        [
+          101.763,
+          -0.436
+        ],
+        [
+          59.014,
+          -19.233
+        ],
+        [
+          61.136,
+          -24.387
+        ],
+        [
+          17.477,
+          -38.031
+        ]
+      ],
+      "position": [
+        60.113,
+        -27.647
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#d6dcbf",
+      "context": false,
+      "label": true,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018",
+        "solidFootprints": "estimated",
+        "arcadeHeight": "estimated"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "nameSource": "school-115",
+      "solidFootprints": [
+        [
+          [
+            74.22040616755463,
+            -26.49399057976758
+          ],
+          [
+            108.736,
+            -14.989
+          ],
+          [
+            101.763,
+            -0.436
+          ],
+          [
+            69.30308485077506,
+            -14.708825681535966
+          ]
+        ],
+        [
+          [
+            24.148,
+            -52.28
+          ],
+          [
+            55.376,
+            -38.334
+          ],
+          [
+            53.253,
+            -33.483
+          ],
+          [
+            66.22985479516609,
+            -29.157459697893017
+          ],
+          [
+            61.612221412822,
+            -18.090545956705064
+          ],
+          [
+            59.014,
+            -19.233
+          ],
+          [
+            61.136,
+            -24.387
+          ],
+          [
+            17.477,
+            -38.031
+          ]
+        ]
+      ],
+      "arcadeHeight": 3.4
+    },
+    {
+      "id": "D",
+      "osmId": 906993713,
+      "name": "D 棟・教學大樓",
+      "polygon": [
+        [
+          -39.218,
+          -54.099
+        ],
+        [
+          -25.272,
+          -47.733
+        ],
+        [
+          -43.766,
+          -6.196
+        ],
+        [
+          -4.524644603928772,
+          11.305726780740018
+        ],
+        [
+          -9.968903590040878,
+          26.154995367454315
+        ],
+        [
+          -57.713,
+          4.777269771334332
+        ]
+      ],
+      "position": [
+        -30.077091365661612,
+        -10.96500134674522
+      ],
+      "floors": 5,
+      "floorHeight": 3.6,
+      "estimated": true,
+      "floorSource": "11/10 實地觀察：5 層",
+      "color": "#e5d3bc",
+      "context": false,
+      "label": true,
+      "source": "user-annotated-20261111",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "user-approved-estimate-20261111",
+        "position": "user-approved-estimate-20261111",
+        "floors": "estimated",
+        "floorHeight": "estimated",
+        "previousPolygon": "ortho-2024"
+      },
+      "roof": {
+        "type": "flat",
+        "source": "estimated"
+      },
+      "measurementNote": "修正十四：D[3]、[4]沿 A 西端外法線加寬；[4]額外沿切向微調維持 D／A 南牆切齊。原始修正十三座標存於 adGapWidening.baseline；非實測。",
+      "nameSource": "school-115",
+      "previousPolygon": [
+        [
+          -39.218,
+          -54.099
+        ],
+        [
+          -25.272,
+          -47.733
+        ],
+        [
+          -43.766,
+          -6.196
+        ],
+        [
+          -2.23,
+          12.298
+        ],
+        [
+          -7.687,
+          24.122
+        ],
+        [
+          -57.713,
+          1.687
+        ]
+      ],
+      "adGapWidening": {
+        "distance": 2.5,
+        "normal": [
+          -0.9178578415715088,
+          -0.39690928770399264
+        ],
+        "baseline": [
+          [
+            -39.218,
+            -54.099
+          ],
+          [
+            -25.272,
+            -47.733
+          ],
+          [
+            -43.766,
+            -6.196
+          ],
+          [
+            -2.23,
+            12.298
+          ],
+          [
+            -7.687,
+            27.17673234548453
+          ],
+          [
+            -57.713,
+            4.777269771334332
+          ]
+        ],
+        "southAlignmentSlide": -0.03210056877630226,
+        "source": "user-approved-estimate-20261111",
+        "sources": {
+          "baseline": "user-annotated-20261111",
+          "normal": "ortho-2024",
+          "southAlignmentSlide": "estimated"
+        },
+        "note": "照片估計，非實測；只加寬，不採用加長3m方案。調整 scripts/widen-ad-20261111.mjs 的 AD_WIDENING_METRES 後執行該檔。"
+      }
+    },
+    {
+      "id": "gym",
+      "osmId": 323405074,
+      "name": "體育館",
+      "polygon": [
+        [
+          -55.893,
+          18.362
+        ],
+        [
+          -15.267,
+          35.947
+        ],
+        [
+          -27.394,
+          63.84
+        ],
+        [
+          -68.021,
+          45.952
+        ]
+      ],
+      "position": [
+        -41.644,
+        41.025
+      ],
+      "floors": 1,
+      "floorHeight": 14.4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#d2dce0",
+      "context": false,
+      "label": true,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "estimated"
+      },
+      "roof": {
+        "type": "arched",
+        "rise": 2.6,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "estimated",
+        "estimated": true,
+        "note": "修正十一：D樓高3.6m作比例尺，白磚牆頂12m、綠高窗至14.4m、弧頂17m；照片比例概估，非現場測高。"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。 修正十一保留正射平面位置；牆頂12m，高窗上緣14.4m，屋脊17m。",
+      "nameSource": "school-115"
+    },
+    {
+      "id": "kitchen",
+      "osmId": 1436327220,
+      "name": "廚房",
+      "polygon": [
+        [
+          91.455,
+          -35.605
+        ],
+        [
+          114.8,
+          -25.297
+        ],
+        [
+          108.433,
+          -10.441
+        ],
+        [
+          85.088,
+          -20.749
+        ]
+      ],
+      "position": [
+        99.944,
+        -23.023
+      ],
+      "floors": 1,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#927361",
+      "context": false,
+      "label": true,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "estimated"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "nameSource": "school-115"
+    },
+    {
+      "id": "link-1",
+      "osmId": 323405066,
+      "name": "連通建物 1",
+      "polygon": [
+        [
+          20.509,
+          -39.243
+        ],
+        [
+          24.754,
+          -37.424
+        ],
+        [
+          16.568,
+          -19.233
+        ],
+        [
+          12.323,
+          -21.052
+        ]
+      ],
+      "position": [
+        18.538,
+        -29.238
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#ded9c9",
+      "context": false,
+      "label": false,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。"
+    },
+    {
+      "id": "link-2",
+      "osmId": 323405067,
+      "name": "連通建物 2",
+      "polygon": [
+        [
+          9.291,
+          -8.015
+        ],
+        [
+          13.536,
+          -6.196
+        ],
+        [
+          2.015,
+          19.574
+        ],
+        [
+          -2.23,
+          17.755
+        ]
+      ],
+      "position": [
+        5.653,
+        5.78
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#ded9c9",
+      "context": false,
+      "label": false,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。"
+    },
+    {
+      "id": "link-3",
+      "osmId": 323405068,
+      "name": "連通建物 3",
+      "polygon": [
+        [
+          56.588,
+          -22.568
+        ],
+        [
+          64.471,
+          -19.233
+        ],
+        [
+          56.285,
+          1.99
+        ],
+        [
+          48.402,
+          -1.345
+        ]
+      ],
+      "position": [
+        56.436,
+        -10.289
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#ded9c9",
+      "context": false,
+      "label": false,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018",
+        "solidFootprints": "estimated",
+        "arcadeHeight": "estimated"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "solidFootprints": [
+        [
+          [
+            56.588,
+            -22.568
+          ],
+          [
+            62.44630797348912,
+            -20.089570837043485
+          ],
+          [
+            53.69148957295606,
+            0.8927835501469581
+          ],
+          [
+            48.402,
+            -1.345
+          ]
+        ]
+      ],
+      "arcadeHeight": 3.4
+    },
+    {
+      "id": "link-4",
+      "osmId": 323405069,
+      "name": "連通建物 4",
+      "polygon": [
+        [
+          45.067,
+          3.809
+        ],
+        [
+          52.95,
+          7.447
+        ],
+        [
+          44.158,
+          36.856
+        ],
+        [
+          35.972,
+          33.218
+        ]
+      ],
+      "position": [
+        44.537,
+        20.333
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#ded9c9",
+      "context": false,
+      "label": false,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018",
+        "solidFootprints": "estimated",
+        "arcadeHeight": "estimated"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "solidFootprints": [
+        [
+          [
+            45.067,
+            3.809
+          ],
+          [
+            51.27860638584638,
+            6.675652801180913
+          ],
+          [
+            39.54192259812849,
+            34.804535354506655
+          ],
+          [
+            35.972,
+            33.218
+          ]
+        ]
+      ],
+      "arcadeHeight": 3.4
+    },
+    {
+      "id": "link-5",
+      "osmId": 323405070,
+      "name": "連通建物 5",
+      "polygon": [
+        [
+          101.763,
+          -1.345
+        ],
+        [
+          106.311,
+          0.777
+        ],
+        [
+          98.428,
+          18.968
+        ],
+        [
+          93.88,
+          16.846
+        ]
+      ],
+      "position": [
+        100.096,
+        8.811
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#ded9c9",
+      "context": false,
+      "label": false,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。"
+    },
+    {
+      "id": "link-6",
+      "osmId": 323405071,
+      "name": "連通建物 6",
+      "polygon": [
+        [
+          90.545,
+          29.58
+        ],
+        [
+          95.093,
+          31.702
+        ],
+        [
+          84.785,
+          55.654
+        ],
+        [
+          80.237,
+          53.531
+        ]
+      ],
+      "position": [
+        87.665,
+        42.617
+      ],
+      "floors": 4,
+      "floorHeight": 4,
+      "estimated": true,
+      "floorSource": "plan-2018",
+      "color": "#ded9c9",
+      "context": false,
+      "label": false,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "plan-2018",
+        "floorHeight": "plan-2018"
+      },
+      "roof": {
+        "type": "flat",
+        "rise": 0,
+        "sources": {
+          "rise": "estimated"
+        },
+        "source": "plan-2018",
+        "estimated": true,
+        "note": "空照可辨形式；坡度、女兒牆與頂樓突出物高度未註記"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。"
+    },
+    {
+      "id": "temple",
+      "osmId": 1164815604,
+      "name": "土地公廟（雙興宮）",
+      "polygon": [
+        [
+          -6.171,
+          -74.11
+        ],
+        [
+          8.079,
+          -67.743
+        ],
+        [
+          2.925,
+          -56.222
+        ],
+        [
+          -11.325,
+          -62.589
+        ]
+      ],
+      "position": [
+        -1.623,
+        -65.166
+      ],
+      "floors": 1,
+      "floorHeight": 5,
+      "estimated": true,
+      "color": "#ca7c61",
+      "label": true,
+      "source": "ortho-2024",
+      "sources": {
+        "osmId": "osm",
+        "polygon": "ortho-2024",
+        "position": "ortho-2024",
+        "floors": "estimated",
+        "floorHeight": "estimated"
+      },
+      "roof": {
+        "type": "temple-swallowtail",
+        "rise": 3.2,
+        "source": "estimated",
+        "sources": {
+          "rise": "estimated"
+        },
+        "estimated": true,
+        "note": "11/11 依使用者指定的傳統兩坡瓦頂、翹脊與燕尾，尺寸與色彩為低多邊形示意"
+      },
+      "measurementNote": "正射影像屋頂外緣人工描繪；屋簷、樹蔭與地面外牆差異待確認，非實測。",
+      "nameSource": "school-115",
+      "outsideCampus": true
+    }
+  ],
+  "sports": {
+    "source": "ortho-2024",
+    "track": {
+      "id": "track",
+      "name": "操場／環形跑道",
+      "kind": "oval",
+      "position": [
+        -89.244,
+        -13.928
+      ],
+      "width": 48,
+      "depth": 95,
+      "angle": 0.4432948931441296,
+      "lanes": 5,
+      "color": "#c97d6d",
+      "source": "ortho-2024",
+      "sources": {
+        "lanes": "school-115",
+        "width": "estimated",
+        "depth": "estimated"
+      },
+      "estimated": true,
+      "note": "使用者 2026-11-09 確認環形 5 道；尺寸與有效跑距待測量"
+    },
+    "courts": [
+      {
+        "id": "basket-1",
+        "name": "籃球場（一）",
+        "polygon": [
+          [
+            -91.973,
+            -45.61
+          ],
+          [
+            -64.383,
+            -33.18
+          ],
+          [
+            -69.537,
+            -21.659
+          ],
+          [
+            -97.733,
+            -34.392
+          ]
+        ],
+        "position": [
+          -80.906,
+          -33.71
+        ],
+        "source": "ortho-2024",
+        "estimated": true,
+        "type": "basketball",
+        "hoopAxis": "east-west"
+      },
+      {
+        "id": "basket-2",
+        "name": "籃球場（二）",
+        "polygon": [
+          [
+            -101.371,
+            -27.116
+          ],
+          [
+            -87.728,
+            -21.052
+          ],
+          [
+            -99.552,
+            5.628
+          ],
+          [
+            -113.195,
+            -0.436
+          ]
+        ],
+        "position": [
+          -100.462,
+          -10.744
+        ],
+        "source": "ortho-2024",
+        "estimated": true,
+        "type": "basketball",
+        "hoopAxis": "east-west"
+      },
+      {
+        "id": "basket-3",
+        "name": "籃球場（三）",
+        "polygon": [
+          [
+            -86.818,
+            -20.446
+          ],
+          [
+            -73.175,
+            -14.382
+          ],
+          [
+            -84.999,
+            12.298
+          ],
+          [
+            -98.643,
+            6.234
+          ]
+        ],
+        "position": [
+          -85.909,
+          -4.074
+        ],
+        "source": "ortho-2024",
+        "estimated": true,
+        "type": "basketball",
+        "hoopAxis": "east-west"
+      },
+      {
+        "id": "tennis-1",
+        "name": "網球／排球場（一）",
+        "polygon": [
+          [
+            -64.989,
+            -93.21
+          ],
+          [
+            -54.681,
+            -88.662
+          ],
+          [
+            -64.079,
+            -67.44
+          ],
+          [
+            -74.388,
+            -71.987
+          ]
+        ],
+        "position": [
+          -64.534,
+          -80.325
+        ],
+        "source": "estimated",
+        "estimated": true,
+        "type": "tennis",
+        "geometrySource": "ortho-2024",
+        "nameSource": "school-115"
+      },
+      {
+        "id": "tennis-2",
+        "name": "網球／排球場（二）",
+        "polygon": [
+          [
+            -49.223,
+            -86.54
+          ],
+          [
+            -38.915,
+            -81.992
+          ],
+          [
+            -48.314,
+            -60.77
+          ],
+          [
+            -58.622,
+            -65.317
+          ]
+        ],
+        "position": [
+          -48.769,
+          -73.655
+        ],
+        "source": "estimated",
+        "estimated": true,
+        "type": "tennis",
+        "geometrySource": "ortho-2024",
+        "nameSource": "school-115"
+      },
+      {
+        "id": "small-court",
+        "name": "羽球場（匹克球）",
+        "polygon": [
+          [
+            -74.691,
+            -103.518
+          ],
+          [
+            -68.93,
+            -101.093
+          ],
+          [
+            -74.691,
+            -88.966
+          ],
+          [
+            -80.451,
+            -91.391
+          ]
+        ],
+        "position": [
+          -74.691,
+          -96.242
+        ],
+        "source": "estimated",
+        "estimated": true,
+        "type": "badminton",
+        "geometrySource": "ortho-2024",
+        "nameSource": "school-115",
+        "divisions": 2
+      }
+    ]
+  },
+  "gate": {
+    "name": "校門",
+    "position": [
+      18.084,
+      92.946
+    ],
+    "width": 10,
+    "height": 1.3,
+    "angle": -0.42,
+    "source": "ortho-2024",
+    "sources": {
+      "height": "estimated",
+      "width": "estimated"
+    },
+    "estimated": true,
+    "style": "retractable",
+    "state": "open"
+  },
+  "landmarks": [
+    {
+      "id": "forecourt-ring",
+      "position": [
+        16.568,
+        65.052
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110",
+      "name": "前庭鋼環雕塑",
+      "type": "steel-ring",
+      "height": 5
+    },
+    {
+      "id": "ab-sphere",
+      "position": [
+        29.302,
+        14.117
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110",
+      "name": "A／B 中庭球體裝置",
+      "type": "sphere-installation",
+      "height": 3.6
+    }
+  ],
+  "trees": {
+    "source": "ortho-2024",
+    "rows": [
+      {
+        "from": [
+          -74.388,
+          -108.976
+        ],
+        "to": [
+          120.561,
+          -51.674
+        ],
+        "count": 28,
+        "source": "ortho-2024",
+        "estimated": true
+      },
+      {
+        "from": [
+          132.688,
+          -35.302
+        ],
+        "to": [
+          72.051,
+          113.562
+        ],
+        "count": 22,
+        "source": "ortho-2024",
+        "estimated": true
+      },
+      {
+        "from": [
+          -124.717,
+          27.761
+        ],
+        "to": [
+          6.26,
+          84.76
+        ],
+        "count": 20,
+        "source": "ortho-2024",
+        "estimated": true
+      },
+      {
+        "from": [
+          -84.09,
+          -103.215
+        ],
+        "to": [
+          -128.658,
+          22
+        ],
+        "count": 19,
+        "source": "ortho-2024",
+        "estimated": true
+      },
+      {
+        "from": [
+          6.26,
+          37.766
+        ],
+        "to": [
+          69.929,
+          66.265
+        ],
+        "count": 10,
+        "source": "estimated"
+      },
+      {
+        "from": [
+          3.834,
+          43.223
+        ],
+        "to": [
+          67.503,
+          71.723
+        ],
+        "count": 10,
+        "source": "estimated"
+      }
+    ],
+    "points": [
+      [
+        -19.814,
+        -48.339
+      ],
+      [
+        1.712,
+        -35.908
+      ],
+      [
+        11.414,
+        -31.967
+      ],
+      [
+        33.849,
+        -10.138
+      ],
+      [
+        71.444,
+        8.357
+      ],
+      [
+        66.897,
+        40.191
+      ],
+      [
+        47.19,
+        69.297
+      ],
+      [
+        -11.628,
+        54.441
+      ]
+    ],
+    "exclusionZones": [
+      {
+        "id": "a-entrance",
+        "position": [
+          39,
+          52
+        ],
+        "radius": 19,
+        "source": "estimated",
+        "note": "穿堂正面淨空"
+      },
+      {
+        "id": "temple-forecourt",
+        "position": [
+          5,
+          -72
+        ],
+        "radius": 17,
+        "source": "estimated",
+        "note": "臨路至拱門及廟前淨空"
+      },
+      {
+        "id": "temple-road",
+        "position": [
+          8,
+          -91
+        ],
+        "radius": 10,
+        "source": "estimated",
+        "note": "北側道路進廟動線淨空"
+      }
+    ]
+  },
+  "sideGates": [
+    {
+      "name": "北二門",
+      "position": [
+        21.116,
+        -61.679
+      ],
+      "width": 5,
+      "height": 2,
+      "angle": 1.13,
+      "source": "estimated",
+      "nameSource": "school-115",
+      "state": "closed",
+      "style": "double-bar"
+    },
+    {
+      "name": "北一門",
+      "position": [
+        128.14,
+        -45.914
+      ],
+      "width": 4,
+      "height": 2,
+      "angle": -0.42,
+      "source": "estimated",
+      "nameSource": "school-115",
+      "state": "closed",
+      "style": "double-bar"
+    },
+    {
+      "name": "南側車輛側門",
+      "position": [
+        38.094,
+        102.041
+      ],
+      "width": 6,
+      "height": 2,
+      "angle": -0.42,
+      "source": "estimated",
+      "nameSource": "school-115",
+      "state": "unconfirmed",
+      "style": "double-bar"
+    }
+  ],
+  "walls": [
+    {
+      "points": [
+        [
+          13.536,
+          90.823
+        ],
+        [
+          -131.69,
+          30.186
+        ],
+        [
+          -78.329,
+          -110.492
+        ],
+        [
+          -25.878,
+          -92.301
+        ],
+        [
+          -25.878,
+          -57.435
+        ],
+        [
+          12.02,
+          -40.759
+        ],
+        [
+          19.6,
+          -59.254
+        ]
+      ],
+      "width": 0.25,
+      "height": 1.5,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated",
+        "height": "estimated"
+      }
+    },
+    {
+      "points": [
+        [
+          22.632,
+          -64.105
+        ],
+        [
+          24.148,
+          -69.562
+        ],
+        [
+          125.715,
+          -49.855
+        ]
+      ],
+      "width": 0.25,
+      "height": 1.5,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated",
+        "height": "estimated"
+      }
+    },
+    {
+      "points": [
+        [
+          130.566,
+          -44.094
+        ],
+        [
+          69.322,
+          120.233
+        ],
+        [
+          42.642,
+          104.164
+        ]
+      ],
+      "width": 0.25,
+      "height": 1.5,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated",
+        "height": "estimated"
+      }
+    },
+    {
+      "points": [
+        [
+          33.546,
+          100.222
+        ],
+        [
+          22.632,
+          95.371
+        ]
+      ],
+      "width": 0.25,
+      "height": 1.5,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated",
+        "height": "estimated"
+      }
+    }
+  ],
+  "walkways": [
+    {
+      "points": [
+        [
+          18.084,
+          92.946
+        ],
+        [
+          22.025,
+          83.547
+        ],
+        [
+          1.105,
+          74.148
+        ],
+        [
+          -50.133,
+          51.409
+        ],
+        [
+          -71.053,
+          42.313
+        ],
+        [
+          -62.564,
+          23.213
+        ]
+      ],
+      "width": 3,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated"
+      }
+    },
+    {
+      "points": [
+        [
+          22.025,
+          83.547
+        ],
+        [
+          30.818,
+          63.84
+        ]
+      ],
+      "width": 3,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated"
+      }
+    },
+    {
+      "points": [
+        [
+          92.364,
+          62.627
+        ],
+        [
+          114.194,
+          13.511
+        ],
+        [
+          128.14,
+          -45.914
+        ]
+      ],
+      "width": 3,
+      "source": "ortho-2024",
+      "estimated": true,
+      "sources": {
+        "width": "estimated"
+      },
+      "color": "#b77761"
+    },
+    {
+      "id": "d-gym-brick-path",
+      "points": [
+        [
+          -53,
+          12
+        ],
+        [
+          -10,
+          31
+        ]
+      ],
+      "width": 2.4,
+      "color": "#b77761",
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "user-confirmed-20261111",
+      "note": "D 棟與體育館間紅磚小路；東端路口由 A–體育館柱廊跨越。"
+    }
+  ],
+  "navigation": {
+    "start": "gate",
+    "walkingSpeed": 8,
+    "source": "estimated",
+    "estimated": true,
+    "nodes": [
+      {
+        "id": "gate",
+        "position": [
+          18.084,
+          92.946
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "a-entry",
+        "position": [
+          39.84648,
+          44.98168
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "d-entry",
+        "position": [
+          -60.138,
+          4.415
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "field-entry",
+        "position": [
+          -74.085,
+          19.271
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "south",
+        "position": [
+          22.025,
+          83.547
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "gym-south",
+        "position": [
+          -18.298,
+          65.659
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "gym-west",
+        "position": [
+          -73.478,
+          45.952
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "field-west",
+        "position": [
+          -68.324,
+          19.271
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "d-south",
+        "position": [
+          -2.836,
+          32.611
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "a-west",
+        "position": [
+          -9.506,
+          32.005
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "a-south",
+        "position": [
+          19.297,
+          53.835
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "d-ramp-south",
+        "position": [
+          -64.383,
+          17.452
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "axis-south",
+        "position": [
+          33.243,
+          60.808
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "axis-c",
+        "position": [
+          67.36098000000001,
+          -20.961320000000008
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "gate-outside",
+        "position": [
+          16.568,
+          99.009
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "sidewalk-southwest",
+        "position": [
+          -137.45,
+          33.218
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "sidewalk-northwest",
+        "position": [
+          -81.967,
+          -117.465
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "sidewalk-temple-west",
+        "position": [
+          -21.33,
+          -96.242
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "sidewalk-temple",
+        "position": [
+          13.536,
+          -75.626
+        ],
+        "source": "estimated"
+      },
+      {
+        "id": "temple-entry",
+        "position": [
+          12.02,
+          -58.95
+        ],
+        "source": "estimated"
+      }
+    ],
+    "edges": [
+      [
+        "gate",
+        "gym-west"
+      ],
+      [
+        "gym-west",
+        "field-entry"
+      ],
+      [
+        "field-entry",
+        "d-ramp-south"
+      ],
+      [
+        "d-ramp-south",
+        "d-entry"
+      ],
+      [
+        "gate",
+        "axis-south"
+      ],
+      [
+        "axis-south",
+        "a-entry"
+      ],
+      [
+        "a-entry",
+        "axis-c"
+      ],
+      [
+        "gate",
+        "gate-outside"
+      ],
+      [
+        "gate-outside",
+        "sidewalk-southwest"
+      ],
+      [
+        "sidewalk-southwest",
+        "sidewalk-northwest"
+      ],
+      [
+        "sidewalk-northwest",
+        "sidewalk-temple-west"
+      ],
+      [
+        "sidewalk-temple-west",
+        "sidewalk-temple"
+      ],
+      [
+        "sidewalk-temple",
+        "temple-entry"
+      ]
+    ],
+    "destinations": [
+      {
+        "id": "a",
+        "name": "A 棟入口",
+        "node": "a-entry",
+        "entrance": [
+          39.84648,
+          44.98168
+        ],
+        "source": "estimated",
+        "estimated": true
+      },
+      {
+        "id": "d",
+        "name": "D 棟入口",
+        "node": "d-entry",
+        "entrance": [
+          -60.138,
+          4.415
+        ],
+        "source": "estimated",
+        "estimated": true
+      },
+      {
+        "id": "field",
+        "name": "操場",
+        "node": "field-entry",
+        "entrance": [
+          -74.085,
+          19.271
+        ],
+        "source": "estimated",
+        "estimated": true
+      },
+      {
+        "id": "temple",
+        "name": "土地公廟",
+        "node": "temple-entry",
+        "entrance": [
+          12.02,
+          -58.95
+        ],
+        "source": "estimated",
+        "estimated": true
+      },
+      {
+        "id": "c",
+        "name": "C 棟騎樓",
+        "node": "axis-c",
+        "entrance": [
+          67.36098000000001,
+          -20.961320000000008
+        ],
+        "source": "estimated",
+        "estimated": true
+      }
+    ],
+    "note": "北一門、北二門平常關閉；雙興宮由校門出，沿校外西側及北側人行道前往。校內主軸沿 A 穿堂至 C 棟騎樓；尺寸概估。"
+  },
+  "outdoorAreas": [
+    {
+      "id": "field",
+      "name": "操場草地",
+      "polygon": [
+        [
+          -88.941,
+          -51.068
+        ],
+        [
+          -67.111,
+          -41.063
+        ],
+        [
+          -94.398,
+          19.574
+        ],
+        [
+          -116.531,
+          9.569
+        ]
+      ],
+      "position": [
+        -91.745,
+        -15.747
+      ],
+      "source": "ortho-2024",
+      "estimated": true,
+      "color": "#a4bd84",
+      "label": false
+    },
+    {
+      "id": "north-apron",
+      "name": "球場周邊鋪面",
+      "polygon": [
+        [
+          -75.904,
+          -108.066
+        ],
+        [
+          -31.335,
+          -88.359
+        ],
+        [
+          -47.101,
+          -52.584
+        ],
+        [
+          -91.973,
+          -72.594
+        ]
+      ],
+      "position": [
+        -61.578,
+        -80.401
+      ],
+      "source": "ortho-2024",
+      "estimated": true,
+      "color": "#a4bd84",
+      "label": false
+    },
+    {
+      "id": "courtyard-ab",
+      "name": "A／B 棟中庭",
+      "polygon": [
+        [
+          15.355,
+          -0.436
+        ],
+        [
+          41.126,
+          11.085
+        ],
+        [
+          33.243,
+          28.67
+        ],
+        [
+          7.472,
+          17.149
+        ]
+      ],
+      "position": [
+        24.299,
+        14.117
+      ],
+      "source": "ortho-2024",
+      "estimated": true,
+      "color": "#a9c18e",
+      "label": false
+    },
+    {
+      "id": "courtyard-bc",
+      "name": "B／C 棟中庭",
+      "polygon": [
+        [
+          28.089,
+          -31.057
+        ],
+        [
+          53.86,
+          -19.536
+        ],
+        [
+          46.28,
+          -2.558
+        ],
+        [
+          20.509,
+          -14.079
+        ]
+      ],
+      "position": [
+        37.184,
+        -16.808
+      ],
+      "source": "ortho-2024",
+      "estimated": true,
+      "color": "#a9c18e",
+      "label": false
+    },
+    {
+      "id": "east-court",
+      "name": "東側中庭",
+      "polygon": [
+        [
+          63.865,
+          14.42
+        ],
+        [
+          85.088,
+          24.122
+        ],
+        [
+          76.599,
+          43.829
+        ],
+        [
+          55.376,
+          34.127
+        ]
+      ],
+      "position": [
+        70.232,
+        29.125
+      ],
+      "source": "ortho-2024",
+      "estimated": true,
+      "color": "#a9c18e",
+      "label": false
+    },
+    {
+      "id": "courtyard-lawn",
+      "name": "中庭草地",
+      "polygon": [
+        [
+          -26.484,
+          -27.116
+        ],
+        [
+          2.925,
+          -14.079
+        ],
+        [
+          -3.746,
+          1.08
+        ],
+        [
+          -33.155,
+          -11.957
+        ]
+      ],
+      "position": [
+        -15.115,
+        -13.018
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "geometrySource": "ortho-2024",
+      "color": "#a9c18e",
+      "label": false
+    },
+    {
+      "id": "courtyard",
+      "name": "中庭廣場",
+      "polygon": [
+        [
+          -24.665,
+          -23.175
+        ],
+        [
+          -17.389,
+          -20.749
+        ],
+        [
+          -11.022,
+          -18.021
+        ],
+        [
+          -3.442,
+          -14.989
+        ],
+        [
+          -0.107,
+          -11.957
+        ],
+        [
+          -1.926,
+          -7.409
+        ],
+        [
+          -5.261,
+          -1.952
+        ],
+        [
+          -27.697,
+          -11.654
+        ],
+        [
+          -28.91,
+          -14.685
+        ],
+        [
+          -27.697,
+          -17.111
+        ],
+        [
+          -25.575,
+          -18.93
+        ]
+      ],
+      "position": [
+        -15.79,
+        -14.603
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "geometrySource": "ortho-2024",
+      "surface": "paving",
+      "color": "#e4d5b7",
+      "note": "依 11/09 照片與使用者確認；弧形鋪面邊緣及設施細節概估"
+    },
+    {
+      "id": "forecourt",
+      "name": "前庭／穿堂入口",
+      "polygon": [
+        [
+          -8.293,
+          37.462
+        ],
+        [
+          34.759,
+          56.563
+        ],
+        [
+          21.419,
+          86.579
+        ],
+        [
+          -21.633,
+          67.478
+        ]
+      ],
+      "position": [
+        6.563,
+        62.02
+      ],
+      "source": "ortho-2024",
+      "estimated": true,
+      "nameSource": "school-115",
+      "color": "#d7cfbb"
+    },
+    {
+      "id": "parking",
+      "name": "教職員工停車處",
+      "polygon": [
+        [
+          37.488,
+          72.935
+        ],
+        [
+          68.716,
+          86.882
+        ],
+        [
+          58.408,
+          109.924
+        ],
+        [
+          27.179,
+          95.978
+        ]
+      ],
+      "position": [
+        47.948,
+        91.43
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "geometrySource": "ortho-2024",
+      "nameSource": "school-115",
+      "color": "#b9b9ac"
+    },
+    {
+      "id": "driveway",
+      "name": "東側車道／地下停車場出入口",
+      "polygon": [
+        [
+          86.301,
+          55.654
+        ],
+        [
+          92.364,
+          58.382
+        ],
+        [
+          70.232,
+          107.196
+        ],
+        [
+          64.168,
+          104.467
+        ]
+      ],
+      "position": [
+        78.266,
+        81.425
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "geometrySource": "ortho-2024",
+      "nameSource": "school-115",
+      "color": "#b5b7ad"
+    },
+    {
+      "id": "jump",
+      "name": "跳遠場",
+      "polygon": [
+        [
+          -113.802,
+          33.521
+        ],
+        [
+          -89.547,
+          36.553
+        ],
+        [
+          -89.85,
+          38.372
+        ],
+        [
+          -114.105,
+          35.34
+        ]
+      ],
+      "position": [
+        -101.826,
+        35.947
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "geometrySource": "ortho-2024",
+      "nameSource": "school-115",
+      "color": "#cfa58d",
+      "label": false,
+      "note": "依安全配置圖位於跑道南端；尺寸及細部位置概估"
+    },
+    {
+      "id": "gym-parking",
+      "name": "體育館前停車場",
+      "position": [
+        -38.612,
+        68.084
+      ],
+      "polygon": [
+        [
+          -55.59,
+          56.26
+        ],
+        [
+          -21.33,
+          71.419
+        ],
+        [
+          -24.665,
+          78.999
+        ],
+        [
+          -58.925,
+          63.84
+        ]
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "color": "#b9b9ac",
+      "label": false
+    },
+    {
+      "id": "south-lawn",
+      "name": "A 棟南面草地",
+      "position": [
+        55.982,
+        62.627
+      ],
+      "polygon": [
+        [
+          37.185,
+          49.59
+        ],
+        [
+          74.78,
+          66.568
+        ],
+        [
+          70.535,
+          76.27
+        ],
+        [
+          32.94,
+          59.292
+        ]
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "color": "#a9c18e",
+      "label": false
+    }
+  ],
+  "shelters": [
+    {
+      "id": "continuous-cycle-scooter",
+      "name": "連續波浪車棚・南自行車／北機車",
+      "polygon": [
+        [
+          112.375,
+          -15.292
+        ],
+        [
+          116.013,
+          -13.473
+        ],
+        [
+          87.513,
+          54.744
+        ],
+        [
+          83.875,
+          52.925
+        ]
+      ],
+      "position": [
+        99.944,
+        19.878
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "geometrySource": "ortho-2024",
+      "nameSource": "school-115",
+      "height": 2.4,
+      "roof": "wave",
+      "zones": [
+        "south-cycle",
+        "north-scooter"
+      ]
+    }
+  ],
+  "parking": {
+    "source": "estimated",
+    "position": [
+      45.371,
+      89.914
+    ],
+    "angle": 0.423875354038681,
+    "rows": [
+      {
+        "from": [
+          35.062,
+          85.972
+        ],
+        "to": [
+          59.923,
+          97.19
+        ],
+        "count": 9,
+        "source": "estimated"
+      },
+      {
+        "from": [
+          -10.719,
+          48.377
+        ],
+        "to": [
+          5.35,
+          55.654
+        ],
+        "count": 7,
+        "source": "estimated"
+      },
+      {
+        "from": [
+          26.876,
+          69.297
+        ],
+        "to": [
+          34.456,
+          51.712
+        ],
+        "count": 7,
+        "source": "estimated"
+      },
+      {
+        "from": [
+          -54.681,
+          60.201
+        ],
+        "to": [
+          -25.575,
+          72.935
+        ],
+        "count": 7,
+        "source": "estimated"
+      }
+    ],
+    "stallSize": [
+      2.5,
+      5
+    ],
+    "note": "垂直停車；格數、車身及尺寸為示意。"
+  },
+  "courtyardFeatures": {
+    "source": "estimated",
+    "stage": {
+      "position": [
+        -3.442,
+        -12.866
+      ],
+      "radius": 2.4,
+      "height": 0.45,
+      "source": "estimated"
+    },
+    "sculpture": {
+      "position": [
+        -1.926,
+        -11.957
+      ],
+      "height": 2.2,
+      "source": "estimated"
+    },
+    "seats": [
+      {
+        "points": [
+          [
+            -1.32,
+            -9.531
+          ],
+          [
+            -1.926,
+            -7.712
+          ],
+          [
+            -3.139,
+            -5.893
+          ],
+          [
+            -4.655,
+            -4.377
+          ]
+        ],
+        "width": 0.7,
+        "height": 0.65,
+        "source": "estimated"
+      }
+    ],
+    "trees": [
+      {
+        "position": [
+          -24.362,
+          -24.084
+        ],
+        "source": "estimated"
+      },
+      {
+        "position": [
+          -17.389,
+          -21.659
+        ],
+        "source": "estimated"
+      },
+      {
+        "position": [
+          -10.416,
+          -18.627
+        ],
+        "source": "estimated"
+      },
+      {
+        "position": [
+          1.409,
+          -13.473
+        ],
+        "source": "estimated"
+      },
+      {
+        "position": [
+          -0.107,
+          -6.499
+        ],
+        "source": "estimated"
+      }
+    ],
+    "treeSpecies": "台灣欒樹",
+    "note": "照片確認設施類型；位置、尺寸與馬賽克配色簡化示意"
+  },
+  "campusBoundary": {
+    "source": "estimated",
+    "polygon": [
+      [
+        13.536,
+        90.823
+      ],
+      [
+        -131.69,
+        30.186
+      ],
+      [
+        -78.329,
+        -110.492
+      ],
+      [
+        -25.878,
+        -92.301
+      ],
+      [
+        -25.878,
+        -57.435
+      ],
+      [
+        12.02,
+        -40.759
+      ],
+      [
+        19.6,
+        -59.254
+      ],
+      [
+        22.632,
+        -64.105
+      ],
+      [
+        24.148,
+        -69.562
+      ],
+      [
+        125.715,
+        -49.855
+      ],
+      [
+        130.566,
+        -44.094
+      ],
+      [
+        69.322,
+        120.233
+      ],
+      [
+        42.642,
+        104.164
+      ],
+      [
+        33.546,
+        100.222
+      ],
+      [
+        22.632,
+        95.371
+      ]
+    ],
+    "note": "含門缺口的校內範圍；土地公廟凹口依安全圖排除，非地籍線"
+  },
+  "guardhouse": {
+    "id": "guardhouse",
+    "position": [
+      29.908,
+      94.765
+    ],
+    "source": "estimated",
+    "estimated": true,
+    "evidence": "site-observations-20261110",
+    "size": [
+      4,
+      3,
+      3.5
+    ]
+  },
+  "siteDetails": {
+    "source": "estimated",
+    "estimated": true,
+    "ramp": {
+      "id": "underground-ramp",
+      "position": [
+        93.88,
+        46.255
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110",
+      "south": [
+        87.513,
+        60.505
+      ],
+      "north": [
+        97.215,
+        38.372
+      ],
+      "pedestrian": false
+    },
+    "kitchen": {
+      "id": "kitchen-exterior",
+      "position": [
+        110.555,
+        -27.116
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110"
+    },
+    "recycling": {
+      "id": "recycling",
+      "position": [
+        114.194,
+        -31.664
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110"
+    },
+    "figureEight": {
+      "id": "north-white-lines",
+      "position": [
+        80.237,
+        -36.212
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110"
+    },
+    "courtsFence": [
+      [
+        -75.297,
+        -106.247
+      ],
+      [
+        -33.761,
+        -88.056
+      ],
+      [
+        -47.101,
+        -56.828
+      ],
+      [
+        -89.244,
+        -74.716
+      ]
+    ],
+    "practiceLanes": [
+      [
+        -71.356,
+        -106.247
+      ],
+      [
+        -34.67,
+        -94.12
+      ]
+    ],
+    "dRamp": {
+      "south": [
+        -64.383,
+        17.452
+      ],
+      "north": [
+        -57.713,
+        4.777269771334332
+      ],
+      "source": "estimated",
+      "entrance": [
+        -57.713,
+        1.25,
+        4.777269771334332
+      ]
+    },
+    "temple": {
+      "id": "temple-details",
+      "position": [
+        2.015,
+        -59.86
+      ],
+      "source": "estimated",
+      "estimated": true,
+      "evidence": "site-observations-20261110"
+    },
+    "eastCourtyards": [
+      {
+        "id": "ab-east",
+        "polygon": [
+          [
+            63.865,
+            14.42
+          ],
+          [
+            85.088,
+            24.122
+          ],
+          [
+            76.599,
+            43.829
+          ],
+          [
+            55.376,
+            34.127
+          ]
+        ]
+      },
+      {
+        "id": "bc-east",
+        "polygon": [
+          [
+            76.295,
+            -16.505
+          ],
+          [
+            97.518,
+            -6.803
+          ],
+          [
+            89.332,
+            12.298
+          ],
+          [
+            68.109,
+            2.596
+          ]
+        ]
+      }
+    ],
+    "templeArch": {
+      "id": "temple-arch",
+      "position": [
+        10,
+        -66
+      ],
+      "facing": [
+        0,
+        -1
+      ],
+      "width": 8,
+      "height": 4.4,
+      "source": "user-annotated-20261111",
+      "estimated": true,
+      "note": "綠線：北二門西側，開口朝北側道路。"
+    }
+  },
+  "corridors": [
+    {
+      "id": "a-d",
+      "buildings": [
+        "A",
+        "D"
+      ],
+      "endpoints": [
+        [
+          -0.17040167587805233,
+          19
+        ],
+        [
+          -7.345633117331829,
+          19
+        ]
+      ],
+      "width": 3,
+      "maxFloor": 4,
+      "style": "white-link",
+      "source": "user-annotated-20261111",
+      "estimated": true,
+      "evidence": "user-annotated-20261111",
+      "note": "11/11 紫線北側東西向 A–D 1–4 樓；藍線自 A 西南角沿體育館東側向南，一樓柱廊頂兼二樓露天地板，無二樓屋頂。寬度及高度概估。",
+      "sources": {
+        "endpoints": "user-approved-estimate-20261111"
+      }
+    },
+    {
+      "id": "a-gym",
+      "buildings": [
+        "A",
+        "gym"
+      ],
+      "endpoints": [
+        [
+          -4.352,
+          28.67
+        ],
+        [
+          -26.594025812927974,
+          62
+        ]
+      ],
+      "width": 4.8,
+      "maxFloor": 2,
+      "floorHeights": [
+        4,
+        4
+      ],
+      "style": "brick-colonnade",
+      "openUpper": true,
+      "source": "user-annotated-20261111",
+      "estimated": true,
+      "evidence": "user-annotated-20261111",
+      "note": "11/11 紫線北側東西向 A–D 1–4 樓；藍線自 A 西南角沿體育館東側向南，一樓柱廊頂兼二樓露天地板，無二樓屋頂。寬度及高度概估。"
+    }
+  ],
+  "mainAxis": {
+    "source": "estimated",
+    "south": [
+      33.243,
+      60.808
+    ],
+    "north": [
+      69.929,
+      -27.116
+    ],
+    "width": 8.4,
+    "clearHeight": 12,
+    "note": "11/11 穿堂大門由 4.8m 擴至 8.4m，仍為三層 12m 挑空；尺寸概估"
+  }
+}

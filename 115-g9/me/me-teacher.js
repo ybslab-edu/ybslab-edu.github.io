@@ -1,4 +1,4 @@
-// 教師唯讀查詢；所有資料僅留在記憶體，先驗證課程擁有者再讀名冊。
+// 教師唯讀查詢；學生紀錄僅留在記憶體，先驗證課程擁有者再讀名冊。
 const YBSMeTeacher = (() => {
   // 教師使用獨立 Firebase App；學生帳號的 LOCAL Auth 與待送佇列不載入、不切換。
   const sdk = 'https://www.gstatic.com/firebasejs/10.14.1/';
@@ -18,8 +18,9 @@ const YBSMeTeacher = (() => {
         projectId:'class-score-86020', messagingSenderId:'1078830272862'
       }, 'ybs-me-teacher');
       const auth = app.auth();
-      await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-      // 等待 Auth 還原，避免初始 null 回呼蓋掉已存在的教師 SESSION。
+      // 同一瀏覽器的教師分頁共用登入，直到登出或清除瀏覽器資料。
+      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      // 等待 Auth 還原，避免初始 null 回呼蓋掉已存在的教師 LOCAL 狀態。
       if (auth.onAuthStateChanged) await new Promise((resolve,reject) => {
         const unsubscribe = auth.onAuthStateChanged(() => {resolve();Promise.resolve().then(unsubscribe);},reject);
       });

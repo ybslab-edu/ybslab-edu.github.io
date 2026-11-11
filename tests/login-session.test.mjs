@@ -148,7 +148,7 @@ test('瀏覽器重開清理舊帳號時，已輸入的新帳密只需登入一�
   assert.equal(h.api.profile()?.uid,'session-two');
   assert.equal(h.mock.signouts,1);
 });
-test('教師 Google SESSION 不受缺少學生 cookie 影響，也不改成 LOCAL', async () => {
+test('共用登入模組的教師 Google SESSION 不受缺少學生 cookie 影響，也不改成 LOCAL', async () => {
   const user = {uid:'teacher',email:'teacher@example.invalid',isAnonymous:false,providerData:[{providerId:'google.com'}]};
   const h = setup({user,cookie:false});
   await h.api.firebaseSession();

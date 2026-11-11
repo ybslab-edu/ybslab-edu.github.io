@@ -243,7 +243,7 @@ test('已記憶教師模式登出：清 cookie、廣播撤銷，不恢復舊學�
   assert.equal(await page.locator('#g-who').isVisible(),false);
   assert.equal(await page.evaluate(() => sessionStorage.getItem('ybslab:teacher')),null);
 });
-test('教師 Google SESSION 重新載入與學生撤銷廣播不受學生 cookie 限制', async t => {
+test('報告頁教師 Google SESSION 重新載入與學生撤銷廣播不受學生 cookie 限制', async t => {
   const {page} = await pageFor(t);
   await page.goto(base + '/115-g9/teacher/report/');await page.click('#report-login');
   await page.waitForFunction(() => !document.querySelector('#report-read').disabled);

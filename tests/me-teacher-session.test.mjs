@@ -8,7 +8,7 @@ function fixture() {
   const student={uid:'synthetic-student'},teacher={uid:'synthetic-teacher'};
   const storage=new Map([['student',student]]);
   const auth={currentUser:teacher,
-    async setPersistence(value){calls.push(['persistence',value]);storage.set('teacher-'+value,teacher);storage.delete('teacher-local')},
+    async setPersistence(value){calls.push(['persistence',value]);storage.set('teacher-'+value,teacher);storage.delete('teacher-'+(value==='local'?'session':'local'))},
     onAuthStateChanged(callback){listeners.push(callback);queueMicrotask(()=>callback(teacher));return()=>{}}
   };
   const app={name:'ybs-me-teacher',auth:()=>auth,firestore:()=>({})};
@@ -19,14 +19,14 @@ function fixture() {
   vm.runInContext(source,context);
   return {session:vm.runInContext('YBSMeTeacher.session',context),calls,storage,student,teacher};
 }
-test('教師 Auth 使用獨立 app 與 SESSION，不移動學生 LOCAL 身分',async()=>{
+test('成長頁教師 Auth 使用獨立 app 與 LOCAL，不移動學生 LOCAL 身分',async()=>{
   const f=fixture();const first=await f.session(),second=await f.session();
   assert.equal(first,second);
   assert.equal(first.auth.currentUser,f.teacher);
   assert.equal(f.storage.get('student'),f.student);
-  assert.equal(f.storage.has('teacher-local'),false);
-  assert.equal(f.storage.get('teacher-session'),f.teacher);
+  assert.equal(f.storage.get('teacher-local'),f.teacher);
+  assert.equal(f.storage.has('teacher-session'),false);
   assert.deepEqual(f.calls.map(c=>c[0]),['script','script','script','app','persistence']);
   assert.deepEqual(f.calls.find(c=>c[0]==='app'),['app','ybs-me-teacher']);
-  assert.deepEqual(f.calls.find(c=>c[0]==='persistence'),['persistence','session']);
+  assert.deepEqual(f.calls.find(c=>c[0]==='persistence'),['persistence','local']);
 });

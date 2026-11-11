@@ -42,14 +42,15 @@ before(async()=>{
   await mkdir('/tmp/ybs-me-icon-shots',{recursive:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(ok=>server.close(ok))});
-async function pageFor(t,options={},suffix=''){
-  const page=await browser.newPage(options);t.after(()=>page.close());
+async function pageFor(t,options={},suffix='',context){
+  if(!context){context=await browser.newContext({...options,serviceWorkers:'block'});t.after(()=>context.close());}
+  const page=await context.newPage();t.after(()=>page.close());
   const errors=[],outside=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   await page.route('**/*',r=>{
     if(r.request().url().startsWith(base+'/'))return r.continue();
-    // 真正登入入口現在會主動還原 SESSION；離線提供未登入的合成 Auth。
+    // 真正登入入口會主動還原 Auth；SDK 由離線替身提供，支援 LOCAL 跨分頁同步。
     if(r.request().url().startsWith('https://www.gstatic.com/firebasejs/10.14.1/'))return r.fulfill({contentType:'text/javascript',body:r.request().url().endsWith('/firebase-app-compat.js')?(page.url().includes('cls=')?teacherFirebase:sessionFirebase):'// offline mock'});
     outside.push(r.request().url());return r.abort();
   });
@@ -450,15 +451,109 @@ test('教師離線快取不顯示假零，已確認資料在暫時讀取失敗�
   assert.equal(await page.locator('#total').textContent(),'75 XP');
 });
 
-test('既有教師 Auth 可直接進入；重建明細後時間與補做仍存在且不持久化',async t=>{
+test('既有教師 LOCAL Auth 可直接進入；重建明細後時間與補做仍存在，學生紀錄不持久化',async t=>{
   const page=await pageFor(t,{},'?cls=999&seat=1&restored=owner');
   await page.waitForFunction(()=>!document.getElementById('growth').hidden);
   await page.evaluate(()=>document.getElementById('details').replaceChildren());
   await page.click('#retry');
   await page.waitForFunction(()=>document.querySelectorAll('.teacher-round').length>0);
   assert.match(await page.locator('.teacher-round').nth(1).textContent(),/補做/);
-  assert.deepEqual(await page.evaluate(()=>meTeacherMock.persistence),[{name:'ybs-me-teacher',value:'session'}]);
-  assert.equal(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher')),null);
+  assert.deepEqual(await page.evaluate(()=>meTeacherMock.persistence),[{name:'ybs-me-teacher',value:'local'}]);
+  assert.deepEqual(await page.evaluate(()=>Object.keys(localStorage)),['mock:auth:ybs-me-teacher']);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('mock:auth:ybs-me-teacher')).uid),'synthetic-owner');
+  assert.equal(await page.evaluate(()=>sessionStorage.getItem('mock:auth:ybs-me-teacher')),null);
+});
+test('教師 LOCAL 登入一次，新分頁切換學生、重新整理及關頁重開均直接顯示',async t=>{
+  const first=await pageFor(t,{},'?cls=999&seat=1');
+  const context=first.context();
+  await first.click('[data-teacher-login]');
+  await first.locator('#growth').waitFor({state:'visible'});
+  assert.deepEqual(await first.evaluate(()=>meTeacherMock.popups),['ybs-me-teacher']);
+  const second=await pageFor(t,{},'?cls=999&seat=2',context);
+  await second.locator('#growth').waitFor({state:'visible'});
+  assert.equal(await second.locator('h1').textContent(),'教師檢視：999班2號');
+  assert.equal(await second.locator('#total').textContent(),'10 XP');
+  assert.deepEqual(await second.evaluate(()=>meTeacherMock.popups),[]);
+  assert.equal(await second.evaluate(()=>meTeacherMock.reads.find(r=>r.field==='email').value),'student-two@example.invalid');
+  assert.equal(await first.locator('#total').textContent(),'75 XP');
+  await second.reload();
+  await second.locator('#growth').waitFor({state:'visible'});
+  assert.equal(await second.locator('#total').textContent(),'10 XP');
+  assert.deepEqual(await second.evaluate(()=>meTeacherMock.popups),[]);
+  await first.close();await second.close();
+  const reopened=await pageFor(t,{},'?cls=999&seat=1',context);
+  await reopened.locator('#growth').waitFor({state:'visible'});
+  assert.equal(await reopened.locator('#total').textContent(),'75 XP');
+  assert.deepEqual(await reopened.evaluate(()=>meTeacherMock.popups),[]);
+});
+test('教師登出撤銷全部已開分頁、清空資料，慢回應不回填，新分頁需重新登入',async t=>{
+  const first=await pageFor(t,{},'?cls=999&seat=1');
+  const context=first.context();
+  await first.click('[data-teacher-login]');
+  await first.locator('#growth').waitFor({state:'visible'});
+  const second=await pageFor(t,{},'?cls=999&seat=2',context);
+  await second.locator('#growth').waitFor({state:'visible'});
+  await second.evaluate(()=>{meTeacherMock.mode='wait'});
+  await second.click('#retry');
+  await second.waitForFunction(()=>meTeacherMock.pending.length===1);
+  await first.click('#logout');
+  for(const page of [first,second]){
+    await page.waitForFunction(()=>document.getElementById('status').textContent.includes('需教師登入'));
+    assert.equal(await page.locator('#growth').isVisible(),false);
+    assert.equal(await page.locator('[data-teacher-login]').isVisible(),true);
+    assert.equal(await page.locator('#logout').isVisible(),false);
+    assert.deepEqual(await page.locator('#total, #route, #details, #radar, #axes').allTextContents(),['','','','','']);
+    assert.equal(await page.locator('#progress').getAttribute('aria-label'),'升級進度');
+    assert.equal(await page.evaluate(()=>meTeacherMock.auths.get('ybs-me-teacher').currentUser),null);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher')),null);
+  }
+  assert.deepEqual(await first.evaluate(()=>meTeacherMock.signouts),['ybs-me-teacher']);
+  assert.deepEqual(await second.evaluate(()=>meTeacherMock.signouts),[]);
+  await second.evaluate(()=>{meTeacherMock.mode='ok';meTeacherMock.pending[0]()});
+  assert.equal(await second.locator('#growth').isVisible(),false);
+  assert.equal(await second.locator('#details').textContent(),'');
+  const signedOut=await pageFor(t,{},'?cls=999&seat=2',context);
+  await signedOut.locator('[data-teacher-login]').waitFor({state:'visible'});
+  assert.equal(await signedOut.locator('#growth').isVisible(),false);
+  assert.deepEqual(await signedOut.evaluate(()=>meTeacherMock.reads),[]);
+  assert.deepEqual(await signedOut.evaluate(()=>meTeacherMock.popups),[]);
+  await signedOut.click('[data-teacher-login]');
+  await first.locator('#growth').waitFor({state:'visible'});
+  await second.locator('#growth').waitFor({state:'visible'});
+  assert.equal(await first.locator('#total').textContent(),'75 XP');
+  assert.equal(await second.locator('#total').textContent(),'10 XP');
+});
+test('教師 LOCAL 與無班座參數的真正學生入口互不借用身分或登出',async t=>{
+  const teacher=await pageFor(t,{},'?cls=999&seat=1');
+  await teacher.click('[data-teacher-login]');
+  await teacher.locator('#growth').waitFor({state:'visible'});
+  const student=await pageFor(t,{},'?real-login',teacher.context());
+  await student.locator('.ybs-login input[name="a"]').waitFor({state:'visible'});
+  await student.evaluate(()=>YBS.firebaseSession());
+  assert.equal(await student.evaluate(()=>YBS.profile()),null);
+  assert.equal(await student.evaluate(()=>__sessionMock.auth.currentUser),null);
+  assert.equal(await student.locator('#growth').isVisible(),false);
+  assert.deepEqual(await student.evaluate(()=>firebase.apps.map(app=>app.name)),['ybs']);
+  assert.deepEqual(await student.evaluate(()=>__sessionMock.reads),[]);
+  assert.equal(await student.locator('[data-teacher-login]').count(),0);
+  await student.locator('.ybs-login input[name="a"]').fill('9990001');
+  await student.locator('.ybs-login input[name="p"]').fill('synthetic-test-password');
+  await student.locator('.ybs-login button[type="submit"]').click();
+  await student.locator('#growth').waitFor({state:'visible'});
+  assert.equal(await student.locator('#total').textContent(),'10 XP');
+  const savedStudent=await student.evaluate(()=>localStorage.getItem('mock:session-user'));
+  await teacher.click('#logout');
+  assert.equal(await student.evaluate(()=>YBS.profile()?.uid),'session-one');
+  assert.equal(await student.evaluate(()=>localStorage.getItem('mock:session-user')),savedStudent);
+  assert.equal(await student.locator('#growth').isVisible(),true);
+  await teacher.click('[data-teacher-login]');
+  await teacher.locator('#growth').waitFor({state:'visible'});
+  const savedTeacher=await teacher.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher'));
+  await student.click('#logout');
+  await student.waitForFunction(()=>YBS.profile()===null);
+  assert.equal(await teacher.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher')),savedTeacher);
+  assert.equal(await teacher.evaluate(()=>meTeacherMock.auths.get('ybs-me-teacher').currentUser.uid),'synthetic-owner');
+  assert.equal(await teacher.locator('#growth').isVisible(),true);
 });
 test('教師目標參數無效時不初始化 Auth 或讀取雲端',async t=>{
   const page=await pageFor(t,{},'?cls=999&seat=61');
@@ -483,7 +578,7 @@ test('教師模式有班座綁定與待送紀錄時不載入學生模組或寫�
   await page.waitForTimeout(100);
   assert.equal(await page.locator('script[src*="assets/login.js"]').count(),0);
   assert.deepEqual(await page.evaluate(()=>meTeacherMock.writes),[]);
-  assert.equal(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs-me-teacher')),null);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('mock:auth:ybs-me-teacher')).uid),'synthetic-owner');
   assert.ok(await page.evaluate(()=>localStorage.getItem('mock:auth:ybs')));
   assert.ok(await page.evaluate(()=>localStorage.getItem('ybslab:guest:115-g9')));
 });

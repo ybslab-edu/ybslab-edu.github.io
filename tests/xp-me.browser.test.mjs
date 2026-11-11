@@ -326,6 +326,58 @@ for(const [width,colorScheme] of [[1440,'light'],[1440,'dark'],[390,'light']]){
   });
 }
 
+test('教師 Google 登入所需 gapi 腳本通過成長頁 CSP（離線替身）',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  await page.route('https://apis.google.com/js/api.js',r=>r.fulfill({contentType:'text/javascript',body:'window.meGapiLoaded = true;'}));
+  await page.evaluate(()=>{
+    const auth=meTeacherMock.auths.get('ybs-me-teacher'),original=auth.signInWithPopup;
+    auth.signInWithPopup=async(...args)=>{
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement('script');script.src='https://apis.google.com/js/api.js';
+        script.onload=resolve;script.onerror=()=>reject({code:'auth/internal-error'});
+        document.head.append(script);
+      });
+      return original(...args);
+    };
+  });
+  await page.click('[data-teacher-login]');
+  await page.waitForFunction(()=>window.meGapiLoaded || document.getElementById('status').textContent.includes('未完成'));
+  assert.equal(await page.evaluate(()=>window.meGapiLoaded),true);
+  await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+});
+test('教師登入失敗顯示錯誤碼，無錯誤碼仍可重試且不讀寫雲端',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  for(const error of [{code:'auth/internal-error'},{code:'auth/network-request-failed'},{code:'auth/popup-blocked'},{message:'synthetic failure'},null]) {
+    await page.evaluate(error=>{
+      const auth=meTeacherMock.auths.get('ybs-me-teacher'),original=auth.signInWithPopup;
+      auth.signInWithPopup=async()=>{auth.signInWithPopup=original;throw error};
+    },error);
+    await page.click('[data-teacher-login]');
+    const expected='教師登入未完成'+(error?.code?'（'+error.code+'）':'')+'，請重試。';
+    await page.waitForFunction(expected=>document.getElementById('status').textContent===expected,expected);
+    assert.equal(await page.locator('#growth').isVisible(),false);
+    assert.equal(await page.locator('[data-teacher-login]').isEnabled(),true);
+    assert.deepEqual(await page.evaluate(()=>({reads:meTeacherMock.reads,writes:meTeacherMock.writes})),{reads:[],writes:[]});
+  }
+  await page.click('[data-teacher-login]');
+  await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+});
+test('教師關閉或取消登入有友善訊息與錯誤碼，仍可再次登入',async t=>{
+  const page=await pageFor(t,{},'?cls=999&seat=1');
+  for(const code of ['auth/popup-closed-by-user','auth/cancelled-popup-request']) {
+    await page.evaluate(code=>{
+      const auth=meTeacherMock.auths.get('ybs-me-teacher'),original=auth.signInWithPopup;
+      auth.signInWithPopup=async()=>{auth.signInWithPopup=original;throw {code}};
+    },code);
+    await page.click('[data-teacher-login]');
+    await page.waitForFunction(code=>document.getElementById('status').textContent==='教師登入已取消（'+code+'），可再次點選登入。',code);
+    assert.equal(await page.locator('#growth').isVisible(),false);
+    assert.deepEqual(await page.evaluate(()=>meTeacherMock.reads),[]);
+  }
+  await page.click('[data-teacher-login]');
+  await page.waitForFunction(()=>!document.getElementById('growth').hidden);
+});
+
 for (const width of [1440,390]) {
   test(`教師唯讀成長頁與截圖：${width}px`,async t=>{
     const page=await pageFor(t,{viewport:{width,height:1000}},'?cls=999&seat=1');

@@ -5,6 +5,23 @@ import vm from 'node:vm';
 const context=vm.createContext({URLSearchParams});
 for (const file of ['assets/xp.js','115-g9/me/me-teacher.js']) vm.runInContext(readFileSync(new URL('../'+file,import.meta.url),'utf8'),context);
 const helper=vm.runInContext('YBSMeTeacher',context);
+test('所有教師 Google 彈出登入頁皆允許必要腳本與 Auth iframe，成長頁只加 gapi 來源',()=>{
+  const pages=['115-g9/me/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-g9/teacher/index.html'];
+  for(const path of pages) {
+    const html=readFileSync(new URL('../'+path,import.meta.url),'utf8');
+    const policy=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+    const directives=Object.fromEntries(policy.split(';').filter(s=>s.trim()).map(s=>{
+      const [name,...sources]=s.trim().split(/\s+/);return [name,sources];
+    }));
+    assert.ok(directives['script-src'].includes('https://apis.google.com'),path);
+    assert.ok(directives['script-src'].includes('https://www.gstatic.com/firebasejs/'),path);
+    assert.deepEqual(directives['frame-src'],['https://class-score-86020.firebaseapp.com'],path);
+    if(path==='115-g9/me/index.html') {
+      assert.deepEqual(directives['script-src'],["'self'",'https://www.gstatic.com/firebasejs/','https://apis.google.com']);
+      assert.deepEqual(directives['connect-src'],["'self'",'https://identitytoolkit.googleapis.com','https://securetoken.googleapis.com','https://firestore.googleapis.com']);
+    }
+  }
+});
 test('教師目標參數完整且唯一，無參數維持學生模式',()=>{
   assert.equal(helper.target(''),null);
   assert.equal(JSON.stringify(helper.target('?cls=999&seat=1')),'{"cls":999,"seat":1}');

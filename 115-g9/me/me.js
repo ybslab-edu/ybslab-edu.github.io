@@ -230,7 +230,13 @@
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({prompt:'select_account'});
         await teacherAuth.signInWithPopup(provider);
-      } catch { $('status').textContent = '教師登入未完成，請重試。'; }
+      } catch (error) {
+        const code = typeof error?.code === 'string' ? error.code : '';
+        const detail = code ? '（' + code + '）' : '';
+        $('status').textContent = ['auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(code)
+          ? '教師登入已取消' + detail + '，可再次點選登入。'
+          : '教師登入未完成' + detail + '，請重試。';
+      }
     });
     if (teacherTarget.invalid) { $('status').textContent = '班級或座號參數無效。'; return; }
     $('status').textContent = '需教師登入：請使用此課程擁有者帳號。';

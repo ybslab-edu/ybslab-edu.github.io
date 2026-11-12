@@ -10,13 +10,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
+:root{--teach-lamp-on:#FFD447;--teach-lamp-rim:#FFE58A;--teach-lamp-off:#252C3A;--teach-lamp-label:#E6E9EF;}
 /* 第 11 週：二進位。燈牌＝一排燈泡，每顆只有亮（1）和暗（0） */
-.board{background:#15131c;border-radius:16px;padding:18px 14px;display:flex;justify-content:center;gap:clamp(6px,1.6vw,16px);flex-wrap:nowrap;overflow-x:auto}
+.board{background:var(--void);border-radius:0;padding:18px 14px;display:flex;justify-content:center;gap:clamp(6px,1.6vw,16px);flex-wrap:nowrap;overflow-x:auto}
 .bulb{flex:none;display:flex;flex-direction:column;align-items:center;gap:8px}
-.bulb button{width:clamp(34px,8vw,58px);aspect-ratio:1;border-radius:50%;border:3px solid #4a4658;background:#2a2735;cursor:pointer;transition:background .15s,box-shadow .15s}
-.bulb button[aria-pressed="true"]{background:#FFD447;border-color:#FFE58A;box-shadow:0 0 18px 4px rgba(255,212,71,.55)}
+.bulb button{width:clamp(34px,8vw,58px);aspect-ratio:1;border-radius:50%;border:3px solid var(--dim);background:var(--teach-lamp-off);cursor:pointer;transition:background .15s,box-shadow .15s}
+.bulb button[aria-pressed="true"]{background:var(--teach-lamp-on);border-color:var(--teach-lamp-rim);box-shadow:none}
 .bulb button:disabled{cursor:default}
-.bulb span{font-family:var(--f-mono);font-size:clamp(12px,2.6vw,16px);font-weight:700;color:#d8d2e6;min-height:1.3em}
+.bulb span{font-family:var(--f-mono);font-size:clamp(12px,2.6vw,16px);font-weight:700;color:var(--teach-lamp-label);min-height:1.3em}
 .bits{font-family:var(--f-mono);font-size:26px;font-weight:700;letter-spacing:.2em;color:var(--a)}
 .sum{font-family:var(--f-mono);font-size:18px;color:var(--ink)}
 .compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
@@ -28,6 +29,7 @@
 @media(max-width:559px){.compare{grid-template-columns:minmax(0,1fr)}.compare .bulb button{width:clamp(23px,7vw,42px)}}
 .target{font-size:20px}
 .target b{font-family:var(--f-mono);font-size:34px;color:var(--b)}
+.board{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>

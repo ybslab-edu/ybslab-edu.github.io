@@ -10,9 +10,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
-.card-ref{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:10px;padding:10px 14px;font-size:16px}
+.card-ref{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:0;padding:10px 14px;font-size:16px}
 .card-ref li{margin:2px 0}
-.bubble{background:var(--cu-soft);border-radius:14px;padding:10px 14px;font-size:16px;margin-bottom:8px}
+.bubble{background:var(--cu-soft);border-radius:0;padding:10px 14px;font-size:16px;margin-bottom:8px}
+.card-ref,.bubble{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>

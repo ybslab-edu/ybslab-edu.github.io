@@ -10,13 +10,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
-.plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+:root{--teach-group-a:#5AA9F0;--teach-group-b:#F4B26A;--teach-group-c:#3BC0D6;--teach-new:#FFD447;--teach-point:#98A2B8;}
+.plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:0;padding:6px}
 .plot svg{width:100%;height:auto;display:block}
 .plot .ax{stroke:var(--line);stroke-width:1}
 .plot text{fill:var(--muted);font:12px var(--f-body)}
 .legend{display:flex;gap:14px;font-size:15px;flex-wrap:wrap}
-.perc{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;line-height:1.8}
+.perc{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:0;padding:10px 14px;line-height:1.8}
 .perc b{font-family:var(--f-mono)}
+.perc{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>
@@ -30,13 +32,13 @@
 // TITLE:跟誰最像
 // TERMWEEK:8
 // 第 5 單元第 6 站（選修）：最近鄰居 KNN、線性迴歸、感知器。故事：園遊會攤位要準備飲料和排隊動線
-const C2=[['奶茶派','#2C67AE','●'],['果茶派','#BD6216','▲']];
+const C2=[['奶茶派','var(--teach-group-a)','●'],['果茶派','var(--teach-group-b)','▲']];
 const plotSVG=(pts,opt={})=>{const S=36,O=30,W=O+10*S+10,H=O+10*S+10,px=x=>O+x*S,py=y=>H-O-y*S+10;let s='<svg viewBox="0 0 '+W+' '+(H+10)+'" role="img" aria-label="'+(opt.label||'散布圖')+'">';
   for(let i=0;i<=10;i++){s+='<line class="ax" x1="'+px(i)+'" y1="'+py(0)+'" x2="'+px(i)+'" y2="'+py(10)+'"/><line class="ax" x1="'+px(0)+'" y1="'+py(i)+'" x2="'+px(10)+'" y2="'+py(i)+'"/>';if(i%2===0)s+='<text x="'+px(i)+'" y="'+(py(0)+16)+'" text-anchor="middle">'+i*(opt.xs||1)+'</text><text x="'+(px(0)-6)+'" y="'+(py(i)+4)+'" text-anchor="end">'+i*(opt.ys||1)+'</text>'}
   (opt.lines||[]).forEach(l=>{s+='<line x1="'+px(0)+'" y1="'+py(l.b/(opt.ys||1))+'" x2="'+px(10)+'" y2="'+py((l.a*10*(opt.xs||1)+l.b)/(opt.ys||1))+'" stroke="'+l.c+'" stroke-width="3"/><text x="'+(px(10)-4)+'" y="'+(py((l.a*10*(opt.xs||1)+l.b)/(opt.ys||1))-6)+'" text-anchor="end" style="fill:'+l.c+';font-weight:700">'+l.n+'</text>'});
-  pts.forEach(p=>{const x=px(p.x),y=py(p.y);if(p.c==null)s+='<text x="'+x+'" y="'+(y+8)+'" text-anchor="middle" style="font-size:24px;fill:#D4A100">★</text>';else if(p.c===0)s+='<circle cx="'+x+'" cy="'+y+'" r="8" fill="'+C2[0][1]+'"/>';else if(p.c===1)s+='<path d="M'+x+' '+(y-9)+' L'+(x+9)+' '+(y+7)+' L'+(x-9)+' '+(y+7)+'Z" fill="'+C2[1][1]+'"/>';else s+='<circle cx="'+x+'" cy="'+y+'" r="5" fill="#5D6670"/>'});
+  pts.forEach(p=>{const x=px(p.x),y=py(p.y);if(p.c==null)s+='<text x="'+x+'" y="'+(y+8)+'" text-anchor="middle" style="font-size:24px;fill:var(--teach-new)">★</text>';else if(p.c===0)s+='<circle cx="'+x+'" cy="'+y+'" r="8" fill="'+C2[0][1]+'"/>';else if(p.c===1)s+='<path d="M'+x+' '+(y-9)+' L'+(x+9)+' '+(y+7)+' L'+(x-9)+' '+(y+7)+'Z" fill="'+C2[1][1]+'"/>';else s+='<circle cx="'+x+'" cy="'+y+'" r="5" fill="var(--teach-point)"/>'});
   return '<div class="plot">'+s+'</svg></div>'};
-const legend='<div class="legend"><span style="color:#2C67AE">● 奶茶派</span><span style="color:#BD6216">▲ 果茶派</span><span style="color:#D4A100">★ 新同學</span></div>';
+const legend='<div class="legend"><span style="color:var(--teach-group-a)">● 奶茶派</span><span style="color:var(--teach-group-b)">▲ 果茶派</span><span style="color:var(--teach-new)">★ 新同學</span></div>';
 const d2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 function knnInst(rnd,k){
   for(;;){const pts=[],used=new Set();const add=(x,y,c)=>{const key=x+','+y;if(used.has(key))return;used.add(key);pts.push({x,y,c})};
@@ -78,7 +80,7 @@ const ROUNDS=[
       const err=l=>pts.reduce((s,p)=>s+Math.abs(p.y*2-(l.a*p.x*2+l.b)),0),e=cand.map(err),best=e.indexOf(Math.min(...e));if(e.filter(v=>v-e[best]<6).length>1)continue;
       const qx=PICK(rnd,[6,10,14,18].filter(x=>!xs.includes(x))),qy=cand[best].a*qx+cand[best].b;if(!Number.isInteger(qy))continue;
       return {pts,cand,best,qx,qy}}},
-  view(inst,el,api){const cols=['#2C67AE','#BD6216','#1E7570'],L='ABC';
+  view(inst,el,api){const cols=['var(--teach-group-a)','var(--teach-group-b)','var(--teach-group-c)'],L='ABC';
     el.innerHTML=plotSVG(inst.pts,{xs:2,ys:2,label:'排隊人數與等待時間',lines:inst.cand.map((l,i)=>({...l,c:cols[i],n:L[i]}))})+'<p class="small">橫軸：排隊人數　直軸：等待分鐘</p><p>哪一條線最貼近？</p>';
     const h=PICKONE(el,['A 線','B 線','C 線'],api,inst.best);
     el.insertAdjacentHTML('beforeend','<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:18px;flex-wrap:wrap">用這條線預測：排 '+inst.qx+' 人時，大約要等 <input class="num-in" id="qy" inputmode="numeric" autocomplete="off"> 分鐘</label>');

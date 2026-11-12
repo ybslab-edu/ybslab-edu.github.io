@@ -10,19 +10,21 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
+:root{--teach-lamp-on:#FFD447;--teach-lamp-rim:#FFE58A;--teach-lamp-off:#252C3A;--teach-lamp-label:#E6E9EF;--teach-lamp-ink:#12151C;}
 /* 第 15 週：資料壓縮與轉換。燈牌沿用第 11 週，24 顆燈排三排，從左上往右、再換下一排讀 */
-.board{background:#15131c;border-radius:16px;padding:16px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:clamp(6px,1.6vw,14px);max-width:620px}
-.board button{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #4a4658;background:#2a2735;cursor:pointer;position:relative;padding:0}
-.board button[aria-pressed="true"]{background:#FFD447;border-color:#FFE58A;box-shadow:0 0 14px 3px rgba(255,212,71,.5)}
+.board{background:var(--void);border-radius:0;padding:16px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:clamp(6px,1.6vw,14px);max-width:620px}
+.board button{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid var(--dim);background:var(--teach-lamp-off);cursor:pointer;position:relative;padding:0}
+.board button[aria-pressed="true"]{background:var(--teach-lamp-on);border-color:var(--teach-lamp-rim);box-shadow:none}
 .board button:disabled{cursor:default}
-.board button span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--f-mono);font-size:11px;color:#8d87a0}
-.board button[aria-pressed="true"] span{color:#6b5a10}
+.board button span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--f-mono);font-size:13px;color:var(--teach-lamp-label)}
+.board button[aria-pressed="true"] span{color:var(--teach-lamp-ink)}
 .rle{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.rle span{font-family:var(--f-mono);font-size:22px;font-weight:700;border-radius:8px;padding:4px 12px}
-.rle .on{background:#FFD447;color:#3a3000} .rle .off{background:#2a2735;color:#e8e4f2}
+.rle span{font-family:var(--f-mono);font-size:22px;font-weight:700;border-radius:0;padding:4px 12px}
+.rle .on{background:var(--teach-lamp-on);color:var(--teach-lamp-ink)} .rle .off{background:var(--teach-lamp-off);color:var(--teach-lamp-label)}
 .cmp{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:16px;align-items:center}
 .cmp b{font-family:var(--f-mono);font-size:18px;overflow-wrap:anywhere}
 .cmp small{font-size:15px;color:var(--muted)}
+.board{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>

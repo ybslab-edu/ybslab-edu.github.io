@@ -10,15 +10,17 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
-.plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
-.plot svg{width:100%;height:auto;display:block}
+:root{--teach-group-a:#5AA9F0;--teach-group-b:#F4B26A;--teach-group-c:#3BC0D6;--teach-point:#98A2B8;}
+.plot{max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:0;padding:24px}
+.plot svg{width:100%;height:auto;display:block;overflow:visible}
 .plot .ax{stroke:var(--line);stroke-width:1}
 .plot text{fill:var(--muted);font:12px var(--f-body)}
 .legend{display:flex;gap:14px;font-size:15px;flex-wrap:wrap}
-.perc{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;line-height:1.8}
+.perc{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:0;padding:10px 14px;line-height:1.8}
 .perc b{font-family:var(--f-mono)}
 .ctr{font-size:17px;display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
 .tbl{border-collapse:collapse;font-size:16px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 12px;text-align:center}.tbl th{background:var(--bg)}
+.perc{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>
@@ -32,10 +34,10 @@
 // TITLE:服務台放哪裡
 // TERMWEEK:11
 // 第 5 單元第 8 站（選修）：K 平均分群（二維）、分群好壞、要分幾群（手肘法）。故事：畢業園遊會要放服務台
-const COL=['#2C67AE','#BD6216','#1E7570'];
+const COL=['var(--teach-group-a)','var(--teach-group-b)','var(--teach-group-c)'];
 const mapSVG=(pts,cs=[],grp=null)=>{const S=36,O=26,W=O+10*S+10,H=W,px=x=>O+x*S,py=y=>H-O-y*S;let s='<svg viewBox="0 0 '+W+' '+(H+4)+'" role="img" aria-label="園遊會場地平面圖">';
   for(let i=0;i<=10;i++){s+='<line class="ax" x1="'+px(i)+'" y1="'+py(0)+'" x2="'+px(i)+'" y2="'+py(10)+'"/><line class="ax" x1="'+px(0)+'" y1="'+py(i)+'" x2="'+px(10)+'" y2="'+py(i)+'"/>';if(i%2===0)s+='<text x="'+px(i)+'" y="'+(py(0)+16)+'" text-anchor="middle">'+i+'</text><text x="'+(px(0)-6)+'" y="'+(py(i)+4)+'" text-anchor="end">'+i+'</text>'}
-  pts.forEach((p,i)=>{const c=grp?COL[grp[i]]:'#5D6670';s+='<circle cx="'+px(p[0])+'" cy="'+py(p[1])+'" r="11" fill="'+c+'"/><text x="'+px(p[0])+'" y="'+(py(p[1])+4)+'" text-anchor="middle" style="fill:#fff;font-weight:700">'+(i+1)+'</text>'});
+  pts.forEach((p,i)=>{const c=grp?COL[grp[i]]:'var(--teach-point)';s+='<circle cx="'+px(p[0])+'" cy="'+py(p[1])+'" r="11" fill="'+c+'"/><text x="'+px(p[0])+'" y="'+(py(p[1])+4)+'" text-anchor="middle" style="fill:var(--void);font-weight:700">'+(i+1)+'</text>'});
   cs.forEach((c,i)=>s+='<rect x="'+(px(c[0])-11)+'" y="'+(py(c[1])-11)+'" width="22" height="22" fill="none" stroke="'+COL[i]+'" stroke-width="4"/><text x="'+(px(c[0])+15)+'" y="'+(py(c[1])-10)+'" style="fill:'+COL[i]+';font-weight:700;font-size:15px">'+'ABC'[i]+'</text>');
   return '<div class="plot">'+s+'</svg></div>'};
 const d2=(p,c)=>(p[0]-c[0])**2+(p[1]-c[1])**2;

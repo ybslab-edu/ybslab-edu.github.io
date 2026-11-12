@@ -10,14 +10,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
-.tree{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;line-height:1.9}
+.tree{font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:0;padding:12px 14px;line-height:1.9}
 .tree .q{font-weight:700}.tree .y{color:var(--out)}.tree .n{color:var(--warn)}
-.tree .leaf{display:inline-block;background:var(--c-soft);color:var(--c);border-radius:6px;padding:0 8px;font-weight:700}
-.attr{display:inline-block;font-size:13px;border-radius:6px;padding:0 6px;margin-right:4px;background:var(--bg);border:1px solid var(--line)}
+.tree .leaf{display:inline-block;background:var(--c-soft);color:var(--c);border-radius:0;padding:0 8px;font-weight:700}
+.attr{display:inline-block;font-size:13px;border-radius:0;padding:0 6px;margin-right:4px;background:var(--bg);border:1px solid var(--line)}
 .tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}.tbl th{background:var(--bg)}
 .tblwrap{overflow-x:auto}
-.sel{font:inherit;font-size:16px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);max-width:100%}
+.sel{font:inherit;font-size:16px;padding:6px 8px;border-radius:0;border:1px solid var(--line);background:var(--surface);color:var(--ink);max-width:100%}
 .build{display:flex;flex-direction:column;gap:8px;font-size:16px}
+.tree{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>

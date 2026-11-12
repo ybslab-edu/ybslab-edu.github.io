@@ -11,9 +11,10 @@
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
 /* 第 13 週：資料與資訊、問卷設計。題目卡模仿表單的樣子 */
-.form-q{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:10px;padding:10px 14px;font-size:17px}
+.form-q{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:0;padding:10px 14px;font-size:17px}
 .form-q .opts{color:var(--muted);font-size:15px;margin-top:4px}
 .row .q .form-q{margin:0}
+.form-q{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>

@@ -19,9 +19,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
 /*
-  Concept: 捷運路線圖。課綱六大類＝六條路線，學習內容＝車站。
-  有活動的車站是實心大站，還沒有的是一般小站；點車站在該路線下方展開站牌。
-  最上方是學期進度：依今天日期捲到本週，回訪的人不用找。
+  Concept: 任務日誌。學生主要用教室電腦，版面以桌機為主。
+  左欄是任務清單：本週那一列放大排最前面，接下來的週依序往下；右欄是學期走到哪與已經過去的任務。
+  整學期的橫向課表收在最下面的按鈕裡。
 */
 :root{
   color-scheme:dark;
@@ -197,14 +197,62 @@ main{flex:1}
 .terms button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .terms .jump{background:var(--ember);color:var(--on-ember)}
 /* 學期走到哪：一週一格 */
-.pace{margin-top:18px;display:flex;flex-direction:column;gap:6px}
+.pace{display:flex;flex-direction:column;gap:8px}
 .pace-no{margin:0;color:var(--muted);font-size:14px}
-.pace-no .num{font-size:30px;line-height:1;color:var(--ink)}
+.pace-no .num{font-size:44px;line-height:1;color:var(--ink)}
 .segs{display:grid;grid-template-columns:repeat(var(--w),1fr);gap:3px;align-items:end;list-style:none;margin:0;padding:0 5px}
 .segs li{height:14px;transform:skewX(var(--skew));border:2px solid var(--rule)}
 .segs .past{background:var(--frost);border-color:var(--frost)}
 .segs .cur{background:var(--ember);border-color:var(--ember);height:22px}
-/* 任務表：外層當邊線，切掉右上與左下角 */
+/* 任務清單 */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.btn{font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;border:0;padding:10px 26px;color:var(--ink);background:var(--faint);
+  clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+.btn-main{background:var(--ember);color:var(--on-ember)}
+.btn:hover{filter:brightness(1.12)}
+.board{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:28px 44px;margin-top:26px;align-items:start}
+@media (max-width:900px){.board{grid-template-columns:minmax(0,1fr)}}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.q-now{background:var(--ember);padding:2px;margin-bottom:14px;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+.q-now-in{background:var(--surface);display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:16px 28px;padding:28px 32px 32px;
+  clip-path:polygon(0 0,calc(100% - var(--cut) + 1px) 0,100% calc(var(--cut) - 1px),100% 100%,calc(var(--cut) - 1px) 100%,0 calc(100% - var(--cut) + 1px))}
+@media (max-width:600px){.q-now-in{grid-template-columns:minmax(0,1fr);padding:20px}}
+.q-when{display:flex;flex-direction:column;gap:2px;color:var(--muted);font-size:14px}
+.q-when .num{font-size:88px;line-height:.9;color:var(--ember)}
+.q-when b{color:var(--ink);font-size:16px}
+.q-bigs{display:flex;flex-direction:column;gap:32px;min-width:0}
+.q-big{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.q-kind{margin:0;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;color:var(--muted);font-size:14.5px}
+.tag{font-weight:700;font-size:13.5px;color:var(--on-ember);background:var(--ember);padding:1px 14px;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.tag.side{background:transparent;color:var(--muted);outline:1px dashed var(--muted);outline-offset:-1px;clip-path:none}
+.q-big h3{margin:0;font-weight:900;font-size:clamp(32px,3.6vw,52px);line-height:1.15;text-wrap:balance}
+.q-big h3 a{text-decoration:none}
+.q-big h3 a:hover{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:6px}
+.q-why{margin:0;font-size:17px;line-height:1.75;max-width:34em}
+.q-rounds{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 6px}
+.q-rounds li{background:var(--faint);padding:4px 16px 4px 12px;font-size:14.5px;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.q-rounds .num{color:var(--frost);margin-right:8px;font-size:17px}
+.q-none{margin:0;color:var(--muted)}
+.q-row{display:grid;grid-template-columns:3.25rem minmax(0,1fr) auto;gap:4px 14px;align-items:baseline;background:var(--surface);padding:11px 16px}
+.q-row .n{font-size:24px;color:var(--muted)}
+.q-row .b{display:flex;flex-direction:column;min-width:0}
+.q-row .t{font-weight:700;font-size:17px;text-decoration:none}
+.q-row .t:hover{text-decoration:underline}
+.q-row .m{font-size:13.5px;color:var(--muted)}
+.q-row .st{font-size:13.5px;color:var(--muted);white-space:nowrap}
+.q-row.is-side{background:transparent;outline:1px dashed var(--rule);outline-offset:-1px}
+.q-row.is-empty{background:transparent;padding-block:6px}
+.side-col{display:flex;flex-direction:column;gap:26px}
+.side-col section{padding:0;display:flex;flex-direction:column;gap:10px}
+.side-h{margin:0;font-size:17px;font-weight:900}
+.log.past .q-row{grid-template-columns:2.5rem minmax(0,1fr) auto;padding:7px 12px;background:transparent;border-bottom:1px solid var(--faint);outline:0}
+.log.past .q-row .n{font-size:18px}
+.log.past .q-row .t{font-size:15px;font-weight:500;color:var(--muted)}
+.log.past .q-row .t:hover{color:var(--ink)}
+.side-note{margin:0;font-size:13.5px;color:var(--muted)}
+.full{margin-top:36px}
+/* 整學期課表：外層當邊線，切掉右上與左下角 */
 .sched{margin-top:16px;background:var(--rule);padding:2px;
   clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 .sched-scroll{position:relative;overflow-x:auto;scroll-behavior:smooth;overscroll-behavior-x:contain;background:var(--surface)}
@@ -260,8 +308,16 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
       <div><h1 id="prog-h">學期進度</h1><p id="prog-sub"></p></div>
       <div class="terms" id="terms" role="group" aria-label="切換學期"></div>
     </div>
-    <div class="pace"><p class="pace-no" id="pace-no"></p><ol class="segs" id="segs" aria-hidden="true"></ol></div>
-    <div class="sched">
+    <div class="board">
+      <div><h2 class="sr">任務清單</h2><ol class="log" id="log"></ol></div>
+      <aside class="side-col">
+        <div class="pace"><p class="pace-no" id="pace-no"></p><ol class="segs" id="segs" aria-hidden="true"></ol></div>
+        <section aria-labelledby="past-h"><h2 class="side-h" id="past-h">已經過去</h2><ol class="log past" id="past"></ol></section>
+        <p class="side-note">虛線框是支線，也就是選修活動，進度落後的班級可以跳過。</p>
+      </aside>
+    </div>
+    <div class="full"><button type="button" class="btn" id="full-btn" aria-expanded="false" aria-controls="sched">看整學期課表</button></div>
+    <div class="sched" id="sched" hidden>
       <div class="sched-scroll" id="sched-scroll"><div class="grid" id="grid"></div></div>
       <div class="sched-foot"><span class="keys" id="keys"></span><span>虛線框是支線，也就是選修活動，進度落後的班級可以跳過。左右滑動可看整學期</span></div>
     </div>
@@ -322,6 +378,27 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
     $('segs').style.setProperty('--w',term.weeks);
     $('segs').innerHTML=Array.from({length:term.weeks},(_,i)=>'<li'+(i<cw?' class="past"':i===cw?' class="cur"':'')+'></li>').join('');
 
+    // 任務清單：本週放大排最前面，接下來依序往下；已經過去的放右欄，新的在上
+    const range=i=>{const [d,e]=clip(term,new Date(ymd(term.start).getTime()+i*7*DAY),new Date(ymd(term.start).getTime()+(i*7+4)*DAY));return md(d)+'–'+md(e)};
+    const many=courses.length>1, cname=a=>many?esc((courses.find(c=>c.id===a.course)||{}).short||'')+'　':'';
+    const kind=a=>a.track==='選修'?'支線':'主線';
+    const big=a=>'<article class="q-big"><p class="q-kind"><span class="tag'+(a.track==='選修'?' side':'')+'">'+kind(a)+'任務</span><span>'+cname(a)+esc(a.topic||'')+'</span></p>'+
+      '<h3><a href="'+esc(a.href)+'">'+esc(a.title)+'</a></h3>'+
+      (a.why?'<p class="q-why">'+esc(a.why)+'</p>':'')+
+      (Array.isArray(a.rounds)&&a.rounds.length?'<ol class="q-rounds" aria-label="關卡">'+a.rounds.map((r,k)=>'<li><span class="num">'+(k+1)+'</span>'+esc(r)+'</li>').join('')+'</ol>':'')+
+      '<a class="btn btn-main" href="'+esc(a.href)+'">開始任務</a></article>';
+    const rows=(i,past)=>{const list=acts.filter(a=>a.w===i);
+      if(!list.length)return past?'':'<li class="q-row is-empty"><span class="n num">'+(i+1)+'</span><span class="b"><span class="m">'+range(i)+'　這週沒有活動</span></span></li>';
+      return list.map((a,k)=>'<li class="q-row'+(a.track==='選修'?' is-side':'')+'"><span class="n num">'+(k?'':i+1)+'</span><span class="b"><a class="t" href="'+esc(a.href)+'">'+esc(a.title)+'</a><span class="m">'+range(i)+(a.topic?'　'+cname(a)+esc(a.topic):'')+'</span></span><span class="st">'+kind(a)+'</span></li>').join('')};
+    let lg='';
+    if(inTerm){const now=acts.filter(a=>a.w===cw);
+      lg+='<li class="q-now" aria-current="date"><div class="q-now-in"><div class="q-when"><span class="num">'+(cw+1)+'</span><b>本週</b><span>'+range(cw)+'</span></div><div class="q-bigs">'+(now.length?now.map(big).join(''):'<p class="q-none">這週沒有活動。</p>')+'</div></div></li>';}
+    for(let i=Math.max(0,cw+(inTerm?1:0));i<term.weeks;i++)lg+=rows(i,false);
+    if(!courses.length)lg='<li class="q-row is-empty"><span class="n num"></span><span class="b"><span class="m">這學期還沒有開設課程。</span></span></li>';
+    $('log').innerHTML=lg||'<li class="q-row is-empty"><span class="n num"></span><span class="b"><span class="m">這學期的任務都結束了。</span></span></li>';
+    let pg='';for(let i=Math.min(term.weeks,cw)-1;i>=0;i--)pg+=rows(i,true);
+    $('past').innerHTML=pg||'<li class="q-row is-empty"><span class="n num"></span><span class="b"><span class="m">還沒有過去的任務。</span></span></li>';
+
     // 表格
     let h='<div class="corner">週次</div>';
     for(let i=0;i<term.weeks;i++){
@@ -348,14 +425,18 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
     $('grid').innerHTML=h;
 
     // 捲到本週（本週放在第二欄的位置，前一週還看得到）
-    if(scroll!==false){
+    toCur=()=>{
       const box=$('sched-scroll'), target=$('wk-'+Math.max(0,Math.min(term.weeks-1,cw-1)));
       const first=box.querySelector('.corner').offsetWidth;
       box.style.scrollBehavior='auto';
       box.scrollLeft=cw<0?0:Math.max(0,target.offsetLeft-first);
       box.style.scrollBehavior='';
-    }
+    };
+    if(scroll!==false&&!$('sched').hidden)toCur();
   }
+  let toCur=()=>{};
+  // 整學期課表預設收合；打開時才捲到本週
+  $('full-btn').onclick=()=>{const open=$('sched').hidden;$('sched').hidden=!open;$('full-btn').setAttribute('aria-expanded',open);$('full-btn').textContent=open?'收起整學期課表':'看整學期課表';if(open)toCur()};
   render(true);
 })();
 

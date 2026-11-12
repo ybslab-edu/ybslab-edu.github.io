@@ -33,7 +33,8 @@ before(async()=>{
     const type=path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
     const source=path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') && !req.headers.referer?.includes('cls=') ? mock : await readFile(new URL('..'+path,import.meta.url),'utf8');
-    res.end(['/115-g9/u2-03/index.html','/115-g9/me/index.html'].includes(path) ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
+    // 保留成長頁的新字型連結；活動頁舊字族不屬本測試範圍，共用外框的新字型仍由白名單驗證。
+    res.end(path==='/115-g9/u2-03/index.html' ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
   });
   await new Promise(ok=>server.listen(0,'127.0.0.1',ok));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true});
@@ -52,8 +53,8 @@ async function pageFor(t,options={},suffix='',context){
     if(r.request().url().startsWith(base+'/'))return r.continue();
     // 真正登入入口會主動還原 Auth；SDK 由離線替身提供，支援 LOCAL 跨分頁同步。
     if(r.request().url().startsWith('https://www.gstatic.com/firebasejs/10.14.1/'))return r.fulfill({contentType:'text/javascript',body:r.request().url().endsWith('/firebase-app-compat.js')?(page.url().includes('cls=')?teacherFirebase:sessionFirebase):'// offline mock'});
-    // 新外框透過 CSS import 載入字型；離線驗證提供空樣式，不對外下載。
-    if(new URL(r.request().url()).hostname==='fonts.googleapis.com')return r.fulfill({contentType:'text/css',body:'/* offline font fallback */'});
+    // 僅接受實際使用的兩種字族與字重；空 CSS 不引用字型檔，任何其他字型網址均視為違規。
+    if(r.request().url()==='https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap')return r.fulfill({contentType:'text/css',body:'/* offline font fallback */'});
     outside.push(r.request().url());return r.abort();
   });
   await page.clock.setFixedTime(new Date('2026-11-09T04:00:00Z'));

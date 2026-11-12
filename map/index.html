@@ -259,14 +259,15 @@ footer{background:var(--void);border-top:2px solid var(--edge)}
 .spec{background:var(--panel-hi)}
 .views button,.terms button,.close,.act .play,.lvtag,.optag,.trk,.ph .code{clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%);border-radius:0}
 .views button,.terms button,.close{background:var(--panel-hi);color:var(--text);padding:8px 16px;font-weight:700}
-.views button[aria-pressed="true"]{background:var(--ember);color:var(--on-ember);border-color:var(--ember)}
-.curtabs button[aria-selected="true"]{border-bottom-color:var(--ember)}
+.views button[aria-pressed="true"]{background:var(--edge);color:var(--text);border-color:var(--edge)}
+.curtabs button[aria-selected="true"]{border-bottom-color:var(--text)}
 .act .play{background:var(--ember);color:var(--on-ember)}
 .track::before{border-radius:0}
 .ph .code,.st .cd,.nd .cd{font-family:var(--f-num);font-weight:600;font-style:italic}
 .ph .code,.hub text,.nd.has .gr{color:var(--void);fill:var(--void)}
 .st:focus-visible{outline-offset:0}
-.views button:focus-visible,.close:focus-visible,.act .play:focus-visible{outline-offset:-4px}
+.views button:focus-visible,.terms button:focus-visible,.close:focus-visible,.act .play:focus-visible{outline-offset:-5px}
+.act .play:focus-visible{outline-color:var(--on-ember)}
 .ph .code{padding-inline:12px}
 .trk,.optag{padding-inline:10px}
 .lvtag{padding-inline:14px}
@@ -322,7 +323,7 @@ button:hover,.play:hover{filter:brightness(1.12)}
 const $=id=>document.getElementById(id);
 /* 頁首動畫：whY Because So 依序亮起 */
 requestAnimationFrame(()=>setTimeout(()=>$('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));
-const trk=a=>a.track==='選修'?'<span class="trk opt" title="進度落後的班級可以跳過">選修</span>':'<span class="trk req">必修</span>';
+const trk=a=>a.track==='選修'?'<span class="trk opt" title="進度落後的班級可以跳過">支線</span>':'<span class="trk req">主線</span>';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const courseOf=id=>COURSES.find(c=>c.open&&c.id===id)||{name:id,path:'#'};
 const openActivities=ACTIVITIES.filter(a=>COURSES.some(c=>c.open&&c.id===a.course));
@@ -465,7 +466,7 @@ function open(code,scroll){
     (acts.length?'<div class="acts">'+acts.map(a=>{
       const c=courseOf(a.course);
       return '<article class="act"><div><h4>'+esc(a.title)+trk(a)+'</h4><p class="meta">'+esc(c.name)+(termWeekLabel(a)?' '+termWeekLabel(a):'')+'｜'+esc(a.topic)+'</p></div>'+
-        '<a class="play" href="../'+esc(a.href)+'">開始活動</a>'+
+        '<a class="play" href="../'+esc(a.href)+'">開始任務</a>'+
         '<dl class="wbs"><dt>Why</dt><dd>'+esc(a.why)+'</dd><dt>Because</dt><dd>'+esc(a.because)+'</dd><dt>So</dt><dd>'+esc(a.so)+'</dd></dl></article>';
     }).join('')+'</div>':'<p class="empty">這一項的課堂活動還在準備中。</p>');
   pn.hidden=false;

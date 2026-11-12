@@ -51,7 +51,7 @@ main{flex:1}
 .logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
 .logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
 .logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
-.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto{font-size:17px;font-weight:700;color:var(--dim);display:inline-flex;gap:.35em;white-space:nowrap}
 .motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
 .motto.lit .k{transform:translateY(-.05em) scale(1.25)}
 .motto.lit .k.y{color:var(--why);transition-delay:.15s}
@@ -194,7 +194,7 @@ main{flex:1}
 .terms{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .terms button{font:inherit;font-size:14.5px;font-weight:700;border:0;background:var(--faint);color:var(--ink);padding:6px 18px;cursor:pointer;
   clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
-.terms button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.terms button[aria-pressed="true"]{background:var(--edge);color:var(--text)}
 .terms .jump{background:var(--ember);color:var(--on-ember)}
 /* 學期走到哪：一週一格 */
 .pace{display:flex;flex-direction:column;gap:8px}
@@ -209,6 +209,8 @@ main{flex:1}
 .btn{font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;border:0;padding:10px 26px;color:var(--ink);background:var(--faint);
   clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
 .btn-main{background:var(--ember);color:var(--on-ember)}
+.terms button:focus-visible,.btn:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
+.terms .jump:focus-visible,.btn-main:focus-visible{outline-color:var(--on-ember)}
 .btn:hover{filter:brightness(1.12)}
 .board{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:28px 44px;margin-top:26px;align-items:start}
 @media (max-width:900px){.board{grid-template-columns:minmax(0,1fr)}}

@@ -222,8 +222,10 @@ body .verdict.mid{color:var(--text)}
 body .gerr:not(:empty){background:var(--alert-wash);padding:var(--u)}
 body .gate{width:100%;min-width:0;max-width:min(680px,calc(100% - 32px))}
 body .field input,body .txt-in,body .num-in{background:var(--panel-hi)}
-body :focus-visible{outline:3px solid var(--text);outline-offset:2px}
-body .btn:focus-visible,body .pk:focus-visible,body .rounds button:focus-visible{outline:3px solid var(--text);outline-offset:-5px}
+body :focus-visible{outline:3px solid var(--frost);outline-offset:2px}
+body .btn:focus-visible,body .pk:focus-visible,body .tag:focus-visible,body .sync:focus-visible,body .rounds button:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
+body .btn.primary:focus-visible{outline-color:var(--on-ember)}
+body .pk[aria-pressed="true"],body .row .pk[aria-pressed="true"],body .panel .pk[aria-pressed="true"]{background:var(--edge);color:var(--text)}
 body #stage,body #original-work,body .sec,body .order .tk{min-width:0}
 body .order .tk{flex-wrap:wrap;overflow-wrap:anywhere}
 body .order .tk b{flex-shrink:0}

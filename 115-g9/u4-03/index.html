@@ -10,18 +10,21 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
 <style>
+:root{--teach-dead:#B3261E;--teach-light:#FFFFFF;--teach-strong:#2B7A4C;
+--teach-good:#8CC79F;--teach-good-ink:#13301D;--teach-fair:#F4D58D;--teach-fair-ink:#3A2C00;
+--teach-weak:#E8A49C;--teach-weak-ink:#3D0D09}
 /* 第 18 週：無線網路技術與應用。活動中心平面圖：一格約 3 公尺，粗線是牆 */
-.floor{display:grid;gap:0;background:var(--surface);border:3px solid var(--ink);border-radius:6px;max-width:640px;overflow:hidden}
+.floor{display:grid;gap:0;background:var(--surface);border:3px solid var(--ink);border-radius:0;max-width:640px;overflow:hidden}
 .floor .c{position:relative;aspect-ratio:1;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:clamp(10px,2.3vw,14px);color:var(--ink);background:var(--surface);padding:0;min-width:0}
 .floor button.c{cursor:pointer}
 .floor .c.wr{border-right:4px solid var(--ink)}.floor .c.wb{border-bottom:4px solid var(--ink)}
-.floor .c.dead{background:#B3261E;color:#fff;font-weight:700}
-.floor .c.ap::after{content:"📶";position:absolute;top:1px;right:2px;font-size:clamp(9px,2vw,13px)}
+.floor .c.dead{background:var(--teach-dead);color:var(--teach-light);font-weight:700}
+.floor .c.ap::after{content:"";position:absolute;top:2px;right:2px;width:8px;height:8px;border:2px solid currentColor;border-left-color:transparent;border-bottom-color:transparent;border-radius:50%}
 .floor .c.cand{font-family:var(--f-body);font-weight:700;font-size:clamp(13px,3vw,18px);background:var(--bg)}
 .floor .c.cand[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.floor .c.h0{background:#2B7A4C;color:#fff}.floor .c.h1{background:#8CC79F;color:#13301d}.floor .c.h2{background:#F4D58D;color:#3a2c00}.floor .c.h3{background:#E8A49C;color:#3d0d09}
+.floor .c.h0{background:var(--teach-strong);color:var(--teach-light)}.floor .c.h1{background:var(--teach-good);color:var(--teach-good-ink)}.floor .c.h2{background:var(--teach-fair);color:var(--teach-fair-ink)}.floor .c.h3{background:var(--teach-weak);color:var(--teach-weak-ink)}
 .scale{display:flex;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-.scale span{border-radius:6px;padding:2px 8px}
+.scale span{border-radius:0;padding:2px 8px}
 </style>
 </head>
 <body>
@@ -67,7 +70,7 @@ function FLOOR(el,{w,cls,txt,click,pressed}){
     if(click)box.querySelectorAll('button.c').forEach(b=>b.onclick=()=>click.on(+b.dataset.i));
   };draw();return draw;
 }
-const scaleHTML='<div class="scale"><span style="background:#2B7A4C;color:#fff">-55 以上 很強</span><span style="background:#8CC79F;color:#13301d">-56～-65 好</span><span style="background:#F4D58D;color:#3a2c00">-66～-70 勉強</span><span style="background:#E8A49C;color:#3d0d09">比 -70 弱 死角</span></div>';
+const scaleHTML='<div class="scale"><span style="background:var(--teach-strong);color:var(--teach-light)">-55 以上 很強</span><span style="background:var(--teach-good);color:var(--teach-good-ink)">-56～-65 好</span><span style="background:var(--teach-fair);color:var(--teach-fair-ink)">-66～-70 勉強</span><span style="background:var(--teach-weak);color:var(--teach-weak-ink)">比 -70 弱 死角</span></div>';
 
 const ROUNDS=[
  {lv:1,name:'選無線技術',

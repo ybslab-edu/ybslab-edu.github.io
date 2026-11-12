@@ -20,7 +20,7 @@
 .t-alu{color:var(--alu);background:var(--alu-soft)} .t-out{color:var(--out);background:var(--out-soft)}
 
 .wall{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.cell{border:2px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;transition:border-color .2s,background .2s}
+.cell{border:2px solid var(--line);background:var(--bg);border-radius:0;padding:6px 10px;display:flex;flex-direction:column;transition:border-color .2s,background .2s}
 .cell .addr{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 .cell .lab{font-size:14px;color:var(--muted)}
 .cell .val{font-family:var(--f-mono);font-size:22px;font-weight:700;color:var(--mem);min-height:1.3em}
@@ -29,13 +29,13 @@
 
 .pool,.slots{display:flex;flex-direction:column;gap:8px}
 .pool{flex-direction:row;flex-wrap:wrap}
-.card{font:inherit;font-size:16px;text-align:left;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:9px 12px;cursor:pointer;line-height:1.35}
+.card{font:inherit;font-size:16px;text-align:left;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:0;padding:9px 12px;cursor:pointer;line-height:1.35}
 .card:hover{border-color:var(--ink)}
 .card.used{visibility:hidden}
 .slot{display:flex;align-items:center;gap:10px;min-height:48px}
-.slot .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700;font-family:var(--f-mono)}
+.slot .n{flex:none;width:30px;height:30px;border-radius:0;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700;font-family:var(--f-mono)}
 .slot .card{flex:1}
-.slot .empty{flex:1;border:2px dashed var(--line);border-radius:10px;min-height:44px;display:flex;align-items:center;padding-inline:12px;color:var(--muted);font-size:14px}
+.slot .empty{flex:1;border:2px dashed var(--line);border-radius:0;min-height:44px;display:flex;align-items:center;padding-inline:12px;color:var(--muted);font-size:14px}
 .slot.now .card{border-color:var(--cu);background:var(--cu-soft)}
 .slot.bad .card{border-color:var(--warn)}
 
@@ -51,6 +51,15 @@
 .outv.no{color:var(--warn)}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* 角色色帶優先於共用 panel 的邊框；圓形步驟改用任務標籤。 */
+body .cpu-unit{border-left-width:6px}
+body .cpu-unit.cu{border-left-color:var(--cu)}
+body .cpu-unit.alu{border-left-color:var(--alu)}
+body .cpu-unit.outp{border-left-color:var(--out)}
+body .tag.t-mem{color:var(--mem)} body .tag.t-cu{color:var(--cu)}
+body .tag.t-alu{color:var(--alu)} body .tag.t-out{color:var(--out)}
+.card{clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+.card:focus-visible{outline:3px solid var(--text);outline-offset:-4px}
 </style>
 </head>
 <body>

@@ -9,6 +9,36 @@
 <meta http-equiv="refresh" content="0; url=../">
 <link rel="canonical" href="../">
 <script>location.replace('../'+location.hash)</script>
+<style>
+:root{
+  color-scheme:dark;
+  --void:#12151C;       /* 頁面底 */
+  --panel:#1C212C;      /* 面板 */
+  --panel-hi:#252C3A;   /* 面板內的欄位、次要按鈕 */
+  --edge:#3B455C;       /* 面板邊線與分隔 */
+  --text:#E6E9EF;       /* 主要文字 */
+  --dim:#98A2B8;        /* 次要文字、已完成項目的標題 */
+  --ember:#FF6B3D;      /* 只代表「現在這個任務」與主要按鈕 */
+  --on-ember:#12151C;
+  --frost:#6FD6E8;      /* 只代表經驗值與已完成的進度 */
+  --alert:#FF9C8F;      /* 錯誤文字與錯誤邊框 */
+  --alert-wash:#3A2224; /* 錯誤訊息底 */
+  --f-num:"Barlow Condensed","Noto Sans TC",sans-serif;   /* 等級、經驗值、編號；斜體 600／700 */
+  --f-text:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; /* 400／500／700／900 */
+  --u:0.5rem;           /* 間距單位，全部用它的倍數 */
+  --cut:14px;           /* 面板切角 */
+  --slant:10px;         /* 按鈕與標籤的斜邊 */
+  --skew:-20deg;        /* 進度格與經驗條的傾斜 */
+
+}
+
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--void);color:var(--text);font:1rem/1.7 var(--f-text);padding:calc(var(--u)*5)}
+p{max-width:640px;margin:0 auto;padding:calc(var(--u)*3);background:var(--panel);border:2px solid var(--edge);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+a{color:var(--text);text-underline-offset:.2em}
+:focus-visible{outline:3px solid var(--frost);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body><p>這一頁已經合併到 <a href="../">YBS Lab 首頁</a>。</p></body>
 </html>

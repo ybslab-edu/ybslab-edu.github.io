@@ -7,47 +7,79 @@
 <title>找不到這一頁｜YBS Lab</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
 :root{
-  --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
-  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C; --L:#5C940D; --Da:#9C36B5; --I:#364FC7;
-  --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
-  --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:dark;
+  --void:#12151C;       /* 頁面底 */
+  --panel:#1C212C;      /* 面板 */
+  --panel-hi:#252C3A;   /* 面板內的欄位、次要按鈕 */
+  --edge:#3B455C;       /* 面板邊線與分隔 */
+  --text:#E6E9EF;       /* 主要文字 */
+  --dim:#98A2B8;        /* 次要文字、已完成項目的標題 */
+  --ember:#FF6B3D;      /* 只代表「現在這個任務」與主要按鈕 */
+  --on-ember:#12151C;
+  --frost:#6FD6E8;      /* 只代表經驗值與已完成的進度 */
+  --alert:#FF9C8F;      /* 錯誤文字與錯誤邊框 */
+  --alert-wash:#3A2224; /* 錯誤訊息底 */
+  --f-num:"Barlow Condensed","Noto Sans TC",sans-serif;   /* 等級、經驗值、編號；斜體 600／700 */
+  --f-text:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; /* 400／500／700／900 */
+  --u:0.5rem;           /* 間距單位，全部用它的倍數 */
+  --cut:14px;           /* 面板切角 */
+  --slant:10px;         /* 按鈕與標籤的斜邊 */
+  --skew:-20deg;        /* 進度格與經驗條的傾斜 */
+  /* 與首頁一致的品牌字母色 */
+  --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A;
+  --bg:var(--void); --surface:var(--panel); --ink:var(--text); --muted:var(--dim); --rule:var(--edge); --faint:var(--panel-hi); --f:var(--f-text);
+
 }
-@media (prefers-color-scheme: dark){:root{
-  --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
-  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
+
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
 a{color:inherit}
-:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:6px}
+:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:0}
 .in{max-width:1180px;margin:0 auto;padding-inline:20px}
 
 /* 頁首 */
-.bar{background:var(--surface);border-bottom:1px solid var(--rule)}
+.bar{background:var(--bg);border-bottom:2px solid var(--rule)}
 .bar .in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
 .logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
 .logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
 .logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
-.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
-.motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
-.motto.lit .k{transform:translateY(-.05em) scale(1.25)}
-.motto.lit .k.y{color:var(--why);transition-delay:.15s}
-.motto.lit .k.b{color:var(--because);transition-delay:.45s}
-.motto.lit .k.s{color:var(--so);transition-delay:.75s}
+.motto{font-size:17px;font-weight:700;color:var(--dim);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto .k{display:inline-block}
+
+.motto.lit .k.y{color:var(--why);}
+.motto.lit .k.b{color:var(--because);}
+.motto.lit .k.s{color:var(--so);}
 @media (max-width:420px){.motto{font-size:15px}}
 .bar nav{display:flex;gap:20px;font-size:15px}
 .bar nav a{text-decoration:none;color:var(--muted)}
 .bar nav a:hover{color:var(--ink)}
+.bar nav a[aria-current="page"]{color:var(--ink);font-weight:700;border-bottom:2px solid var(--ember);padding-bottom:2px}
+
+
 
 
 main.in{max-width:640px;padding-block:72px 48px}
 h1{margin:0;font-size:clamp(28px,4.4vw,38px);font-weight:900;line-height:1.25}
 p{margin:12px 0 0;color:var(--muted)}
 .go{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
-.go a{text-decoration:none;font-weight:700;border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:8px 18px}
+.go a{text-decoration:none;font-weight:700;border:1px solid var(--rule);background:var(--surface);border-radius:0;padding:8px 18px}
 .go a.main{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* 任務日誌：共用閱讀、鍵盤焦點與頁尾 */
+body{min-height:100vh;display:flex;flex-direction:column}
+main{flex:1;min-width:0}
+:focus-visible{outline:3px solid var(--frost);outline-offset:2px;border-radius:0}
+h1,h2{font-weight:900}
+footer{background:var(--void);border-top:2px solid var(--edge)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.go a{background:var(--panel-hi);color:var(--text);clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%);padding:10px 24px;border:0}
+.go a.main{background:var(--ember);color:var(--on-ember)}
+.go a:hover{filter:brightness(1.12)}
+.go a:focus-visible{outline-offset:-4px}
 </style>
 </head>
 <body>

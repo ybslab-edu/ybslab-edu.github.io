@@ -19,11 +19,11 @@ const OPEN = {
     if (!courseClosed && (list.includes(sub) || (a && isActivityOpen(a)))) return;
     const d = document.createElement('div');
     d.id = 'ybs-lock';
-    d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:#14161b;color:#e8eaee;font:18px/1.6 system-ui,"Noto Sans TC",sans-serif;text-align:center';
-    d.innerHTML = '<div style="max-width:420px"><div style="font-size:44px">🔒</div><h1 style="font-size:26px;margin:8px 0">' + (courseClosed ? '本學年未開設這門課' : '這個活動還沒開放') + '</h1>'
-      + '<p style="color:#a9b0bb;margin:0 0 20px">請回到 YBS Lab 首頁，做老師這週指定的活動。</p>'
-      + '<p><a href="/" style="color:#8ab4f8">← 回 YBS Lab 首頁</a></p>'
-      + '<p style="margin-top:28px"><button type="button" id="ybs-unlock" style="background:none;border:0;color:#6b7280;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">教師解鎖</button></p></div>';
+    d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;--void:#12151C;--panel:#1C212C;--panel-hi:#252C3A;--edge:#3B455C;--text:#E6E9EF;--dim:#98A2B8;--ember:#FF6B3D;--on-ember:#12151C;--cut:14px;--slant:10px;background:var(--void);color:var(--text);font:18px/1.6 "Noto Sans TC",system-ui,sans-serif;text-align:center;color-scheme:dark';
+    d.innerHTML = '<div style="max-width:480px;min-width:0;padding:32px 24px;background:var(--panel);border:2px solid var(--edge);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))"><div style="display:none">🔒</div><h1 style="font-size:26px;font-weight:900;margin:8px 0">' + (courseClosed ? '本學年未開設這門課' : '這個活動還沒開放') + '</h1>'
+      + '<p style="color:var(--dim);margin:0 0 20px">請回到 YBS Lab 首頁，做老師這週指定的活動。</p>'
+      + '<p><a href="/" style="display:inline-block;max-width:100%;padding:10px 24px;background:var(--ember);color:var(--on-ember);font-weight:700;text-decoration:none;outline-offset:-4px;clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)">← 回 YBS Lab 首頁</a></p>'
+      + '<p style="margin-top:28px"><button type="button" id="ybs-unlock" style="background:none;border:0;color:var(--dim);font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">教師解鎖</button></p></div>';
     document.body.appendChild(d);
     document.getElementById('ybs-unlock').onclick = async () => {
       const code = prompt('教師通行碼');

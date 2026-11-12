@@ -8,20 +8,21 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261113q1">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261113q2">
 <style>
-:root{--teach-dead:#B3261E;--teach-light:#FFFFFF;--teach-strong:#2B7A4C;
+:root{--teach-wall:#12151C;--teach-dead:#B3261E;--teach-light:#FFFFFF;--teach-strong:#2B7A4C;
 --teach-good:#8CC79F;--teach-good-ink:#13301D;--teach-fair:#F4D58D;--teach-fair-ink:#3A2C00;
 --teach-weak:#E8A49C;--teach-weak-ink:#3D0D09}
 /* 第 18 週：無線網路技術與應用。活動中心平面圖：一格約 3 公尺，粗線是牆 */
 .floor{display:grid;gap:0;background:var(--surface);border:3px solid var(--ink);border-radius:0;max-width:640px;overflow:hidden}
-.floor .c{position:relative;aspect-ratio:1;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:clamp(10px,2.3vw,14px);color:var(--ink);background:var(--surface);padding:0;min-width:0}
+.floor .c{--floor-wall:var(--ink);position:relative;aspect-ratio:1;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:clamp(10px,2.3vw,14px);color:var(--ink);background:var(--surface);padding:0;min-width:0}
 .floor button.c{cursor:pointer}
-.floor .c.wr{border-right:4px solid var(--ink)}.floor .c.wb{border-bottom:4px solid var(--ink)}
+.floor .c.wr{border-right:4px solid var(--floor-wall)}.floor .c.wb{border-bottom:4px solid var(--floor-wall)}
 .floor .c.dead{background:var(--teach-dead);color:var(--teach-light);font-weight:700}
 .floor .c.ap::after{content:"";position:absolute;top:2px;right:2px;width:8px;height:8px;border:2px solid currentColor;border-left-color:transparent;border-bottom-color:transparent;border-radius:50%}
 .floor .c.cand{font-family:var(--f-body);font-weight:700;font-size:clamp(13px,3vw,18px);background:var(--bg)}
 .floor .c.cand[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.floor .c.h0,.floor .c.h1,.floor .c.h2,.floor .c.h3{--floor-wall:var(--teach-wall)}
 .floor .c.h0{background:var(--teach-strong);color:var(--teach-light)}.floor .c.h1{background:var(--teach-good);color:var(--teach-good-ink)}.floor .c.h2{background:var(--teach-fair);color:var(--teach-fair-ink)}.floor .c.h3{background:var(--teach-weak);color:var(--teach-weak-ink)}
 .scale{display:flex;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
 .scale span{border-radius:0;padding:2px 8px}

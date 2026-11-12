@@ -21,11 +21,12 @@
   --slant:10px;         /* 按鈕與標籤的斜邊 */
   --skew:-20deg;        /* 進度格與經驗條的傾斜 */
 
-  /* 保留活動頁沿用的名稱；四種教學角色仍有不同色彩。 */
-  --teach-memory:#5AA9F0; --teach-alu:#F4B26A; --teach-input:#3BC0D6; --teach-control:#C7B0F0;
+  /* 保留活動頁沿用的名稱；教學角色仍有不同色彩。 */
+  --teach-memory:#5AA9F0; --teach-alu:#F4B26A; --teach-input:#3BC0D6; --teach-control:#C7B0F0; --teach-output:#5CC977;
   --bg:var(--void); --surface:var(--panel); --ink:var(--text); --muted:var(--dim); --line:var(--edge);
   --a:var(--teach-memory); --b:var(--teach-alu); --c:var(--teach-input); --cu:var(--teach-control);
   --a-soft:var(--panel-hi); --b-soft:var(--panel-hi); --c-soft:var(--panel-hi); --cu-soft:var(--panel-hi);
+  /* --out 僅保留給既有成功狀態；輸出教學角色直接用 --teach-output。 */
   --out:var(--frost); --out-soft:var(--panel-hi); --round-passed-ink:var(--frost);
   --warn:var(--alert); --warn-soft:var(--alert-wash);
   --f-display:var(--f-text); --f-body:var(--f-text); --f-mono:var(--f-num);
@@ -198,7 +199,17 @@ body #b-retry:hover{background:var(--warn-soft)}
 body a{color:var(--text);text-underline-offset:.2em}
 body h1,body h2,body h3{font-weight:900}
 body .wrap{gap:calc(var(--u)*2);padding-block:calc(var(--u)*3) calc(var(--u)*5)}
-body .order,body .panel,body .gate,body .warmup,body header.top,body .verdict,body .xp-title-card{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));}
+body .order,body .gate,body .warmup,body header.top,body .verdict,body .xp-title-card{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));}
+/* 漸層只繪製兩個切角與邊線，不裁切面板內容或建立拖曳堆疊邊界。 */
+body .panel{
+  border-color:transparent;
+  background:
+    linear-gradient(45deg,transparent calc((var(--cut) - 1px)*.70710678),var(--surface) 0) left / 51% 100% padding-box,
+    linear-gradient(225deg,transparent calc((var(--cut) - 1px)*.70710678),var(--surface) 0) right / 51% 100% padding-box,
+    linear-gradient(45deg,transparent calc(var(--cut)*.70710678),var(--line) 0) left / 51% 100% border-box,
+    linear-gradient(225deg,transparent calc(var(--cut)*.70710678),var(--line) 0) right / 51% 100% border-box;
+  background-repeat:no-repeat;
+}
 body .btn,body .pk,body .tag,body .order .tk b,body .sync{clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%);}
 body .btn,body .pk{background:var(--panel-hi);max-width:100%;overflow-wrap:anywhere}
 body .btn:not(:disabled):hover,body .pk:not(:disabled):hover{border-color:var(--text)}

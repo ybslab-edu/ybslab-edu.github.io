@@ -9,7 +9,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261113q1">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261113q2">
 <style>
 /* Layout: 上方客人點單 → 中間「單子盒」點卡片放進「順序格」 → 下方店長／搖飲師／出餐口即時演出；單元顏色與簡報一致 */
 :root{--mem:var(--a);--mem-soft:var(--a-soft);--alu:var(--b);--alu-soft:var(--b-soft)}
@@ -17,7 +17,7 @@
 @media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
 .ptitle h2{margin:0;font-family:var(--f-display);font-size:19px}
 .t-mem{color:var(--mem);background:var(--mem-soft)} .t-cu{color:var(--cu);background:var(--cu-soft)}
-.t-alu{color:var(--alu);background:var(--alu-soft)} .t-out{color:var(--out);background:var(--out-soft)}
+.t-alu{color:var(--alu);background:var(--alu-soft)} .t-out{color:var(--teach-output);background:var(--out-soft)}
 
 .wall{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .cell{border:2px solid var(--line);background:var(--bg);border-radius:0;padding:6px 10px;display:flex;flex-direction:column;transition:border-color .2s,background .2s}
@@ -43,11 +43,11 @@
 .stage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 @media (max-width:700px){.stage{grid-template-columns:minmax(0,1fr)}}
 .cpu-unit{border-left:6px solid var(--line);min-height:120px}
-.cpu-unit.cu{border-left-color:var(--cu)} .cpu-unit.alu{border-left-color:var(--alu)} .cpu-unit.outp{border-left-color:var(--out)}
-.cpu-unit.on.cu{background:var(--cu-soft)} .cpu-unit.on.alu{background:var(--alu-soft)} .cpu-unit.on.outp{background:var(--out-soft)}
+.cpu-unit.cu{border-left-color:var(--cu)} .cpu-unit.alu{border-left-color:var(--alu)} .cpu-unit.outp{border-left-color:var(--teach-output)}
+.cpu-unit.on.cu{--surface:var(--cu-soft)} .cpu-unit.on.alu{--surface:var(--alu-soft)} .cpu-unit.on.outp{--surface:var(--out-soft)}
 .cpu-unit .say{font-size:16px;min-height:3em}
 .hand{font-family:var(--f-mono);font-size:30px;font-weight:700;color:var(--alu);line-height:1}
-.outv{font-size:24px;font-weight:700;color:var(--out)}
+.outv{font-size:24px;font-weight:700;color:var(--teach-output)}
 .outv.no{color:var(--warn)}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -55,9 +55,9 @@
 body .cpu-unit{border-left-width:6px}
 body .cpu-unit.cu{border-left-color:var(--cu)}
 body .cpu-unit.alu{border-left-color:var(--alu)}
-body .cpu-unit.outp{border-left-color:var(--out)}
+body .cpu-unit.outp{border-left-color:var(--teach-output)}
 body .tag.t-mem{color:var(--mem)} body .tag.t-cu{color:var(--cu)}
-body .tag.t-alu{color:var(--alu)} body .tag.t-out{color:var(--out)}
+body .tag.t-alu{color:var(--alu)} body .tag.t-out{color:var(--teach-output)}
 .card{clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
 .card:focus-visible{outline:3px solid var(--text);outline-offset:-4px}
 </style>

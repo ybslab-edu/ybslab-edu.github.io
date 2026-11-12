@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261113q1">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261113q2">
 <style>
 /* Layout: 由上而下三段：① 任務說明 → ② 排出運作流程（可用的步驟／你的順序）→ ③ 播放（RAM、儲存空間、小安看到、觸控螢幕／CPU／螢幕畫面）；顏色與簡報一致 */
 :root{
@@ -59,10 +59,10 @@ button:focus-visible{outline:3px solid var(--mem);outline-offset:2px}
 .tag{font-size:12px;letter-spacing:.05em;font-weight:700;padding:2px 8px;border-radius:0}
 .t-mem{color:var(--mem);background:var(--mem-soft)} .t-disk{color:var(--disk);background:var(--disk-soft)}
 .t-cu{color:var(--cu);background:var(--cu-soft)} .t-in{color:var(--in);background:var(--in-soft)}
-.t-out{color:var(--out);background:var(--out-soft)}
+.t-out{color:var(--teach-output);background:var(--out-soft)}
 
 .light{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700}
-.light::before{content:"";width:10px;height:10px;border-radius:0;background:var(--out)}
+.light::before{content:"";width:10px;height:10px;border-radius:0;background:var(--text)}
 .light.off{color:var(--muted)} .light.off::before{background:var(--line)}
 .wall{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .wall.dark{opacity:1;border-left:2px dashed var(--edge)}
@@ -123,13 +123,13 @@ body.dragging-now{user-select:none;cursor:grabbing}
 .stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:12px}
 @media (max-width:700px){.stage{grid-template-columns:minmax(0,1fr)}}
 .cpu-unit{border-left:6px solid var(--line);min-height:120px}
-.cpu-unit.inp{border-left-color:var(--in)} .cpu-unit.cpu{border-left-color:var(--cu)} .cpu-unit.outp{border-left-color:var(--out)}
-.cpu-unit.on.inp{background:var(--in-soft)} .cpu-unit.on.cpu{background:var(--cu-soft)} .cpu-unit.on.outp{background:var(--out-soft)}
+.cpu-unit.inp{border-left-color:var(--in)} .cpu-unit.cpu{border-left-color:var(--cu)} .cpu-unit.outp{border-left-color:var(--teach-output)}
+.cpu-unit.on.inp{--surface:var(--in-soft)} .cpu-unit.on.cpu{--surface:var(--cu-soft)} .cpu-unit.on.outp{--surface:var(--out-soft)}
 .cpu-unit .say{font-size:16px;min-height:3em}
 .hand{font-family:var(--f-mono);font-size:22px;font-weight:700;color:var(--alu);line-height:1.2}
 .hand small{font-family:var(--f-body);font-size:13px;color:var(--muted);font-weight:500}
 .inv,.outv{font-size:22px;font-weight:700}
-.inv{color:var(--in)} .outv{color:var(--out)}
+.inv{color:var(--in)} .outv{color:var(--teach-output)}
 .clock{font-family:var(--f-mono);font-size:14px;color:var(--muted)}
 
 .verdict{border-radius:0;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
@@ -145,9 +145,9 @@ body.teacher .slot .card{cursor:pointer}
 body .cpu-unit{border-left-width:6px}
 body .cpu-unit.inp{border-left-color:var(--in)}
 body .cpu-unit.cpu{border-left-color:var(--cu)}
-body .cpu-unit.outp{border-left-color:var(--out)}
+body .cpu-unit.outp{border-left-color:var(--teach-output)}
 body .tag.t-mem{color:var(--mem)} body .tag.t-disk{color:var(--disk)}
-body .tag.t-cu{color:var(--cu)} body .tag.t-in{color:var(--in)} body .tag.t-out{color:var(--out)}
+body .tag.t-cu{color:var(--cu)} body .tag.t-in{color:var(--in)} body .tag.t-out{color:var(--teach-output)}
 .card{clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
 .card:focus-visible{outline:3px solid var(--text);outline-offset:-4px}
 .light::before{border-radius:50%} /* 開機燈的圓形是教學視覺。 */

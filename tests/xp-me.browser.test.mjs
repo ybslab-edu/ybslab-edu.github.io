@@ -33,7 +33,7 @@ before(async()=>{
     const type=path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
     const source=path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') && !req.headers.referer?.includes('cls=') ? mock : await readFile(new URL('..'+path,import.meta.url),'utf8');
-    res.end(path==='/115-g9/u2-03/index.html' ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
+    res.end(['/115-g9/u2-03/index.html','/115-g9/me/index.html'].includes(path) ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
   });
   await new Promise(ok=>server.listen(0,'127.0.0.1',ok));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true});
@@ -113,7 +113,8 @@ for(const [width,colorScheme,reducedMotion] of [[1440,'light','no-preference'],[
     assert.equal(await page.locator('#xp-details').getAttribute('open'),null);
     assert.equal(await page.locator('#details').isVisible(),false);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    if(colorScheme==='dark')assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(17, 22, 27)');
+    // 任務日誌主題只做深色：不論系統偏好，底色都是同一個
+    assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(18, 21, 28)');
     const name=colorScheme==='dark'?'dark':width===390?'mobile':'desktop';
     await page.screenshot({path:'/tmp/ybs-me-impl-shots/'+name+'.png',fullPage:true});
     await page.click('#xp-details > summary');

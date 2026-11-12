@@ -389,7 +389,7 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
       '<a class="btn btn-main" href="'+esc(a.href)+'">開始任務</a></article>';
     const rows=(i,past)=>{const list=acts.filter(a=>a.w===i);
       if(!list.length)return past?'':'<li class="q-row is-empty"><span class="n num">'+(i+1)+'</span><span class="b"><span class="m">'+range(i)+'　這週沒有活動</span></span></li>';
-      return list.map((a,k)=>'<li class="q-row'+(a.track==='選修'?' is-side':'')+'"><span class="n num">'+(k?'':i+1)+'</span><span class="b"><a class="t" href="'+esc(a.href)+'">'+esc(a.title)+'</a><span class="m">'+range(i)+(a.topic?'　'+cname(a)+esc(a.topic):'')+'</span></span><span class="st">'+kind(a)+'</span></li>').join('')};
+      return list.map((a,k)=>'<li class="q-row'+(a.track==='選修'?' is-side':'')+'"><span class="n num">'+(k?'':i+1)+'</span><span class="b"><a class="t" href="'+esc(a.href)+'">'+esc(a.title)+'</a><span class="m">'+range(i)+(!past&&a.topic?'　'+cname(a)+esc(a.topic):'')+'</span></span><span class="st">'+kind(a)+'</span></li>').join('')};
     let lg='';
     if(inTerm){const now=acts.filter(a=>a.w===cw);
       lg+='<li class="q-now" aria-current="date"><div class="q-now-in"><div class="q-when"><span class="num">'+(cw+1)+'</span><b>本週</b><span>'+range(cw)+'</span></div><div class="q-bigs">'+(now.length?now.map(big).join(''):'<p class="q-none">這週沒有活動。</p>')+'</div></div></li>';}

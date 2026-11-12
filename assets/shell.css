@@ -109,6 +109,8 @@ body .gate p{margin:0;color:var(--muted);text-align:center}
 body .field{display:flex;flex-direction:column;gap:4px}
 body .field label{font-weight:700}
 body .field input{font-family:var(--f-mono);font-size:26px;padding:8px 12px;border-radius:0;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+/* 深色欄位不可沿用瀏覽器的低對比提示字。 */
+body .field input::placeholder{color:var(--dim);opacity:1}
 body .field input:focus{outline:3px solid var(--text);outline-offset:2px;border-color:var(--text)}
 body .field .hint{font-size:13.5px;color:var(--muted)}
 body .gerr{color:var(--warn);font-size:14.5px;min-height:1.4em;text-align:center}
@@ -171,6 +173,7 @@ body .xp-header progress::-webkit-progress-value{background:var(--frost)}
 body .xp-header progress::-moz-progress-bar{background:var(--frost)}
 body .xp-header .small{grid-column:1/-1;font-size:14px;color:var(--muted)}
 body .xp-detail{font-weight:700;color:var(--out)}
+body .xp-title-card strong{color:var(--frost);font-family:var(--f-num);font-style:italic;font-weight:700}
 body .xp-title-card{border:2px solid var(--frost);border-radius:0;padding:12px;background:var(--panel-hi);color:var(--ink);animation:none}
 @media(max-width:1080px){
   body header.top{grid-template-columns:minmax(0,1fr)}

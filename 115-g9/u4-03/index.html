@@ -12,14 +12,19 @@
 <style>
 :root{--teach-wall:#12151C;--teach-dead:#B3261E;--teach-light:#FFFFFF;--teach-strong:#2B7A4C;
 --teach-good:#8CC79F;--teach-good-ink:#13301D;--teach-fair:#F4D58D;--teach-fair-ink:#3A2C00;
---teach-weak:#E8A49C;--teach-weak-ink:#3D0D09}
+--teach-weak:#E8A49C;--teach-weak-ink:#3D0D09;
+--teach-router-ink:#FFFFFF;--teach-router-bg:#12151C}
 /* 第 18 週：無線網路技術與應用。活動中心平面圖：一格約 3 公尺，粗線是牆 */
 .floor{display:grid;gap:0;background:var(--surface);border:3px solid var(--ink);border-radius:0;max-width:640px;overflow:hidden}
 .floor .c{--floor-wall:var(--ink);position:relative;aspect-ratio:1;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:clamp(10px,2.3vw,14px);color:var(--ink);background:var(--surface);padding:0;min-width:0}
 .floor button.c{cursor:pointer}
 .floor .c.wr{border-right:4px solid var(--floor-wall)}.floor .c.wb{border-bottom:4px solid var(--floor-wall)}
 .floor .c.dead{background:var(--teach-dead);color:var(--teach-light);font-weight:700}
-.floor .c.ap::after{content:"";position:absolute;top:2px;right:2px;width:8px;height:8px;border:2px solid currentColor;border-left-color:transparent;border-bottom-color:transparent;border-radius:50%}
+/* 教學符號沿用說明的 📶，採單色字形；雙色標記在深淺訊號底上皆有清楚邊界。 */
+#says{font-variant-emoji:text}
+.floor .c.ap{padding-top:30px}
+.floor .c.ap::after{content:"📶\FE0E";position:absolute;top:2px;left:50%;transform:translateX(-50%);display:grid;place-items:center;box-sizing:border-box;width:30px;height:28px;border:2px solid var(--teach-router-ink);background:var(--teach-router-bg);color:var(--teach-router-ink);font-family:var(--f-body);font-variant-emoji:text;font-size:22px;font-weight:700;line-height:1;pointer-events:none}
+@media(max-width:480px){.floor .c.ap{padding-top:22px}.floor .c.ap::after{top:0;width:24px;height:22px;font-size:18px}}
 .floor .c.cand{font-family:var(--f-body);font-weight:700;font-size:clamp(13px,3vw,18px);background:var(--bg)}
 .floor .c.cand[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .floor .c.h0,.floor .c.h1,.floor .c.h2,.floor .c.h3{--floor-wall:var(--teach-wall)}

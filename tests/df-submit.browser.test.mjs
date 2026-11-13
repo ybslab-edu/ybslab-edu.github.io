@@ -216,6 +216,7 @@ test('三個完成按鈕自動交對應堂次；一般下載／下載換人不�
   });
   await page.click('#fin');await received(page,3);
   assert.deepEqual(await page.evaluate(()=>__fake.commits.map(x=>x.data.session)),[1,2,3]);
+  await page.waitForFunction(()=>__fake.attempts.length===3);
   assert.deepEqual(await page.evaluate(()=>__fake.attempts.map(x=>x.path)),[0,1,2].map(n=>'ybsCourses/115-df/attempts/u1_1_'+n));
   await page.click('#dl');await page.click('#out');await page.click('#x1');await page.locator('#yl-manual').waitFor();
   assert.equal(await page.evaluate(()=>__fake.commits.length),3);

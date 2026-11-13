@@ -525,6 +525,7 @@ const shellCreateIdentity = (s) => {
     s.setLevel(1);
   }
   $('b-swap').onclick = () => {
+    if (loginEnabled() && typeof ybsLogoutPending === 'function' && ybsLogoutPending($('sync'))) return;
     const wasTeacher = s.teacher;
     if (s.teacher) { s.teacher = false; TEACHER.remember(false); $('tbar').hidden = true; $('b-swap').textContent = '不是我？換人'; $('who').textContent = '' }
     resetIdentity();
@@ -578,8 +579,8 @@ const shellCreateLogin = (s) => {
       $('in-cls').focus();
     }, msg => { if (current === generation) $('g-lerr').textContent = msg });
   }
-  $('g-notme').onclick = () => { YBS.logout(); showLogin() };
-  $('g-manual').onclick = () => { generation++; YBS.logout({keepAnonymous:true}); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '班座紀錄會自動上傳；班座尚未驗證，離開前請確認已上傳。'; $('in-cls').focus() };
+  $('g-notme').onclick = () => { if (typeof ybsLogoutPending === 'function' && ybsLogoutPending($('g-whotext'))) return; YBS.logout(); showLogin() };
+  $('g-manual').onclick = () => { if (typeof ybsLogoutPending === 'function' && ybsLogoutPending($('g-lerr'))) return; generation++; YBS.logout({keepAnonymous:true}); $('g-login').hidden = true; $('g-who').hidden = true; $('g-form').hidden = false; $('g-me').hidden = false; $('g-me').textContent = '班座紀錄會自動上傳；班座尚未驗證，離開前請確認已上傳。'; $('in-cls').focus() };
   return { showLogin };
 };
 

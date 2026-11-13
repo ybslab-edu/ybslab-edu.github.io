@@ -568,7 +568,44 @@ const YBS = (() => {
     }
     return {courseId:'115-df', uid:me.uid, session, cls, seat, updatedAt};
   }
+  // 唯讀查詢目前身分的待送紀錄；不啟動上傳或改動佇列。
+  function hasPending() {
+    if (profile) return getQ().some(x => x.uid === profile.uid);
+    if (!guestIdentity) return false;
+    // readGuest 可能順便修剪成功收據並寫回；提示查詢只讀取快照。
+    let pending = guestState.queue;
+    if (!guestStorageFailed) try {
+      const stored = JSON.parse(localStorage.getItem(GKEY) || '{"queue":[],"receipts":[]}');
+      if (Array.isArray(stored.queue)) pending = stored.queue;
+    } catch (e) { /* 儲存空間不可讀時，查詢現有記憶體即可。 */ }
+    return pending.some(x => validGuest(x) && sameIdentity(x, guestIdentity));
+  }
   function retry() { guestRetryAt = 0; return profile ? flush() : flushGuest(); }
   return { CONFIG, enabled, button, submit, flush, logout, whoami, submitReport, guest, leaveGuest, flushGuest,
-    retry, endBrowserSession, firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
+    hasPending, retry, endBrowserSession, firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
+})();
+
+// 登出入口共用提示；只在提示期間查詢，不介入 Auth 或上傳狀態回呼。
+const ybsLogoutPending = (() => {
+  const message = '紀錄上傳中，請稍候再登出；再按一次可直接登出，未上傳紀錄可能遺失。';
+  let notice = null;
+  function clear() {
+    if (!notice) return;
+    const {el, text, hidden, timer} = notice;
+    clearInterval(timer);
+    if (el.textContent === message) { el.textContent = text; el.hidden = hidden; }
+    notice = null;
+  }
+  return (el) => {
+    if (notice) { clear(); return false; }
+    if (!YBS.hasPending()) return false;
+    const text = el.textContent, hidden = el.hidden;
+    el.textContent = message; el.hidden = false;
+    const timer = setInterval(() => {
+      if (!YBS.hasPending() || !el.isConnected) { clear(); return; }
+      el.textContent = message; el.hidden = false;
+    }, 200);
+    notice = {el, text, hidden, timer};
+    return true;
+  };
 })();

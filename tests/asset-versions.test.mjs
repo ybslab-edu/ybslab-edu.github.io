@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, relative, resolve} from 'node:path';
 import {assetReferences, htmlFiles, root, setAssetVersion} from '../tools/set-asset-version.mjs';
@@ -28,6 +28,60 @@ function versionErrors(siteRoot) {
 
 test('全站 HTML：每個 assets 資源的 ?v= 只有一個非空版本，且檔案存在', () => {
   assert.deepEqual(versionErrors(root), []);
+});
+
+// 網站來源包含 HTML 內腳本與動態載入的 JS；測試／工具中的合成範例不屬於網站引用。
+function scriptVersionErrors(siteRoot) {
+  function sourceFiles(dir) {
+    return readdirSync(dir, {withFileTypes:true}).flatMap(entry => {
+      if (entry.name.startsWith('.') || ['node_modules','tests','tools'].includes(entry.name)) return [];
+      const path = join(dir, entry.name);
+      return entry.isDirectory() ? sourceFiles(path) : /\.(html|js)$/i.test(entry.name) ? [path] : [];
+    });
+  }
+  const versions = new Map(['login','shell'].map(name => [name, new Set()]));
+  const errors = [];
+  for (const file of sourceFiles(siteRoot)) {
+    const source = readFileSync(file, 'utf8');
+    const refs = file.endsWith('.html') ? assetReferences(source, file, siteRoot)
+      .filter(ref => /^assets\/(login|shell)\.js$/.test(ref.asset)) : [];
+    for (const match of source.matchAll(/(["'`])((?:\/|(?:\.\.?\/)*)assets\/(login|shell)\.js(?:\?[^"'`\s<>]*)?)\1/g)) {
+      const url = new URL(match[2], 'https://local.invalid/');
+      refs.push({asset:`assets/${match[3]}.js`, version:url.searchParams.get('v') || ''});
+    }
+    for (const {asset, version} of refs) {
+      const name = asset.slice(7, -3);
+      if (!version) errors.push(`${relative(siteRoot, file)}: ${asset} 缺少非空版本`);
+      versions.get(name).add(version);
+    }
+  }
+  for (const [name, values] of versions) {
+    if (values.size !== 1) errors.push(`${name}.js 版本不一致或未找到引用：${[...values].join(', ')}`);
+  }
+  return errors;
+}
+
+test('全站 HTML 與 JS 字串：login.js／shell.js 引用版本一致且非空', () => {
+  assert.deepEqual(scriptVersionErrors(root), []);
+});
+
+test('動態引用反例：舊版、缺少版本與空版本都會失敗', t => {
+  const site = mkdtempSync(join(tmpdir(), 'ybs-script-versions-'));
+  t.after(()=>rmSync(site, {recursive:true, force:true}));
+  writeFileSync(join(site, 'index.html'), '<script src="/assets/login.js?v=new"></script><script src="/assets/shell.js?v=new"></script>');
+  const file = join(site, 'dynamic.js');
+  for (const quote of ["'", '"', '`']) {
+    for (const name of ['login','shell']) {
+      for (const suffix of ['?v=old', '', '?v=']) {
+        writeFileSync(file, `script.src = ${quote}../../assets/${name}.js${suffix}${quote};`);
+        assert.ok(scriptVersionErrors(site).length > 0, `${name}${suffix} 必須失敗`);
+      }
+    }
+  }
+  writeFileSync(file, 'script.src = "../../assets/login.js?v=new";');
+  assert.deepEqual(scriptVersionErrors(site), []);
+  writeFileSync(join(site, 'inline.html'), '<script>script.src = "assets/login.js?v=old";</script>');
+  assert.ok(scriptVersionErrors(site).some(error=>error.includes('login.js 版本不一致')));
 });
 
 test('反例：註解、inline JS 與非資源屬性的範例不被修改或誤報', t => {

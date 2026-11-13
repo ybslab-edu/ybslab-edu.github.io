@@ -92,12 +92,39 @@ for(const entry of entries) {
     const uid=await page.evaluate(()=>YBS.profile().uid);
     await page.click(entry.button);
     assert.equal(await page.evaluate(()=>YBS.profile().uid),uid);
-    assert.match(await page.locator(entry.notice).innerText(),/紀錄上傳中，請稍候再登出.*再按一次/);
+    assert.match(await page.locator(entry.notice).innerText(),/紀錄上傳中，請稍候再登出\s+再按一次/);
     assert.equal(await page.evaluate(()=>firebase.apps[0].auth().currentUser.uid),uid);
-    if(process.env.LOGOUT_HINT_SCREENSHOT && entry.name==='活動') await page.screenshot({path:process.env.LOGOUT_HINT_SCREENSHOT});
+    for (const width of [1366,390]) {
+      await page.setViewportSize({width,height:900});
+      const visual = await page.locator(entry.notice).evaluate(el => {
+        const main = el.querySelector('strong'), detail = el.querySelector('span');
+        const box = el.getBoundingClientRect(), style = getComputedStyle(el);
+        const a = getComputedStyle(main), b = getComputedStyle(detail);
+        return {color:a.color,background:style.backgroundColor,size:a.fontSize,weight:a.fontWeight,
+          detailColor:b.color,detailText:detail.textContent,separate:detail.getBoundingClientRect().top >= main.getBoundingClientRect().bottom,
+          border:style.borderLeftWidth,radius:style.borderRadius,display:style.display,
+          fits:box.left >= 0 && box.right <= innerWidth && el.scrollWidth <= el.clientWidth,
+          pageFits:document.documentElement.scrollWidth <= innerWidth};
+      });
+      assert.deepEqual(visual,{color:'rgb(255, 107, 61)',background:'rgb(28, 33, 44)',size:'16px',weight:'700',
+        detailColor:'rgb(230, 233, 239)',detailText:'再按一次可直接登出，未上傳的紀錄可能遺失',separate:true,
+        border:'4px',radius:'0px',display:'block',fits:true,pageFits:true},`${entry.name} ${width}px`);
+      const luminance = rgb => rgb.map(x=>x/255).map(x=>x<=0.04045?x/12.92:((x+0.055)/1.055)**2.4)
+        .reduce((sum,x,i)=>sum+x*[0.2126,0.7152,0.0722][i],0);
+      for (const color of [[255,107,61],[230,233,239]]) {
+        assert.ok((luminance(color)+0.05)/(luminance([28,33,44])+0.05)>=4.5);
+      }
+      const screenshot = width===1366 ? process.env.LOGOUT_HINT_SCREENSHOT : process.env.LOGOUT_HINT_MOBILE_SCREENSHOT;
+      if(screenshot && entry.name==='活動') await page.screenshot({path:screenshot});
+    }
+    await page.setViewportSize({width:1366,height:900});
     await page.evaluate(()=>__hintRelease());
     await page.waitForFunction(()=>window.__hintWriteDone && !YBS.hasPending());
-    await page.waitForFunction(selector=>!document.querySelector(selector).textContent.includes('再按一次可直接登出'),entry.notice);
+    await page.waitForFunction(selector=>{
+      const el=document.querySelector(selector);
+      return !el.textContent.includes('再按一次可直接登出') && !el.classList.contains('ybs-logout-pending');
+    },entry.notice);
+    assert.equal(await page.locator(entry.notice).evaluate(el=>el.classList.contains('ybs-logout-pending')),false,'送完移除專用樣式');
     assert.equal(await page.evaluate(()=>YBS.profile().uid),uid,'送完不自動登出');
     const writes=await page.evaluate(()=>window.__sessionMock?.writes || window.__fake.attempts);
     assert.equal(writes.length,1);

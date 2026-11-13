@@ -255,7 +255,7 @@
   }
   // 學生入口才載入原登入模組；教師入口不執行班座重送的初始化副作用。
   const loginScript = document.createElement('script');
-  loginScript.src = '../../assets/login.js?v=20261113a';
+  loginScript.src = '../../assets/login.js?v=20261113d';
   loginScript.onload = () => {
     YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
     YBS.status(state => { if (state === 'relogin' && owner) signedOut(); else if (state === 'ok' && owner) void refresh(); });

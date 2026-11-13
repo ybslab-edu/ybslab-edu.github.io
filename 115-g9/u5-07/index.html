@@ -8,9 +8,10 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261113q2">
 <style>
-.line1d{max-width:640px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+:root{--teach-group-a:#5AA9F0;--teach-group-b:#F4B26A;--teach-point:#98A2B8;}
+.line1d{max-width:640px;background:var(--surface);border:1px solid var(--line);border-radius:0;padding:6px}
 .line1d svg{width:100%;height:auto;display:block}
 .line1d text{fill:var(--muted);font:12px var(--f-body)}
 .ctr{font-size:17px;display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
@@ -19,8 +20,8 @@
 </head>
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
-<script src="../../assets/lock.js?v=20261110a"></script>
-<script src="../../assets/login.js?v=20261110c"></script>
+<script src="../../assets/lock.js?v=20261113q1"></script>
+<script src="../../assets/login.js?v=20261113q1"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
 <script src="../../assets/shell.js?v=20261110d"></script>
@@ -32,9 +33,9 @@ const SUP=[
  ['用標好「貓」「狗」的照片，訓練 AI 認貓狗',0],['用阿哲分好類的回收物，訓練回收分類機',0],['用標好「詐騙」「正常」的訊息，訓練詐騙過濾器',0],['用過去的坪數和成交價，訓練 AI 預測房價',0],['用標好「石頭、剪刀、布」的手勢照片，訓練猜拳 AI',0],
  ['把顧客依購買習慣，自動分成幾群',1],['把一堆沒有分類的新聞，自動分成幾種主題',1],['把全班的讀書時間，自動分成兩組',1],['從一大堆刷卡紀錄裡，找出和大家都不一樣的異常紀錄',1],['把園遊會來客的位置自動分群，看哪裡人最多',1]];
 const NAMES=['小安','小禾','阿哲','小晴','阿凱','小美','阿翔','小恩','阿宏','小芸','阿德','小琪'];
-const lineSVG=(vals,cs=[])=>{const W=600,H=70,px=v=>20+v/150*(W-40);let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="數線"><line x1="20" y1="40" x2="'+(W-20)+'" y2="40" stroke="#999"/>';
-  for(let t=0;t<=150;t+=30)s+='<line x1="'+px(t)+'" y1="36" x2="'+px(t)+'" y2="44" stroke="#999"/><text x="'+px(t)+'" y="60" text-anchor="middle">'+t+'</text>';
-  vals.forEach(v=>s+='<circle cx="'+px(v)+'" cy="40" r="6" fill="#5D6670"/>');cs.forEach((c,i)=>s+='<text x="'+px(c)+'" y="26" text-anchor="middle" style="font-size:18px;font-weight:700;fill:'+(i?'#BD6216':'#2C67AE')+'">'+(i?'B':'A')+'</text>');
+const lineSVG=(vals,cs=[])=>{const W=600,H=70,px=v=>20+v/150*(W-40);let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="數線"><line x1="20" y1="40" x2="'+(W-20)+'" y2="40" stroke="var(--dim)"/>';
+  for(let t=0;t<=150;t+=30)s+='<line x1="'+px(t)+'" y1="36" x2="'+px(t)+'" y2="44" stroke="var(--dim)"/><text x="'+px(t)+'" y="60" text-anchor="middle">'+t+'</text>';
+  vals.forEach(v=>s+='<circle cx="'+px(v)+'" cy="40" r="6" fill="var(--teach-point)"/>');cs.forEach((c,i)=>s+='<text x="'+px(c)+'" y="26" text-anchor="middle" style="font-size:18px;font-weight:700;fill:'+(i?'var(--teach-group-b)':'var(--teach-group-a)')+'">'+(i?'B':'A')+'</text>');
   return '<div class="line1d">'+s+'</svg></div>'};
 const nearest=(v,c)=>Math.abs(v-c[0])<=Math.abs(v-c[1])?0:1;
 const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;

@@ -136,15 +136,27 @@ const YBS = (() => {
     const generation = accountGeneration;
     const id = 'ybs' + Math.random().toString(36).slice(2, 7);
     // 樣式隨表單提供，活動頁、專題頁與重新登入入口共用相同的主題及切換操作。
-    const box = 'display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #4b5563;background:var(--ybs-login-bg);color:var(--ybs-login-ink)';
+    const box = 'display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:calc(var(--u)*1.25) calc(var(--u)*1.5);border-radius:0;border:2px solid var(--edge);background:var(--panel-hi);color:var(--text);box-shadow:none';
     el.innerHTML = `<style>
-      .ybs-login{--ybs-login-bg:#fff;--ybs-login-ink:#211b17;--ybs-login-placeholder:#5d6670}
-      @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .ybs-login{--ybs-login-bg:#0f1218;--ybs-login-ink:#e8eaee;--ybs-login-placeholder:#9aa3ad}}
-      :root[data-theme="dark"] .ybs-login{--ybs-login-bg:#0f1218;--ybs-login-ink:#e8eaee;--ybs-login-placeholder:#9aa3ad}
-      .ybs-login input::placeholder{color:var(--ybs-login-placeholder);opacity:1}
+      /* 表單自帶規範變數，未載入活動外框的學生入口也維持單一深色主題。 */
+      .ybs-login{
+        --void:#12151C;--panel:#1C212C;--panel-hi:#252C3A;--edge:#3B455C;
+        --text:#E6E9EF;--dim:#98A2B8;--ember:#FF6B3D;--on-ember:#12151C;
+        --frost:#6FD6E8;--alert:#FF9C8F;--alert-wash:#3A2224;
+        --f-text:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+        --u:0.5rem;--slant:10px;color-scheme:dark;color:var(--text);font-family:var(--f-text)
+      }
+      .ybs-login label{font-weight:700}
+      .ybs-login input::placeholder{color:var(--dim);opacity:1}
+      .ybs-login input:focus-visible{outline:3px solid var(--text);outline-offset:-5px}
+      .ybs-login input[aria-invalid="true"]{border-color:var(--alert)}
+      .ybs-login .btn{font:inherit;font-weight:700;cursor:pointer;min-height:44px;padding:calc(var(--u)*1.25) calc(var(--u)*3);border:0;border-radius:0;box-shadow:none;background:var(--ember);color:var(--on-ember);clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+      .ybs-login .btn:hover{filter:brightness(1.12)}
+      .ybs-login .btn:focus-visible{outline:3px solid var(--on-ember);outline-offset:-6px}
+      .ybs-login .btn:disabled{opacity:1;background:var(--panel-hi);color:var(--dim);cursor:wait}
       .ybs-password{position:relative}
-      .ybs-password-icon{position:absolute;right:59px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ybs-login-ink)}
-      .ybs-password-toggle{position:absolute;right:3px;top:50%;transform:translateY(-50%);box-sizing:border-box;width:80px;min-height:44px;padding:4px 4px 4px 26px;font:inherit;font-size:14px;border:0;border-radius:8px;background:transparent;color:var(--ybs-login-ink);cursor:pointer}
+      .ybs-password-icon{position:absolute;right:59px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text)}
+      .ybs-password-toggle{position:absolute;right:3px;top:50%;transform:translateY(-50%);box-sizing:border-box;width:80px;min-height:44px;padding:4px 4px 4px 26px;font:inherit;font-size:14px;border:0;border-radius:0;background:transparent;color:var(--text);box-shadow:none;cursor:pointer}
     </style><form id="` + id + '" class="ybs-login" autocomplete="off" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left">'
       + '<label style="font-size:15px">帳號<input name="a" inputmode="text" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號" style="' + box + '"></label>'
       + '<div><label for="' + id + '-password" style="font-size:15px">密碼</label><div class="ybs-password"><input id="' + id + '-password" name="p" type="password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號" style="' + box + ';padding-right:92px">'

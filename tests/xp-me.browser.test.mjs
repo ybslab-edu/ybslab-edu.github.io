@@ -33,6 +33,7 @@ before(async()=>{
     const type=path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
     const source=path==='/assets/login.js' && !req.headers.referer?.endsWith('?real-login') && !req.headers.referer?.includes('cls=') ? mock : await readFile(new URL('..'+path,import.meta.url),'utf8');
+    // 保留成長頁的新字型連結；活動頁舊字族不屬本測試範圍，共用外框的新字型仍由白名單驗證。
     res.end(path==='/115-g9/u2-03/index.html' ? source.replace(/<link[^>]+https:\/\/fonts\.googleapis\.com[^>]*>/g,'') : source);
   });
   await new Promise(ok=>server.listen(0,'127.0.0.1',ok));base='http://127.0.0.1:'+server.address().port;
@@ -52,6 +53,8 @@ async function pageFor(t,options={},suffix='',context){
     if(r.request().url().startsWith(base+'/'))return r.continue();
     // 真正登入入口會主動還原 Auth；SDK 由離線替身提供，支援 LOCAL 跨分頁同步。
     if(r.request().url().startsWith('https://www.gstatic.com/firebasejs/10.14.1/'))return r.fulfill({contentType:'text/javascript',body:r.request().url().endsWith('/firebase-app-compat.js')?(page.url().includes('cls=')?teacherFirebase:sessionFirebase):'// offline mock'});
+    // 僅接受實際使用的兩種字族與字重；空 CSS 不引用字型檔，任何其他字型網址均視為違規。
+    if(r.request().url()==='https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap')return r.fulfill({contentType:'text/css',body:'/* offline font fallback */'});
     outside.push(r.request().url());return r.abort();
   });
   await page.clock.setFixedTime(new Date('2026-11-09T04:00:00Z'));
@@ -113,7 +116,8 @@ for(const [width,colorScheme,reducedMotion] of [[1440,'light','no-preference'],[
     assert.equal(await page.locator('#xp-details').getAttribute('open'),null);
     assert.equal(await page.locator('#details').isVisible(),false);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    if(colorScheme==='dark')assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(17, 22, 27)');
+    // 任務日誌主題只做深色：不論系統偏好，底色都是同一個
+    assert.equal(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(18, 21, 28)');
     const name=colorScheme==='dark'?'dark':width===390?'mobile':'desktop';
     await page.screenshot({path:'/tmp/ybs-me-impl-shots/'+name+'.png',fullPage:true});
     await page.click('#xp-details > summary');
@@ -265,9 +269,10 @@ test('真實活動頁 C3 標題列、等級條與成長連結；本機截圖',as
   await page.click('#mock-login');await page.click('#g-isme');
   await page.waitForFunction(()=>document.getElementById('xp-total').textContent==='90 XP');
   assert.equal(await page.locator('#xp-link').getAttribute('href'),'../me/');
-  assert.equal(await page.locator('#xp-progress').evaluate(el=>getComputedStyle(el).height),'4px');
-  assert.equal(await page.locator('header.top').evaluate(el=>getComputedStyle(el).borderTopColor),'rgb(122, 78, 168)');
-  assert.equal(await page.locator('#xp-total').evaluate(el=>getComputedStyle(el).fontFamily.includes('JetBrains Mono')),true);
+  // 任務日誌經驗條為 10px、面板灰邊與斜體窄數字，沿用新主題的字型後備。
+  assert.equal(await page.locator('#xp-progress').evaluate(el=>getComputedStyle(el).height),'10px');
+  assert.equal(await page.locator('header.top').evaluate(el=>getComputedStyle(el).borderTopColor),'rgb(59, 69, 92)');
+  assert.equal(await page.locator('#xp-total').evaluate(el=>getComputedStyle(el).fontFamily.includes('Barlow Condensed')),true);
   await page.locator('header.top').screenshot({path:'/tmp/ybs-me-impl-shots/activity-header.png'});
 });
 

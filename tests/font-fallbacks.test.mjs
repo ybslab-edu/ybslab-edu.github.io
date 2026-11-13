@@ -102,7 +102,8 @@ function declarations(source, isHtml = false) {
   const css = isHtml ? [
     ...[...source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(match => match[1]),
     ...[...source.matchAll(/\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map(match => match[1] ?? match[2])
-  ].join('\n') : source;
+  // 每個 style 是獨立宣告區塊；避免無尾分號的行內樣式污染下一個元素。
+  ].join(';\n') : source;
   return [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[\w-]+|font-family)\s*:\s*((?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^;{}"'])+)/gi)]
     .map(([, name, value]) => [name, value.trim()]);
 }
@@ -155,6 +156,9 @@ test('page context checks arbitrary variable names and every font definition', (
     body{font-family:var(--f-body)} h1{font-family:var(--safe)}</style>
     <span style="font-family:'sans-serif'">test</span>`, true);
   assert.deepEqual(fontErrors(own, [...linked, ...own]), [own[0], own[1], own[3]]);
+  // 新主題使用字型別名；相鄰元素的行內樣式不可串成同一個字型值。
+  const adjacent = declarations('<span style="font-family:var(--safe)"></span><span style="font-size:20px"></span>', true);
+  assert.deepEqual(fontErrors(adjacent, [...linked, ...adjacent]), []);
   assert.equal(fontErrors(declarations('body{font-family:var(--safe)}')).length, 1,
     'another page must not supply a missing variable');
 });

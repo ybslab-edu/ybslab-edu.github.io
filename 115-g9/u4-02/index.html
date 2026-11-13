@@ -8,27 +8,28 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261113q2">
 <style>
+:root{--teach-host:#F2B705;--teach-host-ink:#2A2000}
 /* 第 17 週：封包、IP、網域名稱。封包卡上面是「標頭」，下面是內容 */
 .pkt{display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:left}
 .pkt .hd{font-family:var(--f-mono);font-size:12px;opacity:.75}
 .pkt .bd{font-size:18px}
 .url{font-family:var(--f-mono);font-size:16px;overflow-wrap:anywhere;word-break:break-all}
-.dns{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;font-size:15px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.dns{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;font-size:15px;border:1px solid var(--line);border-radius:0;overflow:hidden}
 .dns>*{padding:6px 10px;border-bottom:1px solid var(--line);font-family:var(--f-mono);overflow-wrap:anywhere}
 .dns>:nth-child(even){white-space:nowrap}
 .dns .h{font-family:var(--f-body);font-weight:700;background:var(--bg)}
-.urlbar{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-family:var(--f-mono);font-size:17px;overflow-wrap:anywhere;word-break:break-all}
-.urlbar::before{content:"🔒";font-size:14px}
+.urlbar{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:0;padding:8px 16px;font-family:var(--f-mono);font-size:17px;overflow-wrap:anywhere;word-break:break-all}
+.urlbar::before{content:"";flex:none;width:10px;height:12px;border:2px solid var(--dim)}
 .urlparts{font-family:var(--f-mono);font-size:17px;overflow-wrap:anywhere;word-break:break-all}
-.urlparts .host{background:#F2B705;color:#2a2000;border-radius:4px;padding:0 3px}
+.urlparts .host{background:var(--teach-host);color:var(--teach-host-ink);border-radius:0;padding:0 3px}
 </style>
 </head>
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
-<script src="../../assets/lock.js?v=20261110a"></script>
-<script src="../../assets/login.js?v=20261110c"></script>
+<script src="../../assets/lock.js?v=20261113q1"></script>
+<script src="../../assets/login.js?v=20261113q1"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
 <script src="../../assets/shell.js?v=20261110d"></script>

@@ -92,7 +92,8 @@ for(const [width,reduced,dark] of [[1440,false,false],[390,false,true],[320,true
         assert.equal(await page.locator('#xp-total').textContent(),'160 XP');
         assert.match(await page.locator('#verdict').textContent(),/\+10 過關、\+5 準時、\+20 全過/);
         assert.match(await page.locator('.xp-title-card').textContent(),/升級！Lv 2編碼學徒/);
-        assert.equal(await page.locator('.xp-title-card').evaluate(el=>getComputedStyle(el).animationName),reduced?'none':'xp-arrive');
+        // 任務日誌不使用區塊進場動畫；一般及減少動態模式均保持靜態升級提示。
+        assert.equal(await page.locator('.xp-title-card').evaluate(el=>getComputedStyle(el).animationName),'none');
       }
       assert.equal(await page.evaluate(()=>localStorage.getItem('ybs:xp:115-g9:seat:999-1')),null);
       assert.deepEqual(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('it9:w2:999-1')))).then(keys=>keys.sort()),['mask','time','tries']);

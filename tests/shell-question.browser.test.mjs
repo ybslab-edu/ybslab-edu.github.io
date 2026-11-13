@@ -131,12 +131,13 @@ test('過關按鈕深淺色 AA、選中外框；頁首上傳狀態在桌面及�
     await page.evaluate(()=>document.activeElement?.blur());
     const styles=await page.locator('#rounds button').evaluateAll(buttons=>buttons.map(el=>{
       const s=getComputedStyle(el),mark=getComputedStyle(el.querySelector('.done'));
-      return {color:s.color,bg:s.backgroundColor,mark:mark.color,outline:s.outlineWidth,outlineStyle:s.outlineStyle,selected:el.getAttribute('aria-pressed'),focused:el.matches(':focus'),text:el.textContent};
+      return {color:s.color,bg:s.backgroundColor,mark:mark.color,outline:s.outlineWidth,outlineStyle:s.outlineStyle,border:s.borderWidth,borderColor:s.borderColor,selected:el.getAttribute('aria-pressed'),focused:el.matches(':focus'),text:el.textContent};
     }));
     for(const s of styles){assert.match(s.text,/已過關/);assert.match(s.text,/✓/);assert.ok(contrast(s.color,s.bg)>=4.5);assert.ok(contrast(s.mark,s.bg)>=4.5)}
     assert.equal(styles[0].selected,'false');assert.equal(styles[0].focused,false);assert.equal(styles[1].focused,false);
     // Chromium 在 outline-style:none 時仍可能回報 medium（3px）；以樣式判斷是否繪製外框。
-    assert.equal(styles[1].selected,'true');assert.equal(styles[1].outline,'2px');assert.equal(styles[1].outlineStyle,'solid');assert.equal(styles[0].outlineStyle,'none');
+    // 任務日誌用 2px 餘燼橙邊線標示選中，外框保留給鍵盤焦點。
+    assert.equal(styles[1].selected,'true');assert.equal(styles[1].border,'2px');assert.equal(styles[1].borderColor,'rgb(255, 107, 61)');assert.equal(styles[1].outlineStyle,'none');assert.equal(styles[0].outlineStyle,'none');
     // 用鍵盤移回未選中的關卡，仍須顯示可見焦點框。
     await page.locator('#rounds button').first().focus();
     await page.keyboard.press('Tab');

@@ -16,36 +16,42 @@
 <meta name="description" content="YBS Lab 學期進度：每週的資訊科技課堂活動。">
 <meta property="og:title" content="YBS Lab｜學期進度">
 <meta property="og:description" content="每週的資訊科技課堂活動，開頁就看到本週。">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
 /*
-  Concept: 捷運路線圖。課綱六大類＝六條路線，學習內容＝車站。
-  有活動的車站是實心大站，還沒有的是一般小站；點車站在該路線下方展開站牌。
-  最上方是學期進度：依今天日期捲到本週，回訪的人不用找。
+  Concept: 任務日誌。學生主要用教室電腦，版面以桌機為主。
+  左欄是任務清單：本週那一列放大排最前面，接下來的週依序往下；右欄是學期走到哪與已經過去的任務。
+  整學期的橫向課表收在最下面的按鈕裡。
 */
 :root{
-  --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
-  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C; --L:#5C940D; --Da:#9C36B5; --I:#364FC7;
-  --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
+  color-scheme:dark;
+  /* 設計規範 v0.1「任務日誌」：只做深色。餘燼橙只代表本週，霜青只代表已經過去的進度 */
+  --void:#12151C; --panel:#1C212C; --panel-hi:#252C3A; --edge:#3B455C; --text:#E6E9EF; --dim:#98A2B8;
+  --ember:#FF6B3D; --on-ember:#12151C; --frost:#6FD6E8;
+  --cut:14px; --slant:10px; --skew:-20deg;
+  /* 本頁沿用的舊名稱，對應到上面的變數 */
+  --bg:var(--void); --surface:var(--panel); --ink:var(--text); --muted:var(--dim); --rule:var(--edge); --faint:var(--panel-hi);
+  /* 課綱類別色：只當活動左側的類別標記 */
+  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF;
+  --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A;
   --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"Barlow Condensed","Noto Sans TC",sans-serif;
 }
-@media (prefers-color-scheme: dark){:root{
-  --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
-  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
 a{color:inherit}
 main{flex:1}
-:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:6px}
+:focus-visible{outline:3px solid var(--frost);outline-offset:2px}
+.num{font-family:var(--f-num);font-style:italic;font-weight:700;letter-spacing:.01em}
 .in{max-width:1180px;margin:0 auto;padding-inline:20px}
 
 /* 頁首 */
-.bar{background:var(--surface);border-bottom:1px solid var(--rule)}
+.bar{background:var(--bg);border-bottom:2px solid var(--rule)}
 .bar .in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
 .logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
 .logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
 .logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
-.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto{font-size:17px;font-weight:700;color:var(--dim);display:inline-flex;gap:.35em;white-space:nowrap}
 .motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
 .motto.lit .k{transform:translateY(-.05em) scale(1.25)}
 .motto.lit .k.y{color:var(--why);transition-delay:.15s}
@@ -55,7 +61,7 @@ main{flex:1}
 .bar nav{display:flex;gap:20px;font-size:15px}
 .bar nav a{text-decoration:none;color:var(--muted)}
 .bar nav a:hover{color:var(--ink)}
-.bar nav a[aria-current="page"]{color:var(--ink);font-weight:700}
+.bar nav a[aria-current="page"]{color:var(--ink);font-weight:700;border-bottom:2px solid var(--ember);padding-bottom:2px}
 
 /* 區塊標題 */
 .head{padding-block:48px 18px}
@@ -186,36 +192,97 @@ main{flex:1}
 .prog h1{margin:0;font-weight:900;font-size:clamp(30px,4.4vw,42px);line-height:1.15}
 .prog-top p{margin:6px 0 0;color:var(--muted)}
 .terms{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.terms button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
-.terms button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
-.terms .jump{border-style:dashed}
-.sched{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:16px;overflow:hidden}
-.sched-scroll{position:relative;overflow-x:auto;scroll-behavior:smooth;overscroll-behavior-x:contain}
+.terms button{font:inherit;font-size:14.5px;font-weight:700;border:0;background:var(--faint);color:var(--ink);padding:6px 18px;cursor:pointer;
+  clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+.terms button[aria-pressed="true"]{background:var(--edge);color:var(--text)}
+.terms .jump{background:var(--ember);color:var(--on-ember)}
+/* 學期走到哪：一週一格 */
+.pace{display:flex;flex-direction:column;gap:8px}
+.pace-no{margin:0;color:var(--muted);font-size:14px}
+.pace-no .num{font-size:44px;line-height:1;color:var(--ink)}
+.segs{display:grid;grid-template-columns:repeat(var(--w),1fr);gap:3px;align-items:end;list-style:none;margin:0;padding:0 5px}
+.segs li{height:14px;transform:skewX(var(--skew));border:2px solid var(--rule)}
+.segs .past{background:var(--frost);border-color:var(--frost)}
+.segs .cur{background:var(--ember);border-color:var(--ember);height:22px}
+/* 任務清單 */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.btn{font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;border:0;padding:10px 26px;color:var(--ink);background:var(--faint);
+  clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+.btn-main{background:var(--ember);color:var(--on-ember)}
+.terms button:focus-visible,.btn:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
+.terms .jump:focus-visible,.btn-main:focus-visible{outline-color:var(--on-ember)}
+.btn:hover{filter:brightness(1.12)}
+.board{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:28px 44px;margin-top:26px;align-items:start}
+@media (max-width:900px){.board{grid-template-columns:minmax(0,1fr)}}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.q-now{background:var(--ember);padding:2px;margin-bottom:14px;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+.q-now-in{background:var(--surface);display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:16px 28px;padding:28px 32px 32px;
+  clip-path:polygon(0 0,calc(100% - var(--cut) + 1px) 0,100% calc(var(--cut) - 1px),100% 100%,calc(var(--cut) - 1px) 100%,0 calc(100% - var(--cut) + 1px))}
+@media (max-width:600px){.q-now-in{grid-template-columns:minmax(0,1fr);padding:20px}}
+.q-when{display:flex;flex-direction:column;gap:2px;color:var(--muted);font-size:14px}
+.q-when .num{font-size:88px;line-height:.9;color:var(--ember)}
+.q-when b{color:var(--ink);font-size:16px}
+.q-bigs{display:flex;flex-direction:column;gap:32px;min-width:0}
+.q-big{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.q-kind{margin:0;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;color:var(--muted);font-size:14.5px}
+.tag{font-weight:700;font-size:13.5px;color:var(--on-ember);background:var(--ember);padding:1px 14px;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.tag.side{background:transparent;color:var(--muted);outline:1px dashed var(--muted);outline-offset:-1px;clip-path:none}
+.q-big h3{margin:0;font-weight:900;font-size:clamp(32px,3.6vw,52px);line-height:1.15;text-wrap:balance}
+.q-big h3 a{text-decoration:none}
+.q-big h3 a:hover{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:6px}
+.q-why{margin:0;font-size:17px;line-height:1.75;max-width:34em}
+.q-rounds{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 6px}
+.q-rounds li{background:var(--faint);padding:4px 16px 4px 12px;font-size:14.5px;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.q-rounds .num{color:var(--frost);margin-right:8px;font-size:17px}
+.q-none{margin:0;color:var(--muted)}
+.q-row{display:grid;grid-template-columns:3.25rem minmax(0,1fr) auto;gap:4px 14px;align-items:baseline;background:var(--surface);padding:11px 16px}
+.q-row .n{font-size:24px;color:var(--muted)}
+.q-row .b{display:flex;flex-direction:column;min-width:0}
+.q-row .t{font-weight:700;font-size:17px;text-decoration:none}
+.q-row .t:hover{text-decoration:underline}
+.q-row .m{font-size:13.5px;color:var(--muted)}
+.q-row .st{font-size:13.5px;color:var(--muted);white-space:nowrap}
+.q-row.is-side{background:transparent;outline:1px dashed var(--rule);outline-offset:-1px}
+.q-row.is-empty{background:transparent;padding-block:6px}
+.side-col{display:flex;flex-direction:column;gap:26px}
+.side-col section{padding:0;display:flex;flex-direction:column;gap:10px}
+.side-h{margin:0;font-size:17px;font-weight:900}
+.log.past .q-row{grid-template-columns:2.5rem minmax(0,1fr) auto;padding:7px 12px;background:transparent;border-bottom:1px solid var(--faint);outline:0}
+.log.past .q-row .n{font-size:18px}
+.log.past .q-row .t{font-size:15px;font-weight:500;color:var(--muted)}
+.log.past .q-row .t:hover{color:var(--ink)}
+.side-note{margin:0;font-size:13.5px;color:var(--muted)}
+.full{margin-top:36px}
+/* 整學期課表：外層當邊線，切掉右上與左下角 */
+.sched{margin-top:16px;background:var(--rule);padding:2px;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+.sched-scroll{position:relative;overflow-x:auto;scroll-behavior:smooth;overscroll-behavior-x:contain;background:var(--surface)}
 .grid{display:grid;grid-template-columns:7.5em repeat(var(--w),8.6em);min-width:max-content}
-.grid>*{border-right:1px solid var(--faint);border-bottom:1px solid var(--faint);min-width:0}
+.grid>*{border-right:1px solid var(--bg);border-bottom:1px solid var(--bg);min-width:0}
 .gh{padding:8px 10px;font-size:13px;color:var(--muted);line-height:1.35;background:var(--surface)}
 .gh b{display:block;font-size:14px;color:var(--ink)}
+.gh b .num{font-size:19px}
 .gh.past b{color:var(--muted);font-weight:500}
-.gh.cur{background:var(--ink);color:var(--bg)}
-.gh.cur b{color:var(--bg)}
-.rowname{position:sticky;left:0;z-index:2;background:var(--surface);padding:12px 10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;justify-content:center;box-shadow:2px 0 0 var(--faint)}
+.gh.cur{background:var(--ember);color:var(--on-ember)}
+.gh.cur b{color:var(--on-ember)}
+.gh .nowtag{font-weight:900;margin-right:6px}
+.rowname{position:sticky;left:0;z-index:2;background:var(--surface);padding:12px 10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;justify-content:center;box-shadow:2px 0 0 var(--bg)}
 .rowname small{font-weight:400;color:var(--muted);font-size:12.5px}
-.corner{position:sticky;left:0;z-index:3;background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted);box-shadow:2px 0 0 var(--faint)}
-.cell{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:76px}
-.cell.cur{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.corner{position:sticky;left:0;z-index:3;background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted);box-shadow:2px 0 0 var(--bg)}
+.cell{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:76px;background:var(--surface)}
+.cell.cur{background:var(--faint)}
+.cell.past{background:var(--bg)}
 .chip em{font-style:normal;font-size:12px;color:var(--muted)}
-.cell.past{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--faint) 60%,transparent) 6px 7px)}
-.chip{display:flex;flex-direction:column;gap:1px;text-decoration:none;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 13%,var(--surface));border-radius:6px;padding:6px 8px;font-size:14px;line-height:1.3}
+.chip{display:flex;flex-direction:column;gap:1px;text-decoration:none;border-left:4px solid var(--c);background:var(--faint);padding:6px 8px;font-size:14px;line-height:1.3}
+.cell.cur .chip{background:var(--bg)}
 .chip b{font-weight:700}
 .chip span{font-size:12px;color:var(--muted)}
 .chip:hover b{text-decoration:underline}
-.trk{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px;white-space:nowrap}
-.trk.opt{color:var(--muted);border:1px dashed var(--muted)}
-.trk.req{color:var(--surface);background:var(--ink)}
-.chip.opt{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 10%,var(--surface)) 0 6px,var(--surface) 6px 9px)}
-.sched-foot{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;padding:10px 14px;font-size:13px;color:var(--muted);background:var(--faint)}
+.chip.opt,.cell.cur .chip.opt{background:transparent;border:1px dashed var(--muted);border-left:4px solid var(--c)}
+.sched-foot{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;padding:10px 14px 12px 22px;font-size:13px;color:var(--muted);background:var(--faint)}
 .sched-foot .keys{display:flex;gap:14px;flex-wrap:wrap}
-.sched-foot i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.sched-foot i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px}
 
 /* 共用 */
 section{padding-block:56px 0}
@@ -223,7 +290,7 @@ h2{margin:0 0 6px;font-size:26px;font-weight:900}
 .sub{margin:0 0 20px;color:var(--muted)}
 
 
-footer{margin-top:72px;border-top:1px solid var(--rule);background:var(--surface);color:var(--muted);font-size:14px}
+footer{margin-top:72px;border-top:2px solid var(--rule);background:var(--bg);color:var(--muted);font-size:14px}
 footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -243,9 +310,18 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
       <div><h1 id="prog-h">學期進度</h1><p id="prog-sub"></p></div>
       <div class="terms" id="terms" role="group" aria-label="切換學期"></div>
     </div>
-    <div class="sched">
+    <div class="board">
+      <div><h2 class="sr">任務清單</h2><ol class="log" id="log"></ol></div>
+      <aside class="side-col">
+        <div class="pace"><p class="pace-no" id="pace-no"></p><ol class="segs" id="segs" aria-hidden="true"></ol></div>
+        <section aria-labelledby="past-h"><h2 class="side-h" id="past-h">已經過去</h2><ol class="log past" id="past"></ol></section>
+        <p class="side-note">虛線框是支線，也就是選修活動，進度落後的班級可以跳過。</p>
+      </aside>
+    </div>
+    <div class="full"><button type="button" class="btn" id="full-btn" aria-expanded="false" aria-controls="sched">看整學期課表</button></div>
+    <div class="sched" id="sched" hidden>
       <div class="sched-scroll" id="sched-scroll"><div class="grid" id="grid"></div></div>
-      <div class="sched-foot"><span class="keys" id="keys"></span><span>斜紋底是選修活動，進度落後的班級可以跳過。左右滑動可看整學期</span></div>
+      <div class="sched-foot"><span class="keys" id="keys"></span><span>虛線框是支線，也就是選修活動，進度落後的班級可以跳過。左右滑動可看整學期</span></div>
     </div>
   </section>
 
@@ -298,15 +374,42 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
     const [ws,we]=clip(term,new Date(ymd(term.start).getTime()+Math.max(0,cw)*7*DAY),new Date(ymd(term.start).getTime()+(Math.max(0,cw)*7+4)*DAY));
     $('prog-sub').textContent=inTerm?'今天是 '+term.name+'第 '+(cw+1)+' 週（'+md(ws)+'–'+md(we)+'）':(cw<0?term.name+'還沒開始，'+md(ymd(term.begin))+' 開學':term.name+'已結束');
 
+    // 學期走到哪：過去的週是霜青，本週是餘燼橙
+    const wkNo=Math.max(0,Math.min(term.weeks,cw+1));
+    $('pace-no').innerHTML='<span class="num">'+wkNo+'</span> / <span class="num">'+term.weeks+'</span> 週';
+    $('segs').style.setProperty('--w',term.weeks);
+    $('segs').innerHTML=Array.from({length:term.weeks},(_,i)=>'<li'+(i<cw?' class="past"':i===cw?' class="cur"':'')+'></li>').join('');
+
+    // 任務清單：本週放大排最前面，接下來依序往下；已經過去的放右欄，新的在上
+    const range=i=>{const [d,e]=clip(term,new Date(ymd(term.start).getTime()+i*7*DAY),new Date(ymd(term.start).getTime()+(i*7+4)*DAY));return md(d)+'–'+md(e)};
+    const many=courses.length>1, cname=a=>many?esc((courses.find(c=>c.id===a.course)||{}).short||'')+'　':'';
+    const kind=a=>a.track==='選修'?'支線':'主線';
+    const big=a=>'<article class="q-big"><p class="q-kind"><span class="tag'+(a.track==='選修'?' side':'')+'">'+kind(a)+'任務</span><span>'+cname(a)+esc(a.topic||'')+'</span></p>'+
+      '<h3><a href="'+esc(a.href)+'">'+esc(a.title)+'</a></h3>'+
+      (a.why?'<p class="q-why">'+esc(a.why)+'</p>':'')+
+      (Array.isArray(a.rounds)&&a.rounds.length?'<ol class="q-rounds" aria-label="關卡">'+a.rounds.map((r,k)=>'<li><span class="num">'+(k+1)+'</span>'+esc(r)+'</li>').join('')+'</ol>':'')+
+      '<a class="btn btn-main" href="'+esc(a.href)+'">開始任務</a></article>';
+    const rows=(i,past)=>{const list=acts.filter(a=>a.w===i);
+      if(!list.length)return past?'':'<li class="q-row is-empty"><span class="n num">'+(i+1)+'</span><span class="b"><span class="m">'+range(i)+'　這週沒有活動</span></span></li>';
+      return list.map((a,k)=>'<li class="q-row'+(a.track==='選修'?' is-side':'')+'"><span class="n num">'+(k?'':i+1)+'</span><span class="b"><a class="t" href="'+esc(a.href)+'">'+esc(a.title)+'</a><span class="m">'+range(i)+(!past&&a.topic?'　'+cname(a)+esc(a.topic):'')+'</span></span><span class="st">'+kind(a)+'</span></li>').join('')};
+    let lg='';
+    if(inTerm){const now=acts.filter(a=>a.w===cw);
+      lg+='<li class="q-now" aria-current="date"><div class="q-now-in"><div class="q-when"><span class="num">'+(cw+1)+'</span><b>本週</b><span>'+range(cw)+'</span></div><div class="q-bigs">'+(now.length?now.map(big).join(''):'<p class="q-none">這週沒有活動。</p>')+'</div></div></li>';}
+    for(let i=Math.max(0,cw+(inTerm?1:0));i<term.weeks;i++)lg+=rows(i,false);
+    if(!courses.length)lg='<li class="q-row is-empty"><span class="n num"></span><span class="b"><span class="m">這學期還沒有開設課程。</span></span></li>';
+    $('log').innerHTML=lg||'<li class="q-row is-empty"><span class="n num"></span><span class="b"><span class="m">這學期的任務都結束了。</span></span></li>';
+    let pg='';for(let i=Math.min(term.weeks,cw)-1;i>=0;i--)pg+=rows(i,true);
+    $('past').innerHTML=pg||'<li class="q-row is-empty"><span class="n num"></span><span class="b"><span class="m">還沒有過去的任務。</span></span></li>';
+
     // 表格
     let h='<div class="corner">週次</div>';
     for(let i=0;i<term.weeks;i++){
       const [d,e]=clip(term,new Date(ymd(term.start).getTime()+i*7*DAY),new Date(ymd(term.start).getTime()+(i*7+4)*DAY));
-      h+='<div class="gh'+(i===cw?' cur':i<cw?' past':'')+'" id="wk-'+i+'"'+(i===cw?' aria-current="date"':'')+'><b>'+(i===cw?'本週・':'')+'第 '+(i+1)+' 週</b>'+md(d)+'–'+md(e)+'</div>';
+      h+='<div class="gh'+(i===cw?' cur':i<cw?' past':'')+'" id="wk-'+i+'"'+(i===cw?' aria-current="date"':'')+'><b>'+(i===cw?'<span class="nowtag">本週</span>':'')+'第 <span class="num">'+(i+1)+'</span> 週</b>'+md(d)+'–'+md(e)+'</div>';
     }
     for(const c of courses){
       h+='<div class="rowname">'+esc(c.short)+'<small>'+esc(c.who||'')+'</small></div>';
-      const chip=(a,more)=>'<a class="chip'+(a.track==='選修'?' opt':'')+'" style="--c:var(--'+strandOf(a.codes[0])+')" href="'+esc(a.href)+'"><b>'+esc(a.title)+'</b><span>'+esc(a.codes.join('、'))+'　'+(a.track==='選修'?'選修':'必修')+'</span>'+(more||'')+'</a>';
+      const chip=(a,more)=>'<a class="chip'+(a.track==='選修'?' opt':'')+'" style="--c:var(--'+strandOf(a.codes[0])+')" href="'+esc(a.href)+'"><b>'+esc(a.title)+'</b><span>'+esc(a.codes.join('、'))+'　'+(a.track==='選修'?'支線':'主線')+'</span>'+(more||'')+'</a>';
       for(let i=0;i<term.weeks;){
         const list=acts.filter(a=>a.course===c.id&&a.w===i);
         // 同一個活動連上好幾週（also）：這幾週都只有它時，合併成一格，免得看起來像好幾個活動
@@ -324,14 +427,18 @@ const findCode=code=>{for(const c of CURRICULA)for(const s of c.strands)for(cons
     $('grid').innerHTML=h;
 
     // 捲到本週（本週放在第二欄的位置，前一週還看得到）
-    if(scroll!==false){
+    toCur=()=>{
       const box=$('sched-scroll'), target=$('wk-'+Math.max(0,Math.min(term.weeks-1,cw-1)));
       const first=box.querySelector('.corner').offsetWidth;
       box.style.scrollBehavior='auto';
       box.scrollLeft=cw<0?0:Math.max(0,target.offsetLeft-first);
       box.style.scrollBehavior='';
-    }
+    };
+    if(scroll!==false&&!$('sched').hidden)toCur();
   }
+  let toCur=()=>{};
+  // 整學期課表預設收合；打開時才捲到本週
+  $('full-btn').onclick=()=>{const open=$('sched').hidden;$('sched').hidden=!open;$('full-btn').setAttribute('aria-expanded',open);$('full-btn').textContent=open?'收起整學期課表':'看整學期課表';if(open)toCur()};
   render(true);
 })();
 

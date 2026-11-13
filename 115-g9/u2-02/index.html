@@ -8,25 +8,27 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="../../assets/shell.css?v=20261110c3">
+<link rel="stylesheet" href="../../assets/shell.css?v=20261113q2">
 <style>
+:root{--teach-wave:#98A2B8;--teach-sample:#F4B26A;}
 /* 本頁的體驗與繪圖皆為本機運算，不發聲。 */
-.lab-canvas{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+.lab-canvas{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:0;background:var(--panel)}
 .lab-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .lab-control{display:grid;gap:6px;margin:12px 0;min-width:0}
-.lab-control select{width:100%;min-height:46px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)}
-.lab-stat{padding:10px;background:var(--a-soft);border-radius:8px;overflow-wrap:anywhere}
+.lab-control select{width:100%;min-height:46px;font:inherit;border:1px solid var(--line);border-radius:0;padding:8px;background:var(--surface);color:var(--ink)}
+.lab-stat{padding:10px;background:var(--a-soft);border-radius:0;overflow-wrap:anywhere}
 .lab-answer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
 .lab-answer input{max-width:100%;min-width:0}
 .lab-table{width:100%;border-collapse:collapse;font-size:16px}
 .lab-table th,.lab-table td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:left;overflow-wrap:anywhere}
 @media(max-width:500px){.lab-grid{grid-template-columns:minmax(0,1fr)}}
+.lab-stat{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 </style>
 </head>
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
-<script src="../../assets/lock.js?v=20261110a"></script>
-<script src="../../assets/login.js?v=20261110c"></script>
+<script src="../../assets/lock.js?v=20261113q1"></script>
+<script src="../../assets/login.js?v=20261113q1"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
 <script src="../../assets/activities.js?v=20261105m"></script>
 <script src="../../assets/shell.js?v=20261110d"></script>
@@ -59,12 +61,12 @@ function soundBest(i){
 }
 function drawWave(c,i,rate,levels){
   const x=c.getContext('2d'),y=v=>110-v*90;x.clearRect(0,0,640,220);
-  x.strokeStyle='#ccc';x.beginPath();x.moveTo(0,110);x.lineTo(640,110);x.stroke();
-  x.strokeStyle='#596c80';x.lineWidth=2;x.beginPath();for(let k=0;k<=640;k++){const v=y(wave(i,k/640));k?x.lineTo(k,v):x.moveTo(k,v)}x.stroke();
+  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--edge').trim()||'currentColor');x.beginPath();x.moveTo(0,110);x.lineTo(640,110);x.stroke();
+  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-wave').trim()||'currentColor');x.lineWidth=2;x.beginPath();for(let k=0;k<=640;k++){const v=y(wave(i,k/640));k?x.lineTo(k,v):x.moveTo(k,v)}x.stroke();
   if(!rate||!levels)return;
-  x.strokeStyle='#c34618';x.lineWidth=2;x.beginPath();
+  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-sample').trim()||'currentColor');x.lineWidth=2;x.beginPath();
   for(let k=0;k<rate;k++){const v=y(quant(wave(i,k/rate),levels));if(!k)x.moveTo(0,v);else x.lineTo(k/rate*640,v);x.lineTo((k+1)/rate*640,v)}x.stroke();
-  x.fillStyle='#c34618';for(let k=0;k<rate;k++){x.beginPath();x.arc(k/rate*640,y(quant(wave(i,k/rate),levels)),3,0,Math.PI*2);x.fill()}
+  x.fillStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-sample').trim()||'currentColor');for(let k=0;k<rate;k++){x.beginPath();x.arc(k/rate*640,y(quant(wave(i,k/rate),levels)),3,0,Math.PI*2);x.fill()}
 }
 function drawScene(c,n=128,colors=64){
   // 直接計算每格的顏色：舞台、聚光燈、表演者與應援色，無外部圖片。

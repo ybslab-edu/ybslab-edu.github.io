@@ -64,8 +64,9 @@ for (const theme of ['light','dark']) for (const width of [1280,390]) {
         placeholder:getComputedStyle(input,'::placeholder').color
       })));
       for (const c of colors) {
-        assert.equal(c.bg, theme==='light'?'rgb(255, 255, 255)':'rgb(15, 18, 24)');
-        assert.equal(c.ink, theme==='light'?'rgb(33, 27, 23)':'rgb(232, 234, 238)');
+        // 任務日誌固定深色：實測欄位採 panel-hi 底色與 text 文字色。
+        assert.equal(c.bg, 'rgb(37, 44, 58)');
+        assert.equal(c.ink, 'rgb(230, 233, 239)');
         assert.ok(contrast(c.placeholder,c.bg)>=4.5,'placeholder 符合 WCAG AA');
       }
       const layout = await page.evaluate(()=>{

@@ -525,3 +525,51 @@ button{background:var(--bg);color:var(--ink);border:1px solid var(--line);border
 @media(prefers-color-scheme:dark){.continue-link,.chart-switch button[aria-pressed=true]{color:var(--bg)}
 .continue-link:hover{color:var(--purple)}
 }
+
+/* ===== 任務日誌 v0.1：只做深色。以下覆寫上面的淺色與跟隨系統設定 ===== */
+:root{color-scheme:dark;
+  --void:#12151C;--panel:#1C212C;--panel-hi:#252C3A;--edge:#3B455C;--text:#E6E9EF;--dim:#98A2B8;
+  --ember:#FF6B3D;--on-ember:#12151C;--frost:#6FD6E8;--cut:14px;--slant:10px;--skew:-20deg;
+  --bg:var(--void);--surface:var(--panel);--ink:var(--text);--muted:var(--dim);--line:var(--edge);
+  --purple:var(--frost);--purple-soft:var(--panel-hi);--orange:var(--ember);--orange-soft:var(--panel-hi);--grid:var(--edge);
+  --green:var(--frost);--passed-ink:var(--frost);--green-soft:var(--panel-hi);--track:var(--panel-hi);
+  /* 品牌色例外：與首頁的 whY／Because／So 同值。 */
+  --why:#C7B0F0;--because:#9CC8F2;--so:#F4B26A;
+  --theme-A:#FF8A4C;--theme-P:#5AA9F0;--theme-S:#5CC977;--theme-D:#A08BFF;--theme-T:#3BC0D6;--theme-H:#F06595;
+  --display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"Barlow Condensed","Noto Sans TC",sans-serif}
+*,*::before,*::after{border-radius:0!important;box-shadow:none!important}
+.status-mark,.legend-dot{border-radius:50%!important}
+h1,h2,h3{font-weight:900}
+.mono{font-style:italic;font-weight:700;letter-spacing:.01em}
+button:focus-visible,a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline-color:var(--frost)}
+.site-bar{background:var(--void);border-block:0;border-bottom:2px solid var(--edge)}
+.brand i:first-child{color:var(--why)}.brand i:nth-child(2){color:var(--because)}.brand i:nth-child(3){color:var(--so)}
+.paper{background:transparent;border-inline:0}
+/* 現在的任務：餘燼橙；等級：霜青。面板切掉右下角 */
+.next-step,.level-panel{background:var(--panel);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%)}
+.next-step{border-top:4px solid var(--ember)}
+.level-panel{border-top:4px solid var(--frost)}
+.level-number{color:var(--frost);font-size:56px;line-height:1;font-weight:700}
+progress{height:10px;transform:skewX(var(--skew))}
+progress,progress::-webkit-progress-bar{background:var(--panel-hi)}
+progress::-webkit-progress-value{background:var(--frost)}
+progress::-moz-progress-bar{background:var(--frost)}
+.continue-link,.continue-link:hover{background:var(--ember);color:var(--on-ember);border:0;font-weight:700;padding-inline:28px;
+  clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+.continue-link:hover{filter:brightness(1.12)}
+.continue-link svg{display:none}
+.chart-switch{border:0;padding:0;gap:4px}
+.chart-switch button{background:var(--panel-hi);color:var(--text);font-weight:700;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);padding-inline:16px}
+.chart-switch button[aria-pressed=true]{background:var(--edge);color:var(--text)}
+.xp-details{border-block:2px solid var(--edge)}
+/* 探索六邊形的主題色：不跟隨系統，一律用深色底上清楚的那一組 */
+.axis-A{background:var(--theme-A)}.axis-P{background:var(--theme-P)}.axis-S{background:var(--theme-S)}
+.axis-D{background:var(--theme-D)}.axis-T{background:var(--theme-T)}.axis-H{background:var(--theme-H)}
+
+/* 一般導覽採灰階；切角操作的焦點框內縮，橙底用深色。 */
+button:hover,a:hover,.site-inner nav [aria-current]{color:var(--text)}
+.site-inner nav [aria-current],.mobile-tabs button[aria-selected=true]{border-bottom-color:var(--text);color:var(--text)}
+.section-number,.route-continue{color:var(--dim)}
+.continue-link:focus-visible,.chart-switch button:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
+.continue-link:focus-visible{outline-color:var(--on-ember)}

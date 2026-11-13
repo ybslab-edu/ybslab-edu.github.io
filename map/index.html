@@ -16,7 +16,7 @@
 <meta name="description" content="國中資訊科技學習地圖：依課綱學習內容排列的課堂活動。">
 <meta property="og:title" content="YBS Lab｜資訊科技學習地圖">
 <meta property="og:description" content="依課綱學習內容排列的課堂活動，一張圖看懂國中資訊科技。">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
 /*
   Concept: 捷運路線圖。課綱六大類＝六條路線，學習內容＝車站。
@@ -24,38 +24,56 @@
   最上方是學期進度：依今天日期捲到本週，回訪的人不用找。
 */
 :root{
-  --bg:#F5F7F9; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --rule:#D9DFE5; --faint:#E9EDF1;
-  --A:#D9480F; --P:#1971C2; --S:#2B8A3E; --D:#6741D9; --T:#0B7285; --H:#C2255C; --L:#5C940D; --Da:#9C36B5; --I:#364FC7;
-  --why:#7A4EA8; --because:#2C67AE; --so:#BD6216;
-  --f:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:dark;
+  --void:#12151C;       /* 頁面底 */
+  --panel:#1C212C;      /* 面板 */
+  --panel-hi:#252C3A;   /* 面板內的欄位、次要按鈕 */
+  --edge:#3B455C;       /* 面板邊線與分隔 */
+  --text:#E6E9EF;       /* 主要文字 */
+  --dim:#98A2B8;        /* 次要文字、已完成項目的標題 */
+  --ember:#FF6B3D;      /* 只代表「現在這個任務」與主要按鈕 */
+  --on-ember:#12151C;
+  --frost:#6FD6E8;      /* 只代表經驗值與已完成的進度 */
+  --alert:#FF9C8F;      /* 錯誤文字與錯誤邊框 */
+  --alert-wash:#3A2224; /* 錯誤訊息底 */
+  --f-num:"Barlow Condensed","Noto Sans TC",sans-serif;   /* 等級、經驗值、編號；斜體 600／700 */
+  --f-text:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; /* 400／500／700／900 */
+  --u:0.5rem;           /* 間距單位，全部用它的倍數 */
+  --cut:14px;           /* 面板切角 */
+  --slant:10px;         /* 按鈕與標籤的斜邊 */
+  --skew:-20deg;        /* 進度格與經驗條的傾斜 */
+  /* 教學用色：九個課綱類別，沿用首頁 */
+  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF;
+  /* 與首頁一致的品牌字母色 */
+  --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A;
+  --bg:var(--void); --surface:var(--panel); --ink:var(--text); --muted:var(--dim); --rule:var(--edge); --faint:var(--panel-hi); --f:var(--f-text);
+
 }
-@media (prefers-color-scheme: dark){:root{
-  --bg:#11161B; --surface:#182028; --ink:#E8EDF2; --muted:#9AA7B4; --rule:#2B3540; --faint:#1E2730;
-  --A:#FF8A4C; --P:#5AA9F0; --S:#5CC977; --D:#A08BFF; --T:#3BC0D6; --H:#F06595; --L:#94D82D; --Da:#DA77F2; --I:#91A7FF; --why:#C7B0F0; --because:#9CC8F2; --so:#F4B26A; color-scheme:dark}}
+
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
 a{color:inherit}
 main{flex:1}
-:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:6px}
+:focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:0}
 .in{max-width:1180px;margin:0 auto;padding-inline:20px}
 
 /* 頁首 */
-.bar{background:var(--surface);border-bottom:1px solid var(--rule)}
+.bar{background:var(--bg);border-bottom:2px solid var(--rule)}
 .bar .in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px}
 .logo{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-decoration:none}
 .logo b{font-weight:900;font-size:22px;letter-spacing:.01em}
 .logo b .y{color:var(--why)} .logo b .bb{color:var(--because)} .logo b .s{color:var(--so)}
-.motto{font-size:17px;font-weight:700;color:color-mix(in srgb,var(--muted) 55%,transparent);display:inline-flex;gap:.35em;white-space:nowrap}
-.motto .k{display:inline-block;transition:color .6s,transform .6s cubic-bezier(.2,.8,.2,1.4)}
-.motto.lit .k{transform:translateY(-.05em) scale(1.25)}
-.motto.lit .k.y{color:var(--why);transition-delay:.15s}
-.motto.lit .k.b{color:var(--because);transition-delay:.45s}
-.motto.lit .k.s{color:var(--so);transition-delay:.75s}
+.motto{font-size:17px;font-weight:700;color:var(--dim);display:inline-flex;gap:.35em;white-space:nowrap}
+.motto .k{display:inline-block}
+
+.motto.lit .k.y{color:var(--why);}
+.motto.lit .k.b{color:var(--because);}
+.motto.lit .k.s{color:var(--so);}
 @media (max-width:420px){.motto{font-size:15px}}
 .bar nav{display:flex;gap:20px;font-size:15px}
 .bar nav a{text-decoration:none;color:var(--muted)}
 .bar nav a:hover{color:var(--ink)}
-.bar nav a[aria-current="page"]{color:var(--ink);font-weight:700}
+.bar nav a[aria-current="page"]{color:var(--ink);font-weight:700;border-bottom:2px solid var(--ember);padding-bottom:2px}
 
 /* 區塊標題 */
 .head{padding-block:48px 18px}
@@ -66,10 +84,10 @@ main{flex:1}
 .legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:13.5px}
 .legend span{display:inline-flex;align-items:center;gap:8px}
 .lg-dot{width:14px;height:14px;border-radius:50%;border:3px solid var(--ink);background:var(--surface)}
-.lg-dot.on{width:20px;height:20px;background:var(--ink);box-shadow:inset 0 0 0 3px var(--surface)}
+.lg-dot.on{width:20px;height:20px;background:var(--ink);border:5px double var(--surface)}
 
 /* 地圖 */
-.map{position:relative;background:var(--surface);border:1px solid var(--rule);border-radius:18px;padding:8px 0 0;overflow:hidden}
+.map{position:relative;background:var(--surface);border:1px solid var(--rule);border-radius:0;padding:8px 0 0;overflow:hidden}
 .map::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--contour);background-size:720px 720px;opacity:.4}
 .map>*{position:relative}
 .sheet{display:flex;flex-wrap:wrap;gap:10px 28px;justify-content:space-between;align-items:center;border-top:1px solid var(--rule);background:var(--faint);padding:12px 24px;font-size:13.5px;color:var(--muted)}
@@ -84,12 +102,12 @@ main{flex:1}
 .name b{font-size:17px;line-height:1.3}
 .name span{font-size:13.5px;color:var(--muted)}
 .track{position:relative;display:flex}
-.track::before{content:"";position:absolute;top:13px;height:6px;border-radius:3px;background:var(--c);
+.track::before{content:"";position:absolute;top:13px;height:6px;border-radius:0;background:var(--c);
   left:calc(100% / (2 * var(--n)));right:calc(100% / (2 * var(--n)))}
 .st{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
   font:inherit;color:inherit;background:none;border:0;padding:0 4px 4px;cursor:pointer}
 .dot{width:20px;height:20px;margin-top:6px;border-radius:50%;background:var(--surface);border:4px solid var(--c);transition:transform .15s}
-.st.has .dot{width:32px;height:32px;margin-top:0;background:var(--c);box-shadow:inset 0 0 0 4px var(--surface);border-width:4px}
+.st.has .dot{width:32px;height:32px;margin-top:0;background:var(--c);border:6px double var(--surface)}
 .st .txt{display:flex;flex-direction:column;align-items:inherit}
 .st .lb{font-size:14px;line-height:1.35;font-weight:500}
 .st .cd{font-size:12px;color:var(--muted)}
@@ -101,7 +119,7 @@ main{flex:1}
 
 /* 放射地圖 */
 .views{display:flex;gap:6px;flex-wrap:wrap}
-.views button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+.views button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:0;padding:5px 14px;cursor:pointer}
 .views button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 24px;flex-wrap:wrap}
 .radial-wrap{overflow-x:auto}
@@ -136,8 +154,8 @@ main{flex:1}
 .curtabs button:hover{color:var(--ink)}
 
 /* 課綱說明 */
-.lvtag{display:inline-block;margin-left:10px;font-size:13px;font-weight:700;color:var(--c);border:1.5px solid var(--c);border-radius:999px;padding:0 9px;vertical-align:3px}
-.spec{display:grid;grid-template-columns:minmax(0,1fr);gap:12px 32px;background:color-mix(in srgb,var(--c) 6%,var(--surface));border-radius:10px;padding:14px 16px}
+.lvtag{display:inline-block;margin-left:10px;font-size:13px;font-weight:700;color:var(--c);border:1.5px solid var(--c);border-radius:0;padding:0 9px;vertical-align:3px}
+.spec{display:grid;grid-template-columns:minmax(0,1fr);gap:12px 32px;background:color-mix(in srgb,var(--c) 6%,var(--surface));border-radius:0;padding:14px 16px}
 .spec.two{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr)}
 @media (max-width:760px){.spec.two{grid-template-columns:minmax(0,1fr)}}
 .spec .theme{grid-column:1 / -1;margin:0;font-size:14px;color:var(--muted)}
@@ -145,22 +163,22 @@ main{flex:1}
 .spec h4,.acts-h{margin:0 0 4px;font-size:14px;color:var(--muted);font-weight:700;letter-spacing:.02em}
 .nl{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:3px;font-size:15px;line-height:1.55}
 .nl li.sub{list-style:circle;margin-left:1.1em;color:var(--muted)}
-.optag{display:inline-block;margin-left:6px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px dashed var(--muted);border-radius:4px;padding:0 5px;vertical-align:1px}
+.optag{display:inline-block;margin-left:6px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px dashed var(--muted);border-radius:0;padding:0 5px;vertical-align:1px}
 .optnote{grid-column:1 / -1;margin:0;font-size:13px;color:var(--muted)}
 .acts-h{margin-top:2px}
 
 /* 站牌（展開面板） */
-.panel{margin:0 24px 20px;border:2px solid var(--c);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.panel{margin:0 24px 20px;border:2px solid var(--c);border-radius:0;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
 .panel[hidden]{display:none}
 .ph{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .ph h3{margin:0;font-size:20px;line-height:1.4}
-.ph .code{display:inline-block;color:var(--surface);background:var(--c);border-radius:6px;padding:0 8px;font-size:14px;font-weight:700;margin-right:8px;vertical-align:2px}
-.close{font:inherit;font-size:14px;background:none;border:1px solid var(--rule);color:var(--muted);border-radius:8px;padding:2px 10px;cursor:pointer}
+.ph .code{display:inline-block;color:var(--surface);background:var(--c);border-radius:0;padding:0 8px;font-size:14px;font-weight:700;margin-right:8px;vertical-align:2px}
+.close{font:inherit;font-size:14px;background:none;border:1px solid var(--rule);color:var(--muted);border-radius:0;padding:2px 10px;cursor:pointer}
 .acts{display:flex;flex-direction:column;gap:12px}
 .act{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 24px;padding-top:12px;border-top:1px solid var(--faint)}
 .act h4{margin:0;font-size:19px}
 .act .meta{margin:2px 0 0;color:var(--muted);font-size:14px}
-.act .play{align-self:start;text-decoration:none;font-weight:700;background:var(--c);color:var(--surface);border-radius:10px;padding:8px 18px;white-space:nowrap}
+.act .play{align-self:start;text-decoration:none;font-weight:700;background:var(--c);color:var(--surface);border-radius:0;padding:8px 18px;white-space:nowrap}
 .wbs{grid-column:1 / -1;margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;font-size:15px}
 .wbs dt{font-weight:700;color:var(--muted)}
 .wbs dd{margin:0}
@@ -186,10 +204,10 @@ main{flex:1}
 .prog h1{margin:0;font-weight:900;font-size:clamp(30px,4.4vw,42px);line-height:1.15}
 .prog-top p{margin:6px 0 0;color:var(--muted)}
 .terms{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.terms button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+.terms button{font:inherit;font-size:14.5px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:0;padding:5px 14px;cursor:pointer}
 .terms button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
 .terms .jump{border-style:dashed}
-.sched{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:16px;overflow:hidden}
+.sched{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:0;overflow:hidden}
 .sched-scroll{position:relative;overflow-x:auto;scroll-behavior:smooth;overscroll-behavior-x:contain}
 .grid{display:grid;grid-template-columns:7.5em repeat(var(--w),8.6em);min-width:max-content}
 .grid>*{border-right:1px solid var(--faint);border-bottom:1px solid var(--faint);min-width:0}
@@ -198,24 +216,24 @@ main{flex:1}
 .gh.past b{color:var(--muted);font-weight:500}
 .gh.cur{background:var(--ink);color:var(--bg)}
 .gh.cur b{color:var(--bg)}
-.rowname{position:sticky;left:0;z-index:2;background:var(--surface);padding:12px 10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;justify-content:center;box-shadow:2px 0 0 var(--faint)}
+.rowname{position:sticky;left:0;z-index:2;background:var(--surface);padding:12px 10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;justify-content:center;box-shadow:none}
 .rowname small{font-weight:400;color:var(--muted);font-size:12.5px}
-.corner{position:sticky;left:0;z-index:3;background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted);box-shadow:2px 0 0 var(--faint)}
+.corner{position:sticky;left:0;z-index:3;background:var(--surface);padding:8px 10px;font-size:13px;color:var(--muted);box-shadow:none}
 .cell{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:76px}
 .cell.cur{background:color-mix(in srgb,var(--ink) 7%,transparent)}
 .chip em{font-style:normal;font-size:12px;color:var(--muted)}
-.cell.past{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--faint) 60%,transparent) 6px 7px)}
-.chip{display:flex;flex-direction:column;gap:1px;text-decoration:none;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 13%,var(--surface));border-radius:6px;padding:6px 8px;font-size:14px;line-height:1.3}
+.cell.past{background:var(--panel)}
+.chip{display:flex;flex-direction:column;gap:1px;text-decoration:none;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 13%,var(--surface));border-radius:0;padding:6px 8px;font-size:14px;line-height:1.3}
 .chip b{font-weight:700}
 .chip span{font-size:12px;color:var(--muted)}
 .chip:hover b{text-decoration:underline}
-.trk{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.trk{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;border-radius:0;padding:0 5px;margin-left:6px;vertical-align:1px;white-space:nowrap}
 .trk.opt{color:var(--muted);border:1px dashed var(--muted)}
 .trk.req{color:var(--surface);background:var(--ink)}
-.chip.opt{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 10%,var(--surface)) 0 6px,var(--surface) 6px 9px)}
+.chip.opt{background:var(--panel)}
 .sched-foot{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;padding:10px 14px;font-size:13px;color:var(--muted);background:var(--faint)}
 .sched-foot .keys{display:flex;gap:14px;flex-wrap:wrap}
-.sched-foot i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.sched-foot i{display:inline-block;width:10px;height:10px;border-radius:0;margin-right:5px;vertical-align:-1px}
 
 /* 共用 */
 section{padding-block:56px 0}
@@ -226,6 +244,35 @@ h2{margin:0 0 6px;font-size:26px;font-weight:900}
 footer{margin-top:72px;border-top:1px solid var(--rule);background:var(--surface);color:var(--muted);font-size:14px}
 footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* 任務日誌：共用閱讀、鍵盤焦點與頁尾 */
+body{min-height:100vh;display:flex;flex-direction:column}
+main{flex:1;min-width:0}
+:focus-visible{outline:3px solid var(--frost);outline-offset:2px;border-radius:0}
+h1,h2{font-weight:900}
+footer{background:var(--void);border-top:2px solid var(--edge)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.map{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));border:2px solid var(--edge)}
+.map::before{display:none}
+.panel{background:var(--panel);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+.spec{background:var(--panel-hi)}
+.views button,.terms button,.close,.act .play,.lvtag,.optag,.trk,.ph .code{clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%);border-radius:0}
+.views button,.terms button,.close{background:var(--panel-hi);color:var(--text);padding:8px 16px;font-weight:700}
+.views button[aria-pressed="true"]{background:var(--edge);color:var(--text);border-color:var(--edge)}
+.curtabs button[aria-selected="true"]{border-bottom-color:var(--text)}
+.act .play{background:var(--ember);color:var(--on-ember)}
+.track::before{border-radius:0}
+.ph .code,.st .cd,.nd .cd{font-family:var(--f-num);font-weight:600;font-style:italic}
+.ph .code,.hub text,.nd.has .gr{color:var(--void);fill:var(--void)}
+.st:focus-visible{outline-offset:0}
+.views button:focus-visible,.terms button:focus-visible,.close:focus-visible,.act .play:focus-visible{outline-offset:-5px}
+.act .play:focus-visible{outline-color:var(--on-ember)}
+.ph .code{padding-inline:12px}
+.trk,.optag{padding-inline:10px}
+.lvtag{padding-inline:14px}
+button:hover,.play:hover{filter:brightness(1.12)}
+@media(max-width:760px){.panel{padding:16px}.sheet{padding:16px}.ph h3{overflow-wrap:anywhere}}
 </style>
 </head>
 <body>
@@ -276,7 +323,7 @@ footer .in{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;pa
 const $=id=>document.getElementById(id);
 /* 頁首動畫：whY Because So 依序亮起 */
 requestAnimationFrame(()=>setTimeout(()=>$('motto').classList.add('lit'),matchMedia('(prefers-reduced-motion: reduce)').matches?0:300));
-const trk=a=>a.track==='選修'?'<span class="trk opt" title="進度落後的班級可以跳過">選修</span>':'<span class="trk req">必修</span>';
+const trk=a=>a.track==='選修'?'<span class="trk opt" title="進度落後的班級可以跳過">支線</span>':'<span class="trk req">主線</span>';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const courseOf=id=>COURSES.find(c=>c.open&&c.id===id)||{name:id,path:'#'};
 const openActivities=ACTIVITIES.filter(a=>COURSES.some(c=>c.open&&c.id===a.course));
@@ -324,7 +371,7 @@ function buildRadial(c){
   const f=n=>n.toFixed(1);
   let out='';
   for(const l of c.levels) out+='<circle class="ring" cx="'+CX+'" cy="'+CY+'" r="'+RING[l.g]+'"/>';
-  for(const l of c.levels){const [x,y]=pt(RING[l.g],0),w=l.label.length*13+14;out+='<rect class="ring-bg" x="'+f(x-w/2)+'" y="'+f(y-11)+'" width="'+w+'" height="22" rx="4"/><text class="ring-lb" x="'+f(x)+'" y="'+f(y+5)+'" text-anchor="middle">'+esc(l.label)+'</text>'}
+  for(const l of c.levels){const [x,y]=pt(RING[l.g],0),w=l.label.length*13+14;out+='<rect class="ring-bg" x="'+f(x-w/2)+'" y="'+f(y-11)+'" width="'+w+'" height="22" rx="0"/><text class="ring-lb" x="'+f(x)+'" y="'+f(y+5)+'" text-anchor="middle">'+esc(l.label)+'</text>'}
   let slot=1, trunks='', twigs='', hubs='', nodes='';
   for(const s of c.strands){
     const items=[...s.items].sort((a,b)=>a.grade-b.grade||a.code.localeCompare(b.code));
@@ -333,7 +380,7 @@ function buildRadial(c){
     const [hx,hy]=pt(R_HUB,mid), [tx,ty]=pt(R_CORE,mid);
     trunks+='<line class="trunk" style="--c:'+col+'" x1="'+f(tx)+'" y1="'+f(ty)+'" x2="'+f(hx)+'" y2="'+f(hy)+'"/>';
     const w=s.tag.length*16+22;
-    hubs+='<g class="hub" style="--c:'+col+'"><rect x="'+f(hx-w/2)+'" y="'+f(hy-15)+'" width="'+w+'" height="30" rx="15"/><text x="'+f(hx)+'" y="'+f(hy+5)+'" text-anchor="middle">'+esc(s.tag)+'</text><title>'+esc(s.name+(s.desc?'：'+s.desc:''))+'</title></g>';
+    hubs+='<g class="hub" style="--c:'+col+'"><rect x="'+f(hx-w/2)+'" y="'+f(hy-15)+'" width="'+w+'" height="30" rx="0"/><text x="'+f(hx)+'" y="'+f(hy+5)+'" text-anchor="middle">'+esc(s.tag)+'</text><title>'+esc(s.name+(s.desc?'：'+s.desc:''))+'</title></g>';
     items.forEach((it,i)=>{
       const ang=(slot+i)*step, r=RING[it.grade], [x,y]=pt(r,ang), on=!!byCode[it.code], lv=lvOf(c,it.grade);
       const [c1x,c1y]=pt(R_HUB+50,mid), [c2x,c2y]=pt(r-70,ang);
@@ -419,7 +466,7 @@ function open(code,scroll){
     (acts.length?'<div class="acts">'+acts.map(a=>{
       const c=courseOf(a.course);
       return '<article class="act"><div><h4>'+esc(a.title)+trk(a)+'</h4><p class="meta">'+esc(c.name)+(termWeekLabel(a)?' '+termWeekLabel(a):'')+'｜'+esc(a.topic)+'</p></div>'+
-        '<a class="play" href="../'+esc(a.href)+'">開始活動</a>'+
+        '<a class="play" href="../'+esc(a.href)+'">開始任務</a>'+
         '<dl class="wbs"><dt>Why</dt><dd>'+esc(a.why)+'</dd><dt>Because</dt><dd>'+esc(a.because)+'</dd><dt>So</dt><dd>'+esc(a.so)+'</dd></dl></article>';
     }).join('')+'</div>':'<p class="empty">這一項的課堂活動還在準備中。</p>');
   pn.hidden=false;
@@ -436,7 +483,7 @@ if(/^[A-Za-z]+-(IV|V)-\d+$/.test(h))open('資'+h,true);
   try{
     const N=720,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');
     let seed=7;const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
-    const col=getComputedStyle(document.documentElement).getPropertyValue('--rule').trim()||'#D9DFE5';
+    const col=getComputedStyle(document.documentElement).getPropertyValue('--rule').trim()||'currentColor';
     g.strokeStyle=col;g.lineWidth=1.2;
     for(const [cx,cy,rings] of [[150,170,7],[560,520,9],[600,90,5]]){
       const amp=[...Array(6)].map(()=>rnd()*0.35), ph=[...Array(6)].map(()=>rnd()*6.28);

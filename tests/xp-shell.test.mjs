@@ -29,7 +29,7 @@ function setup({old,cloud,fail=false,delayed=false,teacher=false}={}){
   const el=id=>body.querySelector('#'+id),run=code=>vm.runInContext(code,context);
   const start=(seat=1)=>{el('in-cls').value='999';el('in-seat').value=String(seat);el('g-go').click()};
   if(!teacher)start();
-  return {stored,uploads,queries,el,run,start,status:st=>status(st),loadXP:()=>{run(read('assets/xp.js'));coreScript.onload()},send:()=>el('b-send').click(),pass:i=>{run('APP.load('+i+')');el('b-send').click();el('b-send').click()},
+  return {stored,uploads,queries,el,run,start,status:st=>status(st),loadXP:()=>{run(read('assets/xp.js'));coreScript.onload()},send:()=>el('b-send').click(),pass:i=>{run('APP.load('+i+')');el('b-send').click();el('b-next-group').click();el('b-send').click()},
     resolve:(records,fromCache=false)=>{cloudRecords=records;cache=fromCache;resolveRead()},resolveOther:records=>{otherRecords=records;resolveOtherRead()},swapProfile:(uid='synthetic-two')=>{profile=uid?{uid}:null}};
 }
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve()};

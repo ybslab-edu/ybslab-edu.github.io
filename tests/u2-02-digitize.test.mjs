@@ -95,19 +95,20 @@ test('沿用真實 shell 判題流程：錯答保留累積次數、每關兩組�
   const run=setup(),shell=readFileSync(new URL('../assets/shell.js',import.meta.url),'utf8');
   const judging=shell.slice(shell.indexOf('const shellCreateJudging ='),shell.indexOf('// 保存既有進度'));
   // 取用未修改的共用判題函式，DOM 呈現與儲存以合成物件隔離。
-  const create=run(judging+'\nshellCreateJudging'),rounds=run('ROUNDS');
-  const verdict={querySelector:()=>({textContent:''}),innerHTML:'',hidden:true},done=new Set();let uploads=0,saves=0,draw=0;
+  const create=run(shell.match(/const shellContentKey =[\s\S]*?;\n/)[0]+judging+'\nshellCreateJudging'),rounds=run('ROUNDS');
+  const nextGroup={};const verdict={querySelector:()=>({textContent:''}),innerHTML:'',hidden:true},done=new Set();let uploads=0,saves=0,draw=0;
   const state={cfg:{finale:'全部完成！下一站：燈牌只有亮和暗，數字到底怎麼存？'},
-    $:id=>id==='verdict'?verdict:null,esc:String,R:rounds,done,teacher:false,level:1,streak:0,
-    prog:{mask:0,time:0},attempt(){},renderStreak(){},renderRounds(){},saveProg(){saves++},upload(){uploads++},
-    fresh(){const random=draw++%2?0.99999:0;this.inst=rounds[this.ri].gen(()=>random);this.handle=rounds[this.ri].view(this.inst,new Stage(),{changed(){}})},
+    $:id=>id==='verdict'?verdict:id==='b-next-group'?nextGroup:null,esc:String,R:rounds,done,teacher:false,level:1,streak:0,
+    prog:{mask:0,time:0},attempt(){},changed(){},renderStreak(){},renderRounds(){},saveProg(){saves++},upload(){uploads++},
+    fresh(){this.answerState=null;this.lastAnswerKey=null;const random=draw++%2?0.99999:0;this.inst=rounds[this.ri].gen(()=>random);this.handle=rounds[this.ri].view(this.inst,new Stage(),{changed(){}})},
   };
   const {submit}=create(state);
   for(let ri=0;ri<4;ri++){
-    state.ri=ri;state.level=rounds[ri].lv;state.streak=0;state.fresh();
+    state.ri=ri;state.level=rounds[ri].lv;state.streak=0;state.correctKeys=new Set();state.fresh();
     assert.equal(state.handle.ready(),false);submit();assert.equal(state.streak,0);
     state.handle.fill();const first=JSON.stringify(state.inst);submit();
-    assert.equal(state.streak,1);assert.equal(done.has(ri),false);assert.notEqual(JSON.stringify(state.inst),first);
+    assert.equal(state.streak,1);assert.equal(done.has(ri),false);assert.equal(JSON.stringify(state.inst),first);
+    nextGroup.onclick();assert.notEqual(JSON.stringify(state.inst),first);
     // 新題未作答送出仍不過關，但保留先前答對次數。
     submit();assert.equal(state.streak,1);assert.equal(done.has(ri),false);
     state.handle.fill();submit();assert.equal(state.streak,2);assert.equal(done.has(ri),true);

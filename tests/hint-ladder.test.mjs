@@ -20,9 +20,9 @@ function setup({teacher=false,reduced=false,actual=false}={}){
   // scrollIntoView 由 HTML parser 產生的 section 同樣記錄。
   Element.prototype.scrollIntoView=function(options){scrolls.push({id:this.id,...options})};
   const actualScript=actual?[...readFileSync(new URL('../115-g9/u2-03/index.html',import.meta.url),'utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'):null;
-  vm.runInContext(source+(actualScript??`\nlet n=0,reply=true;const APP=SHELL({week:99,title:'合成活動',rounds:[1,2].map(i=>({lv:1,name:'合成'+i,
+  vm.runInContext(source+(actualScript??`\nlet n=0,reply=true,answer=0;const APP=SHELL({week:99,title:'合成活動',rounds:[1,2].map(i=>({lv:1,name:'合成'+i,
     now:i=>'固定 5，目標 <b>'+i.n+'</b>，小數 '+i.n+'.5',goal:'累積答對 2/2',gen:()=>({n:++n}),
-    tip:i=>'方向 '+i.n,steps:i=>'拆步驟 '+i.n,learn:'合成規則',view:(i,el)=>{el.innerHTML='<button data-changed="target">目標 '+i.n+'</button>';el.querySelector('button').onclick=()=>globalThis.clicked=true;return {get:()=>null}},check:()=>reply}))});`),context);
+    tip:i=>'方向 '+i.n,steps:i=>'拆步驟 '+i.n,learn:'合成規則',view:(i,el,api)=>{globalThis.answerChanged=api.changed;el.innerHTML='<button data-changed="target">目標 '+i.n+'</button>';el.querySelector('button').onclick=()=>globalThis.clicked=true;return {get:()=>answer}},check:()=>reply}))});`),context);
   const get=id=>body.querySelector('#'+id),run=code=>vm.runInContext(code,context);
   // 隱藏的按鈕或隱藏祖先內的按鈕無法取得焦點。
   for(const button of body.querySelectorAll('button'))button.focus=function(){
@@ -41,13 +41,13 @@ test('提示層級：未送出鎖定、錯一次升一層、同關換題保留�
   h.run('reply=false');h.send();
   assert.match(h.get('hint-content').textContent,/第 1 層/);
   assert.doesNotMatch(h.get('hint-content').textContent,/第 2 層/);
-  h.send();assert.match(h.get('hint-content').textContent,/拆步驟 3/);
-  h.run('APP.load(0)');assert.match(h.get('hint-content').textContent,/拆步驟 4/);
+  h.run('answer++;answerChanged()');h.send();assert.match(h.get('hint-content').textContent,/拆步驟 1/);
+  h.run('APP.load(0)');assert.match(h.get('hint-content').textContent,/拆步驟 2/);
   h.send();assert.match(h.get('hint-content').textContent,/第 3 層/);
   h.get('b-demo').click();assert.equal(h.get('original-work').hidden,true);
   const inst=h.run('APP.inst.n');h.send();assert.equal(h.run('APP.inst.n'),inst,'示範中不能送原題');
   h.get('b-demo-back').click();assert.equal(h.get('original-work').hidden,false);
-  h.run('reply=true');h.send();h.send();assert.equal(h.get('hint-content').textContent,'');
+  h.run('reply=true;answer++;answerChanged()');h.send();h.get('b-next-group').click();h.send();assert.equal(h.get('hint-content').textContent,'');
   assert.equal(h.get('b-hint').disabled,true);
   h.run('APP.load(1)');assert.equal(h.get('hint-content').textContent,'');
 });
@@ -87,7 +87,7 @@ test('示範保留原題與作答：另一題填答、說明、進度欄位及�
  const original=h.run('JSON.stringify(APP.inst)'),answer=h.run('APP.handle.get()'),stored=[...h.stored];
  h.get('b-demo').click();
  assert.ok(h.get('demo-content').querySelector('fieldset'));
- assert.match(h.get('demo-content').textContent,/拆步驟 4/);
+ assert.match(h.get('demo-content').textContent,/拆步驟 3/);
  assert.equal(h.run('APP.inst===originalInst&&APP.handle===originalHandle'),true);
  assert.equal(h.run('JSON.stringify(APP.inst)'),original);assert.equal(h.run('APP.handle.get()'),answer);
  assert.deepEqual([...h.stored],stored,'示範的 changed/attempt 不記次、不存檔');

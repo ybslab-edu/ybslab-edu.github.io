@@ -26,26 +26,27 @@ async function setup(t,{teacher=false,reduced=false,actual=false,mask=2}={}){
   },{teacher,mask});
   await page.addScriptTag({content:read('assets/shell.js')});
   const source=actual?[...read('115-g9/u2-03/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'):`
-    let generation=0, reply=true;
+    let generation=0, reply=true,answer=0;
     const APP=SHELL({week:99,title:'合成活動',rounds:[1,2].map(n=>({lv:1,name:'合成關'+n,
       now:i=>'固定 5，目標 <b>'+i.n+'</b>，小數 '+i.n+'.5',goal:'累積答對 2/2',
-      gen:()=>({n:++generation}),view:(i,el)=>{el.innerHTML='<button data-changed="target">目標 '+i.n+'</button>';el.querySelector('button').onclick=()=>window.clicked=true;return {get:()=>null}},check:()=>reply}))});`;
+      gen:()=>({n:++generation}),view:(i,el,api)=>{globalThis.answerChanged=api.changed;el.innerHTML='<button data-changed="target">目標 '+i.n+'</button>';el.querySelector('button').onclick=()=>window.clicked=true;return {get:()=>answer}},check:()=>reply}))});`;
   await page.addScriptTag({content:source});
   if(!teacher)await page.evaluate(()=>{document.getElementById('in-cls').value='999';document.getElementById('in-seat').value='1';document.getElementById('g-go').click()});
   return page;
 }
 
-test('累積計數：答對、答錯換題、答對即過關；舊存檔、換關與教師模式相容',async t=>{
+test('累積計數：答對、答錯留題、答對即過關；舊存檔、換關與教師模式相容',async t=>{
   for(const teacher of [false,true]){
     const page=await setup(t,{teacher});
     assert.equal(await page.locator('.question-changed').count(),0);
     if(!teacher)assert.match(await page.locator('#rounds button.passed').innerText(),/合成關2 ✓/);
     await page.click('#b-send');
     assert.match(await page.locator('#streak').innerText(),/累積答對 1\/2/);
+    await page.click('#b-next-group');
     await page.evaluate(()=>{reply='合成錯答';document.getElementById('b-send').click()});
-    assert.equal(await page.evaluate(()=>APP.inst.n),3);
+    assert.equal(await page.evaluate(()=>APP.inst.n),2);
     assert.match(await page.locator('#streak').innerText(),/累積答對 1\/2/);
-    await page.evaluate(()=>{reply=true;document.getElementById('b-send').click()});
+    await page.evaluate(()=>{reply=true;answer++;answerChanged();document.getElementById('b-send').click()});
     assert.match(await page.locator('#streak').innerText(),/累積答對 2\/2/);
     assert.match(await page.locator('#verdict').innerText(),/過關/);
     const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w99:999-1')));
@@ -57,22 +58,24 @@ test('累積計數：答對、答錯換題、答對即過關；舊存檔、換�
   }
 });
 
-test('送出換題捲至任務說明；遵守 reduced motion；過關、首次及手動換關不捲',async t=>{
+test('下一組換題捲至任務說明；遵守 reduced motion；過關、首次及手動換關不捲',async t=>{
   for(const reduced of [false,true]){
     const page=await setup(t,{reduced});
     assert.equal(await page.evaluate(()=>scrolls.length),0);
     await page.evaluate(()=>document.getElementById('b-send').click());
+    await page.click('#b-next-group');
     await page.evaluate(()=>{reply=false;document.getElementById('b-send').click()});
     const scrolls=await page.evaluate(()=>window.scrolls);
-    assert.deepEqual(scrolls,Array(2).fill({id:'task-instructions',behavior:reduced?'auto':'smooth',block:'start'}));
-    await page.evaluate(()=>{reply=true;document.getElementById('b-send').click();APP.load(1)});
-    assert.equal(await page.evaluate(()=>scrolls.length),2);
+    assert.deepEqual(scrolls,Array(1).fill({id:'task-instructions',behavior:reduced?'auto':'smooth',block:'start'}));
+    await page.evaluate(()=>{reply=true;answer++;answerChanged();document.getElementById('b-send').click();APP.load(1)});
+    assert.equal(await page.evaluate(()=>scrolls.length),1);
   }
 });
 
 test('共用數字比對：只標示變值，保留 DOM 事件，兩秒淡出且手機不溢出',async t=>{
   const page=await setup(t);
   await page.evaluate(()=>document.getElementById('b-send').click());
+  await page.click('#b-next-group');
   assert.deepEqual(await page.locator('#says .question-changed').allTextContents(),['2','2.5']);
   assert.deepEqual(await page.locator('#stage .question-changed').allTextContents(),['2']);
   await page.locator('#stage button').click();assert.equal(await page.evaluate(()=>clicked),true);
@@ -102,6 +105,8 @@ test('u2-03 實際頁面：生日、八燈、最少燈數與容量換題標示�
     await page.evaluate(()=>document.getElementById('b-send').click());
     assert.equal(await page.locator('#verdict').isVisible(),true);
     assert.match(await page.locator('#streak').innerText(),/累積答對 1\/2/);
+    assert.equal(await page.evaluate(()=>JSON.stringify(APP.inst)),first,'答對後留在原題');
+    await page.click('#b-next-group');
     assert.notEqual(await page.evaluate(()=>JSON.stringify(APP.inst)),first);
     assert.equal(await page.evaluate(()=>window.draws),4,'同題與僅情境不同的計算題皆須重抽，採用第一個不同題');
     assert.ok(await page.locator('#says .question-changed').count()>0);
@@ -125,7 +130,7 @@ test('過關按鈕深淺色 AA、選中外框；頁首上傳狀態在桌面及�
     assert.equal(await page.locator('#prog').count(),0);
     assert.doesNotMatch(await page.locator('#main').innerText(),/我的過關進度|滿分 100|每少過一關/);
     assert.equal(await page.locator('#report, #score, #sync2, #rep-note').count(),0);
-    await page.evaluate(()=>{document.getElementById('b-send').click();document.getElementById('b-send').click();APP.load(1)});
+    await page.evaluate(()=>{document.getElementById('b-send').click();document.getElementById('b-next-group').click();document.getElementById('b-send').click();APP.load(1)});
     assert.equal(await page.locator('#rounds button.passed').count(),2);
     // 選中與鍵盤焦點是獨立狀態；先移除殘留焦點，再檢查選中外框。
     await page.evaluate(()=>document.activeElement?.blur());
@@ -154,7 +159,7 @@ for(const width of [1280,390])for(const teacher of [false,true])test(`移除分�
   const page=await setup(t,{teacher,mask:0});
   await page.setViewportSize({width,height:1000});
   for(const passed of [0,1]){
-    if(passed)await page.evaluate(()=>{document.getElementById('b-send').click();document.getElementById('b-send').click()});
+    if(passed)await page.evaluate(()=>{document.getElementById('b-send').click();document.getElementById('b-next-group').click();document.getElementById('b-send').click()});
     assert.equal(await page.locator('#score, #report, #rep-note').count(),0);
     if(passed)assert.match(await page.locator('#verdict').innerText(),/過關/);
     if(passed&&!teacher){

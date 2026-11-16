@@ -216,6 +216,7 @@ test('跨分頁撤銷 A：清除活動班座與作答；B 重新確認班座後�
     for (let i = 0; i < 2; i++) {
       APP.handle.fill();document.querySelector('#sample-rate').dispatchEvent(new Event('change'));
       document.querySelector('#b-send').click();
+      if(i===0)document.querySelector('#b-next-group').click();
     }
   });
   await page.waitForFunction(() => __sessionMock.writes.length === 1);

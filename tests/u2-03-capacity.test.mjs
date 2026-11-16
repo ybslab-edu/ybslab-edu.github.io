@@ -69,6 +69,8 @@ test('實際模板 B：輸入即時更新、教師顯示答案、答錯保留累
   assert.doesNotMatch(h.body.querySelector('.compare-status').textContent,/尚未填入/);
   const first=h.run('JSON.stringify(APP.inst)');
   h.get('b-send').click();assert.match(h.get('streak').textContent,/累積答對 1\/2/);
+  assert.equal(h.run('JSON.stringify(APP.inst)'),first);
+  h.get('b-next-group').click();
   assert.notEqual(h.run('JSON.stringify(APP.inst)'),first);
   h.get('tb-ans').click();h.get('cap-kibBytes').value='1000';h.get('cap-kibBytes').oninput();
   h.get('b-send').click();assert.match(h.get('streak').textContent,/累積答對 1\/2/);

@@ -58,16 +58,16 @@ function setup() {
     document, window:{}, localStorage:{getItem:key => stored.get(key) ?? null, setItem:(key, value) => stored.set(key, value)},
     TEACHER:{remembered:() => false}
   });
-  let result = true, generation = 0;
+  let result = true, generation = 0, answer = 0;
   const round = {
     name:'合成關卡', lv:1, now:'合成題目', goal:'合成目標', learn:'合成過關說明',
-    gen:() => ({id:++generation}), view:() => ({get:() => '合成作答', ready:() => true}), check:() => result
+    gen:() => ({id:++generation}), view:() => ({get:() => answer, ready:() => true}), check:() => result
   };
   vm.runInContext(shell + '\nglobalThis.makeShell = SHELL;', context, {filename:'assets/shell.js'});
   const app = context.makeShell({week:1, title:'合成活動', rounds:[round, {...round, lv:2}]});
   const get = id => document.getElementById(id);
   get('in-cls').value = '999'; get('in-seat').value = '1'; get('g-go').onclick();
-  return {app, get, round, reply:value => { result = value; }, send:() => get('b-send').onclick()};
+  return {app, get, round, reply:value => { result = value; answer++; }, send:() => get('b-send').onclick()};
 }
 
 test('check 回饋含 img/onerror 或跳脫段落標記時，只建立文字節點', () => {
@@ -87,14 +87,15 @@ test('check 回饋含 img/onerror 或跳脫段落標記時，只建立文字節�
   }
 });
 
-test('一般回饋完整顯示，錯答保留累積次數並換題，兩組即過關', () => {
+test('一般回饋完整顯示，錯答保留累積次數與原題，兩組即過關', () => {
   const h = setup(), verdict = h.get('verdict');
   h.send(); assert.equal(verdict.className, 'verdict mid');
+  h.get('b-next-group').onclick();
   const message = '第 2 項再想想：A & B，3 < 5，8 > 6，「引號」。';
   h.reply(message); h.send();
   assert.equal(verdict.querySelector('h3').textContent, '還不對');
   assert.equal(verdict.querySelector('p').textContent, message);
-  assert.equal(verdict.querySelectorAll('p')[1].textContent, '已換新題；答錯不歸零，累積答對 2/2 就過關。');
+  assert.equal(verdict.querySelectorAll('p')[1].textContent, '修改答案後再送一次');
   assert.equal(verdict.className, 'verdict no');
   h.reply(true); const previous = h.app.inst.id;
   h.send(); assert.equal(verdict.className, 'verdict ok');
@@ -106,7 +107,7 @@ test('一般回饋完整顯示，錯答保留累積次數並換題，兩組即�
 
 test('過關說明也以純文字顯示', () => {
   const h = setup(), message = '<img src=x onerror="syntheticAttack()"> & 合成說明';
-  h.round.learn = message; h.send(); h.send();
+  h.round.learn = message; h.send(); h.get('b-next-group').onclick(); h.send();
   assert.equal(h.get('verdict').querySelector('p').textContent, message);
   assert.equal(h.get('verdict').querySelectorAll('img').length, 0);
 });

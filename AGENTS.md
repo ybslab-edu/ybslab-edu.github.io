@@ -10,7 +10,7 @@
 - `index.html`：學期進度；`map/`：課綱學習地圖；`about/`：關於與著作權。
 - `115-g9/`：九年級活動與教師成績彙整；活動資料夾 `uU-NN/`＝單元＋該單元第幾個活動；`115-df/`：專題學生頁及教師報告彙整。
 - `assets/activities.js`：唯一活動登記處；`assets/curriculum.js`：課綱、課程與學期。
-- `assets/shell.js`、`assets/shell.css`：活動共用外框；過關須連續答對兩組不同資料。
+- `assets/shell.js`、`assets/shell.css`：活動共用外框；過關須累積答對兩組不同資料；答錯可同題修正且不扣分，答對後按「下一組」換題。
 - `assets/codec.js`：舊成績碼相容程式，網站入口已停用；`assets/teacher.js`：教師模式；`assets/lock.js`：活動開放清單。
 - `assets/login.js`：學生帳號密碼登入、過關紀錄與報告交件；登入失敗可改填班座，背景匿名上傳未驗證紀錄；保留本機待送及重試上傳。
 - `assets/df-report.js`：報告白名單與編解碼；`assets/df-teacher-cloud.js`：教師雲端報告操作。

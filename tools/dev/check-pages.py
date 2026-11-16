@@ -264,15 +264,18 @@ def guest_cycle(b):
             verdict = pg.inner_text('#verdict')
             progress = pg.evaluate("JSON.parse(localStorage.getItem('it9:w4:999-' + JSON.parse(sessionStorage.getItem('ybslab:guest-identity')).seat))")
             if n == 0:
-                assert pg.locator('#verdict.mid').count() == 1 and '再一組確認' in verdict, f'{step}／第 1 組：應要求再一組，判定={verdict!r}'
+                assert pg.locator('#verdict.mid').count() == 1 and '答對了！累積答對 1/2' in verdict and '下一組' in verdict, f'{step}／第 1 組：應要求再一組，判定={verdict!r}'
                 assert pg.locator('#streak .on').count() == 1 and pg.is_disabled('#b-send'), f'{step}／第 1 組：應亮一顆並等待新題填答'
                 assert progress['mask'] == 0 and progress['tries'][0] == 1, f'{step}／第 1 組：進度不應標記過關，{progress}'
                 assert pg.locator('#b-next').count() == 0, f'{step}／第 1 組：不應出現下一關'
+                assert pg.evaluate('JSON.stringify(APP.inst)') == previous, f'{step}／第 1 組：按下一組前應保留當題'
+                assert pg.inner_text('#b-next-group') == '下一組', f'{step}／第 1 組：應提供下一組按鈕'
+                pg.click('#b-next-group')
             else:
-                # shell 過關時不呼叫 renderStreak，燈號仍停在一顆；以過關與保存結果判斷。
+                assert pg.locator('#streak .on').count() == 2, f'{step}／第 2 組：應亮兩顆'
                 assert pg.locator('#verdict.ok').count() == 1 and '過關！' in verdict, f'{step}／第 2 組：應過關，判定={verdict!r}'
                 assert progress['mask'] == 1 and progress['tries'][0] == 2, f'{step}／第 2 組：應以兩次作答完成第一關，{progress}'
-                assert pg.evaluate('JSON.stringify(APP.inst)') == previous and not pg.is_disabled('#b-send'), f'{step}／第 2 組：過關後應保留當題與可按的送出按鈕'
+                assert pg.evaluate('JSON.stringify(APP.inst)') == previous and pg.is_disabled('#b-send'), f'{step}／第 2 組：過關後應保留當題並停用送出按鈕'
         assert pg.locator('#code').count() == 0, f'{step}：活動不應產生成績碼'
         pg.click('#b-next')
         assert pg.evaluate('APP.ri') == 1 and pg.locator('#streak .on').count() == 0 and pg.is_disabled('#b-send') and not pg.is_visible('#verdict'), f'{step}：下一關應重設累積計數、等待填答並隱藏判定'

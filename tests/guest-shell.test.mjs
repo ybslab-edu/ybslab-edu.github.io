@@ -22,7 +22,7 @@ function setup({teacher=false,loginDisabled=false,whoami=async()=>({ok:true,stud
   // 本案例的送出按鈕比照瀏覽器：disabled 時 click 不會觸發判題。
   const send=el('b-send'),click=send.click.bind(send);send.click=()=>{if(!send.disabled)click();};
   const start=(seat=1)=>{el('g-manual').click();el('in-cls').value='999';el('in-seat').value=String(seat);el('g-next').click();el('g-go').click();};
-  const pass=()=>{for(let i=0;i<2;i++){run('APP.handle.fill()');el('sample-rate').onchange();el('b-send').click();}};
+  const pass=()=>{for(let i=0;i<2;i++){run('APP.handle.fill()');el('sample-rate').onchange();el('b-send').click();if(i===0)el('b-next-group').click();}};
   const startAccount=async()=>{await fb.account();await onLogin(fb.api.profile());el('g-isme').click();};
   const login=async()=>{const me=await fb.signIn();await onLogin(me);};
   return{...fb,run,el,start,pass,startAccount,login};
@@ -43,11 +43,13 @@ for(const [mode,options] of [
   const first=h.run('JSON.stringify(APP.inst)');
   h.el('sample-rate').onchange();h.el('b-send').click();
   assert.equal(h.el('streak').querySelectorAll('.on').length,1);
-  assert.match(h.el('verdict').textContent,/再一組確認/);
+  assert.match(h.el('verdict').textContent,/累積答對 1\/2/);
   assert.equal(h.el('b-next'),null,'第一組尚不可進下一關');
   assert.equal(JSON.parse(h.stored.get('it9:w4:999-1')).mask,0);
   assert.equal(h.run('JSON.parse(localStorage.getItem("it9:w4:999-1")).mask'),0);
   assert.equal(h.calls.length,0,'第一組不應上傳');
+  assert.equal(h.run('JSON.stringify(APP.inst)'),first,'答對後留在原題');
+  h.el('b-next-group').click();
   assert.notEqual(h.run('JSON.stringify(APP.inst)'),first);
   assert.equal(h.el('b-send').disabled,true,'新一組資料須重新填答');
   const second=h.run('JSON.stringify(APP.inst)');
@@ -58,7 +60,7 @@ for(const [mode,options] of [
   assert.equal(h.run('JSON.parse(localStorage.getItem("it9:w4:999-1")).mask'),1);
   assert.equal(h.run('JSON.stringify(APP.inst)'),second,'第二組過關不再換題');
   assert.equal(h.el('streak').querySelectorAll('.on').length,2,'過關同步顯示累積答對 2/2');
-  assert.equal(h.el('b-send').disabled,false,'既有過關畫面保留可按的送出按鈕');
+  assert.equal(h.el('b-send').disabled,true,'過關後停用送出，避免同題重算');
   if(mode==='帳號登入'){
     assert.equal(h.calls[0].path,'ybsCourses/115-g9/attempts/google1_4_0');assert.deepEqual(h.authCalls,[]);
   }else if(mode==='班座寫入 unavailable'){
@@ -148,7 +150,7 @@ test('教師顯示答案可直接送出兩組示範過關，不儲存進度或�
     assert.equal(h.el('send-hint').textContent,'');
     h.el('b-send').click();
     assert.equal(h.el('streak').querySelectorAll('.on').length,i+1);
-    if(i===0)assert.notEqual(h.run('JSON.stringify(APP.inst)'),question);
+    if(i===0){assert.equal(h.run('JSON.stringify(APP.inst)'),question);h.el('b-next-group').click();assert.notEqual(h.run('JSON.stringify(APP.inst)'),question);}
   }
   await settle();
   assert.match(h.el('verdict').textContent,/過關/);

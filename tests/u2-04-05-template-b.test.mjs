@@ -11,7 +11,7 @@ function setup(dir){
   run(read('assets/shell.js')+'\n'+[...read(`115-g9/${dir}/index.html`).matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'));
   return {run,body,get:id=>body.querySelector('#'+id)};
 }
-test('u2-04 文字與編碼兩關：即時差異、教師答案、送出換題與原判定相容',()=>{
+test('u2-04 文字與編碼兩關：即時差異、教師答案、下一組換題與原判定相容',()=>{
   const h=setup('u2-04');
   for(const index of [0,1]){
     h.run(`APP.load(${index})`);
@@ -34,6 +34,8 @@ test('u2-04 文字與編碼兩關：即時差異、教師答案、送出換題�
     assert.equal(h.run('ROUNDS[APP.ri].check(APP.inst,APP.handle.get())'),true);
     const previous=h.run('JSON.stringify(APP.inst)');
     h.get('b-send').click();
+    assert.equal(h.run('JSON.stringify(APP.inst)'),previous);
+    h.get('b-next-group').click();
     assert.notEqual(h.run('JSON.stringify(APP.inst)'),previous);
     assert.match(h.get('streak').textContent,/累積答對 1\/2/);
     assert.match(h.body.querySelector('.compare-status').textContent,/尚未填入/);

@@ -40,6 +40,7 @@ for(const width of [390,559,560,1440])test(`u2-04／05 各關版面、即時差�
           await page.evaluate(()=>ROUNDS[APP.ri].gen=()=>({w:'ENCORE'}));
           await page.locator('#b-send').click();
           assert.match(await page.locator('#streak').textContent(),/累積答對 1\/2/);
+          await page.locator('#b-next-group').click();
           const marks=page.locator('.target-content .question-changed');
           assert.ok(await marks.count()>0,'數字及純英文目標換題都標示');
           assert.equal(await marks.first().evaluate(el=>getComputedStyle(el).animationDuration),'2s');

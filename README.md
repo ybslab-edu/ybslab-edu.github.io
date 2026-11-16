@@ -14,7 +14,7 @@
 | `404.html` | 網址打錯時顯示的頁面 |
 | `assets/favicon.svg`、`assets/og.png` | 瀏覽器分頁小圖示、分享到社群時的預覽圖 |
 | `about/` | 關於頁：緣起、作者、資料來源與 AI 協作；頁尾有教師專區入口 |
-| `assets/shell.js`、`assets/shell.css` | 九年級活動頁共用外框：填班級座號、基礎／進階分頁、單元進度條、同步狀態、教師模式；各週頁面只寫關卡，過關要連續答對兩組不同的資料 |
+| `assets/shell.js`、`assets/shell.css` | 九年級活動頁共用外框：填班級座號、基礎／進階分頁、單元進度條、同步狀態、教師模式；各週頁面只寫關卡，過關要累積答對兩組不同的資料；答錯可同題修正且不扣分，答對後按「下一組」換題 |
 | `assets/codec.js` | 舊成績碼相容程式，網站已停用引用；不改動格式 |
 | `assets/teacher.js` | 教師模式通行碼（只存雜湊）。活動頁載入後，起始畫面有「教師登入」：可一鍵顯示答案、暫停播放、上一步／下一步、點步驟跳過去；教師模式不記分也不上傳。通行碼只防學生隨手點開，不是帳號安全機制 |
 | `assets/login.js` | 沿用固定 Firebase compat SDK 與同一設定；帳號過關寫 `attempts`，九年級班座過關寫 `guestAttempts`，失敗保留本機待送；`on` 為 false 時維持班級座號與本機進度。規格見 class-score repo 的 `docs/YBS_FIRESTORE.md` |

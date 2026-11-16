@@ -28,7 +28,7 @@ test('標題、所有關卡、任意順序計分、重做不加分、還原／�
   for(const id of ['score','score-value','report','sync2','rep-note'])assert.equal(h.el(id),null);
   assert.equal(h.el('unit'),null);assert.equal(h.el('tab-1'),null);
   assert.equal(h.el('rounds').querySelectorAll('button').length,5);
-  const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.el('tb-ans').click();h.el('b-send').click()}};
+  const pass=i=>{h.run(`APP.load(${i})`);for(let n=0;n<2;n++){h.el('tb-ans').click();h.el('b-send').click();if(n===0)h.el('b-next-group').click()}};
   for(const [i,expected] of [[2,60],[0,70],[3,80],[2,80],[1,90],[4,100]]){
     pass(i);assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,5),expected);
     assert.match(h.el('rounds').querySelectorAll('button')[i].textContent,/已過關/);
@@ -55,7 +55,7 @@ test('示範頁五關都有比較卡，燈泡及輸入即時更新，原判定�
     if(i===0){h.body.querySelector('.my-controls button').click();assert.match(h.body.querySelector('.compare-status').textContent,/目前值：16；比目標/)}
     if(i===1){h.el('n-v').value='0';h.el('n-v').oninput();assert.match(h.body.querySelector('.compare-status').textContent,/目前值：0；比目標少/)}
     h.el('tb-ans').click();assert.equal(h.run('ROUNDS[APP.ri].check(APP.inst,APP.handle.get())'),true);
-    h.el('b-send').click();assert.match(h.el('verdict').textContent,/再一組確認/);
+    h.el('b-send').click();assert.match(h.el('verdict').textContent,/累積答對 1\/2/);h.el('b-next-group').click();
     h.el('tb-ans').click();h.el('b-send').click();assert.match(h.el('verdict').textContent,/過關/);
     if(i===1){assert.equal(h.el('b-next').textContent,'下一關');h.el('b-next').click();assert.equal(h.run('APP.ri'),2)}
   }
@@ -71,7 +71,7 @@ for(const [total,expected] of [[4,[0,70,80,90,100]],[5,[0,60,70,80,90,100]],[6,[
     for(let i=0;i<total;i++){
       h.run(`APP.load(${i})`);
       h.el('b-send').click();assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,total),expected[i],'一組答對尚未過關');
-      h.el('b-send').click();assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,total),expected[i+1]);
+      h.el('b-next-group').click();h.el('b-send').click();assert.equal(score(h.el('rounds').querySelectorAll('.passed').length,total),expected[i+1]);
     }
   });
 }

@@ -62,34 +62,36 @@ function setup(gen, options={}) {
   const c=vm.createContext({document:{body:{insertAdjacentHTML(){}},getElementById:get},window:{},
     TEACHER:{remembered:()=>false},localStorage:{getItem:()=>null,setItem(){}}});
   vm.runInContext(shell+'\nglobalThis.makeShell=SHELL;',c);
-  let correct=true;
-  const round={lv:1,name:'合成關卡',gen,view:()=>({get:()=>null}),check:()=>correct,...options};
+  let correct=true,answer=0;
+  const round={lv:1,name:'合成關卡',gen,view:()=>({get:()=>answer}),check:()=>correct,...options};
   const app=c.makeShell({week:1,title:'合成活動',rounds:[round,{...round,lv:2}]});
   get('in-cls').value='999';get('in-seat').value='1';get('g-go').onclick();
-  return {app,get,send:()=>get('b-send').onclick(),reply:v=>{correct=v;}};
+  return {app,get,send:()=>get('b-send').onclick(),reply:v=>{correct=v;answer++;}};
 }
 
-test('第二組依內容排除重複（含不同鍵序），錯答換題，兩組才過關',()=>{
+test('第二組依內容排除重複（含不同鍵序），錯答留題，兩組才過關',()=>{
   let calls=0;
   const h=setup(()=>++calls===1 ? {a:1,b:[2]} : calls<4 ? {b:[2],a:1} : {a:1,b:[3]});
-  h.reply(false);h.send();assert.equal(calls,4);
-  h.reply(true);h.send();assert.equal(calls,24);assert.equal(h.get('verdict').className,'verdict mid');
+  h.reply(false);h.send();assert.equal(calls,1);
+  h.reply(true);h.send();assert.equal(calls,1);assert.equal(h.get('verdict').className,'verdict mid');
+  h.get('b-next-group').onclick();assert.equal(calls,4);
   assert.equal(h.app.inst.b[0],3);
-  h.send();assert.equal(h.get('verdict').className,'verdict ok');assert.equal(calls,24);
+  h.send();assert.equal(h.get('verdict').className,'verdict ok');assert.equal(calls,4);
 });
 
-test('題庫僅一組或連續抽同題：最多抽 20 次後照常出題',()=>{
+test('題庫僅一組或連續抽同題：最多抽 20 次後出題，但同資料不重算',()=>{
   for (const gen of [()=>({id:1}),()=>({id:1,nested:[{n:2}]})]) {
     let calls=0; const h=setup(()=>{calls++;assert.ok(calls<=21,'不得無限重抽');return gen();});
-    h.send();assert.equal(calls,21);assert.equal(h.get('verdict').className,'verdict mid');
-    h.send();assert.equal(h.get('verdict').className,'verdict ok');
+    h.send();assert.equal(calls,1);assert.equal(h.get('verdict').className,'verdict mid');
+    h.get('b-next-group').onclick();assert.equal(calls,21);
+    h.send();assert.equal(h.get('verdict').className,'verdict mid');
   }
 });
 
 test('最後一次抽到不同題仍採用；保存 view 改動前的題目內容',()=>{
   let calls=0;
   const h=setup(()=>({id:++calls<=20?1:2}),{view:i=>{i.touched=true;return {get:()=>null};}});
-  h.send();assert.equal(calls,21);assert.equal(h.app.inst.id,2);
+  h.send();h.get('b-next-group').onclick();assert.equal(calls,21);assert.equal(h.app.inst.id,2);
 });
 
 test('教師換題也避開前題；不同關卡不互相比對，單次確認關卡維持原規則',()=>{
@@ -105,11 +107,11 @@ test('生日題實際產題：連抽同組後會換成另一組內容',()=>{
   const c=activity('u2-03'), round=vm.runInContext('APP.rounds[0]',c);
   let calls=0;
   const h=setup(()=>round.gen(()=>++calls<=3?0:1/12));
-  const first=JSON.stringify(h.app.inst);h.send();
+  const first=JSON.stringify(h.app.inst);h.send();h.get('b-next-group').onclick();
   assert.equal(calls,4);assert.notEqual(JSON.stringify(h.app.inst),first);
 });
 
-test('共用換題鍵：送出與教師換題皆忽略情境差異，換關不排除前關資料',()=>{
+test('共用換題鍵：下一組與教師換題皆忽略情境差異，換關不排除前關資料',()=>{
   for(const action of ['correct','wrong','teacher','reload']){
     let calls=0;
     const h=setup(()=>({n:++calls<=3?101:102,b:7,max:127,what:'合成情境'+calls}),{
@@ -117,7 +119,7 @@ test('共用換題鍵：送出與教師換題皆忽略情境差異，換關不�
     });
     if(action==='teacher')h.get('tb-new').onclick();
     else if(action==='reload')h.app.load(0);
-    else {h.reply(action==='correct');h.send();}
+    else {h.reply(action==='correct');h.send();assert.equal(calls,1,'送出留題');if(action==='wrong'){h.reply(true);h.send();}h.get('b-next-group').onclick();}
     assert.equal(calls,4,action+' 應排除兩次重複計算題');
     assert.equal(h.app.inst.n,102);
     h.app.load(1);assert.equal(calls,5,'跨關不重抽');

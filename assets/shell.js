@@ -9,7 +9,7 @@
 // 相容既有演出型活動：round.confirmations=1 表示 check 已自行檢查兩組資料；
 // round.manualAttempt=true 時，由 view 的 api.attempt() 在演出開始時記次。
 // cfg.progressLength（預設 6）、rememberIdentity（預設 false）保留舊頁儲存形狀。
-// 過關規則：累積答對兩組不同的資料。答錯不歸零；未過關時送出後換新題。
+// 過關規則：累積答對兩組不同的資料。答錯可同題修改且不扣分；答對後按「下一組」換題，每組最多計一次。
 // 活動頁與教師頁共用計分；不寫入既有過關紀錄或雲端欄位。
 const activityScore = (passed, total) => passed <= 0 || total <= 0 ? 0
   : Math.max(0, 100 - 10 * Math.max(0, total - passed));
@@ -113,9 +113,9 @@ const shellMainHTML = (cfg, esc) => {
     <div class="order" id="says" aria-live="polite"></div>
   </section>
   <section class="sec">
-    <div id="original-work"><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div>
+    <div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div>
     <div id="stage"></div>
-    <div class="btns"><button class="btn primary" id="b-send" type="button">送出</button><span class="streak" id="streak"></span><span class="small" id="send-hint"></span></div>
+    <div class="btns"><button class="btn primary" id="b-send" type="button">送出</button><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint"></span></div>
     <section class="verdict" id="verdict" hidden aria-live="polite"></section></div>
     <aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯">
       <div id="hint-content" aria-live="polite" aria-atomic="true"></div>
@@ -353,19 +353,29 @@ const shellCreateRoundFlow = (s) => {
     $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => load(+b.dataset.i));
   }
   // 顯示累積答對的組數；保留 streak 名稱相容舊計數。
-  function renderStreak() { $('streak').innerHTML = '累積答對 ' + Math.min(s.streak, 2) + '/2 ' + [0, 1].map(i => '<i class="' + (i < s.streak ? 'on' : '') + '"></i>').join(''); }
+  function renderStreak() {
+    $('round-status').textContent = '第 ' + (s.ri + 1) + ' 關／共 ' + R.length + ' 關．本關答對 ' + Math.min(s.streak, 2) + '/2';
+    $('streak').innerHTML = '累積答對 ' + Math.min(s.streak, 2) + '/2 ' + [0, 1].map(i => '<i class="' + (i < s.streak ? 'on' : '') + '"></i>').join('');
+  }
   // 同步送出狀態與電腦內部說明。
   function changed() {
     if (s.identityRevoked || !s.handle) { $('b-send').disabled = true; return; }
     const ok = !s.handle.ready || s.handle.ready();
-    $('b-send').disabled = !ok; $('send-hint').textContent = ok ? '' : '全部完成後才能送出。';
+    const retained = !R[s.ri].manualAttempt && R[s.ri].confirmations !== 1;
+    const sameAnswer = s.answerState === 'wrong' && shellContentKey(s.handle.get()) === s.lastAnswerKey;
+    const unchanged = retained && sameAnswer;
+    const finished = retained && (s.answerState === 'correct' || s.answerState === 'passed');
+    $('b-send').disabled = !ok || unchanged || finished;
+    $('send-hint').textContent = unchanged ? '先修改答案再送出' : finished ? '' : ok ? '' : '全部完成後才能送出。';
+    $('answer-status').textContent = s.answerState === 'passed' ? '過關' : s.answerState === 'correct' ? '已送出：答對' : sameAnswer ? '已送出：還不對' : '作答中';
     if (R[s.ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[s.ri].peek(s.inst, s.handle.get()); } else $('sec3').hidden = true;
   }
   // 在 view 可能改動資料前保存內容；物件鍵序不影響比對，陣列順序仍有意義。
   const contentKey = shellContentKey;
-  // 共用換題入口：送出、教師換題及重載同關皆排除前題。
+  // 共用換題入口：「下一組」、既有演出流程、教師換題及重載同關皆排除前題。
   function fresh(afterSubmit = false) {
     s.closeDemo?.();
+    s.answerState = null; s.lastAnswerKey = null;
     const r = R[s.ri], rnd = seed();
     const previousNumbers = s.previousKey === null ? null : shellQuestionNumbers($);
     let key;
@@ -386,7 +396,7 @@ const shellCreateRoundFlow = (s) => {
     if (afterSubmit) $('task-instructions')?.scrollIntoView?.({behavior: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   }
   // 切換關卡並重設累積答對狀態。
-  function load(i) { if (s.ri !== i) { s.previousKey = null; s.resetHints?.(); } s.ri = i; s.streak = 0; $('verdict').hidden = true; renderRounds(); fresh(); }
+  function load(i) { if (s.ri !== i) { s.previousKey = null; s.resetHints?.(); } s.ri = i; s.streak = 0; s.correctKeys = new Set(); $('verdict').hidden = true; renderRounds(); fresh(); }
   // 保留既有測試／頁面使用的入口；等級不再影響關卡顯示。
   function setLevel(l) { const i = R.findIndex(r => r.lv === l); load(i >= 0 ? i : 0); }
 
@@ -406,18 +416,36 @@ const shellCreateJudging = (s) => {
   // 依原判題結果更新累積確認與過關紀錄。
   function submit() {
     if (!s.handle || s.isIdentityCurrent?.() === false || s.isHintDemo?.()) return;
-    const r = R[s.ri], res = r.check(s.inst, s.handle.get()), v = $('verdict');
+    const r = R[s.ri], retained = !r.manualAttempt && r.confirmations !== 1;
+    const answer = s.handle.get(), answerKey = shellContentKey(answer);
+    // 直接呼叫 submit 也不能重送未修改的錯答，或重算已答對的同一題。
+    if (retained && (s.answerState === 'correct' || s.answerState === 'passed' ||
+      (s.answerState === 'wrong' && s.lastAnswerKey === answerKey))) return;
+    const res = r.check(s.inst, answer), v = $('verdict');
     if (!r.manualAttempt) s.attempt();
     s.hintSubmitted?.(res !== true);
     if (res !== true) {
-      v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">' + (r.manualAttempt ? '調整後再演出一次。' : '已換新題；答錯不歸零，累積答對 2/2 就過關。') + '</p>';
+      v.className = 'verdict no'; v.innerHTML = '<h3>還不對</h3><p></p><p class="small">' + (r.manualAttempt ? '調整後再演出一次。' : retained ? '修改答案後再送一次' : '已換新題；答錯不歸零，累積答對 2/2 就過關。') + '</p>';
       v.querySelector('p').textContent = res; v.hidden = false;
       // 演出型活動自行檢查固定雙組資料，須保留播放、斷電及逐步示範狀態。
-      if (!r.manualAttempt) s.fresh(true);
+      if (!retained && !r.manualAttempt) s.fresh(true);
+      else { s.answerState = 'wrong'; s.lastAnswerKey = answerKey; s.changed(); }
       return;
     }
-    s.streak += r.confirmations === 1 ? 2 : 1;
+    if (retained) {
+      const key = s.previousKey ?? shellContentKey(r.questionKey ? r.questionKey(s.inst) : s.inst);
+      s.correctKeys ??= new Set();
+      if (!s.correctKeys.has(key)) { s.correctKeys.add(key); s.streak++; }
+      s.answerState = 'correct';
+    } else s.streak += r.confirmations === 1 ? 2 : 1;
     if (s.streak < (r.confirmations ?? NEED)) {
+      if (retained) {
+        v.className = 'verdict mid';
+        v.innerHTML = '<h3>答對了！累積答對 ' + s.streak + '/2</h3><p>按「下一組」挑戰不同資料，累積答對 2/2 就過關。</p><div class="btns"><button class="btn primary" id="b-next-group" type="button">下一組</button></div>';
+        v.hidden = false; s.renderStreak(); s.changed();
+        $('b-next-group').onclick = () => { v.hidden = true; s.fresh(true); };
+        return;
+      }
       v.className = 'verdict mid'; v.innerHTML = '<h3>答對了！再一組確認</h3><p>已經換成一組新的資料，再做一次，累積答對 2/2 就過關。</p>'; v.hidden = false;
       s.fresh(true); return;
     }
@@ -428,7 +456,9 @@ const shellCreateJudging = (s) => {
     v.className = 'verdict ok';
     v.innerHTML = '<h3>過關！</h3>' + (r.learn ? '<p>' + esc(r.learn) + '</p>' : '') + xpMessage + '<div class="btns">' +
       (next >= 0 ? '<button class="btn primary" id="b-next">下一關</button>' : endMsg()) + '</div>';
-    v.hidden = false; s.renderStreak(); s.renderRounds();
+    v.hidden = false;
+    s.answerState = 'passed';
+    s.renderStreak(); s.renderRounds(); s.changed();
     if ($('b-next')) $('b-next').onclick = () => s.load(next);
   }
   // 最後一關過了，不代表整個活動完成：照實際過了幾關說（教師模式示範時直接顯示結語）

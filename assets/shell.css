@@ -245,3 +245,5 @@ body .order .tk b{flex-shrink:0}
   body .slot .pk{min-width:0}
   body .gate{padding:calc(var(--u)*2)}
 }
+
+body .round-status{margin:0 0 12px;color:var(--muted);font-size:14px}

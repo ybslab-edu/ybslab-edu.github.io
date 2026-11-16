@@ -80,7 +80,7 @@ for(const [width,reduced,dark] of [[1440,false,false],[390,false,true],[320,true
         assert.equal(await page.locator('#xp-login-hint').textContent(),'用帳號登入就能累積等級');
       }
       for(let i=0;i<4;i++){
-        await page.evaluate(i=>{APP.load(i);document.getElementById('b-send').click();document.getElementById('b-send').click()},i);
+        await page.evaluate(i=>{APP.load(i);document.getElementById('b-send').click();document.getElementById('b-next-group').click();document.getElementById('b-send').click()},i);
         if(account){
           assert.equal(await page.locator('#xp-total').textContent(),(80+i*15)+' XP','未確認的本機過關不加 XP');
           assert.match(await page.locator('#verdict').textContent(),/XP 待雲端紀錄確認/);
@@ -118,7 +118,7 @@ test('登入還原雲端綠勾並保存，只增不減；重新整理及重做�
   await page.waitForFunction(()=>document.querySelectorAll('#rounds button.passed').length===1);
   assert.match(await page.locator('#rounds button[data-i="2"]').innerText(),/✓/);
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w2:999-1')).mask),4);
-  await page.evaluate(()=>{APP.load(2);document.getElementById('b-send').click();document.getElementById('b-send').click()});
+  await page.evaluate(()=>{APP.load(2);document.getElementById('b-send').click();document.getElementById('b-next-group').click();document.getElementById('b-send').click()});
   assert.equal(await page.evaluate(()=>submissions.length),0);
   await page.evaluate(()=>{records=[];status('ok')});
   await page.waitForFunction(()=>document.getElementById('xp-total').textContent==='0 XP');

@@ -144,13 +144,13 @@ test('其餘使用預設選項的 27 頁，沿用兩次送出、錯答保留累�
     for(const r of cfg.rounds){assert.equal(r.confirmations,undefined,dir);assert.equal(r.manualAttempt,undefined,dir)}
     // 使用實際頁面的設定與關卡名稱，注入合成作答來驗證 shell 預設流程。
     const fixture=JSON.stringify({...cfg,rounds:cfg.rounds.map(r=>({name:r.name,lv:r.lv}))});
-    const h=setup({source:`let reply=true;const cfg=${fixture};
-      cfg.rounds=cfg.rounds.map(r=>({...r,gen:()=>({}),view:()=>({get:()=>null}),check:()=>reply}));
+    const h=setup({source:`let reply=true,answer=0,draw=0;const cfg=${fixture};
+      cfg.rounds=cfg.rounds.map(r=>({...r,gen:()=>({n:++draw}),view:()=>({get:()=>answer}),check:()=>reply}));
       const APP=SHELL(cfg);`});
     const key='it9:w'+cfg.week+':999-1',send=()=>h.get('b-send').onclick();
     send();assert.equal(h.get('verdict').className,'verdict mid',dir);
-    h.evaluate('reply="合成錯答"');send();assert.equal(h.get('verdict').className,'verdict no',dir);
-    h.evaluate('reply=true');send();assert.equal(h.get('verdict').className,'verdict ok',dir);
+    h.get('b-next-group').onclick();h.evaluate('reply="合成錯答"');send();assert.equal(h.get('verdict').className,'verdict no',dir);
+    h.evaluate('reply=true;answer++');send();assert.equal(h.get('verdict').className,'verdict ok',dir);
     const progress=JSON.parse(h.stored.get(key));
     assert.equal(progress.mask,1,dir);assert.deepEqual(progress.tries,[3,0,0,0,0,0],dir);
     assert.equal(h.uploads.length,1,dir);assert.equal(h.uploads[0].tries,3,dir);

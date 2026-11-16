@@ -53,7 +53,7 @@ test('撤銷清除活動身分；舊確認與遲到 view 回呼不能更新 A �
   h.el('g-isme').click();
   oldApi.attempt();oldApi.changed();
   assert.ok(h.state.prog.tries.every(n=>n===0),'A 的遲到 view 不得記入 B 作答次數');
-  h.send();h.send();
+  h.send();h.el('b-next-group').click();h.send();
   assert.equal(h.stored.get('it9:w4:999-1'),beforeA);
   assert.equal(JSON.parse(h.stored.get('it9:w4:999-2')).mask,1);
   assert.deepEqual(h.writes.map(x=>[x.uid,x.cls,x.seat]),[['synthetic-b',999,2]]);

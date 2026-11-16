@@ -367,7 +367,8 @@ const shellCreateRoundFlow = (s) => {
     const finished = retained && (s.answerState === 'correct' || s.answerState === 'passed');
     $('b-send').disabled = !ok || unchanged || finished;
     $('send-hint').textContent = unchanged ? '先修改答案再送出' : finished ? '' : ok ? '' : '全部完成後才能送出。';
-    $('answer-status').textContent = s.answerState === 'passed' ? '過關' : s.answerState === 'correct' ? '已送出：答對' : sameAnswer ? '已送出：還不對' : '作答中';
+    const answerStatus = s.answerState === 'passed' ? '過關' : s.answerState === 'correct' ? '已送出：答對' : sameAnswer ? '已送出：還不對' : '作答中';
+    if ($('answer-status').textContent !== answerStatus) $('answer-status').textContent = answerStatus;
     if (R[s.ri].peek) { $('sec3').hidden = false; $('peek').innerHTML = R[s.ri].peek(s.inst, s.handle.get()); } else $('sec3').hidden = true;
   }
   // 在 view 可能改動資料前保存內容；物件鍵序不影響比對，陣列順序仍有意義。

@@ -47,6 +47,22 @@ async function setup(t,options={}){
   return page;
 }
 const tries=page=>page.evaluate(()=>JSON.parse(localStorage.getItem('it9:w99:999-1'))?.tries[0]??0);
+test('連續五次輸入相同作答狀態只寫入 aria-live 一次',async t=>{
+  const page=await setup(t);
+  await page.fill('#answer','錯誤');await page.click('#b-send');
+  const result=await page.evaluate(async()=>{
+    const status=document.getElementById('answer-status'),writes=[];
+    const observer=new MutationObserver(records=>writes.push(...records));
+    observer.observe(status,{childList:true,characterData:true,subtree:true});
+    const input=document.getElementById('answer');
+    for(let i=1;i<=5;i++){
+      input.value='修改'+i;input.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    await Promise.resolve();observer.disconnect();
+    return {writes:writes.length,text:status.textContent};
+  });
+  assert.deepEqual(result,{writes:1,text:'作答中'});
+});
 test('錯答留題與答案、修改才可重送、同題改對只算一組、下一組後過關及換關清除',async t=>{
   const page=await setup(t);
   const question=await page.locator('#says').innerText();

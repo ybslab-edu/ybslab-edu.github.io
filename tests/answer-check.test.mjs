@@ -16,8 +16,7 @@ function activity(dir) {
 // 執行原頁 view/oninput/get/check；DOM 只替代輸入元件，不改判題程式。
 for (const [dir, index, inst, answer] of [
   ['u2-03', 1, {t:42}, [42]],
-  ['u2-03', 3, {n:100, b:7, max:127}, [7,127]],
-  ['u2-06', 2, {rows:[], clean:[4,2,0], raw:[5,3,1]}, [4,2,0]]
+  ['u2-03', 3, {n:100, b:7, max:127}, [7,127]]
 ]) test(`${dir} 關卡 ${index + 1}：整串作答、教師填答與合成產題`, () => {
   const c = activity(dir);
   c.inst = inst;

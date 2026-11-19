@@ -6,25 +6,34 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>影片傳到群組變糊｜第 15 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261116fb">
 <style>
-:root{--teach-lamp-on:#FFD447;--teach-lamp-rim:#FFE58A;--teach-lamp-off:#252C3A;--teach-lamp-label:#E6E9EF;--teach-lamp-ink:#12151C;}
-/* 第 15 週：資料壓縮與轉換。燈牌沿用第 11 週，24 顆燈排三排，從左上往右、再換下一排讀 */
-.board{background:var(--void);border-radius:0;padding:16px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:clamp(6px,1.6vw,14px);max-width:620px}
-.board button{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid var(--dim);background:var(--teach-lamp-off);cursor:pointer;position:relative;padding:0}
-.board button[aria-pressed="true"]{background:var(--teach-lamp-on);border-color:var(--teach-lamp-rim);box-shadow:none}
-.board button:disabled{cursor:default}
-.board button span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--f-mono);font-size:13px;color:var(--teach-lamp-label)}
-.board button[aria-pressed="true"] span{color:var(--teach-lamp-ink)}
-.rle{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.rle span{font-family:var(--f-mono);font-size:22px;font-weight:700;border-radius:0;padding:4px 12px}
-.rle .on{background:var(--teach-lamp-on);color:var(--teach-lamp-ink)} .rle .off{background:var(--teach-lamp-off);color:var(--teach-lamp-label)}
-.cmp{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:16px;align-items:center}
-.cmp b{font-family:var(--f-mono);font-size:18px;overflow-wrap:anywhere}
-.cmp small{font-size:15px;color:var(--muted)}
-.board{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+/* 沿用任務日誌的面板、表格與輸入欄；色彩只引用共用變數。 */
+.quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
+.quest-note p{margin:var(--u) 0}
+.quest-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.quest-table th,.quest-table td{padding:var(--u);border:1px solid var(--edge);text-align:left;overflow-wrap:anywhere}
+.quest-table caption{text-align:left;font-weight:700;margin-block:var(--u)}
+.quest-chart{list-style:none;padding:0;display:grid;gap:var(--u)}
+.quest-chart li{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
+.quest-chart .track{height:1em;background:var(--panel-hi)}
+.quest-chart .bar{display:block;height:100%;background:var(--dim)}
+.quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
+.quest-answers label{display:grid;gap:var(--u);min-width:0}
+.quest-answers input,.quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
+.quest-fallback{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
+.quest-fallback summary{cursor:pointer;padding:var(--u);text-decoration:underline}
+.quest-log{white-space:pre-line;overflow-wrap:anywhere}
+.quest-media{max-width:100%;height:auto;border:1px solid var(--edge)}
+.quest-source{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:559px){
+.quest-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.quest-table tr{display:block;margin-bottom:var(--u);border:1px solid var(--edge)}
+.quest-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--u);border:0;border-bottom:1px solid var(--edge)}
+.quest-table td::before{content:attr(data-label);font-weight:700}
+}
+body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 </style>
 </head>
 <body>
@@ -35,87 +44,80 @@
 <script src="../../assets/activities.js?v=20261105m"></script>
 <script src="../../assets/shell.js?v=20261116fb"></script>
 <script>
-const NB=24;   // 燈的數量（curriculum.js 已經有全域的 N）
-const CB=5;    // 暗號裡每個數字固定用 5 個位元存（0～31），壓縮前後都用「位元」比
-// 燈牌圖案：一段一段連續的亮或暗，比較長的段才有壓縮的效果
-function pattern(rnd){let b;do{b=[];let on=rnd()<.7?1:0;while(b.length<NB){const k=Math.min(NB-b.length,RINT(rnd,2,10));for(let i=0;i<k;i++)b.push(on);on^=1}}while(runs(b).length<3||runs(b).length>6);return b}
-function runs(b){const r=[];let cur=1,k=0;for(const x of b){if(x===cur)k++;else{r.push(k);cur=x;k=1}}r.push(k);return r}   // 從「亮」開始數，第一顆是暗的話第一個數字是 0
-function unruns(r){const b=[];let on=1;for(const k of r){for(let i=0;i<k;i++)b.push(on);on^=1}return b}
-function BOARD(el,{locked=false,init=null},api){
-  const b=init?[...init]:Array(NB).fill(0);
-  el.insertAdjacentHTML('beforeend','<div class="board" role="group" aria-label="燈牌 '+NB+' 顆燈，三排">'+b.map((x,i)=>'<button type="button" data-k="'+i+'" aria-pressed="'+!!x+'" aria-label="第 '+(i+1)+' 顆燈"'+(locked?' disabled':'')+'><span>'+(i+1)+'</span></button>').join('')+'</div>');
-  const sync=()=>el.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',!!b[+x.dataset.k]));
-  if(!locked)el.querySelectorAll('[data-k]').forEach(x=>x.onclick=()=>{b[+x.dataset.k]^=1;sync();api&&api.changed()});
-  return {get:()=>[...b],set:a=>{a.forEach((v,i)=>b[i]=v);sync()}};
+const qEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const qTable=(caption,heads,rows)=>'<table class="quest-table"><caption>'+qEsc(caption)+'</caption><thead><tr>'+heads.map(h=>'<th scope="col">'+qEsc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((x,k)=>'<td data-label="'+qEsc(heads[k])+'">'+qEsc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+const qVersion=rnd=>Math.floor(rnd()*8);
+const qCommon='<div class="quest-note"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；新版第 1 關是轉換，第 2 關合併燈牌，第 3、4 關加入素材實作，舊紀錄不代表做過新增操作。</p></details> <p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助；未完成操作請如實告知老師，不為趕進度勾成完成。文字轉語音由影片與配對涵蓋，不另做酷英實作。</strong></p></div>';
+// 僅記本機使用備用素材的版本與時間；不加入既有成績／雲端格式，不含學生身分。
+const qFallbackKey='ybs:u2-07:fallback:v1';
+function qReadLog(){try{const a=JSON.parse(localStorage.getItem(qFallbackKey)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string').slice(-64):[]}catch{return []}}
+function qView(inst,el,api,content,questions,expected,fallback){
+  el.innerHTML=qCommon+'<div class="panel"><h3>示意任務 '+qEsc(inst.t)+'</h3>'+content+
+    (fallback?'<details class="quest-fallback"><summary>備用素材：設備或 Google 權限受阻時使用</summary><p>你可以讀模擬成果當場作答。按下按鈕會在此瀏覽器記錄「未實際操作」，不會因此完成關卡；請讓老師另行記錄操作狀況。</p><button class="btn" type="button" data-fallback="use">使用備用素材並記錄</button><div data-fallback="material" hidden>'+fallback+'</div><p class="small quest-log" data-fallback="log" role="status"></p></details>':'')+
+    '<div class="quest-answers">'+questions.map((q,k)=>'<label>'+qEsc(q.label)+(q.options?'<select data-answer="'+k+'" aria-label="'+qEsc(q.label)+'"><option value="">請選擇</option>'+q.options.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('')+'</select>':'<input data-answer="'+k+'" type="'+(q.text?'text':'number')+'" '+(q.text?'':'min="0" step="1" inputmode="numeric"')+' aria-label="'+qEsc(q.label)+'">')+'</label>').join('')+'</div></div>';
+  const fields=questions.map((_,k)=>el.querySelector('[data-answer="'+k+'"]'));
+  fields.forEach(f=>{f.oninput=()=>api.changed();f.onchange=()=>api.changed()});
+  if(fallback){
+    const log=el.querySelector('[data-fallback="log"]');
+    log.textContent='本機備用紀錄（此瀏覽器，非個人成績）：\n'+(qReadLog().join('\n')||'尚未使用');
+    el.querySelector('[data-fallback="use"]').onclick=()=>{
+      el.querySelector('[data-fallback="material"]').hidden=false;
+      const entry=inst.t+'：未實際操作';let records=qReadLog();
+      if(!records.some(x=>x.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
+      try{localStorage.setItem(qFallbackKey,JSON.stringify(records.slice(-64)));log.textContent='本機備用紀錄：\n'+records.slice(-64).join('\n')}catch{log.textContent=entry+'；瀏覽器無法保存，請讓老師記錄。'}
+    };
+  }
+  return {get:()=>fields.map(f=>f.value),ready:()=>fields.every(f=>f.value!==''),fill:()=>{expected.forEach((x,k)=>fields[k].value=String(x))}};
 }
-const rleHTML=r=>'<div class="rle">'+r.map((k,i)=>'<span class="'+(i%2?'off':'on')+'">'+(i%2?'暗':'亮')+' '+k+'</span>').join('')+'</div>';
-// 只接受非負整數串，避免負號、文字或小數被當成分隔符號而誤判答對。
-const parseNums=s=>{const t=String(s).trim();return /^\d+(?:[\s,，、]+\d+)*$/.test(t)?t.split(/[\s,，、]+/).map(Number):[]};
-const cmpHTML=(b,r)=>{const before=b.length,after=r.length*CB,v=after<before?'變小了，省下 '+(before-after)+' 個位元':after>before?'反而變大了，多了 '+(after-before)+' 個位元':'一樣大，沒有省到';
-  return '<section class="panel"><div class="ptitle"><h3>壓縮前後比一比（都用位元算）</h3><span class="tag">無失真</span></div><div class="cmp"><span>原本</span><span><b>'+b.join('')+'</b><br><small>每顆燈 1 位元，共 '+before+' 位元</small></span><span>壓縮後</span><span><b>'+(r.length?r.join(' '):'—')+'</b><br><small>'+r.length+' 個數字 × 每個 '+CB+' 位元＝'+after+' 位元</small></span></div><p><b>'+v+'</b></p><p class="small">暗號裡每個數字固定用 '+CB+' 個位元存（最大到 31）。一段連續一樣的越長，一個數字就能代替越多顆燈；段數太多的話，壓縮後反而比原本大。</p></section>'};
+function qCheck(answer,expected,hints){
+  if(!Array.isArray(answer))return '請先填入成果答案，再送出。';
+  answer=answer.map(x=>typeof x==='string'?x.trim():x);
+  const wrong=expected.findIndex((x,k)=>answer[k]==null||String(answer[k]).trim()===''||(typeof x==='number'?(!/^\d+$/.test(String(answer[k]))||Number(answer[k])!==x):answer[k]!==x));
+  return wrong<0?true:hints[wrong];
+}
+const parseNums=s=>{const raw=String(s).trim();return /^\d+(?:[\s,，、]+\d+)*$/.test(raw)?raw.split(/[\s,，、]+/).map(Number):[]};
+const qKinds=['可編輯文字','校正後文字','可播放語音'];
+const qRun=b=>{const r=[0];let on=1;for(const x of b){if(x===on)r[r.length-1]++;else{r.push(1);on=x}}return r};
+function qBits(n){const patterns=['010101010101010101010101','000000000111111111111111','111111111111000000000000','101010101010101010101010','000000001111111111111111','111111111100000000000000','000000111111000000111111','000000011111111111111111'];return [...patterns[n]].map(Number)}
+function qExpected(i){
+ if(i.round===0)return [i.a+i.add+i.b,i.a+i.add,i.voice,...qKinds];
+ if(i.round===1){const size=qRun(i.encode).length*5;return [i.decode.join(''),qRun(i.encode).join(' '),size,size<24?'變小':size===24?'相同':'變大','可以逐顆完全還原']}
+ if(i.round===2)return [i.lines,i.kept,i.precise?'原圖':'壓縮圖',i.precise?'不能接受':'可以接受'];
+ return [i.files,i.capacity,i.code,'PNG','ZIP'];
+}
+const qNames=['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'];
+const qGoals=['將 PDF 用 Google 文件開啟，修改指定數字，語音輸入並校正，再核對結果與轉換配對。','還原完整亮暗排列，編寫另一個圖案的暗號，再比較位元大小。','放大比較同一指定區域的原圖與有損版本，以可辨識線段和用途判斷。','用內建功能建立 ZIP 再解壓，抽樣查核檔案數、公告與標記內容，再選格式。'];
+const ROUNDS=qNames.map((name,round)=>({lv:round<2?1:2,name,now:'你要替虛構音樂活動團隊準備能修改、能傳送的素材。',goal:qGoals[round],tip:'先檢查素材版本與指定區域，再核對全部內容；不要只看檔案大小。',steps:i=>'<ol><li>你使用任務 '+i.t+' 的素材，與前一組分開保留。</li><li>'+qGoals[round]+'</li><li>有阻礙時使用備用素材並記錄未實際操作，再回答成果。</li></ol>',learn:'你依用途轉換內容，以能否完全還原判斷無失真；壓縮不保證每次變小。',
+ questionKey:i=>i.round===0?[i.a,i.b,i.add,i.voice]:i.round===1?[i.decode,i.encode]:i.round===2?[i.n%2]:[i.files,i.capacity,i.code],
+ gen(rnd){const n=round===2?Math.floor(rnd()*4):qVersion(rnd);return {t:(round+1)+'-'+(n+1),round,n,a:30+n*2,b:20+n,add:3+n%3,voice:12+n,decode:qBits(n),encode:qBits((n+1)%8),lines:n%2?8:6,kept:n%2?4:3,precise:!!(n&2),files:3+n%2,capacity:60+n*3,code:'MUSIC-'+(n+11)}},
+ view(i,el,api){let content='',questions,fallback;
+ if(round===0){
+ content='<p><a href="materials/notice-'+(i.n+1)+'.pdf" download>下載任務 '+i.t+' 公告 PDF（示意）</a>；這是文字版 PDF，不用掃描。</p><ol><li>你把 PDF 放進 Google 雲端硬碟，用 Google 文件開啟，核對原文後，把第一場名額增加 '+i.add+'，第二場不變。</li><li>在同一文件「工具 → 語音輸入」，說出「第二場增設體驗區 '+i.voice+' 個名額」，對照指定句校正辨識文字。評量校正後內容，不評辨識率。</li><li>保留兩組版本，讓老師抽看轉換與麥克風操作。文字轉語音只依影片配對，不需另登入工具。</li></ol>';
+ questions=[{label:'修改後兩場總名額是多少？'},{label:'第一場的新名額是多少？'},{label:'校正後語音句中，增設體驗區有幾個名額？'},...['PDF 開啟成文件','語音輸入後校正','文字轉語音'].map(label=>({label:label+'的結果是？',options:qKinds}))];
+ fallback='<p>備用：可複製公告文字（示意）。你可以直接貼入文字編輯器，依任務改數字；語音受阻則直接校正下方模擬辨識句，並告知老師未操作部分。</p><pre class="quest-source">音樂活動公告 '+(i.n+1)+'\n第一場名額 '+i.a+'\n第二場名額 '+i.b+'\n指定語音：第二場增設體驗區 '+i.voice+' 個名額\n模擬辨識：第二場增設體驗區 '+i.voice+' 個明額</pre>';
+ }
+ if(round===1){
+ content='<p>你把 1 當亮、0 當暗，從左到右共 24 顆。暗號一定從亮開始，每換一段交替亮暗；若開頭是暗，先寫亮 0 顆。本模型原圖每顆 1 位元，暗號每個數字固定 5 位元（可記 0～31），不計其他開銷。</p><p>你要還原的暗號：<strong>'+qRun(i.decode).join('、')+'</strong></p><p class="quest-source">你要編碼的另一組燈牌：'+i.encode.join('')+'</p>';
+ questions=[{label:'還原後完整 24 顆（只填連續的 0 與 1）',text:true},{label:'另一組的完整暗號（數字間空一格）',text:true},{label:'另一組編碼後共幾位元？'},{label:'另一組編碼後與原始 24 位元相比？',options:['變小','相同','變大']},{label:'這個模型為何是無失真？',options:['可以逐顆完全還原','每次都能變小']}];
+ fallback='<p>備用：你可將暗號逐段寫在紙上。'+qTable('逐顆編號（示意）',['起點','終點','填寫方式'],[['1','24','從亮開始，按暗號數量交替填 1、0；編碼題在亮暗改變時另記一段']])+'</p>';
+ }
+ if(round===2){
+ content='<p>兩次確認必須使用不同圖像組。你檢查兩圖整個框內的垂直線；看得出空隙才算分開。原圖的細線靠得近，有損版經縮小與 JPEG 壓縮，部分間隙消失。圖像為自製示意素材；這是固定範例，並非所有 JPEG 都會失去相同細節。</p><p>任務用途：'+(i.precise?'精準核對每條線，必須保留所有分開的線段。':'社群預覽只要認出三或四組粗紋，不要求每條細線分開；此任務優先選較小且符合用途的版本。')+'</p><figure><figcaption>原圖（點開看原尺寸）</figcaption><a href="materials/lines-'+(i.n%2)+'.png"><img class="quest-media" src="materials/lines-'+(i.n%2)+'.png" alt="示意原圖：框內有多組靠近的垂直線"></a></figure><figure><figcaption>有損壓縮圖（同一指定區域）</figcaption><a href="materials/lines-'+(i.n%2)+'.jpg"><img class="quest-media" src="materials/lines-'+(i.n%2)+'.jpg" alt="示意有損圖：靠近的線合成粗紋"></a></figure>';
+ questions=[{label:'原圖有幾條可分辨的垂直線？'},{label:'壓縮圖還有幾條可分辨的粗線？'},{label:'依這組用途應保留哪一版？',options:['原圖','壓縮圖']},{label:'依這組要求能接受目前有損結果嗎？',options:['可以接受','不能接受']}];
+ fallback=qTable('備用：放大觀察紀錄（示意）',['指定區域','觀察'],[['原圖',i.kept+' 組，每組兩條細線，組內與組間均有空隙'],['有損圖',i.kept+' 條粗線，組內空隙消失，組間空隙仍可辨識']]);
+ }
+ if(round===3){
+ const names=['notice.txt','mark.txt','badge.png',...(i.n%2?['readme.txt']:[])];
+ content='<p>你下載 <a href="materials/pack-'+(i.n+1)+'.zip" download>第 '+(i.n+1)+' 組種子素材包（示意）</a>，先解壓取得素材，再用作業系統內建功能選取清單內檔案建立自己的 ZIP，將自己的 ZIP 解壓到新資料夾。只計素材檔，不計資料夾或你建立的 ZIP。</p>'+qTable('你要重新打包的清單（示意）',['檔名'],names.map(n=>[n]))+'<p>開啟解壓後的 notice.txt 核對名額，mark.txt 核對完整標記；badge.png 是透明背景的無失真點陣圖。檔案數加內容仍只是抽樣查核，老師會抽看你的打包與解壓操作。</p><p>ZIP 可完整還原原檔，不代表一定縮小；已壓縮的圖片或 PDF 可能省不了多少空間。延伸：JPEG 常用於照片、MP3 常用於聲音，MP4 是影音容器，PDF 用於固定排版文件。</p>';
+ questions=[{label:'解壓後素材檔有幾個？'},{label:'notice.txt 公告名額是多少？'},{label:'mark.txt 的完整標記是什麼？',text:true},{label:'要無失真點陣圖並保留透明背景，選哪種格式？',options:['PNG','JPEG','MP3','PDF']},{label:'把多個原檔打包並完整還原，選哪種格式？',options:['MP4','ZIP','JPEG']}];
+ fallback=qTable('備用：解壓後內容清單（示意）',['檔案','抽樣觀察'],names.map(n=>[n,n==='notice.txt'?'公告名額 '+i.capacity:n==='mark.txt'?i.code:n==='badge.png'?'透明背景圖像':'示意使用說明']))+'<p>你讀清單作答不代表已打包、解壓；請讓老師另記未實際操作。</p>';
+ }
+ return qView(i,el,api,content,questions,qExpected(i),fallback);
+ },check(i,a){if(i.round===1&&Array.isArray(a)){a=[...a];a[1]=parseNums(a[1]).join(' ')}return qCheck(a,qExpected(i),round===0?['請查修改後兩場的名額並相加。','請查第一場的原數字與指定增加量。','請對照指定語音句，核對校正後的數字。',...Array(3).fill('請回想影片中的來源與輸出內容，是可改文字、校正文字或播放聲音。')]:round===1?['請按暗號逐段核對所有燈位、順序與完整長度。','請在每次亮暗改變時分段；開頭若暗，保留亮 0 顆。','請數完整暗號的數字個數，再依每個數字的位元數計算。','請以位元為相同單位比較原始與編碼大小。','請檢查解碼後能否逐顆一致，不只比較大小。']:round===2?['請放大原圖，看每組線之間是否仍有間隙。','請放大壓縮圖，只計仍有空隙隔開的粗線。','請對照本組用途的細節要求。','請查少掉的細節是否仍符合本組要求。']:['請核對解壓後清單，不含資料夾或 ZIP。','請開啟解壓後的 notice.txt 查看名額。','請查看解壓後 mark.txt 的完整文字與符號。','請對照無失真點陣圖及透明背景兩項要求。','請查打包後是否能完整還原各原檔。'])}
+}));
 
-const LOSS=[
- ['跨年影片要傳到群組給大家看',0],['演唱會照片要發限時動態',0],['手機上用串流聽六連星的歌',0],['跟在家的朋友視訊，讓他看現場',0],['燈牌的宣傳海報縮圖，放在社群貼文',0],
- ['後援會的帳目試算表',1],['燈牌控制程式的安裝檔',1],['問卷的原始回覆資料',1],['報名表上大家填的電話號碼',1],['跨年活動的合約文字檔',1]];
-const FMTS=['JPG','PNG','MP3','MP4','ZIP','PDF'];
-const USE=[
- ['把跨年演唱會的影片傳到群組',3],['演唱會照片要發限動，檔案小一點沒關係',0],['燈牌圖案照原尺寸做成貼圖，邊緣要清楚、背景要透明',1],
- ['把偶像清唱的錄音轉成小檔案，大家手機都能播',2],['把 30 張照片一次打包傳給幹部',4],['跨年公告排好版，不管誰打開都長一樣',5],
- ['截圖群組的重要訊息，文字要清楚不能有雜點',1],['把三份問卷結果和照片包成一個檔寄出',4]];
-const ROUNDS=[
- {lv:1,name:'燈牌解壓縮',
-  now:'跨年夜，後援會用簡訊把燈牌圖案傳給每個人。為了省字數，只傳「亮幾顆、暗幾顆」。',
-  goal:'照著收到的暗號，把 24 顆燈點出來。',
-  tip:'從第 1 顆（左上）往右數，一排數完接下一排。',
-  steps:i=>'這題共有 '+i.b.length+' 顆燈，暗號是 '+i.r.join('、')+'。先從第 1 顆開始，照第一段的顆數數；遇到下一個數字就換亮暗，沿著同一個方向數到第 '+i.b.length+' 顆，再檢查有沒有漏數或重複。',
-  learn:'把「連續一樣的」記成「幾個」，叫做連續長度編碼（RLE）。照著數字一定能還原得一模一樣，所以是無失真壓縮。',
-  gen(rnd){const b=pattern(rnd);return {b,r:runs(b)}},
-  view(inst,el,api){el.innerHTML='<div class="ptitle"><h3>收到的暗號</h3></div>'+rleHTML(inst.r)+'<div style="height:12px"></div>';const h=BOARD(el,{},api);return {get:h.get,fill:()=>h.set(inst.b)}},
-  check(inst,b){const i=b.findIndex((x,k)=>x!==inst.b[k]);return i<0?true:'從第 '+(i+1)+' 顆開始不對。一段一段數：亮幾顆、暗幾顆。'},
-  peek:(i,b)=>cmpHTML(b,runs(b))},
-
- {lv:1,name:'燈牌壓縮',
-  now:'輪到小安把新設計的燈牌圖案傳出去。',
-  goal:'寫出壓縮後的暗號：從「亮」開始，依序寫每一段有幾顆，數字之間空一格。',
-  tip:'如果第 1 顆是暗的，第一個數字寫 0（代表一開始亮了 0 顆）。',
-  steps:i=>'先觀察燈牌上連續相同的亮暗段落。從第 1 顆開始，逐顆數到亮暗改變才停，記下這一段的顆數；再從下一顆繼續，每換一次亮暗就另記一段。若開頭是暗的，先記亮 0 顆；最後各段加起來要是 '+i.b.length+'。',
-  learn:'比大小要用同一個單位：原本每顆燈 1 位元，壓縮後每個數字 5 位元。連續的段越長、段數越少，壓縮後越小；段數一多，反而比原本大。真正的壓縮程式也一樣：重複多的資料才壓得下去。',
-  gen(rnd){const b=pattern(rnd);return {b,r:runs(b)}},
-  view(inst,el,api){
-    BOARD(el,{locked:true,init:inst.b});
-    el.insertAdjacentHTML('beforeend','<label style="display:flex;flex-direction:column;gap:6px;font-size:18px;margin-top:12px">暗號（從亮開始）：<input class="txt-in" id="t-r" inputmode="numeric" autocomplete="off" placeholder="例如 3 2 5 6"></label>');
-    const inp=el.querySelector('#t-r');inp.oninput=()=>api.changed();
-    return {get:()=>parseNums(inp.value),fill:()=>{inp.value=inst.r.join(' ')},ready:()=>parseNums(inp.value).length>0};
-  },
-  check(inst,a){
-    const s=a.reduce((x,y)=>x+y,0);
-    if(s!==NB)return '數字加起來是 '+s+'，應該剛好是 '+NB+' 顆。';
-    if(inst.b[0]===0&&a[0]!==0)return '第 1 顆是暗的，暗號要從「亮 0 顆」開始。';
-    const i=a.findIndex((k,j)=>k!==inst.r[j]);return i<0&&a.length===inst.r.length?true:'第 '+(i+1)+' 段數錯了，再數一次。';
-  },
-  peek:(i,a)=>cmpHTML(i.b,a)},
-
- {lv:2,name:'失真還是無失真',
-  now:'跨年影片傳到群組，畫面變糊了；可是有些檔案，一點點都不能變。',
-  goal:'判斷每一種檔案，可以用失真壓縮（丟掉一些看不出來的細節），還是一定要無失真。',
-  tip:'問自己：少了一點點細節，還能不能用？錯一個字、一個數字會不會出事？',
-  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 項「'+x[0]+'」：先想內容拿來做什麼，再想少一點細節是否仍能用；若文字或數字變了會出事，就要特別小心。</li>').join('')+'</ol>',
-  learn:'失真壓縮把人眼、人耳不容易察覺的細節丟掉，檔案可以小很多，照片、音樂、影片常用；但丟掉的就回不來了。文字、數字、程式少一個位元就會錯，一定要用無失真壓縮。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,LOSS,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['可以失真','一定要無失真'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：少一點細節會不會出事？':true}},
-
- {lv:2,name:'轉成哪一種檔',
-  now:'跨年結束，後援會要把各種東西分享出去。',
-  goal:'每一件事，選最適合的檔案格式。',
-  tip:'JPG 照片（失真、小）、PNG 圖（無失真、可透明）、MP3 聲音（失真、小）、MP4 影片（裡面的影像通常是失真壓縮）、ZIP 打包壓縮（無失真）、PDF 排版固定的文件。',
-  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 項「'+x[0]+'」：先圈出照片、圖、聲音、影片、打包或文件的用途；再看是否要求透明、清楚或版面固定，最後對照格式特色。</li>').join('')+'</ol>',
-  learn:'檔案格式決定資料怎麼存：照片用 JPG、要清楚或透明用 PNG、聲音用 MP3、影片用 MP4、要打包用 ZIP、要排版不跑掉用 PDF。轉檔，就是換一種存法。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,USE,4)}while(new Set(p.map(x=>x[1])).size<4);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FMTS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項的格式不太適合。':true}}
-];
-const APP=SHELL({week:9,termWeek:15,title:'影片傳到群組變糊',course:'115-g9',unit:2,rounds:ROUNDS,finale:'四關都完成了！這是第 2 單元的最後一站：從看台最後一排的一張照片，到存成數字、整理成資訊、再壓縮傳出去，整條流程線就是這樣串起來的。'});
+// 保留活動 ID、四個 round 索引及既有 mask 格式，不將舊紀錄重算為新實作。
+const APP=SHELL({week:9,termWeek:15,title:'影片傳到群組變糊',course:'115-g9',unit:2,rounds:ROUNDS,finale:'你已完成四關成果確認。請保留兩組檔案讓老師抽查；使用備用素材時，請告知老師未實際操作。'});
 </script>
 </body>
 </html>

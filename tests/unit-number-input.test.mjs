@@ -14,7 +14,7 @@ function activity(dir) {
   return context;
 }
 
-for (const dir of ['u2-04', 'u2-07']) {
+for (const dir of ['u2-04']) {
   test(`${dir}：數字串錯答不可因忽略負號或文字而通過`, () => {
     const c = activity(dir);
     const inst = dir === 'u2-04' ? {w:'LOVE'} : {b:[...Array(12).fill(1), ...Array(12).fill(0)], r:[12,12]};
@@ -45,3 +45,13 @@ for (const dir of ['u2-04', 'u2-07']) {
     }
   });
 }
+
+// u2-07 改為合併燈牌關：保留完整還原與編碼兩個答案，檢查編碼輸入容錯。
+test('u2-07 合併燈牌關：合法分隔保留，負號、小數、垃圾字元不通過',()=>{
+ const c=activity('u2-07');c.el=new Element('div');
+ vm.runInContext("const R=APP.rounds[1],inst=R.gen(()=>0.2),handle=R.view(inst,el,{changed(){}});handle.fill();",c);
+ c.input=c.el.querySelector('[data-answer="1"]');
+ const numbers=vm.runInContext('qRun(inst.encode)',c);
+ for(const text of [numbers.join(' '),numbers.join('\n'),numbers.join('，'),'  '+numbers.join(' ')+'  ']){c.input.value=text;assert.equal(vm.runInContext('R.check(inst,handle.get())',c),true)}
+ for(const text of ['',numbers.map(n=>'-'+n).join(' '),numbers.join('abc'),numbers.join('.'),numbers.join(' ')+'xyz','Infinity',numbers.slice(1).join(' ')]){c.input.value=text;assert.notEqual(vm.runInContext('R.check(inst,handle.get())',c),true)}
+});

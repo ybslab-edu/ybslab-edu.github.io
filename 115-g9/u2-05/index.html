@@ -6,15 +6,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>後援會問卷｜第 13 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261116fb">
 <style>
-/* 第 13 週：資料與資訊、問卷設計。題目卡模仿表單的樣子 */
-.form-q{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--cu);border-radius:0;padding:10px 14px;font-size:17px}
-.form-q .opts{color:var(--muted);font-size:15px;margin-top:4px}
-.row .q .form-q{margin:0}
-.form-q{clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+/* 沿用任務日誌的面板、表格與輸入欄；色彩只引用共用變數。 */
+.quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
+.quest-note p{margin:var(--u) 0}
+.quest-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.quest-table th,.quest-table td{padding:var(--u);border:1px solid var(--edge);text-align:left;overflow-wrap:anywhere}
+.quest-table caption{text-align:left;font-weight:700;margin-block:var(--u)}
+.quest-chart{list-style:none;padding:0;display:grid;gap:var(--u)}
+.quest-chart li{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
+.quest-chart .track{height:1em;background:var(--panel-hi)}
+.quest-chart .bar{display:block;height:100%;background:var(--dim)}
+.quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
+.quest-answers label{display:grid;gap:var(--u);min-width:0}
+.quest-answers input,.quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
+.quest-fallback{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
+.quest-fallback summary{cursor:pointer;padding:var(--u);text-decoration:underline}
+.quest-log{white-space:pre-line;overflow-wrap:anywhere}
+body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 </style>
 </head>
 <body>
@@ -25,85 +36,80 @@
 <script src="../../assets/activities.js?v=20261105m"></script>
 <script src="../../assets/shell.js?v=20261116fb"></script>
 <script>
-const fq=(q,o)=>'<div class="form-q">'+q+(o?'<div class="opts">'+o+'</div>':'')+'</div>';
-const DI=[
- ['第 3 題每一份回覆的原始答案（尚未統計）',0],['表單後台的一列：「901 班 12 號，選〈Starlight〉」',0],['每個人填的集合縣市（台北、台中……）',0],
- ['每一份回覆的送出時間',0],['大家逐則填寫的應援口號原文',0],['每個人選的應援棒顏色清單',0],
- ['62% 的人想聽〈Starlight〉當安可曲',1],['依縣市統計回覆人數後，住台中的人最多',1],['統計可集合的時間後，大部分人 6 點後才有空',1],
- ['比較各年級的回覆數後，八年級的回覆最少',1],['統計顏色選項後，最多人選紫色',1],['計算購買數量後，平均每人想買 2.3 支應援棒',1]];
-const FLAWS=['選項重疊','選項不完整','引導作答','一題問兩件事','題型不對'];
-const BAD=[
- [fq('你一個月花多少錢在追星？','○ 100 元以下　○ 100～500 元　○ 500～1000 元　○ 1000 元以上'),0],
- [fq('你幾點能到集合點？','○ 5 點以前　○ 5～6 點　○ 6～7 點　○ 7 點以後'),0],
- [fq('你住哪個縣市？','○ 台北　○ 台中　○ 高雄'),1],
- [fq('你最喜歡哪位成員？','○ 阿晴　○ 米米　○ 海海'),1],
- [fq('大家都說〈Starlight〉最好聽，你也想聽它當安可曲嗎？','○ 想　○ 不想'),2],
- [fq('你不覺得應援棒太貴了嗎？','○ 是　○ 否'),2],
- [fq('你對應援棒的顏色和價格滿意嗎？','○ 滿意　○ 不滿意'),3],
- [fq('你會搭高鐵和客運去跨年嗎？','○ 會　○ 不會'),3],
- [fq('你想買哪些周邊？（只能選一個）','○ 毛巾　○ 手幅　○ 應援棒　○ T 恤'),4],
- [fq('想比較全體會員對跨年場的期待程度、畫成分布圖：你有多期待跨年場？（簡答）','＿＿＿＿＿＿'),4]];
-const FIX=[
- {q:fq('你一個月花多少錢在追星？','○ 100 元以下　○ 100～500 元　○ 500～1000 元　○ 1000 元以上'),o:[fq('','○ 99 元以下　○ 100～499 元　○ 500～999 元　○ 1000 元以上'),fq('','○ 很少　○ 普通　○ 很多'),fq('','○ 100 元以下　○ 100～500 元　○ 500 元以上')]},
- {q:fq('你住哪個縣市？','○ 台北　○ 台中　○ 高雄'),o:[fq('','（下拉選單）列出全部 22 個縣市'),fq('','○ 台北　○ 台中　○ 高雄　○ 台南'),fq('','○ 北部　○ 南部')]},
- {q:fq('大家都說〈Starlight〉最好聽，你也想聽它當安可曲嗎？','○ 想　○ 不想'),o:[fq('你最想聽哪一首當安可曲？','○ 〈Starlight〉　○ 〈六連星〉　○ 〈跨年夜〉　○ 其他：＿＿'),fq('〈Starlight〉這麼好聽，你想聽嗎？','○ 想　○ 不想'),fq('你也覺得〈Starlight〉最好聽嗎？','○ 是　○ 否')]},
- {q:fq('你對應援棒的顏色和價格滿意嗎？','○ 滿意　○ 不滿意'),o:[fq('拆成兩題：「顏色滿意嗎？」「價格滿意嗎？」','各用 1～5 分'),fq('你對應援棒滿意嗎？','○ 滿意　○ 不滿意'),fq('你對應援棒的顏色和價格非常滿意嗎？','○ 是　○ 否')]},
- {q:fq('你想買哪些周邊？（只能選一個）','○ 毛巾　○ 手幅　○ 應援棒　○ T 恤'),o:[fq('你想買哪些周邊？（可以選很多個）','☐ 毛巾　☐ 手幅　☐ 應援棒　☐ T 恤　☐ 都不買'),fq('你想買哪些周邊？（簡答）','＿＿＿＿＿＿'),fq('你最想買毛巾嗎？','○ 是　○ 否')]},
- {q:fq('你不覺得應援棒太貴了嗎？','○ 是　○ 否'),o:[fq('你覺得應援棒的價格？','○ 太便宜　○ 剛好　○ 有點貴　○ 太貴'),fq('應援棒是不是太貴了？','○ 是　○ 否'),fq('你同意應援棒很貴嗎？','○ 同意　○ 非常同意')]}];
-const TYPES=['單選題','核取方塊（可複選）','簡答題','線性刻度（1～5 分）'];
-const NEED=[
- ['跨年要坐哪一台遊覽車（1～3 號車選一台）',0],['你是幾年級',0],['你哪一個縣市出發',0],
- ['你想買哪些周邊（可以選很多個）',1],['你哪幾天可以來做燈牌',1],
- ['想對六連星說的一句話',2],['你的應援口號提案',2],
- ['想比較大家有多期待跨年場（要畫分布圖）',3],['想比較大家對上次應援活動有多滿意',3]];
+const qEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const qTable=(caption,heads,rows)=>'<table class="quest-table"><caption>'+qEsc(caption)+'</caption><thead><tr>'+heads.map(h=>'<th scope="col">'+qEsc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+qEsc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+const qVersion=rnd=>Math.floor(rnd()*8);
+const qCommon='<div class="quest-note"><p>你要替虛構音樂活動團隊做一份可以填寫的問卷。這裡全部是示意資料；不要填入你或別人的真實個資。</p><p>先完成前測，再於課外看 2-13／2-14；課內依老師安排看 2-15。前測完成前，請先停在這裡。</p><p>你只需複製老師提供的半成品表單一次。把兩組成果分別保留並標上任務版本，不必重新建檔。每關答對兩組不同資料才完成；答錯可以修正，不扣分。</p><p>成果答案符合任務，仍需由老師巡堂抽看表單、預覽與試算表。設備或 Google 權限受阻時，展開下方「備用素材」，告訴老師你未實際操作。</p><details><summary>查看既有紀錄與待確認項目</summary><p>你原有的過關紀錄會保留：原第 1～4 關依序對應現在第 1～4 關，表示舊版完成紀錄，不代表做過這次 Google 實作。</p><p>前測第 2 題完整題意待老師核對；第 6 題主題設定題面待確認，本頁先讓你觀察，不預設該題答案。</p></details></div>';
+// 僅記本機使用備用素材的版本與時間；不加入既有成績／雲端格式，不含學生身分。
+const qFallbackKey='ybs:u2-05:fallback:v1';
+function qReadLog(){try{const a=JSON.parse(localStorage.getItem(qFallbackKey)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string').slice(-64):[]}catch{return []}}
+function qView(inst,el,api,content,questions,expected,fallback){
+  el.innerHTML=qCommon+'<div class="panel"><h3>示意任務 '+qEsc(inst.t)+'</h3>'+content+
+    (fallback?'<details class="quest-fallback"><summary>備用素材：設備或 Google 權限受阻時使用</summary><p>你可以讀模擬成果當場作答。按下按鈕會在此瀏覽器記錄「未實際操作」，不會因此完成關卡；請讓老師另行記錄操作狀況。</p><button class="btn" type="button" data-fallback="use">使用備用素材並記錄</button><div data-fallback="material" hidden>'+fallback+'</div><p class="small quest-log" data-fallback="log" role="status"></p></details>':'')+
+    '<div class="quest-answers">'+questions.map((q,k)=>'<label>'+qEsc(q.label)+(q.options?'<select data-answer="'+k+'" aria-label="'+qEsc(q.label)+'"><option value="">請選擇</option>'+q.options.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('')+'</select>':'<input data-answer="'+k+'" type="number" min="0" step="1" inputmode="numeric" aria-label="'+qEsc(q.label)+'">')+'</label>').join('')+'</div></div>';
+  const fields=questions.map((_,k)=>el.querySelector('[data-answer="'+k+'"]'));
+  fields.forEach(f=>{f.oninput=()=>api.changed();f.onchange=()=>api.changed()});
+  if(fallback){
+    const log=el.querySelector('[data-fallback="log"]');
+    log.textContent='本機備用紀錄（此瀏覽器，非個人成績）：\n'+(qReadLog().join('\n')||'尚未使用');
+    el.querySelector('[data-fallback="use"]').onclick=()=>{
+      el.querySelector('[data-fallback="material"]').hidden=false;
+      const entry=inst.t+'：未實際操作';let records=qReadLog();
+      if(!records.some(x=>x.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
+      try{localStorage.setItem(qFallbackKey,JSON.stringify(records.slice(-64)));log.textContent='本機備用紀錄：\n'+records.slice(-64).join('\n')}catch{log.textContent=entry+'；瀏覽器無法保存，請讓老師記錄。'}
+    };
+  }
+  return {get:()=>fields.map(f=>f.value),ready:()=>fields.every(f=>f.value!==''),fill:()=>{expected.forEach((x,k)=>fields[k].value=String(x))}};
+}
+function qCheck(answer,expected,hints){
+  if(!Array.isArray(answer))return '請先填入成果答案，再送出。';
+  const wrong=expected.findIndex((x,k)=>answer[k]==null||String(answer[k]).trim()===''||(typeof x==='number'?(!/^\d+$/.test(String(answer[k]))||Number(answer[k])!==x):answer[k]!==x));
+  return wrong<0?true:hints[wrong];
+}
+const qActivities=['安可曲','燈牌展示','周邊攤位'];
+function qCounts(i){return qActivities.map(x=>i.rows.filter(r=>r===x).length)}
+function qOneExpected(i){const c=qCounts(i);return [c[i.query],Math.max(...c)-Math.min(...c),qActivities[c.indexOf(Math.max(...c))],'資料','資訊']}
+function qTwoExpected(i){return [i.fields.filter(f=>f.preference).length,'告知與同意',i.fields[i.query].keep?'保留':'移除']}
+function qThreeExpected(i){return [i.sections.length,i.options.length,'不會','單選題','核取方塊','簡答題','線性刻度']}
+function qFourExpected(i){return [i.heads[i.column],i.rows.filter(r=>r[i.column]===i.target).length,'沒有改變']}
 const ROUNDS=[
- {lv:1,name:'資料還是資訊',
-  now:'後援會用問卷問大家跨年的事，表單後台收回一大堆東西。',
-  goal:'分出每一項是「資料」（尚未彙整的原始紀錄）還是「資訊」（經過彙整、計算或比較的結果，包含統計數量與比例）。',
-  tip:'先看是否仍是逐筆原始紀錄，或已整理出數量、比例、平均或比較結果；統計結果就算資訊，不必已經做出決定。',
-  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 項「'+x[0]+'」：先找它在記錄什麼，再看是否已經彙整、計算或比較出結果，最後才分類。</li>').join('')+'</ol>',
-  learn:'本關以是否經過彙整、計算或比較為標準：逐筆原始紀錄是資料；整理出的數量、比例、平均與比較結果都是資訊。資訊可以幫助做決定，但不必附帶決策；句子若同時包含整理結果與決策，仍歸為資訊。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,DI,5)}while(new Set(p.map(x=>x[1])).size<2);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),['資料','資訊'],api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項再想想：這是一筆一筆的紀錄，還是已經整理出結論了？':true}},
-
- {lv:1,name:'爛問卷找毛病',
-  now:'幹部寫好問卷初稿，請小安幫忙檢查。',
-  goal:'每一題都有一個毛病，選出是哪一種。',
-  tip:'看選項有沒有重疊或缺漏、題目有沒有偷偷帶答案、是不是一次問兩件事、題型適不適合。',
-  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 題：'+x[0]+['先拿邊界值試放：'+(x[0].includes('100 元')?'100 元':'6 點')+' 能放幾格？再試另一個邊界，最後選出對應的毛病。','先想一個選項以外的人或地方；他能照實作答嗎？再檢查選項是否足夠。','先把題目改成中性的問法，再比較兩種語氣：原題會不會讓受訪者傾向某個選項？不同意的人能不能自在地照實回答？','先找出用「和」連著的兩件事；如果兩件事的答案不同，這一格能說清楚嗎？','先想收回來要做什麼：可不可以買多種周邊？自由文字能不能直接拿來比較程度？再檢查目前題型。'][x[1]]+'</li>').join('')+'</ol>',
-  learn:'好問卷的條件：選項不重疊、選項要完整（不確定就加「其他」）、不引導作答、一題只問一件事、題型要配合想知道的事。',
-  gen(rnd){return {items:SAMPLE(rnd,BAD,3)}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),FLAWS,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 題的毛病選錯了。':true}},
-
- {lv:2,name:'修好它',
-  now:'找到毛病之後，幹部寫了幾種改法。',
-  goal:'每一題選出改得最好的版本。',
-  tip:'改完的版本不能有新的毛病：選項重疊、缺漏、引導、問兩件事、題型不對。',
-  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 題：'+x.q+'先圈出原題不清楚的地方；再逐一讀這題的 '+x.o.length+' 個改法，檢查問題有沒有解決、是否又多了新毛病。</li>').join('')+'</ol>',
-  learn:'修問卷時，常用的方法是：區間的邊界不要重複、加上「其他」、把引導的話拿掉、一題拆成兩題、換成適合的題型。',
-  gen(rnd){const it=SAMPLE(rnd,FIX,3).map(f=>{const order=SHUF(rnd,[0,1,2]);return {q:f.q,o:order.map(k=>f.o[k]),ans:order.indexOf(0)}});return {items:it}},
-  view(inst,el,api){
-    el.innerHTML='<div class="rows">'+inst.items.map((it,i)=>'<div class="panel"><div class="small">原本的題目</div>'+it.q+'<div class="small" style="margin-top:6px">改成：</div><div class="picks" data-i="'+i+'" style="flex-direction:column">'+it.o.map((o,j)=>'<button type="button" class="pk" data-j="'+j+'" aria-pressed="false">'+o+'</button>').join('')+'</div></div>').join('')+'</div>';
-    const ans=inst.items.map(()=>null);
-    const sync=()=>el.querySelectorAll('.picks[data-i]').forEach(p=>p.querySelectorAll('.pk').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.j===ans[+p.dataset.i])));
-    el.querySelectorAll('.picks[data-i]').forEach(p=>p.querySelectorAll('.pk').forEach(b=>b.onclick=()=>{ans[+p.dataset.i]=+b.dataset.j;sync();api.changed()}));
-    return {get:()=>[...ans],fill:()=>{inst.items.forEach((it,i)=>ans[i]=it.ans);sync()},ready:()=>ans.every(v=>v!=null)};
-  },
-  check(inst,a){const w=inst.items.map((it,i)=>a[i]===it.ans?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 題選的版本還有毛病。':true}},
-
- {lv:2,name:'選題型',
-  now:'問卷內容定好了，接下來要在表單裡選題型。',
-  goal:'每一個想知道的事，選最適合的題型。',
-  tip:'只能選一個用單選；可以選很多個用核取方塊；要讓大家自由寫用簡答；想比較「有多……」的程度用線性刻度。題型要看你想拿資料做什麼：想聽理由用簡答，想比較程度用刻度。',
-  steps:i=>'<ol>'+i.items.map((x,k)=>'<li>第 '+(k+1)+' 項「'+x[0]+'」：先想一個人需要填幾個答案，再想要收文字還是比較程度，最後對照題型。</li>').join('')+'</ol>',
-  learn:'題型決定收回來的資料長什麼樣子：單選、複選好統計；簡答能收到意見，但很難整理；線性刻度能比較程度。下一週就要整理這些回覆。',
-  gen(rnd){let p;do{p=SAMPLE(rnd,NEED,4)}while(new Set(p.map(x=>x[1])).size<3);return {items:p}},
-  view(inst,el,api){const c=CLASSIFY(el,inst.items.map(x=>({html:x[0]})),TYPES,api);return {...c,fill:()=>c.fill(inst.items.map(x=>x[1]))}},
-  check(inst,a){const w=inst.items.map((x,i)=>a[i]===x[1]?0:i+1).filter(Boolean);return w.length?'第 '+w.join('、')+' 項的題型不太適合。':true}}
+ {lv:1,name:'這份回覆能告訴你什麼',now:'你收到一份觀眾回覆，要替音樂活動團隊讀出重點。',goal:'讀表與統計圖，填入數量、比較結果及資料／資訊分類。',
+  tip:'用原始列逐筆計數，再對照圖；比較最高與最低的長條。分類時看是否經過彙整。',
+  steps:i=>'<ol><li>任務 '+i.t+'：先把 '+i.rows.length+' 筆示意回覆按活動分組。</li><li>查「'+qActivities[i.query]+'」的長條，再比較最多與最少。</li><li>分別檢查單筆回覆與統計比較句是否經過彙整。</li></ol>',
+  learn:'你可以從原始回覆整理出統計資訊，再用資訊判斷活動需求。',
+  gen(rnd){const n=qVersion(rnd),counts=[4+n%2,2+Math.floor(n/2)%2,1+Math.floor(n/4)];return {t:'1-'+(n+1),query:n%3,rows:counts.flatMap((c,k)=>Array(c).fill(qActivities[k]))}},
+  view(i,el,api){const c=qCounts(i);return qView(i,el,api,qTable('原始回覆（示意）',['回覆編號','你想參加的活動'],i.rows.map((r,k)=>[k+1,r]))+'<p>統計圖（由同一份回覆計算；單位：人）</p><ul class="quest-chart">'+qActivities.map((x,k)=>'<li><span>'+x+'</span><span class="track"><span class="bar" style="width:'+c[k]/i.rows.length*100+'%"></span></span><span>'+c[k]+' 人</span></li>').join('')+'</ul>',[
+   {label:'選「'+qActivities[i.query]+'」的有幾人？'},{label:'最多與最少相差幾人？'},{label:'最多人選哪項活動？',options:qActivities},
+   {label:'「第 1 筆回覆：'+i.rows[0]+'」屬於什麼？',options:['資料','資訊']},{label:'「統計比較後，安可曲人數最多」屬於什麼？',options:['資料','資訊']}],qOneExpected(i))},
+  check:(i,a)=>qCheck(a,qOneExpected(i),['請查原始回覆中指定活動的筆數，再對照同名長條。','請查圖上最高與最低的人數，再計算差距。','請比較圖中各長條的人數。','請查看這一句是否只是保留單筆原始回答。','請查看這一句有沒有先做統計或比較。'])},
+ {lv:1,name:'只問這次需要知道的事',now:'你要修整老師提供的半成品表單，讓蒐集內容符合用途。',goal:'完成開頭說明與同意區段，移除沒有用途的欄位，再回答成果。',
+  tip:'逐欄對照用途，不因欄位與人有關就一律刪除；先讓填答者知道資料怎麼使用。',
+  steps:i=>'<ol><li>任務 '+i.t+'：對照「'+i.purpose+'」檢查 '+i.fields.length+' 個欄位。</li><li>將用途、只看彙整結果、活動後刪除回覆寫入說明，再安排告知與同意區段。</li><li>在你的表單保留這組修整成果，數出偏好題，再檢查「'+i.fields[i.query].name+'」。</li></ol>',
+  learn:'你收集的每個欄位都要有用途，填答者也需要知道資料會如何使用及選擇是否同意。',
+  gen(rnd){const n=qVersion(rnd),preference=[n&4?'演出時段偏好':'安可曲偏好','燈牌色彩',...(n%2?['周邊種類']:[])];return {t:'2-'+(n+1),purpose:'統計'+preference.join('、')+(n&2?'，並依可到場時段安排人力':''),fields:[...preference.map(name=>({name,keep:true,preference:true})),{name:'可到場時段',keep:!!(n&2),preference:false},{name:'真實姓名（僅示意欄位名，勿填）',keep:false,preference:false},{name:'電話（僅示意欄位名，勿填）',keep:false,preference:false}],query:n%2?preference.length:preference.length+1}},
+  view(i,el,api){return qView(i,el,api,'<p>你這組的用途：'+i.purpose+'。資料只看彙整結果，活動後刪除回覆；不收聯絡資料。</p>'+qTable('待修整欄位（示意，不填任何個資）',['編號','欄位'],i.fields.map((f,k)=>[k+1,f.name]))+'<ol><li>在半成品的對應組別刪除無用途欄位。</li><li>在第一區段寫用途、使用方式及刪除時間，保留單選「是否同意作答」。</li><li>預覽確認你先看到告知與同意，後面才是活動偏好調查。</li></ol>',[
+   {label:'修整後保留幾題活動偏好題？'},{label:'哪個區段先出現？',options:['活動偏好調查','告知與同意']},{label:'「'+i.fields[i.query].name+'」應保留或移除？',options:['保留','移除']}],qTwoExpected(i),qTable('備用：修整後的表單大綱（示意）',['區段','內容'],[['告知與同意','用途、使用方式、活動後刪除回覆；是否同意作答'],['活動偏好調查',i.fields.filter(f=>f.keep).map(f=>f.name).join('、')]]))},
+  check:(i,a)=>qCheck(a,qTwoExpected(i),['請逐欄對照用途，只計算保留的活動偏好題。','請回到預覽開頭，檢查填答前需要先知道哪些事。','請查任務用途是否需要這個欄位，不要只看欄位名稱。'])},
+ {lv:2,name:'讓不同回答走到對的地方',now:'你要讓同意與不同意的人走不同路徑，並設定調查題型。',goal:'修改半成品的區段、必填與四種題型，用預覽測試兩條路徑後回答。',
+  tip:'從同意題逐段追蹤路徑；複選題選項數不包含同意題，也不包含按鈕。',
+  steps:i=>'<ol><li>任務 '+i.t+'：依 '+i.sections.length+' 個調查區段安排題目，設定 '+i.options.length+' 個複選選項。</li><li>將不同意設為提交表單；同意才進調查。依用途設定四種題型及必要題。</li><li>用預覽測試兩條路徑，並試著漏答必填題；查看是否被阻擋。</li></ol>',
+  learn:'你用題型決定回答方式，用區段分流決定誰會看到哪些題；預覽能發現漏答與路徑問題。',
+  gen(rnd){const n=qVersion(rnd);return {t:'3-'+(n+1),sections:n%2?['活動偏好','參與安排']:['活動偏好'],options:['毛巾','手幅','燈牌',...(n&2?['貼紙']:[]),...(n&4?['徽章']:[])]}},
+  view(i,el,api){const spec=[['告知與同意','是否同意作答','同意／不同意，必填，只能選一個'],[i.sections[0],'安可曲','選一首，必填'],[i.sections[0],'周邊種類',i.options.join('、')+'；可複選，至少選一項，必填'],[i.sections.at(-1),'口號提案','自由寫一句虛構口號，非必填'],[i.sections.at(-1),'期待程度','1～5 分，必填']];return qView(i,el,api,'<p>你要依序建立：告知與同意 → '+i.sections.join(' → ')+' → 提交。同意才進入全部調查區段；不同意直接提交。</p>'+qTable('你要修改的結構（示意）',['區段','題目','要求'],spec)+'<p>你可以沿用同一份表單兩組成果。調查區段結尾依序前進；不同意應直接提交。用預覽分別測同意、不同意與漏答必填題。</p>',[
+   {label:'同意路徑會遇到幾個調查區段（不含同意區段）？'},{label:'周邊複選題共有幾個選項？'},{label:'不同意路徑會出現「周邊種類」嗎？',options:['會','不會']},
+   ...['是否同意作答','周邊種類','口號提案','期待程度'].map(name=>({label:'你為「'+name+'」設定的題型是？',options:['簡答題','單選題','線性刻度','核取方塊']}))],qThreeExpected(i),qTable('備用：預覽觀察紀錄（示意）',['操作','觀察'],[['選同意',i.sections.join(' → ')+' → 提交'],['選不同意','提交，未進入調查'],['查看周邊種類',i.options.join('、')+'；每項可分別勾選'],['查看題型','是否同意只能選一個；周邊可選多個；口號填短文字；期待程度選 1～5 分'],['漏填安可曲或期待程度','必填提示阻擋提交']]))},
+  check:(i,a)=>qCheck(a,qThreeExpected(i),['請從預覽的同意選項開始，逐段數調查區段，不含開頭。','請查周邊題的選項清單，不要把其他題算進來。','請從不同意的分流設定追蹤到終點。',...Array(4).fill('請查結構表的回答要求，再對照你表單中的題型與預覽。')])},
+ {lv:2,name:'外觀改好了，資料有接上嗎',now:'你要檢查外觀、回覆與試算表是否一致，燈牌資料也在這關核對。',goal:'調整一項老師確認可用的外觀設定，送出兩筆示意回覆並連結試算表，核對欄名與內容。',
+  tip:'外觀調整前後都預覽一次；回覆資料請到試算表看欄名與逐列內容。',
+  steps:i=>'<ol><li>任務 '+i.t+'：調整外觀前記下燈牌題的 '+i.options.length+' 個選項，調整後再查看。</li><li>依清單送出兩筆示意回答，只核對這組資料。</li><li>到回覆區連結試算表，查「'+i.target+'」所在欄名及列數。不要把時間戳記或前組回覆算進來。</li></ol>',
+  learn:'你已核對問卷外觀、示意回覆與試算表內容。下一站，你會整理這些回覆。',
+  gen(rnd){const n=qVersion(rnd),colors=['霜白','暖橙',...(n&4?['銀灰']:[])],heads=n&2?['周邊種類','燈牌色彩']:['燈牌色彩','周邊種類'],column=n&1?heads.indexOf('周邊種類'):heads.indexOf('燈牌色彩');const rows=[['霜白','毛巾'],[n&4?'霜白':'暖橙',n&1?'毛巾':'手幅']].map(r=>heads[0]==='燈牌色彩'?r:[r[1],r[0]]);return {t:'4-'+(n+1),options:colors,heads,column,rows,target:column===heads.indexOf('燈牌色彩')?'霜白':'毛巾'}},
+  view(i,el,api){return qView(i,el,api,'<p>你這組燈牌色彩選項：'+i.options.join('、')+'。將題目依「'+i.heads.join('、')+'」順序排列。</p><ol><li>記下題目與選項，再調整一項老師已確認可用的主題外觀設定，重新預覽比較。前測第 6 題題面待確認，你先觀察主題面板，不預設該題答案。</li><li>依下表發布／預覽並送出兩筆虛構回答。</li><li>在「回覆」連結試算表；可沿用同一檔案，只核對本組兩筆回覆。</li></ol>'+qTable('你要送出的兩筆回答（示意）',i.heads,i.rows),[
+   {label:'「'+i.target+'」所在欄名是？',options:i.heads},{label:'本組兩筆回覆中，有幾筆選了「'+i.target+'」？'},{label:'只調整外觀後，燈牌題選項數有改變嗎？',options:['有改變','沒有改變']}],qFourExpected(i),qTable('備用：連結後的試算表節錄（示意）',['時間戳記',...i.heads],i.rows.map((r,k)=>['示意時間 '+(k+1),...r]))+'<p>模擬觀察紀錄：僅更動老師指定的外觀設定；預覽中的題目文字與選項清單和調整前相同。</p>')},
+  check:(i,a)=>qCheck(a,qFourExpected(i),['請查看指定值上方的試算表欄名，別用欄位字母代替題目名稱。','請逐列查看本組兩筆示意回覆的指定欄位，不含前組資料。','請對照外觀調整前後的燈牌題選項清單。'])}
 ];
-const APP=SHELL({week:7,termWeek:13,title:'後援會問卷',course:'115-g9',unit:2,rounds:ROUNDS,finale:'全部完成！問卷發出去了。下一站：回覆收回來一團亂，要先整理才能變成資訊。'});
+// 活動與關卡索引不變：既有 round 0～3 / mask 四個位元直接沿用，舊完成紀錄不重算。
+const APP=SHELL({week:7,termWeek:13,title:'後援會問卷',course:'115-g9',unit:2,rounds:ROUNDS,finale:'你已完成問卷成果確認。請保留兩組示意成果，讓老師抽看操作；使用備用素材時，請告知老師「未實際操作」。'});
 </script>
 </body>
 </html>

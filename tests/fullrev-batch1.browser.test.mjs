@@ -63,7 +63,8 @@ async function fill(page,type,answer) {
     for(let i=0;i<answer.length;i++)if(await page.locator(`[data-bit="${i}"]`).getAttribute('aria-pressed')!==String(!!answer[i]))await page.locator(`[data-bit="${i}"]`).click();
   }else if(type==='finite-bank-v1') {
     const mode=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.questions[current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot].data.mode;
-    if(['means-1d','kmeans-1d','centroid-2d'].includes(mode)) {for(let k=0;k<answer.length;k++)await page.locator(`[data-answer-field="${k}"]`).fill(String(answer[k]));}
+    if(['form-','sheet-','media-'].some(prefix=>mode.startsWith(prefix))){for(let k=0;k<answer.length;k++){const field=page.locator(`[data-answer-field="${k}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(answer[k]));else await field.fill(String(answer[k]));}}
+    else if(['means-1d','kmeans-1d','centroid-2d'].includes(mode)) {for(let k=0;k<answer.length;k++)await page.locator(`[data-answer-field="${k}"]`).fill(String(answer[k]));}
     else if(['tree-build','regression','confusion-matrix'].includes(mode)) {for(const [key,value] of Object.entries(answer)){const field=page.locator(`[data-answer-field="${key}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(value));else await field.fill(String(value));}}
     else if(['tree-accuracy','moore'].includes(mode))await page.locator('[data-answer-field="value"]').fill(String(answer));
     else if(mode==='cpu-schedule'){
@@ -84,7 +85,7 @@ async function fill(page,type,answer) {
     const input=page.locator(`[data-answer-field="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(String(value));else await input.fill(String(value));
   }
 }
-test('PR6 真實切換頁 × PR5 client × Worker：94 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
+test('PR6 真實切換頁 × PR5 client × Worker：106 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
   if(!workerSource){t.skip('跨 repo 驗收須指定本機 YBS_WORKER_SOURCE；不下載依賴');return;}
   for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
     if(process.env.YBS_PR6_SCOPE&&process.env.YBS_PR6_SCOPE!==`${a.activity}:${round}`)continue;
@@ -101,8 +102,28 @@ test('PR6 真實切換頁 × PR5 client × Worker：94 關均可錯答修正、�
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'手機版不得橫向溢出');
       let q=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;
       const type=q.type,answer=modules.privateAnswer(current.db);
+      const outcome=['form-','sheet-','media-'].some(prefix=>q.questions[0].data.mode?.startsWith(prefix));
+      if(outcome){
+        assert.match(await page.locator('body').innerText(),/抽查|抽看/);
+        const requests=current.requests.length;await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
+        assert.equal(current.requests.length,requests,'備用紀錄不可上傳或採計');assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+        assert.ok(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.endsWith(':fallback:v1')&&localStorage.getItem(k).includes('未實際操作'))));
+        for(const file of q.questions[0].data.assets||[]){
+          const link=page.locator(`[data-material="${file[0]}"]`);await link.waitFor();
+          const event=page.waitForEvent('download');await link.click();const download=await event,stream=await download.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);
+          assert.deepEqual(Buffer.concat(chunks),await readFile(new URL('../115-g9/u2-07/materials/'+file[0],import.meta.url)));
+        }
+        if(q.questions[0].data.mode==='media-lossy'){
+          const counts=await page.locator('[data-material-image]').evaluateAll(async imgs=>{const counts=[];for(const img of imgs){await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);const p=ctx.getImageData(0,80,320,1).data;let n=0,on=false;for(let x=0;x<320;x++){const dark=p[x*4]<205;if(dark&&!on)n++;on=dark;}counts.push(n);}return counts;});
+          assert.deepEqual(counts,q.questions[0].data.imageGroup?[8,4]:[6,3]);
+        }
+        if(a.activity===8&&round===1){
+          await page.evaluate(()=>window.scrollTo(0,document.querySelector('table').getBoundingClientRect().top+scrollY));
+          await page.screenshot({path:'/tmp/ybs-pr6b5-sheet-mobile.png'});
+        }
+      }
       let wrong=structuredClone(answer);
-      if(Array.isArray(wrong))wrong[0]=type.startsWith('binary')?1-wrong[0]:(wrong[0]+1)%(q.questions[0].data.options?.length||4);
+      if(Array.isArray(wrong))wrong[0]=type.startsWith('binary')?1-wrong[0]:typeof wrong[0]==='number'?(wrong[0]+1)%(q.questions[0].data.options?.length||4):wrong[0]+'X';
       else if(typeof wrong==='number')wrong++;
       else if(typeof wrong==='string')wrong+='X';
       else wrong[Object.keys(wrong)[0]]++;
@@ -115,6 +136,8 @@ test('PR6 真實切換頁 × PR5 client × Worker：94 關均可錯答修正、�
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='regression')wrong={...answer,line:(answer.line+1)%q.questions[0].data.lines.length};
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='route')wrong=[q.questions[0].data.from,q.questions[0].data.nodes.find(n=>n[0]!==q.questions[0].data.from&&n[0]!==q.questions[0].data.to)[0]];
       if(type==='finite-bank-v1'&&['multi','wifi-dead'].includes(q.questions[0].data.mode))wrong=[];
+      if(type==='finite-bank-v1'&&q.questions[0].data.mode==='media-rle'){wrong=[...answer];wrong[0]=(answer[0][0]==='0'?'1':'0')+answer[0].slice(1);}
+      if(outcome&&q.questions[0].data.kinds[0]==='s'){const choices=q.questions[0].data.questions[0].slice(1);wrong=[...answer];wrong[0]=choices.find(v=>v!==answer[0]);}
       if(type==='recording-capacity-v1')wrong.q=(answer.q+1)%3;
       await fill(page,type,wrong);await page.getByRole('button',{name:'送出',exact:true}).click();
       await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();

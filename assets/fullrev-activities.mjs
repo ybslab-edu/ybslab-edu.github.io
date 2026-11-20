@@ -1,4 +1,5 @@
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
+import {renderOutcome} from './fullrev-outcomes.mjs';
 export const BATCH1=Object.freeze([
   {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場'],managed:[3]},
   {activity:5,file:'115-g9/u2-03/index.html',title:'燈牌只有亮和暗',unit:2,rounds:['點亮生日','看燈猜數字','沒有標數字的燈牌','要幾顆燈才夠','燈牌要幾個位元組'],managed:[0,1,2,3,4]},
@@ -31,7 +32,12 @@ export const BATCH4=Object.freeze([
   {activity:28,file:'115-g9/u1-03/index.html',title:'為了演唱會換手機',unit:1,rounds:['倒帶時間軸','它是哪一代','晶片環遊世界','每兩年翻一倍'],managed:[0,1,2,3]},
   {activity:29,file:'115-g9/u1-04/index.html',title:'演唱會倒數直播',unit:1,rounds:['收進來還是送出去','輸入、處理、輸出','幫小裝置挑零件','直播的一秒鐘'],managed:[0,1,2,3]}
 ]);
-export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4]);
+export const BATCH5=Object.freeze([
+  {activity:7,file:'115-g9/u2-05/index.html',title:'後援會問卷',unit:2,rounds:['這份回覆能告訴你什麼','只問這次需要知道的事','讓不同回答走到對的地方','外觀改好了，資料有接上嗎'],managed:[0,1,2,3]},
+  {activity:8,file:'115-g9/u2-06/index.html',title:'問卷回來一團亂',unit:2,rounds:['先留下原始資料','找出不能直接分析的列','時間不同，內容還是重複','用乾淨資料回答問題'],managed:[0,1,2,3]},
+  {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
+]);
+export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5]);
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
@@ -264,6 +270,7 @@ export function renderQuestion(q,host,api={changed(){}}) {
     if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
+    const outcome=renderOutcome(host,d,api.changed);if(outcome)return outcome;
     const platform=platformQuestion(host,d,api.changed);if(platform)return platform;
     const ai=aiQuestion(host,d,api.changed);if(ai)return ai;
     if(d.mode.startsWith('ascii-'))return ascii(host,d,api.changed);

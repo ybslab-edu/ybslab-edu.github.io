@@ -5,8 +5,8 @@ import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {buildBatch1} from '../tools/build-fullrev-batch1.mjs';
-import {BATCH1} from '../assets/fullrev-activities.mjs';
+import {buildBatches} from '../tools/build-fullrev-batch1.mjs';
+import {MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
 import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base,dir,output,current,modules;
@@ -17,7 +17,7 @@ before(async()=>{
   const [{createFormalWorker},{MemoryFirestore},{formalPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
     load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal-contract.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
   modules={createFormalWorker,MemoryFirestore,formalPath,batchData,privateAnswer,ENV,CLASS_HINTS,password,paths,EPOCH,ORIGIN};
-  dir=await mkdtemp(join(tmpdir(),'ybs-pr6-browser-'));output=join(dir,'public');await buildBatch1({output,config});
+  dir=await mkdtemp(join(tmpdir(),'ybs-pr6-browser-'));output=join(dir,'public');await buildBatches({output,config});
   server=createServer(async(req,res)=>{
     try {
       const path=new URL(req.url,'http://localhost').pathname;
@@ -63,7 +63,11 @@ async function fill(page,type,answer) {
     for(let i=0;i<answer.length;i++)if(await page.locator(`[data-bit="${i}"]`).getAttribute('aria-pressed')!==String(!!answer[i]))await page.locator(`[data-bit="${i}"]`).click();
   }else if(type==='finite-bank-v1') {
     const mode=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.questions[current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot].data.mode;
-    if(mode==='order')for(const index of answer)await page.locator(`[data-pool-index="${index}"]`).click();
+    if(mode.startsWith('ascii-'))await page.locator('[data-answer-field="text"]').fill(Array.isArray(answer)?answer.join(' '):answer);
+    else if(mode==='route'){while(Number(await page.locator('[data-route-length]').getAttribute('data-route-length'))>1)await page.getByRole('button',{name:'退一步',exact:true}).click();for(const name of answer.slice(1))await page.locator(`[data-route-node="${name}"]`).click();}
+    else if(mode==='multi'||mode==='wifi-dead'){const selector=mode==='multi'?'[data-multi-index]':'[data-cell]';for(const b of await page.locator(selector).all()){const index=Number(await b.getAttribute(mode==='multi'?'data-multi-index':'data-cell'));if(await b.getAttribute('aria-pressed')!==String(answer.includes(index)))await b.click();}}
+    else if(mode==='wifi-router'){const session=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;const d=session.questions[session.slot].data;await page.locator(`[data-cell="${d.cells[answer]}"]`).first().click();}
+    else if(mode==='order')for(const index of answer)await page.locator(`[data-pool-index="${index}"]`).click();
     else {const choices=Array.isArray(answer)?answer:[answer];for(let i=0;i<choices.length;i++) {
       const b=page.locator(`[data-row="${i}"][data-choice="${choices[i]}"]`);if(await b.getAttribute('aria-pressed')!=='true')await b.click();
     }}
@@ -71,9 +75,9 @@ async function fill(page,type,answer) {
     const input=page.locator(`[data-answer-field="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(String(value));else await input.fill(String(value));
   }
 }
-test('PR6 真實切換頁 × PR5 client × Worker：26 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:180000},async t=>{
+test('PR6 真實切換頁 × PR5 client × Worker：50 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:300000},async t=>{
   if(!workerSource){t.skip('跨 repo 驗收須指定本機 YBS_WORKER_SOURCE；不下載依賴');return;}
-  for(const a of BATCH1)for(const round of a.managed) {
+  for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
     if(process.env.YBS_PR6_SCOPE&&process.env.YBS_PR6_SCOPE!==`${a.activity}:${round}`)continue;
     await t.test(`${a.activity}:${round}`,async()=>{
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
@@ -91,10 +95,13 @@ test('PR6 真實切換頁 × PR5 client × Worker：26 關均可錯答修正、�
       let wrong=structuredClone(answer);
       if(Array.isArray(wrong))wrong[0]=type.startsWith('binary')?1-wrong[0]:(wrong[0]+1)%(q.questions[0].data.options?.length||4);
       else if(typeof wrong==='number')wrong++;
+      else if(typeof wrong==='string')wrong+='X';
       else wrong[Object.keys(wrong)[0]]++;
       // 排序錯答先交換兩張卡；單選保持在合法選項內。
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='order'){wrong=[...answer];[wrong[0],wrong[1]]=[wrong[1],wrong[0]];}
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='select')wrong=(answer+1)%q.questions[0].data.options.length;
+      if(type==='finite-bank-v1'&&q.questions[0].data.mode==='route')wrong=[q.questions[0].data.from,q.questions[0].data.nodes.find(n=>n[0]!==q.questions[0].data.from&&n[0]!==q.questions[0].data.to)[0]];
+      if(type==='finite-bank-v1'&&['multi','wifi-dead'].includes(q.questions[0].data.mode))wrong=[];
       if(type==='recording-capacity-v1')wrong.q=(answer.q+1)%3;
       await fill(page,type,wrong);await page.getByRole('button',{name:'送出',exact:true}).click();
       await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();

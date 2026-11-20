@@ -96,22 +96,22 @@ function eventsRefresh(p,refresh) {
 export async function mountActivity({client:promise,cfg}) {
   const p=await setup(promise,cfg.title);if(!p.client)return;
   const stage=node('section'),summary=node('section'),nav=node('nav');
-  p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='';
+  p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='',pairTimer=null,generation=0;
   const send=button('送出',async()=>{
     if(!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     try{const value=await p.client.answer(cfg.week,round,handle.get());await receive(value);}
     catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||!!lastView?.completed
-      ||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
+      ||!!lastView?.performanceOrder&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{next.hidden=true;render(lastView);});next.hidden=true;
   async function render(value) {
-    stage.replaceChildren();handle=null;send.disabled=true;
+    const carry=handle?.carry?.();handle?.dispose?.();stage.replaceChildren();handle=null;send.disabled=true;
     if(typeof cfg.renderQuestion!=='function'){stage.append(node('p','此關介面尚未備妥，請找老師。'));return;}
     handle=cfg.renderQuestion(value.question,stage,{changed(){
       const state=p.client.state();
       send.disabled=!handle?.get||!next.hidden||!!lastView?.completed||state.pending
-        ||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
-    },demonstration:false});
+        ||!!lastView?.performanceOrder&&lastView?.question?.slot===1||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
+    },carry:value.performanceOrder||carry,demonstration:false});
     send.disabled=!handle?.get||!!handle.ready&&!handle.ready();
   }
   async function receive(value) {
@@ -119,8 +119,15 @@ export async function mountActivity({client:promise,cfg}) {
     const key=JSON.stringify([value.sid,value.nextSeq,value.completed,value.correct]);
     if(key===viewKey)return;viewKey=key;
     const previous=lastView;lastView=value;
-    if(value.completed){stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
-    if(value.correct===true&&value.question.slot===1){if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));next.hidden=false;send.disabled=true;p.status.textContent='第一組答對，請按「下一組」。';}
+    if(value.performance){
+      if(!handle&&value.performance.question)await render({question:value.performance.question});
+      handle?.feedback?.(value.performance);
+    }
+    if(value.completed){if(!value.performance)stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));if(!value.performance)handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
+    if(value.question.slot===1&&Array.isArray(value.performanceOrder)){
+      next.hidden=true;await render(value);send.disabled=true;p.status.textContent='第一組成立，正在驗證同一排卡的第二組資料。';
+      continuePair(value);
+    }else if(value.correct===true&&value.question.slot===1){if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));next.hidden=false;send.disabled=true;p.status.textContent='第一組答對，請按「下一組」。';}
     else{
       // 錯答沿用原 renderer 與已填欄位，讓學生只修改錯誤處。
       if(!(value.correct===false&&handle&&previous?.sid===value.sid&&previous.question?.slot===value.question.slot))await render(value);
@@ -128,6 +135,18 @@ export async function mountActivity({client:promise,cfg}) {
       p.status.textContent=value.correct===false?'再修改同一題，不扣分。':'作答中。';
     }
   }
+  function continuePair(value){
+    if(pairTimer)return;
+    const current=generation,scopeRound=round;
+    // 下一個事件迴圈再送，讓 client 釋放第一槽鎖；自動重試的回應也走同一路徑。
+    pairTimer=setTimeout(async()=>{
+      pairTimer=null;
+      if(current!==generation||lastView?.sid!==value.sid||lastView?.completed)return;
+      try{await receive(await p.client.answer(cfg.week,scopeRound,value.performanceOrder));}
+      catch(e){if(current===generation)p.status.textContent=explain(e);}
+    },0);
+  }
+  function stopPair(){generation++;clearTimeout(pairTimer);pairTimer=null;}
   async function refresh() {
     const n=++read;summary.replaceChildren();
     try{const snapshot=await p.client.progress({activities:catalog()});const xp=await xpCore();if(n!==read)return;
@@ -135,7 +154,7 @@ export async function mountActivity({client:promise,cfg}) {
     catch(e){if(n===read)p.status.textContent=explain(e);}
   }
   const start=async(restart=false)=>{
-    stage.replaceChildren();handle=null;viewKey='';next.hidden=true;send.disabled=true;
+    stopPair();handle?.dispose?.();stage.replaceChildren();handle=null;viewKey='';next.hidden=true;send.disabled=true;
     if(cfg.rounds[round]?.managed===false){p.status.textContent='這一關尚待老師確認，請選其他關卡。';return;}
     try{await receive(await p.client.start(cfg.week,round,{restart}));}catch(e){p.status.textContent=explain(e);}
   };
@@ -145,13 +164,13 @@ export async function mountActivity({client:promise,cfg}) {
   const retry=button('重試送出',async()=>{try{const values=await p.client.retry();if(values.length)await receive(values.at(-1));}catch(e){p.status.textContent=explain(e);}});
   const refreshClaims=button('老師已核發，重新確認',async()=>{try{await p.client.refreshClaims();await start(true);}catch(e){p.status.textContent=explain(e);}});
   const practice=button('本機練習／示範',()=>{
-    stage.replaceChildren();send.disabled=true;handle=null;
+    stopPair();handle?.dispose?.();stage.replaceChildren();send.disabled=true;handle=null;
     if(typeof cfg.demonstrate==='function')cfg.demonstrate(stage);
     else stage.append(node('p','此活動的練習介面尚未備妥。'));
     p.status.textContent='本機練習／教師示範，不送出成績。';
   });
   p.tools.append(begin,restart,retry,refreshClaims,practice);
-  function clearView(){read++;stage.replaceChildren();summary.replaceChildren();handle=null;lastView=null;viewKey='';next.hidden=true;send.disabled=true;}
+  function clearView(){read++;stopPair();handle?.dispose?.();stage.replaceChildren();summary.replaceChildren();handle=null;lastView=null;viewKey='';next.hidden=true;send.disabled=true;}
   p.client.subscribe(state=>{
     if(!state.profile){clearView();return;}
     p.content.replaceChildren(stage,send,next,summary);

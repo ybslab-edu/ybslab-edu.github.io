@@ -3,22 +3,22 @@
 import {readFile,writeFile,mkdir,readdir,copyFile,stat} from 'node:fs/promises';
 import {resolve,dirname,join,relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {BATCH1,BATCH2,BATCH3,BATCH4,BATCH5} from '../assets/fullrev-activities.mjs';
+import {BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6} from '../assets/fullrev-activities.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 export const buildBatch1=options=>buildBatches({...options,batches:[1]});
-export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5]}) {
-  if(!Array.isArray(batches)||!batches.length||batches.some(n=>![1,2,3,4,5].includes(n))||new Set(batches).size!==batches.length)throw Error('invalid_batches');
-  const activities=batches.flatMap(n=>[null,BATCH1,BATCH2,BATCH3,BATCH4,BATCH5][n]);
+export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5,6]}) {
+  if(!Array.isArray(batches)||!batches.length||batches.some(n=>![1,2,3,4,5,6].includes(n))||new Set(batches).size!==batches.length)throw Error('invalid_batches');
+  const activities=batches.flatMap(n=>[null,BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6][n]);
   checkConfig(config);output=resolve(output);source=resolve(source);
   if(output===source||!relative(source,output).startsWith('..'))throw Error('output_must_be_outside_source');
   if(await stat(output).catch(()=>null))throw Error('output_must_not_exist');
-  const assets=['fullrev-client.mjs','fullrev-ui.mjs','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs',
+  const assets=['fullrev-client.mjs','fullrev-ui.mjs','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs',
     'login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js'];
   await mkdir(join(output,'assets'),{recursive:true});
   for(const asset of assets){await mkdir(dirname(join(output,'assets',asset)),{recursive:true});await copyFile(join(source,'assets',asset),join(output,'assets',asset));}
   const loginFile=join(output,'assets/login.js');
-  await writeFile(loginFile,(await readFile(loginFile,'utf8')).replace(/fullrev-activities\.mjs\?v=[a-z0-9]+/g,'fullrev-activities.mjs?v=20261120b5'));
+  await writeFile(loginFile,(await readFile(loginFile,'utf8')).replace(/(?:fullrev-activities|fullrev-ui)\.mjs\?v=[a-z0-9]+/g,match=>match.replace(/v=[a-z0-9]+$/,'v=20261120b6')));
   await writeFile(join(output,'assets/fullrev-config.js'),`const YBS_FULLREV_CONFIG=Object.freeze(${JSON.stringify(config)});\n`);
   // 僅擴充這份切換產物的精確目的地主機，不修改開關關閉時的 CSP。
   for(const a of activities) {
@@ -27,7 +27,7 @@ export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5
     if(!csp)throw Error('csp_missing');
     const policy=csp.split(';').map(s=>s.trim()).filter(Boolean).map(s=>s.startsWith('connect-src ')?`${s} ${config.workerOrigin}`:
       s.startsWith('frame-src ')?`frame-src https://${config.firebase.projectId}.firebaseapp.com`:s).join('; ');
-    const scripts=['fullrev-config.js','login.js'].map(name=>`<script src="/assets/${name}?v=20261120b5"></script>`).join('\n');
+    const scripts=['fullrev-config.js','login.js'].map(name=>`<script src="/assets/${name}?v=20261120b6"></script>`).join('\n');
     const cfg={week:a.activity,course:'115-g9',unit:a.unit,title:a.title,rounds:a.rounds.map(name=>({name}))};
     // 不保留舊 inline script、gen/check/fill、題庫、暖身答案、教師雜湊或遮罩。
     const html=`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${policy}"><title>${a.title}｜YBS Lab</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/shell.css?v=20261116fb"></head><body>${scripts}<script>YBS.mountActivity(${JSON.stringify(cfg)});</script></body></html>\n`;

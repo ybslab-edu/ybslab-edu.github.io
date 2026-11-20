@@ -25,5 +25,5 @@ test('PR6 第 5 批私有題面、答案、素材、判題與版本不在公開�
   }
   for(const m of Object.values(materials)){assert.ok(!text.includes(m.gzip));assert.ok(!text.includes(m.digest));}
   assert.doesNotMatch(text,/MUSIC-1[1-8]|qOneExpected|qExpected|qTwoExpected|qRun\(|qBits\(/);
-  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.match(login,/fullrev-activities\.mjs\?v=20261120b5/);
+  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.match(login,/fullrev-activities\.mjs\?v=20261120b6/);
 });

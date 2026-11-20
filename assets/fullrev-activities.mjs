@@ -1,4 +1,5 @@
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
+import {renderPerformance} from './fullrev-performance.mjs';
 import {renderOutcome} from './fullrev-outcomes.mjs';
 export const BATCH1=Object.freeze([
   {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場'],managed:[3]},
@@ -37,7 +38,11 @@ export const BATCH5=Object.freeze([
   {activity:8,file:'115-g9/u2-06/index.html',title:'問卷回來一團亂',unit:2,rounds:['先留下原始資料','找出不能直接分析的列','時間不同，內容還是重複','用乾淨資料回答問題'],managed:[0,1,2,3]},
   {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
 ]);
-export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5]);
+export const BATCH6=Object.freeze([
+  {activity:1,file:'115-g9/u1-05/index.html',title:'深夜手搖店 CPU',unit:1,rounds:['第 1 單','第 2 單','錢夠不夠？','班級團購'],managed:[0,1,2,3]},
+  {activity:2,file:'115-g9/u1-06/index.html',title:'打王前記得存檔',unit:1,rounds:['開遊戲','打王前存檔','RAM 滿了','從開機到存檔'],managed:[0,1,2,3]}
+]);
+export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5,...BATCH6]);
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
@@ -270,6 +275,7 @@ export function renderQuestion(q,host,api={changed(){}}) {
     if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
+    const performance=renderPerformance(host,d,api);if(performance)return performance;
     const outcome=renderOutcome(host,d,api.changed);if(outcome)return outcome;
     const platform=platformQuestion(host,d,api.changed);if(platform)return platform;
     const ai=aiQuestion(host,d,api.changed);if(ai)return ai;

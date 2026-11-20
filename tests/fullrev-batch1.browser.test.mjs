@@ -25,6 +25,7 @@ before(async()=>{
         let raw='';for await(const chunk of req)raw+=chunk;
         current.clock+=60001;current.requests.push({op:path.slice(8),body:JSON.parse(raw)});
         const r=await current.worker.fetch(new Request('https://synthetic.invalid/'+path.slice(8),{method:'POST',headers:{origin:ORIGIN,authorization:'Bearer fake-uid-a','content-type':'application/json'},body:raw}));
+        if(current.dropSecond&&path==='/worker/answer'&&JSON.parse(raw).slot===1){current.dropSecond=false;res.writeHead(503,{'Content-Type':'application/json','retry-after':'60'}).end('{"error":"synthetic_lost_response"}');return;}
         res.writeHead(r.status,{'Content-Type':'application/json'}).end(await r.text());return;
       }
       if(path==='/synthetic/progress') {
@@ -63,7 +64,11 @@ async function fill(page,type,answer) {
     for(let i=0;i<answer.length;i++)if(await page.locator(`[data-bit="${i}"]`).getAttribute('aria-pressed')!==String(!!answer[i]))await page.locator(`[data-bit="${i}"]`).click();
   }else if(type==='finite-bank-v1') {
     const mode=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.questions[current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot].data.mode;
-    if(['form-','sheet-','media-'].some(prefix=>mode.startsWith(prefix))){for(let k=0;k<answer.length;k++){const field=page.locator(`[data-answer-field="${k}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(answer[k]));else await field.fill(String(answer[k]));}}
+    if(mode.endsWith('-performance')){
+      for(const b of await page.locator('[data-slot-index]').all())if(!await b.innerText().then(t=>t.includes('待放入')))await b.click();
+      for(const index of answer)await page.locator(`[data-pool-index="${index}"]`).click();
+    }
+    else if(['form-','sheet-','media-'].some(prefix=>mode.startsWith(prefix))){for(let k=0;k<answer.length;k++){const field=page.locator(`[data-answer-field="${k}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(answer[k]));else await field.fill(String(answer[k]));}}
     else if(['means-1d','kmeans-1d','centroid-2d'].includes(mode)) {for(let k=0;k<answer.length;k++)await page.locator(`[data-answer-field="${k}"]`).fill(String(answer[k]));}
     else if(['tree-build','regression','confusion-matrix'].includes(mode)) {for(const [key,value] of Object.entries(answer)){const field=page.locator(`[data-answer-field="${key}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(value));else await field.fill(String(value));}}
     else if(['tree-accuracy','moore'].includes(mode))await page.locator('[data-answer-field="value"]').fill(String(answer));
@@ -85,10 +90,10 @@ async function fill(page,type,answer) {
     const input=page.locator(`[data-answer-field="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(String(value));else await input.fill(String(value));
   }
 }
-test('PR6 真實切換頁 × PR5 client × Worker：106 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
+test('PR6 真實切換頁 × PR5 client × Worker：114 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
   if(!workerSource){t.skip('跨 repo 驗收須指定本機 YBS_WORKER_SOURCE；不下載依賴');return;}
   for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
-    if(process.env.YBS_PR6_SCOPE&&process.env.YBS_PR6_SCOPE!==`${a.activity}:${round}`)continue;
+    if(process.env.YBS_PR6_SCOPE&&!process.env.YBS_PR6_SCOPE.split(',').includes(`${a.activity}:${round}`))continue;
     await t.test(`${a.activity}:${round}`,async()=>{
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
     page.setDefaultTimeout(6000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -128,10 +133,11 @@ test('PR6 真實切換頁 × PR5 client × Worker：106 關均可錯答修正、
       else if(typeof wrong==='string')wrong+='X';
       else wrong[Object.keys(wrong)[0]]++;
       // 排序錯答先交換兩張卡；單選保持在合法選項內。
-      if(type==='finite-bank-v1'&&['order','chip-journey'].includes(q.questions[0].data.mode)){wrong=[...answer];[wrong[0],wrong[1]]=[wrong[1],wrong[0]];}
+      if(type==='finite-bank-v1'&&['order','chip-journey','tea-performance','memory-performance'].includes(q.questions[0].data.mode)){wrong=[...answer];[wrong[0],wrong[1]]=[wrong[1],wrong[0]];}
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='cpu-schedule')wrong=q.questions[0].data.tasks.flatMap((t,k)=>Array(t[1]).fill(k));
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='components'){wrong=structuredClone(answer);wrong[0][0]=(wrong[0][0]+1)%q.questions[0].data.inputs.length;}
       if(type==='finite-bank-v1'&&['select','scene-prompt','tree-split','knn','cluster-quality','elbow','task-manager','rps-counter'].includes(q.questions[0].data.mode))wrong=(answer+1)%q.questions[0].data.options.length;
+      if(type==='finite-bank-v1'&&q.questions[0].data.mode==='wifi-router')wrong=(answer+1)%q.questions[0].data.cells.length;
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='scene-choice')wrong=(answer+1)%q.questions[0].data.scenes.length;
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='regression')wrong={...answer,line:(answer.line+1)%q.questions[0].data.lines.length};
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='route')wrong=[q.questions[0].data.from,q.questions[0].data.nodes.find(n=>n[0]!==q.questions[0].data.from&&n[0]!==q.questions[0].data.to)[0]];
@@ -141,15 +147,27 @@ test('PR6 真實切換頁 × PR5 client × Worker：106 關均可錯答修正、
       if(type==='recording-capacity-v1')wrong.q=(answer.q+1)%3;
       await fill(page,type,wrong);await page.getByRole('button',{name:'送出',exact:true}).click();
       await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();
+      if(q.questions[0].data.mode?.endsWith('-performance')){
+        await page.locator('[data-performance-frame]').waitFor();
+        await page.getByRole('button',{name:'下一步',exact:true}).click();
+        assert.ok(Number(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'))>=0);
+      }
       assert.equal(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot,0);
       await page.reload();await page.getByRole('button',{name:a.rounds[round],exact:true}).click();await page.locator('[data-question-type]').waitFor();
       assert.ok(current.requests.some(r=>r.op==='resume'));
       await fill(page,type,answer);await page.getByRole('button',{name:'送出',exact:true}).click();
+      if(!q.questions[0].data.mode?.endsWith('-performance')){
       await page.getByRole('button',{name:'下一組',exact:true}).waitFor({state:'visible'});
       assert.equal(await page.locator('[data-question-type]').getAttribute('data-slot'),'0');
       await page.getByRole('button',{name:'下一組',exact:true}).click();
       await fill(page,type,modules.privateAnswer(current.db));await page.getByRole('button',{name:'送出',exact:true}).click();
+      }
       await page.waitForFunction(()=>app.client.state().snapshot?.records.length===1);
+      if(q.questions[0].data.mode?.endsWith('-performance')){
+        assert.equal(current.requests.filter(r=>r.op==='answer').length,3,'錯答一次後，一次送出以同一順序驗兩槽');
+        const responses=current.requests.filter(r=>r.op==='answer').slice(-2);assert.deepEqual(responses[0].body.answer,responses[1].body.answer);
+        await page.locator('[data-performance-frame]').waitFor();
+      }
       await page.getByText(/· 15 XP$/).first().waitFor();
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
       assert.deepEqual(errors,[]);
@@ -157,4 +175,37 @@ test('PR6 真實切換頁 × PR5 client × Worker：106 關均可錯答修正、
     finally{await context.close();}
     });
   }
+});
+
+test('排卡兩槽：第一槽後重整可自動續傳，第二槽回應遺失重送不重複採計、換人停止演出',async t=>{
+  if(!workerSource){t.skip('須指定本機 YBS_WORKER_SOURCE');return;}
+  for(const mode of ['resume-first','lost-second'])await t.test(mode,async()=>{
+    await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+    page.setDefaultTimeout(6000);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
+    try{
+      await page.goto(base+'/115-g9/u1-05/');await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'帳號登入',exact:true}).click();
+      await page.getByRole('button',{name:'第 1 單',exact:true}).click();await page.locator('[data-question-type]').waitFor();
+      const order=modules.privateAnswer(current.db);
+      if(mode==='resume-first'){
+        // 先直接接受第一槽，關閉頁面，模擬第二槽尚未發送就離開。
+        await page.route('**/worker/answer',route=>{const b=route.request().postDataJSON();return b.slot===1?route.abort():route.continue();});
+        await page.evaluate(order=>app.client.answer(1,0,order),order);
+      }else{
+        current.dropSecond=true;await fill(page,'finite-bank-v1',order);await page.getByRole('button',{name:'送出',exact:true}).click();
+        await page.getByText('尚未確認，答案已保留，稍後可重試。',{exact:true}).waitFor();
+        assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
+        assert.equal(await page.getByText(/· 15 XP$/).count(),0,'失去成功回應不可先顯示過關');
+      }
+      await page.unroute('**/worker/answer');await page.reload();await page.getByRole('button',{name:'第 1 單',exact:true}).waitFor();await page.evaluate(()=>app.advance(61000));await page.getByRole('button',{name:'第 1 單',exact:true}).click();
+      await page.waitForFunction(()=>app.client.state().snapshot?.records.length===1);
+      assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
+      const answers=current.requests.filter(r=>r.op==='answer');for(const a of answers)assert.deepEqual(a.body.answer,order);
+      if(mode==='lost-second')assert.equal(new Set(answers.filter(r=>r.body.slot===1).map(r=>r.body.requestId)).size,1);
+      await page.locator('[data-performance-frame]').waitFor();await page.getByRole('button',{name:'下一步',exact:true}).click();
+      assert.equal(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'),'1');
+      await page.screenshot({path:'/tmp/ybs-pr6b6-performance-mobile.png'});
+      await page.evaluate(()=>app.client.logout());await page.waitForTimeout(1700);
+      assert.equal(await page.locator('[data-performance-frame]').count(),0,'登出後不得由計時器補回受保護演出');
+    }finally{await context.close();}
+  });
 });

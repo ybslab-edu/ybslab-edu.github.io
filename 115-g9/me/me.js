@@ -1,6 +1,13 @@
 // 顯示本人或課程擁有者指定學生的已確認 attempts；不提交作答、不保存 XP。
 (() => {
   'use strict';
+  if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) {
+    const script = document.createElement('script');
+    script.src = '../../assets/login.js?v=20261120a';
+    script.onload = () => YBS.mountGrowth();
+    script.onerror = () => { document.getElementById('status').textContent = '登入元件載入失敗，請重新整理。'; };
+    document.head.appendChild(script); return;
+  }
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const course = '115-g9';
@@ -255,7 +262,7 @@
   }
   // 學生入口才載入原登入模組；教師入口不執行班座重送的初始化副作用。
   const loginScript = document.createElement('script');
-  loginScript.src = '../../assets/login.js?v=20261113d';
+  loginScript.src = '../../assets/login.js?v=20261120a';
   loginScript.onload = () => {
     YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
     YBS.status(state => { if (state === 'relogin' && owner) signedOut(); else if (state === 'ok' && owner) void refresh(); });

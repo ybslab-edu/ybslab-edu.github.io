@@ -25,13 +25,14 @@ const YBSXP = (() => {
     return {level, title:TITLES[level - 1], floor, next, remaining:next === null ? 0 : next - totalXP,
       progress:next === null ? 1 : Math.max(0, Math.min(1, (totalXP - floor) / (next - floor)))};
   }
-  function calculate(activities, records) {
+  function calculate(activities, records, {worker = false} = {}) {
+    const recordTime = worker ? r => timestamp(r?.completedAt) : attemptTime;
     const first = new Map();
     for (const r of records) {
       if (!Number.isInteger(r.activity) || !Number.isInteger(r.round) || r.round < 0) continue;
       const key = r.course + ':' + r.activity + ':' + r.round, old = first.get(key);
       // 有未知時間時保留未知；不讓重做補發首次過關的加成。
-      if (!old || (Number.isFinite(attemptTime(old)) && (!Number.isFinite(attemptTime(r)) || attemptTime(r) < attemptTime(old)))) first.set(key, r);
+      if (!old || (Number.isFinite(recordTime(old)) && (!Number.isFinite(recordTime(r)) || recordTime(r) < recordTime(old)))) first.set(key, r);
     }
     const axes = Object.fromEntries(Object.entries(THEMES).map(([id, name]) => [id, {id, name, passed:0, total:0, openPassed:0, openTotal:0}]));
     const seen = new Set();
@@ -42,10 +43,12 @@ const YBSXP = (() => {
       seen.add(key);
       const rounds = a.rounds.map((name, round) => {
         const record = first.get(key + ':' + round), passed = !!record;
-        const at = attemptTime(record), open = timestamp(a.openedAt);
+        const at = recordTime(record), open = timestamp(worker ? record?.xpPolicySnapshot?.openedAt : a.openedAt);
         const passXP = passed ? RULES.pass : 0;
         const onTimeXP = passed && at >= open && at <= open + RULES.windowMs ? RULES.onTime : 0;
-        return {round, name, passed, passXP, onTimeXP, totalXP:passXP + onTimeXP};
+        const result = {round, name, passed, passXP, onTimeXP, totalXP:passXP + onTimeXP};
+        if (worker) result.onTimeState = passed && (!Number.isFinite(at) || !Number.isFinite(open)) ? 'unknown' : 'confirmed';
+        return result;
       });
       const passed = rounds.filter(r => r.passed).length;
       const completeXP = rounds.length > 0 && passed === rounds.length ? RULES.complete : 0;

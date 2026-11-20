@@ -3,6 +3,7 @@
 // on 為 false 或該課程沒有對應的 courseId 時不啟用：活動頁維持「班級座號與本機進度」。
 // 專案 ID、網頁金鑰都是公開識別碼，不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
+  if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) return ybsFullrevFacade(YBS_FULLREV_CONFIG);
   const CONFIG = {
     on: true,                                     // false：關閉登入，活動頁只用「班級座號與本機進度」
     project: 'class-score-86020',
@@ -584,6 +585,34 @@ const YBS = (() => {
   return { CONFIG, enabled, button, submit, flush, logout, whoami, submitReport, guest, leaveGuest, flushGuest,
     hasPending, retry, endBrowserSession, firebaseSession: initFirebase, profile: () => profile, status: f => { onStatus = f; } };
 })();
+
+function ybsFullrevFacade(config) {
+  const ready = import('./fullrev-client.mjs?v=20261120a').then(m => m.createBrowserClient(config));
+  // 先掛失敗處理；設定未就緒不啟動舊專案。
+  ready.catch(() => {});
+  let current = null, pending = false, notify = () => {};
+  ready.then(client => client.subscribe(state => {
+    current = state.profile; pending = state.pending; notify(state.status);
+  })).catch(() => {});
+  const call = name => (...args) => ready.then(client => client[name](...args));
+  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261120a')
+    .then(m => m[name]({client:ready, ...args}));
+  return Object.freeze({fullrev:true, enabled:()=>true, profile:()=>current,
+    firebaseSession:call('session'), logout:call('logout'), retry:call('retry'),
+    hasPending:()=>pending, status:f=>{notify=f;},
+    mountActivity:cfg=>mount('mountActivity', {cfg}),
+    mountGrowth:()=>mount('mountGrowth', {}), mountTeacher:()=>mount('mountTeacher', {}),
+    // 舊頁尚未轉換時拒絕自報／匿名補寫，正式答案只能經 Worker。
+    submit:()=>false, submitGuest:()=>false, flush:()=>false, flushGuest:()=>false,
+    guest:()=>false, leaveGuest:()=>{}, endBrowserSession:call('logout'),
+    whoami:async()=>({ok:false,error:'fullrev-adapter-required'}),
+    button:async(el,ok,bad)=>{
+      try { await (await import('./fullrev-ui.mjs?v=20261120a')).mountLogin({client:await ready,host:el,onLogin:ok}); }
+      catch { bad?.('登入服務尚未就緒，請找老師。'); }
+    },
+    submitReport:async()=>{throw Object.assign(new Error('報告切換尚未就緒，請保留下載檔。'),{code:'report/cutover-pending'});}
+  });
+}
 
 // 登出入口共用提示；只在提示期間查詢，不介入 Auth 或上傳狀態回呼。
 const ybsLogoutPending = (() => {

@@ -1,6 +1,7 @@
 /* 教師雲端成績：單次伺服器查詢，僅 owner 可讀；不寫入、刪除或持久化教師資料。 */
 'use strict';
 window.YBSGuestTeacher = function ({course, activities, saveBook, onRecords = () => {}}) {
+  if (YBS.fullrev) { YBS.mountTeacher(); return; }
   const el = id => document.getElementById(id);
   let auth, db, ready, generation = 0, busy = false, rows = [], people = [], growth = new Map();
   const message = text => { el('cloud-status').textContent = text; };

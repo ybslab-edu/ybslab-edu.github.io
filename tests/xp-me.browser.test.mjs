@@ -28,7 +28,7 @@ before(async()=>{
   server=createServer(async(req,res)=>{
     let path=new URL(req.url,'http://127.0.0.1').pathname;
     if(['/115-g9/me/','/115-g9/u2-03/'].includes(path))path+='index.html';
-    const allowed=['/115-g9/me/index.html','/115-g9/me/me.js','/115-g9/me/me-teacher.js','/115-g9/me/me.css','/assets/login.js','/assets/xp.js','/assets/curriculum.js','/assets/activities.js','/assets/lock.js','/assets/favicon.svg','/115-g9/u2-03/index.html','/assets/shell.js','/assets/shell.css','/assets/teacher.js','/assets/warmup.js','/assets/warmup-bank.js'];
+    const allowed=['/115-g9/me/index.html','/115-g9/me/me.js','/115-g9/me/me-teacher.js','/115-g9/me/me.css','/assets/fullrev-config.js','/assets/login.js','/assets/xp.js','/assets/curriculum.js','/assets/activities.js','/assets/lock.js','/assets/favicon.svg','/115-g9/u2-03/index.html','/assets/shell.js','/assets/shell.css','/assets/teacher.js','/assets/warmup.js','/assets/warmup-bank.js'];
     if(!allowed.includes(path))return res.writeHead(404).end();
     const type=path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});

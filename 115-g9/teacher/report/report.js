@@ -1,6 +1,7 @@
 /* 獨立教師報告頁：沿用 YBS Firebase 工作階段，僅 owner 單次讀取。 */
 (() => {
   'use strict';
+  if (typeof YBS !== 'undefined' && YBS.fullrev) { YBS.mountTeacher(); return; }
   const el = id => document.getElementById(id), course = '115-g9';
   const activities = ACTIVITIES.filter(a => a.course === course).sort((a,b) => a.date.localeCompare(b.date) || a.week-b.week);
   const items = CURRICULA.find(c => c.id === 'jh').strands.flatMap(s => s.items);

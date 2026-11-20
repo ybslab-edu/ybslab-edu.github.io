@@ -110,6 +110,7 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
     });
   }
   async function init() {
+    if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) throw new Error('DF cutover pending');
     const base = 'https://www.gstatic.com/firebasejs/10.14.1/';
     await script(base + 'firebase-app-compat.js');
     await script(base + 'firebase-auth-compat.js');

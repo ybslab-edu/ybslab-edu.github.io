@@ -25,12 +25,13 @@ const shellXPReady = (() => {
   if (!src) return Promise.resolve();
   return new Promise(resolve => {
     const script = document.createElement('script');
-    script.src = new URL('xp.js?v=20261109f', src).href;
+    script.src = new URL('xp.js?v=20261120a', src).href;
     script.onload = script.onerror = resolve;
     document.head.appendChild(script);
   });
 })();
 const SHELL = (cfg) => {
+  if (typeof YBS !== 'undefined' && YBS.fullrev) return YBS.mountActivity(cfg);
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const loginEnabled = () => typeof YBS !== 'undefined' && YBS.enabled();

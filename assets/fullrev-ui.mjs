@@ -98,28 +98,33 @@ export async function mountActivity({client:promise,cfg}) {
   const stage=node('section'),summary=node('section'),nav=node('nav');
   p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='';
   const send=button('送出',async()=>{
-    if(!handle||send.disabled)return;send.disabled=true;
+    if(!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     try{const value=await p.client.answer(cfg.week,round,handle.get());await receive(value);}
     catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||!!lastView?.completed
-      ||p.client.state().pending||p.client.state().status==='restart-required';}
+      ||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{next.hidden=true;render(lastView);});next.hidden=true;
   async function render(value) {
     stage.replaceChildren();handle=null;send.disabled=true;
     if(typeof cfg.renderQuestion!=='function'){stage.append(node('p','此關介面尚未備妥，請找老師。'));return;}
-    handle=cfg.renderQuestion(value.question,stage,{changed(){},demonstration:false});send.disabled=!handle?.get;
+    handle=cfg.renderQuestion(value.question,stage,{changed(){
+      const state=p.client.state();
+      send.disabled=!handle?.get||!next.hidden||!!lastView?.completed||state.pending
+        ||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
+    },demonstration:false});
+    send.disabled=!handle?.get||!!handle.ready&&!handle.ready();
   }
   async function receive(value) {
     if(value.activity!==undefined&&(value.activity!==cfg.week||value.round!==round))return;
     const key=JSON.stringify([value.sid,value.nextSeq,value.completed,value.correct]);
     if(key===viewKey)return;viewKey=key;
     const previous=lastView;lastView=value;
-    if(value.completed){stage.replaceChildren();handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
-    if(value.correct===true&&value.question.slot===1){next.hidden=false;send.disabled=true;p.status.textContent='第一組答對，請按「下一組」。';}
+    if(value.completed){stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
+    if(value.correct===true&&value.question.slot===1){if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));next.hidden=false;send.disabled=true;p.status.textContent='第一組答對，請按「下一組」。';}
     else{
       // 錯答沿用原 renderer 與已填欄位，讓學生只修改錯誤處。
       if(!(value.correct===false&&handle&&previous?.sid===value.sid&&previous.question?.slot===value.question.slot))await render(value);
-      send.disabled=!handle;
+      send.disabled=!handle||!!handle.ready&&!handle.ready();
       p.status.textContent=value.correct===false?'再修改同一題，不扣分。':'作答中。';
     }
   }
@@ -131,6 +136,7 @@ export async function mountActivity({client:promise,cfg}) {
   }
   const start=async(restart=false)=>{
     stage.replaceChildren();handle=null;viewKey='';next.hidden=true;send.disabled=true;
+    if(cfg.rounds[round]?.managed===false){p.status.textContent='這一關尚待老師確認，請選其他關卡。';return;}
     try{await receive(await p.client.start(cfg.week,round,{restart}));}catch(e){p.status.textContent=explain(e);}
   };
   for(let i=0;i<cfg.rounds.length;i++)nav.append(button(cfg.rounds[i].name,()=>{round=i;start();}));

@@ -12,6 +12,7 @@ const OPEN = {
   const T = typeof TEACHER !== 'undefined' ? TEACHER : null;
   if (T && T.remembered()) return;
   const show = () => {
+    if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) return;
     const courseClosed = typeof COURSES !== 'undefined' && COURSES.some(c => c.id === seg[0] && !c.open);
     // 多數活動頁稍後才載入 activities.js，等 DOM 完成後再讀取共用日期判斷。
     const a = typeof ACTIVITIES !== 'undefined'

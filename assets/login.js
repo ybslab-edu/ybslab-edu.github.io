@@ -595,19 +595,19 @@ function ybsFullrevFacade(config) {
     current = state.profile; pending = state.pending; notify(state.status);
   })).catch(() => {});
   const call = name => (...args) => ready.then(client => client[name](...args));
-  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261120a')
+  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261120b1')
     .then(m => m[name]({client:ready, ...args}));
   return Object.freeze({fullrev:true, enabled:()=>true, profile:()=>current,
     firebaseSession:call('session'), logout:call('logout'), retry:call('retry'),
     hasPending:()=>pending, status:f=>{notify=f;},
-    mountActivity:cfg=>mount('mountActivity', {cfg}),
+    mountActivity:cfg=>import('./fullrev-activities.mjs?v=20261120b1').then(m=>mount('mountActivity', {cfg:m.activityConfig(cfg)})),
     mountGrowth:()=>mount('mountGrowth', {}), mountTeacher:()=>mount('mountTeacher', {}),
     // 舊頁尚未轉換時拒絕自報／匿名補寫，正式答案只能經 Worker。
     submit:()=>false, submitGuest:()=>false, flush:()=>false, flushGuest:()=>false,
     guest:()=>false, leaveGuest:()=>{}, endBrowserSession:call('logout'),
     whoami:async()=>({ok:false,error:'fullrev-adapter-required'}),
     button:async(el,ok,bad)=>{
-      try { await (await import('./fullrev-ui.mjs?v=20261120a')).mountLogin({client:await ready,host:el,onLogin:ok}); }
+      try { await (await import('./fullrev-ui.mjs?v=20261120b1')).mountLogin({client:await ready,host:el,onLogin:ok}); }
       catch { bad?.('登入服務尚未就緒，請找老師。'); }
     },
     submitReport:async()=>{throw Object.assign(new Error('報告切換尚未就緒，請保留下載檔。'),{code:'report/cutover-pending'});}

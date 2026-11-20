@@ -64,14 +64,19 @@ async function fill(page,type,answer) {
   }else if(type==='finite-bank-v1') {
     const mode=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.questions[current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot].data.mode;
     if(['means-1d','kmeans-1d','centroid-2d'].includes(mode)) {for(let k=0;k<answer.length;k++)await page.locator(`[data-answer-field="${k}"]`).fill(String(answer[k]));}
-    else if(['tree-build','regression'].includes(mode)) {for(const [key,value] of Object.entries(answer)){const field=page.locator(`[data-answer-field="${key}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(value));else await field.fill(String(value));}}
-    else if(mode==='tree-accuracy')await page.locator('[data-answer-field="value"]').fill(String(answer));
+    else if(['tree-build','regression','confusion-matrix'].includes(mode)) {for(const [key,value] of Object.entries(answer)){const field=page.locator(`[data-answer-field="${key}"]`);if(await field.evaluate(e=>e.tagName)==='SELECT')await field.selectOption(String(value));else await field.fill(String(value));}}
+    else if(['tree-accuracy','moore'].includes(mode))await page.locator('[data-answer-field="value"]').fill(String(answer));
+    else if(mode==='cpu-schedule'){
+      const session=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,d=session.questions[session.slot].data;
+      for(const k of answer)await page.locator('[data-pool-index]').filter({hasText:d.tasks[k][0]}).first().click();
+    }
+    else if(mode==='components'){for(let k=0;k<answer.length;k++)for(let j=0;j<2;j++)await page.locator(`[data-row="${k*2+j}"][data-choice="${answer[k][j]}"]`).click();}
     else if(mode==='scene-choice')await page.locator(`[data-scene-choice="${answer}"]`).click();
     else if(mode.startsWith('ascii-'))await page.locator('[data-answer-field="text"]').fill(Array.isArray(answer)?answer.join(' '):answer);
     else if(mode==='route'){while(Number(await page.locator('[data-route-length]').getAttribute('data-route-length'))>1)await page.getByRole('button',{name:'退一步',exact:true}).click();for(const name of answer.slice(1))await page.locator(`[data-route-node="${name}"]`).click();}
     else if(mode==='multi'||mode==='wifi-dead'){const selector=mode==='multi'?'[data-multi-index]':'[data-cell]';for(const b of await page.locator(selector).all()){const index=Number(await b.getAttribute(mode==='multi'?'data-multi-index':'data-cell'));if(await b.getAttribute('aria-pressed')!==String(answer.includes(index)))await b.click();}}
     else if(mode==='wifi-router'){const session=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;const d=session.questions[session.slot].data;await page.locator(`[data-cell="${d.cells[answer]}"]`).first().click();}
-    else if(mode==='order')for(const index of answer)await page.locator(`[data-pool-index="${index}"]`).click();
+    else if(['order','chip-journey'].includes(mode))for(const index of answer)await page.locator(`[data-pool-index="${index}"]`).click();
     else {const choices=Array.isArray(answer)?answer:[answer];for(let i=0;i<choices.length;i++) {
       const b=page.locator(`[data-row="${i}"][data-choice="${choices[i]}"]`);if(await b.getAttribute('aria-pressed')!=='true')await b.click();
     }}
@@ -79,7 +84,7 @@ async function fill(page,type,answer) {
     const input=page.locator(`[data-answer-field="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(String(value));else await input.fill(String(value));
   }
 }
-test('PR6 真實切換頁 × PR5 client × Worker：74 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:300000},async t=>{
+test('PR6 真實切換頁 × PR5 client × Worker：94 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
   if(!workerSource){t.skip('跨 repo 驗收須指定本機 YBS_WORKER_SOURCE；不下載依賴');return;}
   for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
     if(process.env.YBS_PR6_SCOPE&&process.env.YBS_PR6_SCOPE!==`${a.activity}:${round}`)continue;
@@ -102,8 +107,10 @@ test('PR6 真實切換頁 × PR5 client × Worker：74 關均可錯答修正、�
       else if(typeof wrong==='string')wrong+='X';
       else wrong[Object.keys(wrong)[0]]++;
       // 排序錯答先交換兩張卡；單選保持在合法選項內。
-      if(type==='finite-bank-v1'&&q.questions[0].data.mode==='order'){wrong=[...answer];[wrong[0],wrong[1]]=[wrong[1],wrong[0]];}
-      if(type==='finite-bank-v1'&&['select','scene-prompt','tree-split','knn','cluster-quality','elbow'].includes(q.questions[0].data.mode))wrong=(answer+1)%q.questions[0].data.options.length;
+      if(type==='finite-bank-v1'&&['order','chip-journey'].includes(q.questions[0].data.mode)){wrong=[...answer];[wrong[0],wrong[1]]=[wrong[1],wrong[0]];}
+      if(type==='finite-bank-v1'&&q.questions[0].data.mode==='cpu-schedule')wrong=q.questions[0].data.tasks.flatMap((t,k)=>Array(t[1]).fill(k));
+      if(type==='finite-bank-v1'&&q.questions[0].data.mode==='components'){wrong=structuredClone(answer);wrong[0][0]=(wrong[0][0]+1)%q.questions[0].data.inputs.length;}
+      if(type==='finite-bank-v1'&&['select','scene-prompt','tree-split','knn','cluster-quality','elbow','task-manager','rps-counter'].includes(q.questions[0].data.mode))wrong=(answer+1)%q.questions[0].data.options.length;
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='scene-choice')wrong=(answer+1)%q.questions[0].data.scenes.length;
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='regression')wrong={...answer,line:(answer.line+1)%q.questions[0].data.lines.length};
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='route')wrong=[q.questions[0].data.from,q.questions[0].data.nodes.find(n=>n[0]!==q.questions[0].data.from&&n[0]!==q.questions[0].data.to)[0]];

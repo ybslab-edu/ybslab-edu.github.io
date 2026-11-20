@@ -56,6 +56,7 @@ async function setup(promise,title,{ownerOnly=false}={}) {
     return {...page,client};
   }catch(e){page.status.textContent=explain(e);return page;}
 }
+const pairAnswer=value=>value?.photoAnswer||value?.performanceOrder;
 const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course==='115-g9');
 async function xpCore() {
   if(typeof YBSXP!=='undefined')return YBSXP;
@@ -101,31 +102,33 @@ export async function mountActivity({client:promise,cfg}) {
     if(!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     try{const value=await p.client.answer(cfg.week,round,handle.get());await receive(value);}
     catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||!!lastView?.completed
-      ||!!lastView?.performanceOrder&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
+      ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{next.hidden=true;render(lastView);});next.hidden=true;
   async function render(value) {
     const carry=handle?.carry?.();handle?.dispose?.();stage.replaceChildren();handle=null;send.disabled=true;
     if(typeof cfg.renderQuestion!=='function'){stage.append(node('p','此關介面尚未備妥，請找老師。'));return;}
+    send.textContent=value.question.data?.mode==='photo'?'拍下來傳出去':'送出';
     handle=cfg.renderQuestion(value.question,stage,{changed(){
       const state=p.client.state();
       send.disabled=!handle?.get||!next.hidden||!!lastView?.completed||state.pending
-        ||!!lastView?.performanceOrder&&lastView?.question?.slot===1||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
-    },carry:value.performanceOrder||carry,demonstration:false});
-    send.disabled=!handle?.get||!!handle.ready&&!handle.ready();
+        ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
+    },carry:pairAnswer(value)||carry,demonstration:false});
+    send.disabled=!handle?.get||!!pairAnswer(value)&&value.question.slot===1||!!handle.ready&&!handle.ready();
   }
   async function receive(value) {
     if(value.activity!==undefined&&(value.activity!==cfg.week||value.round!==round))return;
     const key=JSON.stringify([value.sid,value.nextSeq,value.completed,value.correct]);
     if(key===viewKey)return;viewKey=key;
     const previous=lastView;lastView=value;
+    if(value.photo&&!handle)await render({...value.photo,photoAnswer:value.photoAnswer});
     if(value.performance){
       if(!handle&&value.performance.question)await render({question:value.performance.question});
       handle?.feedback?.(value.performance);
     }
-    if(value.completed){if(!value.performance)stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));if(!value.performance)handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
-    if(value.question.slot===1&&Array.isArray(value.performanceOrder)){
-      next.hidden=true;await render(value);send.disabled=true;p.status.textContent='第一組成立，正在驗證同一排卡的第二組資料。';
+    if(value.completed){if(!value.performance&&!value.photo)stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));if(!value.performance&&!value.photo)handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
+    if(value.question.slot===1&&!!pairAnswer(value)){
+      next.hidden=true;await render(value);send.disabled=true;p.status.textContent=value.photoAnswer?'兩張照片成立，正在確認過關。':'第一組成立，正在驗證同一排卡的第二組資料。';
       continuePair(value);
     }else if(value.correct===true&&value.question.slot===1){if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));next.hidden=false;send.disabled=true;p.status.textContent='第一組答對，請按「下一組」。';}
     else{
@@ -142,7 +145,7 @@ export async function mountActivity({client:promise,cfg}) {
     pairTimer=setTimeout(async()=>{
       pairTimer=null;
       if(current!==generation||lastView?.sid!==value.sid||lastView?.completed)return;
-      try{await receive(await p.client.answer(cfg.week,scopeRound,value.performanceOrder));}
+      try{await receive(await p.client.answer(cfg.week,scopeRound,pairAnswer(value)));}
       catch(e){if(current===generation)p.status.textContent=explain(e);}
     },0);
   }

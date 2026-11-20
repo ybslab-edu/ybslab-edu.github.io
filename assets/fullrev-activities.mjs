@@ -1,4 +1,5 @@
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
+import {renderPhotos} from './fullrev-photos.mjs';
 import {renderPerformance} from './fullrev-performance.mjs';
 import {renderOutcome} from './fullrev-outcomes.mjs';
 export const BATCH1=Object.freeze([
@@ -42,7 +43,8 @@ export const BATCH6=Object.freeze([
   {activity:1,file:'115-g9/u1-05/index.html',title:'深夜手搖店 CPU',unit:1,rounds:['第 1 單','第 2 單','錢夠不夠？','班級團購'],managed:[0,1,2,3]},
   {activity:2,file:'115-g9/u1-06/index.html',title:'打王前記得存檔',unit:1,rounds:['開遊戲','打王前存檔','RAM 滿了','從開機到存檔'],managed:[0,1,2,3]}
 ]);
-export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5,...BATCH6]);
+export const BATCH7=Object.freeze([{activity:3,file:'115-g9/u2-01/index.html',title:'看台最後一排',unit:2,rounds:['看清背號','認出應援色','容量剛好夠','衛星數遊覽車'],managed:[0,1,2,3]}]);
+export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5,...BATCH6,...BATCH7]);
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
@@ -275,6 +277,7 @@ export function renderQuestion(q,host,api={changed(){}}) {
     if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
+    const photo=renderPhotos(host,d,api);if(photo)return photo;
     const performance=renderPerformance(host,d,api);if(performance)return performance;
     const outcome=renderOutcome(host,d,api.changed);if(outcome)return outcome;
     const platform=platformQuestion(host,d,api.changed);if(platform)return platform;

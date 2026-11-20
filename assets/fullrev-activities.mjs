@@ -16,7 +16,15 @@ export const BATCH2=Object.freeze([
   {activity:13,file:'115-g9/u4-04/index.html',title:'短影音怎麼猜中我',unit:4,rounds:['這是哪一種服務','猜下一支推薦','是不是物聯網','感測、連網、動作'],managed:[0,1,2,3]},
   {activity:14,file:'115-g9/u4-05/index.html',title:'影片住在哪個國家',unit:4,rounds:['在手機上還是雲端','租哪一種雲','誰管哪一層','資料中心蓋在哪'],managed:[0,1,2,3]}
 ]);
-export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2]);
+export const BATCH3=Object.freeze([
+  {activity:15,file:'115-g9/u4-06/index.html',title:'問 AI 一個問題',unit:4,rounds:['一個問題的旅程','這一步是哪一單元','雲端版和手機版','雲端算還是手機算'],managed:[0,1,2,3]},
+  {activity:19,file:'115-g9/u5-04/index.html',title:'繪本需要插圖',unit:5,rounds:['哪一句提示詞','改一個詞','可以放進繪本嗎','排好繪本頁'],managed:[0,1,2,3]},
+  {activity:20,file:'115-g9/u5-05/index.html',title:'回收分類機',unit:5,rounds:['照著樹分類','哪一題分得最乾淨','自己蓋一棵樹','考考這棵樹'],managed:[0,1,2,3]},
+  {activity:21,file:'115-g9/u5-06/index.html',title:'跟誰最像',unit:5,rounds:['最近的鄰居','找 3 個鄰居投票','畫一條線來預測','感知器要不要開攤'],managed:[0,1,2,3]},
+  {activity:22,file:'115-g9/u5-07/index.html',title:'讓資料自己分組',unit:5,rounds:['有沒有標準答案','靠近哪一個中心','把中心搬到中間','跑到不動為止'],managed:[0,1,2,3]},
+  {activity:23,file:'115-g9/u5-08/index.html',title:'服務台放哪裡',unit:5,rounds:['去最近的服務台','搬到正中間','哪一種分得好','要放幾個服務台'],managed:[0,1,2,3]}
+]);
+export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3]);
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
@@ -100,6 +108,94 @@ function ascii(host,d,changed) {
     status.textContent=!current.length?'尚未填入有效答案':different.length?`與目標相差 ${different.length} 個位置（含缺少或多出）；第一個差異在第 ${different[0]+1} 個位置`:'與目標相同';changed();};
   return {get,ready:()=>get().length>0&&(d.mode==='ascii-decode'||nums().length<=32&&nums().every(n=>Number.isSafeInteger(n)&&n<=1e12))};
 }
+function table(host,headers,rows) {
+  const wrap=node('div'),t=node('table');wrap.style.cssText='max-width:100%;overflow-x:auto';t.style.cssText='border-collapse:collapse;width:100%';
+  const head=node('tr');headers.forEach(text=>{const th=node('th',text);th.scope='col';head.append(th);});t.append(head);
+  rows.forEach(row=>{const tr=node('tr');row.forEach(text=>{const td=node('td',text);td.style.cssText='padding:5px;border-bottom:1px solid #aaa';tr.append(td);});t.append(tr);});wrap.append(t);host.append(wrap);
+}
+const colors=['#2171b5','#a64b00','#167f50'];
+// 所有圖形只使用授權題面中的觀察值；不繪製私有最近鄰、最佳線或收斂結果。
+function plot(host,points,{centers=[],groups=[],lines=[],max=10,xLabel='橫座標',yLabel='直座標'}={}) {
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 440 450');svg.setAttribute('role','img');svg.setAttribute('aria-label',`${xLabel}與${yLabel}散布圖`);svg.style.cssText='width:100%;max-width:480px';
+  const el=(tag,attrs,text)=>{const e=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;svg.append(e);return e;};
+  const x=v=>40+v/max*360,y=v=>400-v/max*360;
+  for(let i=0;i<=10;i++){const v=i*max/10;el('line',{x1:x(v),y1:y(0),x2:x(v),y2:y(max),stroke:'#ddd'});el('line',{x1:x(0),y1:y(v),x2:x(max),y2:y(v),stroke:'#ddd'});
+    if(i%2===0){el('text',{x:x(v),y:420,'text-anchor':'middle','font-size':13},v);el('text',{x:32,y:y(v)+4,'text-anchor':'end','font-size':13},v);}}
+  lines.forEach(([m,b],i)=>{el('line',{x1:x(0),y1:y(b),x2:x(max),y2:y(m*max+b),stroke:colors[i],'stroke-width':3});el('text',{x:x(max)-12,y:y(m*max+b)-6,fill:colors[i]},'ABC'[i]);});
+  points.forEach(([vx,vy],i)=>{const c=groups[i],cx=x(vx),cy=y(vy);
+    if(c===-1)el('text',{x:cx,y:cy+8,'text-anchor':'middle','font-size':28},'★');
+    else {el('circle',{cx,cy,r:10,fill:colors[c]||'#555'});el('text',{x:cx,y:cy+4,'text-anchor':'middle',fill:'white','font-size':11},i+1);}});
+  centers.forEach(([vx,vy],i)=>{el('rect',{x:x(vx)-12,y:y(vy)-12,width:24,height:24,fill:'none',stroke:colors[i],'stroke-width':3});el('text',{x:x(vx)+14,y:y(vy)-12,fill:colors[i]},'ABC'[i]);});
+  el('text',{x:220,y:445,'text-anchor':'middle'},xLabel);el('text',{x:8,y:18},yLabel);host.append(svg);
+}
+function scene(s) {
+  const box=node('div');box.setAttribute('role','img');box.setAttribute('aria-label',`${s[7]}，在${s[4]}，${s[0]}${s[2]}`);
+  box.style.cssText=`position:relative;width:100%;max-width:260px;aspect-ratio:4/3;overflow:hidden;border:1px solid #555;background:${s[8]}`;
+  const ground=node('div');ground.style.cssText=`position:absolute;inset:66% 0 0;background:${s[6]}`;box.append(ground);
+  for(const [text,left,bottom,size] of [[s[5],'8%','26%',36],[s[1],'44%','12%',52],[s[3],'68%','18%',30],[s[9],'78%','72%',24]]) {
+    const e=node('span',text);e.style.cssText=`position:absolute;left:${left};bottom:${bottom};font-size:${size}px`;box.append(e);
+  }return box;
+}
+function numberLine(host,values,centers=[]) {
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 640 90');svg.setAttribute('role','img');svg.setAttribute('aria-label','每天讀書分鐘數線');svg.style.cssText='width:100%;max-width:640px';
+  const el=(tag,attrs,text)=>{const e=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;svg.append(e);};
+  const x=v=>20+v*4;el('line',{x1:20,y1:45,x2:620,y2:45,stroke:'#555'});
+  for(let t=0;t<=150;t+=30){el('line',{x1:x(t),y1:41,x2:x(t),y2:49,stroke:'#555'});el('text',{x:x(t),y:72,'text-anchor':'middle','font-size':14},t);}
+  values.forEach(v=>el('circle',{cx:x(v),cy:45,r:5,fill:'#555'}));centers.forEach((v,k)=>el('text',{x:x(v),y:26,fill:colors[k],'text-anchor':'middle','font-size':18},'AB'[k]));host.append(svg);
+}
+function aiQuestion(host,d,changed) {
+  const single=()=>{const h=picks(host,['請選一個'],()=>d.options,changed);return {...h,get:()=>h.get()[0]};};
+  const vector=labels=>{const h=numberFields(host,labels.map((label,k)=>[String(k),label]),changed);return {...h,get:()=>Object.values(h.get())};};
+  const yes=v=>v?'是':'否',rowLabel=r=>`${r[0]}：${d.features.map((f,k)=>f+' '+yes(r[k+1])).join('；')}`;
+  if(d.mode==='scene-prompt'){host.append(scene(d.scene));return single();}
+  if(d.mode==='scene-choice'){
+    section(host,'原本的提示詞',d.originalPrompt);host.append(scene(d.originalScene));section(host,'改過的提示詞',d.prompt);
+    let value=null;const choices=node('div');choices.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px';host.append(choices);
+    d.scenes.forEach((s,k)=>{const b=node('button');b.type='button';b.dataset.sceneChoice=k;b.setAttribute('aria-label',`第 ${k+1} 張`);b.setAttribute('aria-pressed','false');b.style.cssText='min-width:0;padding:4px';b.append(scene(s));
+      b.onclick=()=>{value=k;choices.querySelectorAll('button').forEach((b,j)=>b.setAttribute('aria-pressed',String(j===k)));changed();};choices.append(b);});
+    return {get:()=>value,ready:()=>value!==null};
+  }
+  if(d.mode?.startsWith('tree-')) {
+    if(d.mode==='tree-follow')return picks(host,d.rows.map(rowLabel),()=>d.options,changed);
+    table(host,['東西',...d.features,'標籤'],d.rows.map(r=>[r[0],...r.slice(1,4).map(yes),d.mode==='tree-split'?(r[4]?'可回收':'不可回收'):d.options[r[4]]]));
+    if(d.mode==='tree-split')return single();
+    if(d.mode==='tree-accuracy'){const h=numberFields(host,[['value','準確率（%）']],changed);return {...h,get:()=>h.get().value};}
+    const opts=xs=>xs.map((text,k)=>[k,text]);
+    const h=numberFields(host,[['q1','① 問題',opts(d.features)],['a','是 → 類別',opts(d.options)],['q2','否 → ② 問題',opts(d.features)],['b','② 是 → 類別',opts(d.options)],['c','② 否 → 類別',opts(d.options)]],changed);
+    const preview=node('p');preview.setAttribute('aria-live','polite');host.append(preview);
+    host.querySelectorAll('select').forEach(input=>input.addEventListener('change',()=>{if(h.ready()){const a=h.get();preview.textContent=`用你的樹分對 ${d.rows.filter(r=>(r[1+a.q1]?a.a:r[1+a.q2]?a.b:a.c)===r[4]).length}／${d.rows.length} 件`;}}));return h;
+  }
+  if(d.mode==='knn'){
+    plot(host,[...d.points,d.query],{groups:[...d.points.map(p=>p[2]),-1],xLabel:'甜度',yLabel:'冰塊量'});
+    section(host,'圖例','藍色＝奶茶派；橘色＝果茶派；★＝新同學。');table(host,['點','甜度','冰塊量','類別'],d.points.map((p,k)=>[k+1,p[0],p[1],d.options[p[2]]]).concat([['★',...d.query,'待預測']]));return single();
+  }
+  if(d.mode==='regression'){
+    plot(host,d.points,{lines:d.lines,max:20,xLabel:'排隊人數',yLabel:'等待分鐘'});table(host,['排隊人數','等待分鐘'],d.points);
+    table(host,['線','斜率','截距'],d.lines.map((l,k)=>['ABC'[k],...l]));
+    return numberFields(host,[['line','最貼近的線',d.lines.map((_,k)=>[k,'ABC'[k]+' 線'])],['y',`排 ${d.x} 人時預測等待幾分鐘`]],changed);
+  }
+  if(d.mode==='perceptron'){
+    section(host,'權重與門檻',d.names.map((n,k)=>n+'：'+d.weights[k]).join('；')+'。總分 ≥ '+d.threshold+' 就開攤。');
+    return picks(host,d.rows.map(r=>d.names.map((n,k)=>(r[k]?'✔ ':'✘ ')+n).join('；')),()=>d.options,changed);
+  }
+  if(['nearest-1d','means-1d','kmeans-1d'].includes(d.mode)){
+    numberLine(host,d.values,d.centers);
+    if(d.centers)section(host,'起始中心',`A：${d.centers[0]} 分鐘；B：${d.centers[1]} 分鐘`);
+    const labels=d.names.map((n,k)=>`${n}：${d.values[k]} 分鐘`);
+    if(d.mode==='nearest-1d')return picks(host,labels,()=>d.options,changed);
+    table(host,['同學','分鐘',...(d.groups?['組別']:[])],d.names.map((n,k)=>[n,d.values[k],...(d.groups?['AB'[d.groups[k]]]:[])]));
+    return vector(d.mode==='means-1d'?['新的中心 A','新的中心 B']:['最後的中心 A','最後的中心 B']);
+  }
+  if(['nearest-2d','centroid-2d','cluster-quality'].includes(d.mode)) {
+    if(d.mode==='cluster-quality'){
+      for(const k of ['A','B']){section(host,k==='A'?'小安的分法':'小禾的分法','藍色＝A 組；橘色＝B 組。');plot(host,d.points,{centers:d['centers'+k],groups:d['groups'+k]});table(host,['攤位','橫','直','組別'],d.points.map((p,j)=>[j+1,...p,'AB'[d['groups'+k][j]]]));section(host,'服務台位置',d['centers'+k].map((c,j)=>'AB'[j]+'：('+c.join(', ')+')').join('；'));}return single();
+    }
+    plot(host,d.points,{centers:d.centers,groups:d.groups});
+    if(d.mode==='nearest-2d'){section(host,'服務台位置',d.centers.map((c,k)=>'AB'[k]+'：('+c.join(', ')+')').join('；'));return picks(host,d.points.map((p,k)=>`攤位 ${k+1}（${p.join(', ')}）`),()=>d.options,changed);}
+    section(host,'圖例','藍色＝A 組；橘色＝B 組。');table(host,['攤位','橫','直','組別'],d.points.map((p,k)=>[k+1,...p,'AB'[d.groups[k]]]));return vector(['新的 A：橫座標','新的 A：直座標']);
+  }
+  if(d.mode==='elbow'){table(host,['服務台數量','總距離','比上一個少了'],d.values.map((v,k)=>[k+1,v,k?d.values[k-1]-v:'—']));return single();}
+}
 export function renderQuestion(q,host,api={changed(){}}) {
   const d=q.data;host.dataset.questionType=q.type;host.dataset.slot=q.slot;
   section(host,d.heading||q.title,d.story||q.instruction);
@@ -107,7 +203,8 @@ export function renderQuestion(q,host,api={changed(){}}) {
     section(host,'任務',d.task);section(host,'提示',d.hint);
     if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
-    if(d.prompt)section(host,'目標／提示詞',d.prompt);
+    if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
+    const ai=aiQuestion(host,d,api.changed);if(ai)return ai;
     if(d.mode.startsWith('ascii-'))return ascii(host,d,api.changed);
     if(d.mode==='route'){
       network(host,d);let path=[d.from];const text=node('p'),buttons=node('div');host.append(text,buttons);

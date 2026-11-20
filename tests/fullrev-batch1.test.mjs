@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {BATCH1,MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
+import {BATCH1,BATCH2,MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
 import {buildBatch1,buildBatches} from '../tools/build-fullrev-batch1.mjs';
 import {config} from './fixtures/fullrev.mjs';
 
-for(const [label,activities,build,result] of [['第1批',BATCH1,buildBatch1,{activities:7,rounds:26}],['第1、2批',MANAGED_ACTIVITIES,buildBatches,{activities:13,rounds:50}]])test(`PR6 ${label}切換產物僅含外殼、公開 renderer 與既有轉址；來源及 false 開關不變`,async t=>{
+for(const [label,activities,build,result] of [['第1批',BATCH1,buildBatch1,{activities:7,rounds:26}],['第1、2批',[...BATCH1,...BATCH2],options=>buildBatches({...options,batches:[1,2]}),{activities:13,rounds:50}],['第1～3批',MANAGED_ACTIVITIES,buildBatches,{activities:19,rounds:74}]])test(`PR6 ${label}切換產物僅含外殼、公開 renderer 與既有轉址；來源及 false 開關不變`,async t=>{
   const dir=await mkdtemp(join(tmpdir(),'ybs-pr6-build-'));t.after(()=>rm(dir,{recursive:true,force:true}));
   const before=await Promise.all(activities.map(a=>readFile(new URL('../'+a.file,import.meta.url),'utf8')));
   const output=join(dir,'public');assert.deepEqual(await build({output,config}),result);
@@ -20,7 +20,7 @@ for(const [label,activities,build,result] of [['第1批',BATCH1,buildBatch1,{act
     assert.match(html,/YBS.mountActivity/);
   }
   const copied=await readdir(join(output,'assets'));
-  for(const forbidden of ['teacher.js','lock.js','shell.js','warmup.js','warmup-bank.js','codec.js','pr6-batch1.mjs','pr6-batch2.mjs'])assert.ok(!copied.includes(forbidden));
+  for(const forbidden of ['teacher.js','lock.js','shell.js','warmup.js','warmup-bank.js','codec.js','pr6-batch1.mjs','pr6-batch2.mjs','pr6-batch3.mjs'])assert.ok(!copied.includes(forbidden));
   for(const name of copied.filter(f=>/\.(?:mjs|js)$/.test(f))) {
     const text=await readFile(join(output,'assets',name),'utf8');assert.doesNotMatch(text,/ybslab:teacher|ybslab-teacher:|privateQuestions|privateData|const DEV=|const ISAI=/);
   }

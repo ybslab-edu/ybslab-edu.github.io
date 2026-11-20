@@ -16,7 +16,7 @@ app.state.snapshot=snapshot([]);app.state.owner=false;
 if(window.syntheticTeacherError)app.state.readErrors['ybsTeachers/synthetic-student']=Object.assign(Error('synthetic-teacher-read'),{code:window.syntheticTeacherError});
 window.seenQuestions=[];
 const cfg={course:'115-g9',week:5,title:'合成活動',rounds:ACTIVITIES[0].rounds.map(name=>({name})),
- renderQuestion(q,host){seenQuestions.push(q.slot);const label=document.createElement('label');label.textContent='合成答案';const input=document.createElement('input');input.type='number';label.append(input);host.append(label);return{get:()=>Number(input.value)};},
+ renderQuestion(q,host,{changed}){seenQuestions.push(q.slot);const label=document.createElement('label');label.textContent='合成答案';const input=document.createElement('input');input.type='number';input.oninput=changed;label.append(input);host.append(label);return{get:()=>Number(input.value)};},
  demonstrate(host){host.textContent='合成示範';}};
 window.reloadView=async()=>{
   if(location.search.includes('teacher')){app.state.owner=true;await mountTeacher({client:Promise.resolve(app.client)});}
@@ -72,7 +72,13 @@ test('新活動：錯答同題、下一組才換題、回條不先給分、重�
   await page.evaluate(()=>app.state.fetcher=async()=>Response.json(response(1,{nextSeq:3,correct:true})));
   await page.getByRole('button',{name:'送出',exact:true}).click();await page.getByRole('button',{name:'下一組',exact:true}).waitFor({state:'visible'});
   assert.deepEqual(await page.evaluate(()=>seenQuestions),[0]);assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isEnabled(),false);
+  const sent=await page.evaluate(()=>app.requests.length);
+  await page.getByLabel('合成答案').fill('8');
+  assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isEnabled(),false);
+  await page.getByRole('button',{name:'送出',exact:true}).evaluate(button=>button.click());
+  assert.equal(await page.evaluate(()=>app.requests.length),sent);assert.deepEqual(await page.evaluate(()=>seenQuestions),[0]);
   await page.getByRole('button',{name:'下一組',exact:true}).click();assert.deepEqual(await page.evaluate(()=>seenQuestions),[0,1]);
+  assert.equal(await page.getByLabel('合成答案').inputValue(),'');
   await page.evaluate(()=>app.state.fetcher=async()=>Response.json({completed:true,resultId:'c_done'}));
   await page.getByRole('button',{name:'送出',exact:true}).click();await page.getByText('Lv 1 位元見習生 · 0 XP',{exact:true}).waitFor();
   // 成長頁從同一有效集合重算，取消的過關與徽章可減少。
@@ -82,6 +88,30 @@ test('新活動：錯答同題、下一組才換題、回條不先給分、重�
   await growth.evaluate(()=>app.state.snapshot=snapshot([0,1,2].map(i=>record(i))));
   await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.getByText('Lv 1 位元見習生 · 45 XP',{exact:true}).waitFor();
   assert.equal(await growth.getByText(/已獲得徽章/).count(),0);
+});
+test('傳送中與斷線待送時修改答案不會啟用送出或覆寫原請求',async t=>{
+  const page=await pageFor(t);await login(page);
+  const input=page.getByLabel('合成答案'),send=page.getByRole('button',{name:'送出',exact:true});
+  await page.getByRole('button',{name:'開始這一關',exact:true}).click();await input.fill('7');
+  await page.evaluate(()=>app.state.fetcher=()=>new Promise(resolve=>window.releaseAnswer=resolve));
+  await send.click();await page.waitForFunction(()=>typeof releaseAnswer==='function');
+  const sent=await page.evaluate(()=>app.requests.length);
+  await input.fill('8');assert.equal(await send.isEnabled(),false);
+  await send.evaluate(button=>button.click());assert.equal(await page.evaluate(()=>app.requests.length),sent);
+  assert.equal(await page.evaluate(()=>app.requests.at(-1).body.answer),7);
+  await page.evaluate(()=>releaseAnswer(Response.json(response(0,{nextSeq:2,correct:false}))));
+  await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();
+  assert.equal(await send.isEnabled(),true);assert.equal(await input.inputValue(),'8');
+  await page.evaluate(()=>app.state.fetcher=async()=>{throw Error('synthetic-offline');});
+  await send.click();await page.getByText('尚未確認，答案已保留，稍後可重試。',{exact:true}).waitFor();
+  const original=await page.evaluate(()=>app.requests.at(-1).body);
+  await input.fill('9');assert.equal(await send.isEnabled(),false);
+  await send.evaluate(button=>button.click());assert.equal(await page.evaluate(()=>app.requests.length),sent+1);
+  await page.evaluate(()=>{app.advance();app.state.fetcher=async()=>Response.json(response(0,{nextSeq:3,correct:false}));});
+  await page.getByRole('button',{name:'重試送出',exact:true}).click();
+  await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>app.requests.at(-1).body),original);
+  await input.fill('10');assert.equal(await send.isEnabled(),true);
 });
 test('Google 學生的教師文件被拒仍可登入作答；實際重新整理後還原同一草稿',async t=>{
   const page=await pageFor(t);

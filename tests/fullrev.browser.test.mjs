@@ -34,7 +34,7 @@ before(async()=>{
     if(/^\/assets\/[\w.-]+\.(?:js|css|svg)$/.test(path)) {
       try{return res.writeHead(200,{'Content-Type':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{return res.writeHead(404).end();}
     }
-    if(!/^\/(assets\/(fullrev-(?:client|ui|progress)\.mjs|xp\.js)|tests\/fixtures\/fullrev\.mjs)$/.test(path))return res.writeHead(404).end();
+    if(!/^\/(assets\/(fullrev-(?:client|ui|progress|df)\.mjs|xp\.js)|tests\/fixtures\/fullrev\.mjs)$/.test(path))return res.writeHead(404).end();
     try{res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{res.writeHead(404).end();}
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;

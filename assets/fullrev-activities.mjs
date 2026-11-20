@@ -1,3 +1,4 @@
+import {renderRecording} from './fullrev-recording.mjs';
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
 import {renderPhotos} from './fullrev-photos.mjs';
 import {renderPerformance} from './fullrev-performance.mjs';
@@ -44,6 +45,7 @@ export const BATCH6=Object.freeze([
   {activity:2,file:'115-g9/u1-06/index.html',title:'打王前記得存檔',unit:1,rounds:['開遊戲','打王前存檔','RAM 滿了','從開機到存檔'],managed:[0,1,2,3]}
 ]);
 export const BATCH7=Object.freeze([{activity:3,file:'115-g9/u2-01/index.html',title:'看台最後一排',unit:2,rounds:['看清背號','認出應援色','容量剛好夠','衛星數遊覽車'],managed:[0,1,2,3]}]);
+export const BATCH8=Object.freeze([{...BATCH1[0],managed:[0,1,2]},{course:'115-df',activity:1,file:'115-df/a/index.html',title:'資料偵探',unit:null,rounds:['提出 H1','完成結論','完成反思'],managed:[0,1,2]}]);
 export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5,...BATCH6,...BATCH7]);
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function section(host,title,text) {
@@ -277,6 +279,7 @@ export function renderQuestion(q,host,api={changed(){}}) {
     if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
+    if(d.mode?.startsWith('recording-'))return renderRecording(q,host,api);
     const photo=renderPhotos(host,d,api);if(photo)return photo;
     const performance=renderPerformance(host,d,api);if(performance)return performance;
     const outcome=renderOutcome(host,d,api.changed);if(outcome)return outcome;
@@ -339,6 +342,7 @@ export function renderQuestion(q,host,api={changed(){}}) {
   throw Object.assign(Error('unsupported-question'),{code:'renderer-pending'});
 }
 export function activityConfig(cfg) {
-  const entry=MANAGED_ACTIVITIES.find(a=>a.activity===cfg.week&&cfg.course==='115-g9');
+  let entry=MANAGED_ACTIVITIES.find(a=>a.activity===cfg.week&&cfg.course==='115-g9');
+  if(cfg.course==='115-g9'&&cfg.week===4)entry={...entry,managed:[0,1,2,3]};
   return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
 }

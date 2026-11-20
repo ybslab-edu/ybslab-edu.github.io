@@ -101,7 +101,7 @@ export async function mountActivity({client:promise,cfg}) {
   const send=button('送出',async()=>{
     if(!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     try{const value=await p.client.answer(cfg.week,round,handle.get());await receive(value);}
-    catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||!!lastView?.completed
+    catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)
       ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{next.hidden=true;render(lastView);});next.hidden=true;
@@ -111,7 +111,7 @@ export async function mountActivity({client:promise,cfg}) {
     send.textContent=value.question.data?.mode==='photo'?'拍下來傳出去':'送出';
     handle=cfg.renderQuestion(value.question,stage,{changed(){
       const state=p.client.state();
-      send.disabled=!handle?.get||!next.hidden||!!lastView?.completed||state.pending
+      send.disabled=!handle?.get||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)||state.pending
         ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
     },carry:pairAnswer(value)||carry,demonstration:false});
     send.disabled=!handle?.get||!!pairAnswer(value)&&value.question.slot===1||!!handle.ready&&!handle.ready();
@@ -126,6 +126,7 @@ export async function mountActivity({client:promise,cfg}) {
       if(!handle&&value.performance.question)await render({question:value.performance.question});
       handle?.feedback?.(value.performance);
     }
+    if(value.awaitingTeacher){handle?.dispose?.();stage.replaceChildren();handle=null;next.hidden=true;send.disabled=true;p.status.textContent='等待老師確認';return;}
     if(value.completed){if(!value.performance&&!value.photo)stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));if(!value.performance&&!value.photo)handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
     if(value.question.slot===1&&!!pairAnswer(value)){
       next.hidden=true;await render(value);send.disabled=true;p.status.textContent=value.photoAnswer?'兩張照片成立，正在確認過關。':'第一組成立，正在驗證同一排卡的第二組資料。';
@@ -180,7 +181,7 @@ export async function mountActivity({client:promise,cfg}) {
     begin.disabled=restart.disabled=!!state.profile.owner||typeof cfg.renderQuestion!=='function';
     refreshClaims.hidden=!!state.profile.owner;
     if(state.status==='stale')clearView();
-    if(['ready','confirmation-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view);
+    if(['ready','confirmation-pending','teacher-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view);
   });
   p.login.replaceChildren();await mountLogin({client:p.client,host:p.login,onLogin:profile=>{
     p.status.textContent=profile.owner?'教師示範不送成績。':profile.provider==='anonymous'?'訪客識別：'+profile.uid+'；請老師核發後重新確認。':'已登入，請選擇關卡。';

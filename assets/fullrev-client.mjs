@@ -170,6 +170,12 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       }
       if(!response.ok) {
         if(response.status===401){clear();throw fail('login-required');}
+        if(response.status===400&&pending.op==='answer'){
+          const error=await response.clone().json().catch(()=>null);active(m);
+          if(error?.error==='invalid_answer'){
+            d.pending=null;d.failures=0;d.retryAt=0;save();emit('ready');throw fail('invalid-answer');
+          }
+        }
         if(response.status===429||response.status>=500) {
           const header=response.headers.get('retry-after'), seconds=Number(header);
           const until=header && !Number.isNaN(seconds)?now()+Math.max(0,seconds)*1000:Date.parse(header||'');
@@ -190,6 +196,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
       active(m);
+      if(error.code==='invalid-answer')throw error;
       if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
       d.failures=(d.failures||0)+1;
       if(!d.retryAt||d.retryAt<=now())d.retryAt=now()+Math.min(60000,1000*2**Math.min(d.failures-1,6))+Math.floor(random()*500);

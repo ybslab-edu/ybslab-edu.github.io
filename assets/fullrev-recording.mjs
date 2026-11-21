@@ -2,7 +2,7 @@
 const SR=[8,16,32,64], QL=[4,8,16,32], RES=[16,32,64,128], COLORS=[4,16,64], FPS=[4,8,12,24,30];
 const QUALITY=[{name:'基本',rate:100},{name:'清晰',rate:250},{name:'精細',rate:400}];
 const bytesText=b=>b>=1000?(b/1000).toLocaleString('en-US',{maximumFractionDigits:2})+' KB':b+' 位元組';
-const integer=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+$/.test(t)&&Number.isSafeInteger(Number(t))?Number(t):null};
+const integer=s=>{const t=String(s).trim().replace(/[,，]/g,'');return /^\d+$/.test(t)&&Number.isSafeInteger(Number(t))&&Number(t)<=100000?Number(t):null};
 function selectControl(el,id,label,values,format=x=>x){
   el.insertAdjacentHTML('beforeend','<label class="lab-control" for="'+id+'">'+label+'<select id="'+id+'"><option value="">請選擇</option>'+values.map(v=>'<option value="'+v+'">'+format(v)+'</option>').join('')+'</select></label>');
   return el.querySelector('#'+id);
@@ -44,9 +44,9 @@ const imageBytes=(n,c)=>Math.ceil(n*n*Math.log2(c)/8);
 function movieFrame(c,t){const x=c.getContext('2d');x.fillStyle='#18253b';x.fillRect(0,0,c.width,c.height);x.fillStyle='#f6b746';x.beginPath();x.arc(25+(c.width-50)*(t%1),c.height/2,16,0,Math.PI*2);x.fill()}
 
 export function renderRecording(question,host,api){
-  const d=question.data,seen=new Set();let controls=[],get,update=()=>{},dispose=()=>{};
+  const d=question.data,seen=new Set(),numbers=[];let controls=[],get,update=()=>{},dispose=()=>{};
   const select=(id,label,values,format)=>{const el=selectControl(host,id,label,values,format);controls.push(el);return el;};
-  const num=(id,label)=>{const el=numberControl(host,id,label);controls.push(el);return el;};
+  const num=(id,label)=>{const el=numberControl(host,id,label);controls.push(el);numbers.push(el);return el;};
   const stat=document.createElement('p');stat.setAttribute('aria-live','polite');
   if(d.mode==='recording-sound'){
     const c=canvas(host,'原始波形與取樣、量化後的還原波形');c.style.maxWidth='100%';
@@ -68,6 +68,9 @@ export function renderRecording(question,host,api){
     update=()=>{if(f.value)seen.add(f.value);stat.textContent=(f.value||'—')+' fps｜已比較 '+seen.size+' 種';};
   }
   host.append(stat);const notice=document.createElement('p');notice.textContent='請實際比較至少兩種設定。數值答對後，等待老師確認。';host.append(notice);
-  for(const e of controls)e.onchange=e.oninput=()=>{update();api.changed();};
-  return {get,ready:()=>controls.every(e=>e.value!=='')&&seen.size>=2,dispose};
+  const format=document.createElement('p');format.setAttribute('aria-live','polite');host.append(format);
+  for(const e of controls)e.onchange=e.oninput=()=>{update();
+    format.textContent=numbers.some(e=>e.value!==''&&integer(e.value)===null)?'請輸入 0～100000 的整數，不含小數點；已填內容會保留，可直接修改。':'';
+    api.changed();};
+  return {get,ready:()=>controls.every(e=>e.value!=='')&&numbers.every(e=>integer(e.value)!==null)&&seen.size>=2,dispose};
 }

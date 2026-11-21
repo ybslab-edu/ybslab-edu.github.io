@@ -54,7 +54,10 @@ export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5
   await copyFile(join(source,'assets/curriculum.js'),join(output,'assets/curriculum.js'));
   for(const a of activities) {
     const file=join(output,a.file);let html=await readFile(file,'utf8');
-    html=html.replace('<body>','<body><script src="/assets/curriculum.js?v=20261110a"></script><script src="/assets/activities.js?v=20261105m"></script>');await writeFile(file,html);
+    // DF 保留既有課綱 script；同份 classic script 再載入會重複宣告 N／DESC。
+    const shared=['curriculum.js?v=20261110a','activities.js?v=20261105m'].filter(asset=>
+      !new RegExp('<script\\b[^>]*\\bsrc="[^" ]*/'+asset.split('?')[0].replace('.', '\\.')+'(?:\\?[^" ]*)?"').test(html));
+    html=html.replace('<body>','<body>'+shared.map(asset=>`<script src="/assets/${asset}"></script>`).join(''));await writeFile(file,html);
   }
   await writeFile(join(output,'index.html'),'<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>PR6 已納管批次驗收</title><h1>已納管批次驗收</h1>'+activities.map(a=>`<p><a href="/${a.file}">${a.title}</a></p>`).join('')+'</html>');
   return {activities:activities.length,rounds:activities.reduce((sum,a)=>sum+a.managed.length,0)};

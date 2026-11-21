@@ -1,0 +1,1 @@
+const YBS_FULLREV_CONFIG=Object.freeze({"enabled":true,"firebase":{"projectId":"ybs-lab","apiKey":"AIzaSyD1ylxIKDIevzeM9UXNICC6IEeHgmmNMfk","messagingSenderId":"412805912563"},"workerOrigin":"https://ybs-grader-formal.pyps89106.workers.dev","readModelModule":"/assets/fullrev-read-model.mjs","courses":["115-g9"]});

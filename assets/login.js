@@ -592,7 +592,8 @@ function ybsFullrevFacade(config) {
   ready.catch(() => {});
   let current = null, pending = false, notify = () => {};
   ready.then(client => client.subscribe(state => {
-    current = state.profile; pending = state.pending; notify(state.status);
+    const previousUid=current?.uid;current = state.profile; pending = state.pending; notify(state.status);
+    if(previousUid!==current?.uid)window.dispatchEvent(new CustomEvent('ybs-report-auth',{detail:{uid:current?.uid||null}}));
   })).catch(() => {});
   const call = name => (...args) => ready.then(client => client[name](...args));
   const mount = (name, args) => import('./fullrev-ui.mjs?v=20261120b1')
@@ -605,12 +606,21 @@ function ybsFullrevFacade(config) {
     // 舊頁尚未轉換時拒絕自報／匿名補寫，正式答案只能經 Worker。
     submit:()=>false, submitGuest:()=>false, flush:()=>false, flushGuest:()=>false,
     guest:()=>false, leaveGuest:()=>{}, endBrowserSession:call('logout'),
-    whoami:async()=>({ok:false,error:'fullrev-adapter-required'}),
+    whoami:call('whoami'), submitManual:call('submitManual'),
+    loadDFContent:async()=>{
+      const client=await ready;
+      if(!client.state().profile){
+        const host=document.createElement('section');document.body.append(host);
+        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261120b1')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
+      }
+      const scripts=await client.dfContent();
+      for(const key of ['pub','enc-b2','enc-rv'])document.getElementById(key).textContent=scripts[key];
+    },
     button:async(el,ok,bad)=>{
       try { await (await import('./fullrev-ui.mjs?v=20261120b1')).mountLogin({client:await ready,host:el,onLogin:ok}); }
       catch { bad?.('登入服務尚未就緒，請找老師。'); }
     },
-    submitReport:async()=>{throw Object.assign(new Error('報告切換尚未就緒，請保留下載檔。'),{code:'report/cutover-pending'});}
+    submitReport:call('submitReport')
   });
 }
 

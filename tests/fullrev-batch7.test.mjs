@@ -22,5 +22,5 @@ test('PR6 第 7 批切換產物無私有照片、答案、門檻、產生器、�
   const text=await scan(output);assert.doesNotMatch(text,/function drawIdol|function drawLot|function lotPlan|checkPhotoAnswer|function judge\(|sol:|"minimum"\s*:|"identity"\s*:|teacher\.js|lock\.js|阿晴|莓莓|米米|柚柚|海海|小葡/);
   for(const [key,bundle] of Object.entries(banks)){assert.ok(!text.includes(key.split(':')[1]));for(const bank of Object.values(bundle.rounds))for(const c of bank.cases){assert.ok(!text.includes(JSON.stringify(c)));assert.ok(!text.includes(c.facts.image));}}
   for(const material of Object.values(materials))for(const [n,gzip] of material)assert.ok(!text.includes(gzip));
-  assert.match(await readFile(join(output,'assets/login.js'),'utf8'),/fullrev-ui\.mjs\?v=20261120b7/);
+  assert.match(await readFile(join(output,'assets/login.js'),'utf8'),/fullrev-ui\.mjs\?v=20261120b8/);
 });

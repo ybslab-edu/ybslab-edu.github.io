@@ -22,5 +22,5 @@ test('PR6 第 6 批切換產物不含指令、解答、測資、判題模擬器�
     }
   }
   assert.doesNotMatch(text,/function runTea|function runMemory|checkPerformanceAnswer|checkAnswer\(|sol:|"plan"\s*:/);
-  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.match(login,/fullrev-ui\.mjs\?v=20261120b7/);
+  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.match(login,/fullrev-ui\.mjs\?v=20261120b8/);
 });

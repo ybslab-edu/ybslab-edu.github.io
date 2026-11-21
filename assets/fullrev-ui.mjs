@@ -3,6 +3,7 @@ import {growth,exportRows} from './fullrev-progress.mjs?v=20261120a';
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
 const messages={pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
+  'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
   'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
   'binding-pending':'尚待老師核發身分；目前只能本機練習。','read-model-pending':'雲端紀錄尚未確認，請稍後重新讀取。',
   'owner-required':'只有此課程擁有者可以使用。','configuration-pending':'新登入服務尚未就緒，請找老師。',
@@ -101,7 +102,7 @@ export async function mountActivity({client:promise,cfg}) {
   const send=button('送出',async()=>{
     if(!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     try{const value=await p.client.answer(cfg.week,round,handle.get());await receive(value);}
-    catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||!!lastView?.completed
+    catch(e){p.status.textContent=explain(e);}finally{send.disabled=!handle||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)
       ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{next.hidden=true;render(lastView);});next.hidden=true;
@@ -111,7 +112,7 @@ export async function mountActivity({client:promise,cfg}) {
     send.textContent=value.question.data?.mode==='photo'?'拍下來傳出去':'送出';
     handle=cfg.renderQuestion(value.question,stage,{changed(){
       const state=p.client.state();
-      send.disabled=!handle?.get||!next.hidden||!!lastView?.completed||state.pending
+      send.disabled=!handle?.get||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)||state.pending
         ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||state.status==='sending'||state.status==='restart-required'||!!handle.ready&&!handle.ready();
     },carry:pairAnswer(value)||carry,demonstration:false});
     send.disabled=!handle?.get||!!pairAnswer(value)&&value.question.slot===1||!!handle.ready&&!handle.ready();
@@ -126,6 +127,7 @@ export async function mountActivity({client:promise,cfg}) {
       if(!handle&&value.performance.question)await render({question:value.performance.question});
       handle?.feedback?.(value.performance);
     }
+    if(value.awaitingTeacher){handle?.dispose?.();stage.replaceChildren();handle=null;next.hidden=true;send.disabled=true;p.status.textContent='等待老師確認';return;}
     if(value.completed){if(!value.performance&&!value.photo)stage.replaceChildren();if(previous?.question?.data?.learning)stage.append(node('p',previous.question.data.learning));if(!value.performance&&!value.photo)handle=null;send.disabled=true;p.status.textContent='作答已送達，正在確認有效過關紀錄。';await refresh();return;}
     if(value.question.slot===1&&!!pairAnswer(value)){
       next.hidden=true;await render(value);send.disabled=true;p.status.textContent=value.photoAnswer?'兩張照片成立，正在確認過關。':'第一組成立，正在驗證同一排卡的第二組資料。';
@@ -180,7 +182,7 @@ export async function mountActivity({client:promise,cfg}) {
     begin.disabled=restart.disabled=!!state.profile.owner||typeof cfg.renderQuestion!=='function';
     refreshClaims.hidden=!!state.profile.owner;
     if(state.status==='stale')clearView();
-    if(['ready','confirmation-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view);
+    if(['ready','confirmation-pending','teacher-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view);
   });
   p.login.replaceChildren();await mountLogin({client:p.client,host:p.login,onLogin:profile=>{
     p.status.textContent=profile.owner?'教師示範不送成績。':profile.provider==='anonymous'?'訪客識別：'+profile.uid+'；請老師核發後重新確認。':'已登入，請選擇關卡。';

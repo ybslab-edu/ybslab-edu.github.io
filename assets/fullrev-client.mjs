@@ -1,3 +1,4 @@
+import {createDFReports} from './fullrev-df.mjs';
 import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261120a';
 
 const scopeKey = (activity,round) => activity+':'+round;
@@ -151,7 +152,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const g=generation;timer=schedule(()=>{if(g===generation)retry().catch(()=>{});},Math.max(0,d.retryAt-now()));
   }
   async function send(d,m) {
-    if(course!=='115-g9')throw fail('grading-not-supported');
+    if(!['115-g9','115-df'].includes(course))throw fail('grading-not-supported');
     if(profile?.owner)throw fail('demonstration-only');
     const pending=d.pending;if(!pending)throw fail('nothing-pending');
     if(d.blocked)throw fail('restart-required');
@@ -169,6 +170,12 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       }
       if(!response.ok) {
         if(response.status===401){clear();throw fail('login-required');}
+        if(response.status===400&&pending.op==='answer'){
+          const error=await response.clone().json().catch(()=>null);active(m);
+          if(error?.error==='invalid_answer'){
+            d.pending=null;d.failures=0;d.retryAt=0;save();emit('ready');throw fail('invalid-answer');
+          }
+        }
         if(response.status===429||response.status>=500) {
           const header=response.headers.get('retry-after'), seconds=Number(header);
           const until=header && !Number.isNaN(seconds)?now()+Math.max(0,seconds)*1000:Date.parse(header||'');
@@ -178,17 +185,18 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');throw fail('restart-required');
       }
       const value=await response.json();active(m);
-      if(typeof value.completed!=='boolean'||(value.completed ? !id(value.resultId)
+      if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? !id(value.resultId)
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
       d.pending=null;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
-      if(value.completed)delete drafts[scopeKey(d.activity,d.round)];
+      if(value.completed||value.awaitingTeacher)delete drafts[scopeKey(d.activity,d.round)];
       view={activity:d.activity,round:d.round,...clone(value)};
-      save();snapshot=null;emit(value.completed?'confirmation-pending':'ready');
+      save();snapshot=null;emit(value.awaitingTeacher?'teacher-pending':value.completed?'confirmation-pending':'ready');
       // 題面只回傳到記憶體；completed 回條不直接新增進度／XP。
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
       active(m);
+      if(error.code==='invalid-answer')throw error;
       if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
       d.failures=(d.failures||0)+1;
       if(!d.retryAt||d.retryAt<=now())d.retryAt=now()+Math.min(60000,1000*2**Math.min(d.failures-1,6))+Math.floor(random()*500);
@@ -204,7 +212,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const key=scopeKey(activity,round);
     return exclusive(key,async()=>{
       const m=mark();if(profile.owner)throw fail('demonstration-only');
-      if(course!=='115-g9')throw fail('grading-not-supported');
+      if(!['115-g9','115-df'].includes(course))throw fail('grading-not-supported');
       if(!int(activity,1)||activity>30||!int(round)||round>4)throw fail('invalid-scope');
       if(drafts[key]&&!restart){
         const d=drafts[key];
@@ -280,7 +288,21 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       snapshot=result;emit('confirmed');return clone(result);
     }catch(error){active(m);if(request===readVersion){snapshot=null;emit('confirmation-pending');}throw error;}
   }
-  return Object.freeze({project,course,session:getSession,login,restore,logout,context,start,answer,resume,retry,progress,
+  const reports=createDFReports({course,getSession,mark,active,claims,context,fail});
+  async function submitManual(round){
+    if(course!=='115-df'||!int(round)||round>2)throw fail('invalid-scope');
+    const v=await start(1,round);
+    return v.completed||v.awaitingTeacher?v:answer(1,round,{session:round+1});
+  }
+  async function dfContent(){
+    const m=mark();if(course!=='115-df'||!readModel?.dfContent)throw fail('read-model-pending');
+    const c=await context(1,0),value=await readModel.dfContent(c);active(m);
+    if(!value||value.schemaVersion!==1||value.sourceProject!==project||value.uid!==m.uid||value.course!==course
+      ||!sameVersions(value.controlVersions,c.controlVersions)||!value.scripts
+      ||!['pub','enc-b2','enc-rv'].every(k=>typeof value.scripts[k]==='string'))throw fail('context-unconfirmed');
+    return clone(value.scripts);
+  }
+  return Object.freeze({project,course,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
     state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});

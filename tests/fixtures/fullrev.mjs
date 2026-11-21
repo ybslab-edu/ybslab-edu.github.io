@@ -35,7 +35,7 @@ export async function harness(options={}) {
       configVersion:1,bindingVersion:1,unitEpoch:0,roundEpoch:0,classUnitEpoch:0,controlVersions:{...controls}}),
     page:async()=>({...state.snapshot})};
   if(options.restoredProvider)auth.currentUser=user();
-  const clientOptions={config,session:async()=>session,readModel:options.noModel?undefined:model,
+  const clientOptions={config,course:options.course||'115-g9',session:async()=>session,readModel:options.noModel?undefined:model,
     shared,storage,now:()=>clock,requestId:options.requestId||(()=>('synthetic-request-'+(++serial))),random:()=>0,
     events:options.events||{addEventListener:(key,fn)=>eventHandlers.set(key,fn)},schedule:(fn,ms)=>{timers.push({fn,ms});return timers.length;},cancel:()=>{},
     fetcher:async(url,init)=>{requests.push({url,...init,body:JSON.parse(init.body)});return state.fetcher?state.fetcher(url,init):Response.json(response());}};

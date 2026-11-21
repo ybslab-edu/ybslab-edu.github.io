@@ -678,6 +678,7 @@ const REC_ACT=1, recSent=new Set();
 let recOn=false, impWho=null;   // impWho：帳號登入並確認身分後的班級座號，匯入報告時用來比對
 function syncRecords(){
   if(!recOn || !S || S.ansMode || typeof YBS==='undefined' || !YBS.enabled() || !YBS.profile()) return;
+  if(YBS.fullrev)return; // 新模式只由成功交件後另送待教師確認，不把本機完成時間當可信證據。
   const done=[!!S.h1.submittedAt, !!S.concl.doneAt, !!S.reveal.finalAt];
   done.forEach((d,r)=>{ if(d && !recSent.has(r)){ recSent.add(r); YBS.submit({activity:REC_ACT, round:r, level:1, tries:1}); } });
 }
@@ -807,6 +808,13 @@ async function pumpReports(){
       return;
     }
     reportQueue.delete(x.session); reportViews.set(x.session,receipt);
+    if(YBS.fullrev){
+      const done=[!!S.h1.submittedAt,!!S.concl.doneAt,!!S.reveal.finalAt];
+      if(done[x.session-1]){
+        try{const result=await YBS.submitManual(x.session-1);if(generation===reportGeneration&&reportIdentity()===uid)reportNotice=result.completed?'已確認過關':'等待老師確認';}
+        catch{if(generation===reportGeneration&&reportIdentity()===uid)reportNotice='報告已收到，關卡尚未送達；請重新按交給老師。';}
+      }
+    }
   }catch(e){
     if(generation!==reportGeneration || reportIdentity()!==uid || reportQueue.get(x.session)!==x) return;
     const error=reportError(e);

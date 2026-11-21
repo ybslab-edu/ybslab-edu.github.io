@@ -2,10 +2,45 @@
 const atom=v=>typeof v==='string'?v.normalize('NFKC').trim().replace(/\s+/g,' '):String(v);
 const normalized=v=>Array.isArray(v)?v.map(normalized):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,normalized(v[k])])):atom(v);
 const signature=v=>JSON.stringify(normalized(v));
+// Decode static template literals without executing release code. Interpolated
+// templates are not constant values and must not be treated as whole answers.
+function templateValue(raw){
+ const body=raw.slice(1,-1).replace(/\r\n?/g,'\n');let value='';
+ for(let i=0;i<body.length;i++){
+  if(body[i]==='$'&&body[i+1]==='{')throw Error();
+  if(body[i]!=='\\'){value+=body[i];continue;}
+  const tail=body.slice(++i),hex=/^(?:u\{([\da-f]+)\}|u([\da-f]{4})|x([\da-f]{2}))/i.exec(tail);
+  if(hex){value+=String.fromCodePoint(parseInt(hex[1]||hex[2]||hex[3],16));i+=hex[0].length-1;continue;}
+  if(body[i]==='\n')continue;
+  value+=({n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0'})[body[i]]??body[i];
+ }
+ return value;
+}
+const htmlText=value=>value.replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi,(entity,name)=>{
+ if(name[0]==='#'){
+  const code=name[1].toLowerCase()==='x'?parseInt(name.slice(2),16):Number(name.slice(1));
+  return code>0&&code<=0x10ffff?String.fromCodePoint(code):'\ufffd';
+ }
+ return {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:'\u00a0'}[name.toLowerCase()];
+});
+function htmlValues(text){
+ const values=[],tags=/<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][\w:-]*(?:[^<>"']|"[^"]*"|'[^']*')*>/gi;
+ let end=0,rawTag='';
+ for(const tag of text.matchAll(tags)){
+  if(rawTag){if(new RegExp('^</'+rawTag+'\\s*>$','i').test(tag[0])){rawTag='';end=tag.index+tag[0].length;}continue;}
+  if(tag.index>end)values.push({value:htmlText(text.slice(end,tag.index)),at:end});
+  const attrs=/[^\s=<>/]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+  if(!tag[0].startsWith('<!'))for(const attr of tag[0].matchAll(attrs))values.push({value:htmlText(attr[1]??attr[2]??attr[3]),at:tag.index+attr.index});
+  end=tag.index+tag[0].length;
+  const raw=/^<(script|style)\b/i.exec(tag[0]);if(raw)rawTag=raw[1];
+ }
+ if(!rawTag&&end<text.length)values.push({value:htmlText(text.slice(end)),at:end});
+ return values;
+}
 function literals(text){
- const values=[];const pattern=/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[\[\],]|[A-Za-z_$][\w$]*/gi;
+ const values=[];const pattern=/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[\[\],]|[A-Za-z_$][\w$]*/gi;
  const tokens=[...text.matchAll(pattern)].map(m=>({raw:m[0],at:m.index}));
- const scalar=raw=>{if(raw[0]==='"')return JSON.parse(raw);if(raw[0]==="'")return JSON.parse('"'+raw.slice(1,-1).replace(/\\'/g,"'").replace(/(?<!\\)"/g,'\\"')+'"');if(/^-?\d/.test(raw))return Number(raw);throw Error();};
+ const scalar=raw=>{if(raw[0]==='`')return templateValue(raw);if(raw[0]==='"')return JSON.parse(raw);if(raw[0]==="'")return JSON.parse('"'+raw.slice(1,-1).replace(/\\'/g,"'").replace(/(?<!\\)"/g,'\\"')+'"');if(/^-?\d/.test(raw))return Number(raw);throw Error();};
  function array(i){const result=[];let j=i+1;while(j<tokens.length){if(tokens[j].raw===']')return {value:result,end:j};let value;
   if(tokens[j].raw==='['){const nested=array(j);value=nested.value;j=nested.end;}else value=scalar(tokens[j].raw);
   result.push(value);j++;if(tokens[j]?.raw===',')j++;else if(tokens[j]?.raw!==']')throw Error();
@@ -21,7 +56,7 @@ export function scanPrivateAnswers(text,answers){
  const arrays=new Set(),strings=new Set(),numbers=new Set();
  for(const answer of answers){if(Array.isArray(answer))arrays.add(signature(answer));else if(typeof answer==='string')strings.add(atom(answer));else if(typeof answer==='number')numbers.add(atom(answer));}
  const weak=new Set();
- for(const {value,at} of literals(text)){
+ for(const {value,at} of [...literals(text),...htmlValues(text)]){
   const context=text.slice(Math.max(0,at-80),at),label=/(?:answer|solution|correct|答案|解答)[\w\s"':=,[\]-]*$/i.test(context);
   if(Array.isArray(value)&&arrays.has(signature(value))){
    // Small/common numeric arrays can be layout dimensions. Require an answer label

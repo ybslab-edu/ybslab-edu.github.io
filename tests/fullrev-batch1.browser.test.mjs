@@ -64,7 +64,12 @@ async function fill(page,type,answer) {
     for(let i=0;i<answer.length;i++)if(await page.locator(`[data-bit="${i}"]`).getAttribute('aria-pressed')!==String(!!answer[i]))await page.locator(`[data-bit="${i}"]`).click();
   }else if(type==='finite-bank-v1') {
     const mode=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.questions[current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot].data.mode;
-    if(mode.endsWith('-performance')){
+    if(mode==='photo'){
+      const session=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,d=session.questions[0].data;
+      for(const [name,list,value] of [['格子數',d.resolutions,answer.n],['顏色數',d.depths,answer.d]])await page.getByRole('slider',{name,exact:true}).evaluate((el,index)=>{el.value=index;el.dispatchEvent(new Event('input'));},list.indexOf(value));
+      for(let i=0;i<2;i++)for(let j=0;j<answer.answers[i].length;j++){const b=page.locator(`[data-photo-index="${i}"][data-photo-field="${j}"][data-choice="${answer.answers[i][j]}"]`);if(await b.getAttribute('aria-pressed')!=='true')await b.click();}
+    }
+    else if(mode.endsWith('-performance')){
       for(const b of await page.locator('[data-slot-index]').all())if(!await b.innerText().then(t=>t.includes('待放入')))await b.click();
       for(const index of answer)await page.locator(`[data-pool-index="${index}"]`).click();
     }
@@ -90,7 +95,7 @@ async function fill(page,type,answer) {
     const input=page.locator(`[data-answer-field="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(String(value));else await input.fill(String(value));
   }
 }
-test('PR6 真實切換頁 × PR5 client × Worker：114 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
+test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
   if(!workerSource){t.skip('跨 repo 驗收須指定本機 YBS_WORKER_SOURCE；不下載依賴');return;}
   for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
     if(process.env.YBS_PR6_SCOPE&&!process.env.YBS_PR6_SCOPE.split(',').includes(`${a.activity}:${round}`))continue;
@@ -144,8 +149,9 @@ test('PR6 真實切換頁 × PR5 client × Worker：114 關均可錯答修正、
       if(type==='finite-bank-v1'&&['multi','wifi-dead'].includes(q.questions[0].data.mode))wrong=[];
       if(type==='finite-bank-v1'&&q.questions[0].data.mode==='media-rle'){wrong=[...answer];wrong[0]=(answer[0][0]==='0'?'1':'0')+answer[0].slice(1);}
       if(outcome&&q.questions[0].data.kinds[0]==='s'){const choices=q.questions[0].data.questions[0].slice(1);wrong=[...answer];wrong[0]=choices.find(v=>v!==answer[0]);}
+      if(q.questions[0].data.mode==='photo'){wrong=structuredClone(answer);wrong.answers[1][0]=(wrong.answers[1][0]+1)%6;}
       if(type==='recording-capacity-v1')wrong.q=(answer.q+1)%3;
-      await fill(page,type,wrong);await page.getByRole('button',{name:'送出',exact:true}).click();
+      await fill(page,type,wrong);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
       await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();
       if(q.questions[0].data.mode?.endsWith('-performance')){
         await page.locator('[data-performance-frame]').waitFor();
@@ -155,18 +161,23 @@ test('PR6 真實切換頁 × PR5 client × Worker：114 關均可錯答修正、
       assert.equal(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot,0);
       await page.reload();await page.getByRole('button',{name:a.rounds[round],exact:true}).click();await page.locator('[data-question-type]').waitFor();
       assert.ok(current.requests.some(r=>r.op==='resume'));
-      await fill(page,type,answer);await page.getByRole('button',{name:'送出',exact:true}).click();
-      if(!q.questions[0].data.mode?.endsWith('-performance')){
+      await fill(page,type,answer);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
+      if(!q.questions[0].data.mode?.endsWith('-performance')&&q.questions[0].data.mode!=='photo'){
       await page.getByRole('button',{name:'下一組',exact:true}).waitFor({state:'visible'});
       assert.equal(await page.locator('[data-question-type]').getAttribute('data-slot'),'0');
       await page.getByRole('button',{name:'下一組',exact:true}).click();
-      await fill(page,type,modules.privateAnswer(current.db));await page.getByRole('button',{name:'送出',exact:true}).click();
+      await fill(page,type,modules.privateAnswer(current.db));await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
       }
       await page.waitForFunction(()=>app.client.state().snapshot?.records.length===1);
       if(q.questions[0].data.mode?.endsWith('-performance')){
         assert.equal(current.requests.filter(r=>r.op==='answer').length,3,'錯答一次後，一次送出以同一順序驗兩槽');
         const responses=current.requests.filter(r=>r.op==='answer').slice(-2);assert.deepEqual(responses[0].body.answer,responses[1].body.answer);
         await page.locator('[data-performance-frame]').waitFor();
+      }
+      if(q.questions[0].data.mode==='photo'){
+        assert.equal(current.requests.filter(r=>r.op==='answer').length,3);const responses=current.requests.filter(r=>r.op==='answer').slice(-2);assert.deepEqual(responses[0].body.answer,responses[1].body.answer);
+        assert.equal(await page.locator('canvas[data-photo]').count(),2);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+        await page.screenshot({path:`/tmp/ybs-pr6b7-photo-${round}-mobile.png`,fullPage:true});
       }
       await page.getByText(/· 15 XP$/).first().waitFor();
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
@@ -177,35 +188,37 @@ test('PR6 真實切換頁 × PR5 client × Worker：114 關均可錯答修正、
   }
 });
 
-test('排卡兩槽：第一槽後重整可自動續傳，第二槽回應遺失重送不重複採計、換人停止演出',async t=>{
+test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回應遺失重送不重複採計、換人停止演出',async t=>{
   if(!workerSource){t.skip('須指定本機 YBS_WORKER_SOURCE');return;}
-  for(const mode of ['resume-first','lost-second'])await t.test(mode,async()=>{
+  for(const activity of [1,3])for(const mode of ['resume-first','lost-second'])await t.test(`${activity}:${mode}`,async()=>{
+    const photo=activity===3,title=photo?'看清背號':'第 1 單';
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
     page.setDefaultTimeout(6000);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
     try{
-      await page.goto(base+'/115-g9/u1-05/');await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'帳號登入',exact:true}).click();
-      await page.getByRole('button',{name:'第 1 單',exact:true}).click();await page.locator('[data-question-type]').waitFor();
+      await page.goto(base+(photo?'/115-g9/u2-01/':'/115-g9/u1-05/'));await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'帳號登入',exact:true}).click();
+      await page.getByRole('button',{name:title,exact:true}).click();await page.locator('[data-question-type]').waitFor();
       const order=modules.privateAnswer(current.db);
       if(mode==='resume-first'){
         // 先直接接受第一槽，關閉頁面，模擬第二槽尚未發送就離開。
         await page.route('**/worker/answer',route=>{const b=route.request().postDataJSON();return b.slot===1?route.abort():route.continue();});
-        await page.evaluate(order=>app.client.answer(1,0,order),order);
+        await page.evaluate(({activity,order})=>app.client.answer(activity,0,order),{activity,order});
       }else{
-        current.dropSecond=true;await fill(page,'finite-bank-v1',order);await page.getByRole('button',{name:'送出',exact:true}).click();
+        current.dropSecond=true;await fill(page,'finite-bank-v1',order);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
         await page.getByText('尚未確認，答案已保留，稍後可重試。',{exact:true}).waitFor();
         assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
         assert.equal(await page.getByText(/· 15 XP$/).count(),0,'失去成功回應不可先顯示過關');
       }
-      await page.unroute('**/worker/answer');await page.reload();await page.getByRole('button',{name:'第 1 單',exact:true}).waitFor();await page.evaluate(()=>app.advance(61000));await page.getByRole('button',{name:'第 1 單',exact:true}).click();
+      await page.unroute('**/worker/answer');await page.reload();await page.getByRole('button',{name:title,exact:true}).waitFor();await page.evaluate(()=>app.advance(61000));await page.getByRole('button',{name:title,exact:true}).click();
       await page.waitForFunction(()=>app.client.state().snapshot?.records.length===1);
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
       const answers=current.requests.filter(r=>r.op==='answer');for(const a of answers)assert.deepEqual(a.body.answer,order);
       if(mode==='lost-second')assert.equal(new Set(answers.filter(r=>r.body.slot===1).map(r=>r.body.requestId)).size,1);
-      await page.locator('[data-performance-frame]').waitFor();await page.getByRole('button',{name:'下一步',exact:true}).click();
-      assert.equal(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'),'1');
-      await page.screenshot({path:'/tmp/ybs-pr6b6-performance-mobile.png'});
+      if(photo){await page.locator('canvas[data-photo]').first().waitFor();assert.equal(await page.locator('canvas[data-photo]').count(),2);}
+      else{await page.locator('[data-performance-frame]').waitFor();await page.getByRole('button',{name:'下一步',exact:true}).click();
+      assert.equal(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'),'1');}
+      await page.screenshot({path:photo?'/tmp/ybs-pr6b7-photo-resume-mobile.png':'/tmp/ybs-pr6b6-performance-mobile.png'});
       await page.evaluate(()=>app.client.logout());await page.waitForTimeout(1700);
-      assert.equal(await page.locator('[data-performance-frame]').count(),0,'登出後不得由計時器補回受保護演出');
+      assert.equal(await page.locator('[data-performance-frame],canvas[data-photo]').count(),0,'登出後不得由計時器補回受保護演出');
     }finally{await context.close();}
   });
 });

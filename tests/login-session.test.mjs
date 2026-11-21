@@ -13,7 +13,7 @@ function setup({user = student,hold = false,storage = new Map(),cookie = true,co
   let cookieValue = cookie ? 'ybslab_browser=1' : '';
   const storageFor = map => ({getItem:k => map.get(k) ?? null,setItem:(k,v) => map.set(k,v),removeItem:k => map.delete(k)});
   const host = new Element('div');
-  const context = vm.createContext({
+  const context = vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},
     location:{pathname:'/115-g9/u2-02/'},
     localStorage:storageFor(shared),sessionStorage:storageFor(storage),
     queueMicrotask,setInterval(){},setTimeout(){},addEventListener(){},__holdSessionAuth:hold,

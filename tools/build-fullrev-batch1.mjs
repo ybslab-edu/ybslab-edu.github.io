@@ -1,22 +1,25 @@
 // PR8 切換用的已納管批次公開產物；只產生外殼與 renderer，絕不複製舊活動程式。
 // 本批產物用於驗收，所有批次完成前不得取代整站發布目錄。
-import {readFile,writeFile,mkdir,readdir,copyFile,stat} from 'node:fs/promises';
-import {resolve,dirname,join,relative} from 'node:path';
+import {readFile,writeFile,mkdir,readdir,copyFile,stat,realpath} from 'node:fs/promises';
+import {resolve,dirname,join,relative,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8} from '../assets/fullrev-activities.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 export const buildBatch1=options=>buildBatches({...options,batches:[1]});
-export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5,6,7,8]}) {
+export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5,6,7,8],courses=['115-g9','115-df']}) {
   if(!Array.isArray(batches)||!batches.length||batches.some(n=>![1,2,3,4,5,6,7,8].includes(n))||new Set(batches).size!==batches.length)throw Error('invalid_batches');
   const combined=new Map();
   for(const a of batches.flatMap(n=>[null,BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8][n])){
     const key=(a.course||'115-g9')+':'+a.activity,previous=combined.get(key);
     combined.set(key,{...a,managed:[...new Set([...(previous?.managed||[]),...a.managed])]});
   }
-  const activities=[...combined.values()];
+  const activities=[...combined.values()].filter(a=>courses.includes(a.course||'115-g9'));
   checkConfig(config);output=resolve(output);source=resolve(source);
-  if(output===source||!relative(source,output).startsWith('..'))throw Error('output_must_be_outside_source');
+  const outside=(base,path)=>{const r=relative(base,path);return r==='..'||r.startsWith('..'+sep);};
+  if(!outside(source,output))throw Error('output_must_be_outside_source');
+  let parent=dirname(output);while(!await stat(parent).catch(()=>null))parent=dirname(parent);
+  if(!outside(await realpath(source),await realpath(parent)))throw Error('output_must_be_outside_source');
   if(await stat(output).catch(()=>null))throw Error('output_must_not_exist');
   const assets=['fullrev-client.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
     'login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js'];

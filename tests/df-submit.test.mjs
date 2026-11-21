@@ -22,7 +22,7 @@ async function setup({manual=false,course='115-df'}={}){
   let time=1792598400000,id=0;const timers=new Map(),events=new EventTarget();
   const form={a:{value:'9990001',focus(){}},p:{value:'synthetic-test-password'},querySelector:()=>new Element()};
   const elements=new Map(['#report-send','#report-panel'].map(key=>[key,new Element()]));
-  const c=vm.createContext({
+  const c=vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},
     console,TextEncoder,TextDecoder,Blob,CompressionStream,DecompressionStream,btoa,atob,queueMicrotask,
     Date:class extends Date {constructor(...args){super(...(args.length?args:[time]));}static now(){return time;}},
     setInterval:()=>0,setTimeout:(fn,ms)=>{const key=++id;timers.set(key,{fn,at:time+ms});return key;},clearTimeout:key=>timers.delete(key),

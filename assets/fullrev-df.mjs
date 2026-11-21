@@ -1,5 +1,5 @@
 // DF envelope v1 and three UID slots stay unchanged. Local clocks only detect overwrite conflicts.
-export function createDFReports({course,getSession,mark,active,claims,context,fail}){
+export function createDFReports({course,getSession,mark,active,claims,context,fail,now=Date.now}){
   async function identity(m){
     if(course!=='115-df')throw fail('report/course');
     const c=await claims(m),provider=c.firebase?.sign_in_provider;
@@ -28,6 +28,7 @@ export function createDFReports({course,getSession,mark,active,claims,context,fa
         if(old&&old.uid===m.uid&&old.session===session&&old.cls===cls&&old.seat===seat&&old.schemaVersion===1&&old.encoding===packet.encoding&&old.payload===packet.payload)return;
         const updatedAt=old?.updatedAt?.toMillis();
         if(old&&updatedAt>encoded.snapshotAt&&old.payload!==packet.payload&&encoded.overwriteAt!==updatedAt)throw Object.assign(fail('report/conflict'),{updatedAt});
+        if(old&&Number.isFinite(updatedAt)&&now()<updatedAt+60000)throw Object.assign(fail('report/rate-limited'),{retryAt:updatedAt+60000});
         const stamp=firebase.firestore.FieldValue.serverTimestamp();
         tx.set(ref,{uid:m.uid,session,cls,seat,...packet,createdAt:old?old.createdAt:stamp,updatedAt:stamp});
       });active(m);

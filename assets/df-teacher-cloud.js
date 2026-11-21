@@ -49,7 +49,7 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
       await checkOwner();
       if (!active(token, uid, n)) return;
       const [reports, roster] = await Promise.all([
-        query(n), db.collection('ybsCourses/' + courseId + '/roster').get({ source: 'server' })
+        query(n), readRoster()
       ]);
       if (!active(token, uid, n)) return;
       const counts = new Map(), failed = [];
@@ -109,8 +109,21 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
       document.head.append(s);
     });
   }
+  async function readRoster() {
+    if (typeof YBS !== 'undefined' && YBS.fullrev) {
+      const {createReadModel}=await import('./fullrev-read-model.mjs');
+      const model=createReadModel({session:()=>YBS.firebaseSession(),project:YBS_FULLREV_CONFIG.firebase.projectId,course:courseId,workerOrigin:YBS_FULLREV_CONFIG.workerOrigin});
+      const result=await model.roster();
+      if(result.schemaVersion!==1||result.sourceProject!==YBS_FULLREV_CONFIG.firebase.projectId||result.course!==courseId||!Array.isArray(result.members))throw Error('roster-unconfirmed');
+      return {docs:result.members.map(data=>({data:()=>data}))};
+    }
+    return db.collection('ybsCourses/' + courseId + '/roster').get({ source: 'server' });
+  }
   async function init() {
-    if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) throw new Error('DF cutover pending');
+    if (typeof YBS !== 'undefined' && YBS.fullrev) {
+      const s=await YBS.firebaseSession();auth=s.auth;db=s.db;
+    } else {
+    // LEGACY_DF_INIT_START
     const base = 'https://www.gstatic.com/firebasejs/10.14.1/';
     await script(base + 'firebase-app-compat.js');
     await script(base + 'firebase-auth-compat.js');
@@ -120,6 +133,8 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
       projectId: 'class-score-86020', messagingSenderId: '1078830272862'
     }, 'df-teacher');
     auth = app.auth(); db = app.firestore();
+    // LEGACY_DF_INIT_END
+    }
     await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
     auth.onAuthStateChanged(async user => {
       const token = ++generation; owner = null; clear(); controls();
@@ -144,8 +159,11 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
   };
   el('cloud-logout').onclick = async () => {
     generation++; owner = null; clear(); controls(); message('已清除畫面，正在登出…');
-    if (typeof YBS !== 'undefined') YBS.endBrowserSession?.();
-    try { await auth.signOut(); message('已登出，記憶體報告已清除。'); }
+    try {
+      if (typeof YBS !== 'undefined' && YBS.fullrev) await YBS.endBrowserSession();
+      else { if (typeof YBS !== 'undefined') YBS.endBrowserSession?.(); await auth.signOut(); }
+      message('已登出，記憶體報告已清除。');
+    }
     catch (e) { message('登出未完成，請重試登出。'); }
     controls();
   };

@@ -26,7 +26,7 @@ for (const theme of ['light','dark']) for (const width of [1280,390]) {
     try {
       await page.route('**/*',route=>route.abort());
       await page.setContent('<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><style>'+css+'</style></head><body>'+gate+'</body></html>');
-      await page.addScriptTag({content:login});
+      await page.addScriptTag({content:'const YBS_FULLREV_CONFIG={enabled:false};\n'+login});
       await page.evaluate(async () => {
         await YBS.button(document.getElementById('g-gbtn'));
         window.submits = 0;

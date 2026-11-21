@@ -4,7 +4,8 @@
 // 專案 ID、網頁金鑰都是公開識別碼，不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
   if (typeof YBS_FULLREV_CONFIG === 'undefined') return ybsFullrevFacade(null);
-  if (YBS_FULLREV_CONFIG?.enabled !== false) return ybsFullrevFacade(YBS_FULLREV_CONFIG);
+  const legacyDF = location.pathname.startsWith('/115-df/') && YBS_FULLREV_CONFIG?.courses?.join(',') === '115-g9';
+  if (YBS_FULLREV_CONFIG?.enabled !== false && !legacyDF) return ybsFullrevFacade(YBS_FULLREV_CONFIG);
   const CONFIG = {
     on: true,                                     // false：關閉登入，活動頁只用「班級座號與本機進度」
     project: 'class-score-86020',

@@ -8,17 +8,40 @@ import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mj
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
 const workerSource=process.env.YBS_WORKER_SOURCE;
-const config={...fixtureConfig,readModelModule:'/assets/fullrev-read-model.mjs'};
-test('PR8 mandatory full-tree release gate: 124 rounds, all public pages/resources; private source cannot be skipped',async t=>{
- assert.ok(workerSource,'PR8 release acceptance requires YBS_WORKER_SOURCE; no skip/fallback');
+const config={...fixtureConfig,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
+test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',async t=>{
+ if(!workerSource&&process.env.CI){t.skip('略過：需私有來源，由 Console 發布前在本機執行');return;}
+ assert.ok(workerSource,'本機發布驗收需設定 YBS_WORKER_SOURCE');
  const dir=await mkdtemp(join(tmpdir(),'ybs-pr8-release-'));t.after(()=>rm(dir,{recursive:true,force:true}));const output=join(dir,'site');
  await assert.rejects(buildSite({output,config}),/worker_source_required/);
  await assert.rejects(buildSite({output,config:{...config,readModelModule:''},workerSource}),/release_read_model_or_public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,privateKey:'synthetic-forbidden'},workerSource}),/public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
- const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,124);assert.equal(built.activities,31);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
  for(const p of ['index.html','map/index.html','about/index.html','115-g9/me/index.html','115-g9/teacher/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-df/a/index.html','assets/fullrev-read-model.mjs'])assert.ok((await readFile(join(output,p))).length);
  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.doesNotMatch(login,/class-score-86020|guestId\(|validGuest|\.collection\(/);
+ const df=await readFile(join(output,'115-df/a/index.html'),'utf8');
+ assert.match(df,/assets\/legacy-df\/login.js/);assert.match(df,/assets\/legacy-df\/config.js/);assert.doesNotMatch(df,/await YBS.loadDFContent/);
+ const legacyLogin=await readFile(join(output,'assets/legacy-df/login.js'),'utf8');assert.match(legacyLogin,/project: 'class-score-86020'/);
+ const dfCloud=await readFile(join(output,'assets/df-teacher-cloud.js'),'utf8');assert.match(dfCloud,/LEGACY_DF_INIT_START/);
+ const privateArrays=[],shortAnswers=[];
+ for(let n=1;n<=8;n++){
+  const {default:banks}=await import(new URL('file://'+resolve(workerSource,`src/formal/banks/pr6-batch${n}.mjs`)));
+  for(const [key,bundle] of Object.entries(banks))for(const bank of Object.values(bundle.rounds))for(const c of bank.cases||[]){
+   if(Array.isArray(c.answer))privateArrays.push(c.answer);
+   if(!key.startsWith('115-df:')&&typeof c.answer==='string')shortAnswers.push(c.answer);
+  }
+ }
+ assert.equal(privateArrays.length,1357);
+ const victim=join(output,'assets/fullrev-read-model.mjs'),clean=await readFile(victim);
+ const stringifyLeaves=value=>Array.isArray(value)?value.map(stringifyLeaves):String(value);
+ for(const payload of [JSON.stringify(privateArrays),JSON.stringify(privateArrays.map(stringifyLeaves)),JSON.stringify(JSON.stringify(privateArrays)),JSON.stringify(privateArrays,null,2)]){
+  await writeFile(victim,Buffer.concat([clean,Buffer.from('\nconst leaked='+payload+';')]));
+  await assert.rejects(scanRelease({output,workerSource}),/private_answer_array/);
+ }
+ for(const answer of shortAnswers){await writeFile(victim,Buffer.concat([clean,Buffer.from('\nconst leaked='+JSON.stringify(answer)+';')]));await assert.rejects(scanRelease({output,workerSource}),/private_text_answer/);}
+ await writeFile(victim,clean);
+ const legacyFile=join(output,'assets/legacy-df/login.js');await writeFile(legacyFile,legacyLogin+'\n// unexpected change');await assert.rejects(scanRelease({output,workerSource}),/legacy_df_changed/);await writeFile(legacyFile,legacyLogin);
  for(const injected of ['tools/answer.js','assets/backup.json','assets/leak.map','secret.bin']){
   await mkdir(join(output,injected,'..'),{recursive:true});await writeFile(join(output,injected),'private');await assert.rejects(scanRelease({output,workerSource}),/allowlist/);await rm(join(output,injected));if(injected.startsWith('tools/'))await rm(join(output,'tools'),{recursive:true});
  }

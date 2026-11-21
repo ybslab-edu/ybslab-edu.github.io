@@ -7,14 +7,14 @@ import {BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8} from '../assets
 import {checkConfig} from '../assets/fullrev-client.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 export const buildBatch1=options=>buildBatches({...options,batches:[1]});
-export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5,6,7,8]}) {
+export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5,6,7,8],courses=['115-g9','115-df']}) {
   if(!Array.isArray(batches)||!batches.length||batches.some(n=>![1,2,3,4,5,6,7,8].includes(n))||new Set(batches).size!==batches.length)throw Error('invalid_batches');
   const combined=new Map();
   for(const a of batches.flatMap(n=>[null,BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8][n])){
     const key=(a.course||'115-g9')+':'+a.activity,previous=combined.get(key);
     combined.set(key,{...a,managed:[...new Set([...(previous?.managed||[]),...a.managed])]});
   }
-  const activities=[...combined.values()];
+  const activities=[...combined.values()].filter(a=>courses.includes(a.course||'115-g9'));
   checkConfig(config);output=resolve(output);source=resolve(source);
   const outside=(base,path)=>{const r=relative(base,path);return r==='..'||r.startsWith('..'+sep);};
   if(!outside(source,output))throw Error('output_must_be_outside_source');

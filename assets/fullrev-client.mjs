@@ -9,8 +9,8 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const inProgress = d => d && !d.blocked && (d.pending || /^[\w-]{22}$/.test(d.sid)
   && int(d.nextSeq,1) && [0,1].includes(d.slot));
 export function checkConfig(config) {
-  const project = config.firebase?.projectId;
-  if (config.enabled !== true || typeof project !== 'string' || !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(project)
+  const project = config?.firebase?.projectId;
+  if (config?.enabled !== true || typeof project !== 'string' || !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(project)
       || /class-score|classscore|pilot|^demo-|replace/i.test(project) || !config.firebase.apiKey) throw fail('configuration-pending');
   let origin;
   try { origin = new URL(config.workerOrigin); } catch { throw fail('configuration-pending'); }
@@ -296,6 +296,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   async function dfContent(){
     const m=mark();if(course!=='115-df'||!readModel?.dfContent)throw fail('read-model-pending');
+    if(profile.owner){
+      await assertOwner(m);if(!readModel.dfPreview)throw fail('read-model-pending');
+      const value=await readModel.dfPreview();active(m);
+      if(value?.schemaVersion!==1||value.sourceProject!==project||value.uid!==m.uid||value.course!==course||!int(value.gateVersion,1)
+       ||!value.scripts||!['pub','enc-b2','enc-rv'].every(k=>typeof value.scripts[k]==='string'))throw fail('context-unconfirmed');
+      return clone(value.scripts);
+    }
     const c=await context(1,0),value=await readModel.dfContent(c);active(m);
     if(!value||value.schemaVersion!==1||value.sourceProject!==project||value.uid!==m.uid||value.course!==course
       ||!sameVersions(value.controlVersions,c.controlVersions)||!value.scripts
@@ -329,7 +336,7 @@ export async function createBrowserClient(config) {
   if(config.readModelModule) {
     const url=new URL(config.readModelModule,location.href);
     if(url.origin!==location.origin)throw fail('read-model-origin');
-    readModel=await (await import(url.href)).createReadModel({session,project,course});
+    readModel=await (await import(url.href)).createReadModel({session,project,course,workerOrigin:config.workerOrigin});
   }
   return createClient({config,session,readModel,course});
 }

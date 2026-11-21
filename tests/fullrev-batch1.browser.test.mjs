@@ -5,7 +5,7 @@ import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {buildBatches} from '../tools/build-fullrev-batch1.mjs';
+import {buildSite} from '../tools/build-fullrev-site.mjs';
 import {MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
 import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
@@ -14,10 +14,10 @@ const workerSource=process.env.YBS_WORKER_SOURCE;
 before(async()=>{
   if(!workerSource)return;
   const load=p=>import(pathToFileURL(resolve(workerSource,p)).href);
-  const [{createFormalWorker},{MemoryFirestore},{formalPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
-    load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal-contract.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
+  const [{createFormalWorker},{MemoryFirestore},{readPath:formalPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
+    load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal/read-model.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
   modules={createFormalWorker,MemoryFirestore,formalPath,batchData,privateAnswer,ENV,CLASS_HINTS,password,paths,EPOCH,ORIGIN};
-  dir=await mkdtemp(join(tmpdir(),'ybs-pr6-browser-'));output=join(dir,'public');await buildBatches({output,config});
+  dir=await mkdtemp(join(tmpdir(),'ybs-pr6-browser-'));output=join(dir,'public');await buildSite({output,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'},workerSource});
   server=createServer(async(req,res)=>{
     try {
       const path=new URL(req.url,'http://localhost').pathname;
@@ -28,21 +28,20 @@ before(async()=>{
         if(current.dropSecond&&path==='/worker/answer'&&JSON.parse(raw).slot===1){current.dropSecond=false;res.writeHead(503,{'Content-Type':'application/json','retry-after':'60'}).end('{"error":"synthetic_lost_response"}');return;}
         res.writeHead(r.status,{'Content-Type':'application/json'}).end(await r.text());return;
       }
-      if(path==='/synthetic/progress') {
-        const records=[...current.db.docs].filter(([p])=>p.includes('/validatedResults/')).map(([p,r])=>({...r,resultId:p.split('/').at(-1),
-          completedAt:new Date(r.completedAt).toISOString(),xpPolicySnapshot:{...r.xpPolicySnapshot,openedAt:r.xpPolicySnapshot.openedAt.toISOString()},validity:{state:'effective',controlVersions:{gateVersion:1,classGateVersion:1}}}));
-        return res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({schemaVersion:1,sourceProject:config.firebase.projectId,course:'115-g9',classKey:'synthetic-class',
-          subject:'synthetic-a',provider:'password',state:'confirmed',complete:true,controlVersions:{gateVersion:1,classGateVersion:1},records}));
-      }
       if(path==='/assets/fullrev-client.mjs')return res.writeHead(200,{'Content-Type':'text/javascript'}).end(`
-        import {harness} from '/tests/fixtures/fullrev.mjs';
+        import {harness,config} from '/tests/fixtures/fullrev.mjs';
+        import {createClient} from '/assets/fullrev-client-core.mjs';
+        import {createReadModel} from '/assets/fullrev-read-model.mjs';
         export async function createBrowserClient(){
           const restoredProvider=sessionStorage.getItem('ybs:fullrev:synthetic-ybs-pr5:115-g9')?'password':undefined;
           const app=await harness({shared:localStorage,storage:sessionStorage,events:window,restoredProvider,
             requestId:()=>crypto.randomUUID(),fetcher:(url,init)=>fetch('/worker'+new URL(url).pathname,init)});
           app.state.uid='fake-uid-a';app.state.owner=false;app.state.hints={'115-g9':'synthetic-class'};
           if(restoredProvider)app.auth.currentUser.uid='fake-uid-a';
-          app.model.page=async()=>{const r=await fetch('/synthetic/progress');return r.json();};
+          let clock=Date.now();const advance=app.advance;app.advance=(ms=60001)=>{advance(ms);clock+=ms;};
+          const session=async()=>app.session,fetcher=(url,init)=>fetch('/worker'+new URL(url).pathname,init);
+          const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher});
+          app.client=createClient({config,session,now:()=>clock,readModel:model,shared:localStorage,storage:sessionStorage,events:window,requestId:()=>crypto.randomUUID(),fetcher});
           window.app=app;return app.client;
         }`);
       if(path==='/assets/fullrev-client-core.mjs')return res.writeHead(200,{'Content-Type':'text/javascript'}).end(await readFile(new URL('../assets/fullrev-client.mjs',import.meta.url)));
@@ -57,7 +56,7 @@ after(async()=>{await browser?.close();if(server?.listening)await new Promise(re
 async function reset() {
   const m=modules,state={clock:m.EPOCH,requests:[]};
   state.db=new m.MemoryFirestore(await m.batchData(state.clock),{now:()=>state.clock,pathValidator:m.formalPath});
-  state.worker=m.createFormalWorker({env:m.ENV,adapter:state.db,now:()=>state.clock,verifier:{verify:async uid=>({...m.password(uid),ybsClassKeys:m.CLASS_HINTS})}});current=state;
+  state.worker=m.createFormalWorker({env:{...m.ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:state.db,now:()=>state.clock,verifier:{verify:async uid=>({...m.password(uid),ybsClassKeys:m.CLASS_HINTS})}});current=state;
 }
 async function fill(page,type,answer) {
   if(type.startsWith('binary-encode')) {

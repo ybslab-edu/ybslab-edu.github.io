@@ -8,7 +8,7 @@ const login = readFileSync(new URL('../assets/login.js', import.meta.url), 'utf8
 const shell = readFileSync(new URL('../assets/shell.js', import.meta.url), 'utf8');
 
 test('登入入口移除指定說明，教師碼預設隱藏且未加入學生眼睛按鈕', () => {
-  const context = vm.createContext({document:{}});
+  const context = vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},document:{}});
   vm.runInContext(shell, context);
   const html = vm.runInContext('shellGateHTML({title:"合成活動",termWeek:11}, s=>s)', context);
   assert.doesNotMatch(html, /先登入：|每過一關，紀錄會自動交給老師/);
@@ -18,7 +18,7 @@ test('登入入口移除指定說明，教師碼預設隱藏且未加入學生�
 
 test('學生密碼持續顯示直到再次點擊，更新無障礙狀態且不送出', async () => {
   const host = new Element('div');
-  const context = vm.createContext({
+  const context = vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},
     location:{pathname:'/115-g9/u2-01/'},
     localStorage:{}, sessionStorage:{removeItem(){}},
     window:{addEventListener(){}}, setTimeout(){}, setInterval(){},

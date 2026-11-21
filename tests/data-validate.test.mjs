@@ -114,7 +114,7 @@ function queueSetup(value){
   const sent=[],stored=new Map([['ybslab:fq',value]]);
   const source=read('assets/login.js'),entry='  return { CONFIG, enabled, button, submit, flush, logout, whoami, submitReport,';
   assert.ok(source.includes(entry));
-  const c=vm.createContext({location:{pathname:'/115-g9/u1-01/'},window:{addEventListener(){}},setInterval(){},localStorage:{},
+  const c=vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},location:{pathname:'/115-g9/u1-01/'},window:{addEventListener(){}},setInterval(){},localStorage:{},
     sessionStorage:{getItem:k=>stored.get(k),removeItem(){},setItem:(k,v)=>stored.set(k,v)},
     firebase:{firestore:{FieldValue:{serverTimestamp:()=> 'synthetic-time'}}},
     mock:{auth:{currentUser:{uid:'synthetic-1'}},db:{doc:path=>({set:async data=>sent.push({path,...data})})}},

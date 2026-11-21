@@ -33,7 +33,7 @@ function setup({storageFails = false, storageWriteFails = false, write = async (
       async get() { reads.push(path); return {exists}; }
     };
   }};
-  const context = vm.createContext({
+  const context = vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},
     location: {pathname: '/115-g9/u1-01/'}, sessionStorage: storage, localStorage: {},
     setInterval(fn, ms) { timers.push({fn, ms}); },
     window: {addEventListener(name, fn) { events.set(name, fn); }},

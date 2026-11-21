@@ -20,7 +20,7 @@ export function setup({stored=new Map(),session=new Map(),user=null,write=async(
   const db={doc(path){return{async set(data){calls.push({path,data,uid:auth.currentUser?.uid});await write(data,path);},async get(){reads.push(path);throw error('permission-denied');}};}};
   const app={name:'ybs',auth:()=>auth,firestore:()=>db};
   const storage=(map,canFail)=>({getItem(k){if(canFail&&blocked)throw Error('synthetic storage');return map.get(k)??null;},setItem(k,v){if(canFail&&(blocked||v.length>storageLimit))throw Error('synthetic storage');map.set(k,v);},removeItem(k){map.delete(k);}});
-  const context=vm.createContext({location:{pathname},Date:class extends Date{static now(){return now;}},console:{warn(...args){warnings.push(args);}},
+  const context=vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},location:{pathname},Date:class extends Date{static now(){return now;}},console:{warn(...args){warnings.push(args);}},
     localStorage:storage(stored,true),sessionStorage:storage(session,false),
     setInterval(fn,ms){timers.push({fn,ms});},setTimeout,queueMicrotask,
     window:{addEventListener(name,fn){if(!events.has(name))events.set(name,[]);events.get(name).push(fn);}},

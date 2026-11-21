@@ -14,7 +14,7 @@ function setup({code, signOut, loaderFails = false} = {}) {
     },
     signOut: signOut || (() => Promise.resolve())
   };
-  const context = vm.createContext({Error, Promise,
+  const context = vm.createContext({YBS_FULLREV_CONFIG:{enabled:false},Error, Promise,
     firebase:{auth:{Auth:{Persistence:{SESSION:'session',LOCAL:'local'}}}},
     location:{pathname:'/115-g9/u1-01/'}, sessionStorage:{getItem:()=>null,removeItem(){}}, localStorage:{},
     setInterval(){}, setTimeout:fn=>fn(), window:{addEventListener(){}},

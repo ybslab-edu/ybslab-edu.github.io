@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {sessionFirebase} from './fixtures/login-session.mjs';
+import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
+const coursePages=[...new Set([...MANAGED_ACTIVITIES,...BATCH8].map(a=>'/'+a.file)),
+  '/115-g9/me/index.html','/115-g9/teacher/index.html','/115-g9/teacher/report/index.html','/115-df/teacher/index.html'];
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let server,browser,base;
 const html=`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><body>
@@ -29,7 +32,8 @@ before(async()=>{
   server=createServer(async(req,res)=>{
     const path=new URL(req.url,'http://localhost').pathname;
     if(path==='/115-g9/synthetic/')return res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'}).end(html);
-    if(path==='/115-g9/u2-03/')return res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'}).end(await readFile(new URL('../115-g9/u2-03/index.html',import.meta.url)));
+    if(coursePages.includes(path))return res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'}).end(await readFile(new URL('..'+path,import.meta.url)));
+    if(/^\/115-g9\/me\/(?:me|me-teacher)\.js$/.test(path))return res.writeHead(200,{'Content-Type':'text/javascript'}).end(await readFile(new URL('..'+path,import.meta.url)));
     if(path==='/assets/vendor/xlsx-0.20.3.full.min.js')return res.writeHead(200,{'Content-Type':'text/javascript'}).end(await readFile(new URL('../assets/vendor/xlsx-0.20.3.full.min.js',import.meta.url)));
     if(/^\/assets\/[\w.-]+\.(?:js|css|svg)$/.test(path)) {
       try{return res.writeHead(200,{'Content-Type':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{return res.writeHead(404).end();}
@@ -48,20 +52,33 @@ async function pageFor(t,suffix='',context) {
   await page.goto(base+'/115-g9/synthetic/'+suffix);await page.waitForFunction(()=>window.ready);return page;
 }
 async function login(page) {await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'帳號登入',exact:true}).click();}
-test('真實活動頁載入預設 false，仍顯示既有登入／教師入口，不載新 client 或呼叫 Worker',async t=>{
-  const page=await browser.newPage();t.after(()=>page.close());const requests=[];
-  await page.route('**/*',route=>{
-    const url=route.request().url();requests.push(url);
-    if(url.startsWith(base+'/'))return route.continue();
-    if(url.startsWith('https://www.gstatic.com/firebasejs/'))return route.fulfill({contentType:'text/javascript',body:url.endsWith('firebase-app-compat.js')?sessionFirebase:'// offline mock'});
-    return route.abort();
+test('全部 35 個現行課程頁：預設 false 保留舊登入／教師入口，零新版模組或 Worker 流量',async t=>{
+  assert.equal(coursePages.length,35);
+  for(const path of coursePages)await t.test(path,async()=>{
+    const context=await browser.newContext({serviceWorkers:'block'}),requests=[],errors=[];
+    try{
+      const page=await context.newPage();page.setDefaultTimeout(5000);
+      page.on('pageerror',e=>errors.push(e.message));
+      await page.route('**/*',route=>{
+        const url=route.request().url();requests.push(url);
+        if(url.startsWith(base+'/'))return route.continue();
+        if(url.startsWith('https://www.gstatic.com/firebasejs/'))return route.fulfill({contentType:'text/javascript',body:url.endsWith('firebase-app-compat.js')?sessionFirebase:'// offline mock'});
+        return route.abort();
+      });
+      // Use the real on-disk config; no injected switch or replacement client.
+      assert.equal((await page.goto(base+path)).status(),200);
+      await page.waitForFunction(()=>typeof YBS!=='undefined'&&typeof YBS.button==='function');
+      assert.equal(await page.evaluate(()=>YBS_FULLREV_CONFIG.enabled),false);
+      assert.equal(await page.evaluate(()=>YBS.fullrev),undefined);
+      assert.equal(await page.evaluate(()=>YBS.CONFIG.project),'class-score-86020');
+      if(/^\/115-g9\/u/.test(path)){
+        await page.locator('.ybs-login').waitFor();
+        assert.equal(await page.locator('#t-open').isVisible(),true);
+      }
+      assert.equal(requests.some(url=>/fullrev-(?:client|ui|read-model)|workers\.dev/.test(url)),false);
+      assert.deepEqual(errors,[]);
+    }finally{await context.close();}
   });
-  await page.goto(base+'/115-g9/u2-03/');await page.locator('.ybs-login').waitFor();
-  assert.equal(await page.evaluate(()=>YBS_FULLREV_CONFIG.enabled),false);
-  assert.equal(await page.evaluate(()=>YBS.fullrev),undefined);
-  assert.equal(await page.evaluate(()=>YBS.CONFIG.project),'class-score-86020');
-  assert.equal(await page.locator('#t-open').isVisible(),true);
-  assert.equal(requests.some(url=>url.includes('fullrev-client')||url.includes('fullrev-ui')||url.includes('workers.dev')),false);
 });
 test('新活動：錯答同題、下一組才換題、回條不先給分、重置後清除舊進度',async t=>{
   const page=await pageFor(t);await login(page);

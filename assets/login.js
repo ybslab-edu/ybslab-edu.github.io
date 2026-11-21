@@ -3,7 +3,8 @@
 // on 為 false 或該課程沒有對應的 courseId 時不啟用：活動頁維持「班級座號與本機進度」。
 // 專案 ID、網頁金鑰都是公開識別碼，不是密碼，放在公開網站沒有關係。
 const YBS = (() => {
-  if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) return ybsFullrevFacade(YBS_FULLREV_CONFIG);
+  if (typeof YBS_FULLREV_CONFIG === 'undefined') return ybsFullrevFacade(null);
+  if (YBS_FULLREV_CONFIG?.enabled !== false) return ybsFullrevFacade(YBS_FULLREV_CONFIG);
   const CONFIG = {
     on: true,                                     // false：關閉登入，活動頁只用「班級座號與本機進度」
     project: 'class-score-86020',
@@ -587,7 +588,10 @@ const YBS = (() => {
 })();
 
 function ybsFullrevFacade(config) {
-  const ready = import('./fullrev-client.mjs?v=20261120a').then(m => m.createBrowserClient(config));
+  const ready = Promise.resolve().then(() => {
+    if (!config || config.enabled !== true) throw Object.assign(new Error('configuration-pending'), {code:'configuration-pending'});
+    return import('./fullrev-client.mjs?v=20261120a');
+  }).then(m => m.createBrowserClient(config));
   // 先掛失敗處理；設定未就緒不啟動舊專案。
   ready.catch(() => {});
   let current = null, pending = false, notify = () => {};

@@ -12,7 +12,7 @@ import {Element} from './fixtures/activity-dom.mjs';
 import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function until(check){for(let i=0;i<100;i++){if(check())return;await tick();}assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRound,restoredRound,failInitialRead=false}={}){
+async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password'}={}){
  const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,date:'2026-10-0'+(i+1)}))];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
@@ -24,6 +24,20 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:readPath});
  const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),ybsClassKeys:CLASS_HINTS})}});
  const firebase=await harness();firebase.state.uid='fake-uid-a';firebase.state.owner=false;firebase.state.hints=CLASS_HINTS;
+ const rosterReads=[];let releaseRoster;const rosterHeld=new Promise(resolve=>{releaseRoster=resolve;});
+ if(roster!==undefined){
+  const loginMethod=rosterProvider==='google.com'?'signInWithPopup':'signInWithEmailAndPassword',originalLogin=firebase.auth[loginMethod];
+  firebase.auth[loginMethod]=async()=>{
+   const credential=await originalLogin();const originalClaims=credential.user.getIdTokenResult;
+   credential.user.getIdTokenResult=async()=>{const result=await originalClaims();result.claims.email=rosterProvider==='google.com'?'cgjh9990001@cgjh.hcc.edu.tw':'cgjh9990001@ybslab-edu.github.io';return result;};return credential;
+  };
+  const originalDoc=firebase.session.db.doc;
+  firebase.session.db.doc=path=>!path.includes('/roster/')?originalDoc(path):{get:async options=>{
+   rosterReads.push({path,options});if(holdRoster)await rosterHeld;
+   if(roster instanceof Error)throw roster;
+   return {exists:roster!==null,metadata:{fromCache:!!roster?.fromCache},data:()=>roster};
+  }};
+ }
  const session=async()=>firebase.session,fetcher=async(url,init)=>{
   const op=new URL(url).pathname.slice(1);const call={op,body:JSON.parse(init.body),at:clock};calls.push(call);
   if(readFailure&&op==='controls')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
@@ -47,12 +61,13 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title})});
  const $=id=>body.querySelector('#'+id),button=label=>body.querySelectorAll('button').find(b=>b.textContent===label);
  const fill=answer=>{answer.forEach((value,k)=>{const field=$('stage').querySelectorAll('input').concat($('stage').querySelectorAll('select')).find(f=>String(f.dataset.answerField)===String(k));field.value=value;field.oninput();});};
- await client.login('password','9990001','synthetic-password');
+ await client.login(rosterProvider==='google.com'?'google':'password','9990001','synthetic-password');
  const retry=async()=>{for(let i=0;i<8&&client.state().pending;i++){const call=calls.at(-1);clock+=Number(call.retryAfter||60)*1000;await client.retry();await tick();}};
  const probeStart=async()=>{const body={...calls.find(c=>c.op==='start').body,round:1,requestId:crypto.randomUUID()};return worker.fetch(new Request('https://synthetic.invalid/start',{method:'POST',headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'},body:JSON.stringify(body)}));};
- const result={probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore,events,retry,recover:()=>{readFailure=false;},
+ const result={probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},
   interruptSecond:mode=>{secondFailure=mode;},advance:ms=>{clock+=ms;},
   reload:async()=>{events.pagehide();secondFailure=null;client=createClient(clientOptions);await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title})});await until(()=>!$('g-isme').hidden);}};
+ if(holdRoster){await until(()=>rosterReads.length===1);return result;}
  if(failInitialRead){await until(()=>!$('g-reread').hidden);return result;}
  await until(()=>!$('g-isme').hidden);assert.equal(calls.some(c=>c.op==='start'),false,'確認身分前不可建立作答 session');
  if(initialRound!==undefined)$('g-round').value=initialRound;
@@ -61,6 +76,36 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  if(!closed)await until(()=>!!client.state().snapshot);
  return result;
 }
+const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true};
+test('本人單筆名冊顯示班座、同控制版本不重讀，換人清除',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{roster:ownRoster});
+ assert.equal(h.$('who').textContent,'917 班 5 號');assert.equal(h.$('g-whotext').textContent,'你是 917 班 5 號，對嗎？');
+ assert.deepEqual(h.rosterReads,[{path:'ybsCourses/115-g9/roster/cgjh9990001@cgjh.hcc.edu.tw',options:{source:'server'}}]);
+ const count=h.calls.length;h.events.focus();await until(()=>h.calls.length>=count+3);await tick();
+ assert.equal(h.rosterReads.length,1,'focus 不增加本人名冊讀取');
+ h.db.docs.get(h.paths.global).gateVersion++;
+ h.events.focus();await until(()=>h.rosterReads.length===2);await tick();
+ assert.equal(h.$('who').textContent,'917 班 5 號','控制版本改變須重新確認班座');
+ await h.client.logout();assert.equal(h.$('who').textContent,'');assert.equal(h.$('g-whotext').textContent,'');
+});
+test('Google 學生使用自己的學校 email 讀取班座',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{roster:ownRoster,rosterProvider:'google.com'});
+ assert.equal(h.$('who').textContent,'917 班 5 號');assert.equal(h.rosterReads.length,1);
+ assert.equal(h.rosterReads[0].path,'ybsCourses/115-g9/roster/cgjh9990001@cgjh.hcc.edu.tw');
+ await h.client.logout();
+});
+test('名冊缺失、離線、快取、錯誤 subject 或班座均不顯示他人身分',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ for(const roster of [null,Error('synthetic-offline'),{...ownRoster,fromCache:true},{...ownRoster,subject:'synthetic-other'},
+  {...ownRoster,active:false},{...ownRoster,cls:'917'},{...ownRoster,seat:61}]){
+  const h=await setup(t,{roster});assert.equal(h.$('who').textContent,'已登入');assert.equal(h.$('g-isme').hidden,false);
+  assert.equal(h.rosterReads.length,1);await h.client.logout();
+ }
+});
+test('本人名冊遲到回應不得在登出後回填班座',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{roster:ownRoster,holdRoster:true});
+ await h.client.logout();h.releaseRoster();await tick();await tick();
+ assert.equal(h.$('who').textContent,'');assert.equal(h.$('g-whotext').textContent,'');assert.equal(h.$('main').hidden,true);
+});
 test('u2-05 四關：真實 Worker、舊版 DOM、429 自動恢復、錯答修正、兩組確認及可信 XP',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t);assert.ok(h.waits.includes(3000));assert.equal(h.$('gate').hidden,true);assert.equal(h.$('main').hidden,false);
  assert.ok(h.$('task-instructions'));assert.equal(h.button('重試上傳').hidden,true);assert.equal(h.button('重新開始').hidden,true);

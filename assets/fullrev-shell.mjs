@@ -77,11 +77,30 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  });
  const reread=tool('重新讀取',()=>refresh());reread.hidden=true;
  const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=()=>refresh();identityBox.append(gateReread);
+ // 每個本人／控制版本只查一次單筆名冊；不列名單、不持久保存，也不作為作答授權。
+ let person=null,personKey='';
+ async function readPerson(value){
+  const profile=client.state().profile;
+  if(!profile||profile.owner||!['google.com','password'].includes(profile.provider))return null;
+  const cacheKey=JSON.stringify([profile.uid,value.subject,value.controlVersions]);
+  if(cacheKey===personKey)return person;
+  const {auth,db}=await client.session(),user=auth.currentUser;
+  if(user?.uid!==profile.uid)return null;
+  const {claims}=await user.getIdTokenResult();
+  const provider=claims.firebase?.sign_in_provider;
+  if(provider!==profile.provider||typeof claims.email!=='string'||provider==='google.com'&&claims.email_verified!==true)return null;
+  const email=claims.email.toLowerCase();
+  if(!(provider==='password'?/^cgjh\d{3,12}@ybslab-edu\.github\.io$/:/^[a-z0-9._%+-]+@cgjh\.hcc\.edu\.tw$/).test(email))return null;
+  const ref=await db.doc(`ybsCourses/${cfg.course}/roster/${email.replace('@ybslab-edu.github.io','@cgjh.hcc.edu.tw')}`).get({source:'server'});
+  const row=ref.exists&&!ref.metadata?.fromCache&&ref.data();
+  return row?.schemaVersion===1&&row.active===true&&row.subject===value.subject
+   &&Number.isInteger(row.cls)&&row.cls>=100&&row.cls<=999&&Number.isInteger(row.seat)&&row.seat>=1&&row.seat<=60
+   ?{subject:row.subject,cls:row.cls,seat:row.seat}:null;
+ }
  function confirmIdentity(){
   const confirm=identityBox.querySelector('#g-isme'),message=identityBox.querySelector('#g-whotext');
   const valid=!!result;confirm.hidden=!valid;gateReread.hidden=valid;
   if(!valid){message.textContent='身分尚未確認，請重新讀取或告訴老師。';return;}
-  const person=snapshot.people?.find(p=>p.subject===snapshot.subject);
   if(person){$('who').textContent=person.cls+' 班 '+person.seat+' 號';message.textContent='你是 '+person.cls+' 班 '+person.seat+' 號，對嗎？';}
   else{$('who').textContent='已登入';message.textContent='已登入，準備好開始了嗎？';}
  }
@@ -189,7 +208,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   if(!client.state().profile||client.state().profile.owner)return;if(reading){refreshAgain=true;return;}
   reading=true;const n=++read,g=revision;
   try{
-   snapshot=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
+   const fresh=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
+   const cacheKey=JSON.stringify([client.state().profile.uid,fresh.subject,fresh.controlVersions]);
+   const currentPerson=await readPerson(fresh).catch(()=>null);if(n!==read||g!==revision)return;
+   snapshot=fresh;person=currentPerson;personKey=cacheKey;
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
    result=value.state==='confirmed'?value:null;reread.hidden=!!result;
    confirmIdentity();if(!result){say(explain(value));return;}
@@ -222,7 +244,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(Number(chooser.value)).then(refresh);};
  lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('details').open=true;};
- function clear(){clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ function clear(){clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();return;}
   const id=state.profile.uid+':'+state.profile.owner;

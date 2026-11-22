@@ -49,5 +49,5 @@
 .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td{display:table-cell;padding:var(--u)!important;border:1px solid var(--edge)!important;text-align:left;overflow-wrap:anywhere}
 .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td::before{content:none}
 .fullrev-activity .quest-chart-row{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
-.fullrev-activity #stage.quest-outcome .quest-work>label{display:grid!important;gap:var(--u);margin:calc(var(--u)*2) 0!important}
+.fullrev-activity #stage.quest-outcome .quest-answers>label{display:grid!important;gap:var(--u);margin:0!important}
 .fullrev-activity #stage.quest-outcome .quest-work>details{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}

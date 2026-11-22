@@ -94,7 +94,7 @@ test('completed 回條尚未確認進度時不出現過關或 XP；登出後延�
 test('試算表活動使用同一外框與原 renderer，不帶問卷專用文案',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{activityId:8});
  assert.equal(h.$('activity-title').textContent,MANAGED_ACTIVITIES.find(a=>a.activity===8).title);
- assert.doesNotMatch(h.$('main').textContent,/虛構音樂活動團隊|前測完成前/);
+ assert.doesNotMatch(h.$('main').textContent,/做一份可以填寫的問卷|前測完成前/);
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();assert.equal(h.$('verdict').className,'verdict mid');
  h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
  assert.equal(h.$('xp-total').textContent,'15 XP');
@@ -102,7 +102,7 @@ test('試算表活動使用同一外框與原 renderer，不帶問卷專用文�
 
 test('問卷、試算表與媒體的備用紀錄只存本機，不送出或採計',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const activityId of [7,8,9]){
-  const h=await setup(t,{activityId}),calls=h.calls.length;
+  const h=await setup(t,{activityId,...(activityId===7?{initialRound:1}:{})}),calls=h.calls.length;
   const session=structuredClone(h.db.docs.get(h.paths.head('synthetic-a')).activeSession);
   h.button('使用備用素材並記錄').onclick();await tick();
   assert.equal(h.calls.length,calls,'備用操作不得呼叫 Worker');
@@ -181,4 +181,61 @@ test('暖身與成果題面保留舊版表格、圖表排列，不使用手機�
  assert.equal(h.$('stage').querySelectorAll('.quest-chart-row').length,3);assert.ok(h.$('stage').querySelector('.quest-table'));
  const calls=h.calls.length;h.button('開始暖身').onclick();assert.match(h.$('warmup').textContent,/暖身 1／3/);h.button('還記得').onclick();assert.match(h.$('warmup').textContent,/暖身 2／3/);h.button('跳過暖身').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
  await h.client.logout();assert.equal(h.$('warmup').hidden,false);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
+});
+
+
+test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排列與題面版本一致',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ for(const activityId of [7,8,9]){
+  const h=await setup(t,{activityId}),note=h.$('stage').querySelector('.quest-note');
+  const page=await readFile(new URL(`../115-g9/u2-0${activityId-2}/index.html`,import.meta.url),'utf8');
+  const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1];
+  assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄摺疊及課堂安排');
+  assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
+  assert.equal(h.$('warmup').hidden,false,'預設不得跳過暖身');
+  assert.equal(h.$('activity-tools').hidden,true,'一般學生不顯示空的教師工具選單');
+  assert.equal(h.$('sync').textContent,'✓ 雲端紀錄已確認');assert.equal(h.$('sync').className,'sync ok');
+  assert.equal(h.$('who').textContent,'已登入','目前學生 Worker 回應無班座，不可從 subject 或 classKey 猜測');
+  const session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[0].data;
+  const task=d.guide.match(/任務\s+(\d+-\d+)/)[1],work=h.$('stage').querySelector('.quest-work');
+  assert.equal(work.firstChild.textContent,'示意任務 '+task);
+  const answers=work.querySelector('.quest-answers');assert.equal(answers.querySelectorAll('label').length,d.questions.length);
+  const children=work.childNodes.filter(n=>n.nodeType===1),fallback=work.querySelector('.quest-fallback');
+  assert.ok(fallback);assert.equal(fallback.hidden,activityId===7,'舊問卷第 1 關只讀表，無備用素材；實作關保留');assert.equal(children.at(-1),answers);assert.equal(answers.previousElementSibling,fallback);
+  if(activityId===7){
+   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','P','UL','DETAILS','DIV']);
+   assert.equal(children[1].querySelector('caption').textContent,'原始回覆（示意）');
+   assert.equal(children[2].textContent,'統計圖（由同一份回覆計算；單位：人）');
+   assert.equal(children[3].className,'quest-chart');
+   assert.equal(children[3].querySelectorAll('li').length,d.chartNames.length);
+   assert.ok(!work.textContent.includes(d.passages.join('')),'不再重述任務目標');
+  }
+ }
+});
+test('確認過關才顯示舊版上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{holdProgress:true});
+ assert.match(h.$('xp-level').textContent,/^Lv 1 /);assert.equal(h.$('xp-progress').hidden,false);
+ h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
+ await until(()=>h.calls.filter(c=>c.op==='progress').length===3);
+ assert.match(h.$('sync').textContent,/上傳中/);assert.doesNotMatch(h.$('sync').textContent,/紀錄已上傳給老師/);
+ h.release();await until(()=>h.$('verdict').className==='verdict ok');
+ assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('sync').className,'sync ok');
+ await h.client.logout();assert.equal(h.$('sync').hidden,true);assert.equal(h.$('xp-header').hidden,true);
+});
+test('截圖腳本新舊均保留暖身並等待成長紀錄完成載入',async()=>{
+ const source=await readFile(new URL('../tools/dev/capture-fullrev-oldlook.mjs',import.meta.url),'utf8');
+ assert.doesNotMatch(source,/skip\.click\(|name:'跳過暖身'/);
+ assert.equal(source.match(/page\.locator\('#warmup'\)\.waitFor\(\)/g).length,2);
+ const mock=await readFile(new URL('../tools/dev/firebase-mock.js',import.meta.url),'utf8');
+ const context=vm.createContext({sessionStorage:store(),queueMicrotask});vm.runInContext('window=globalThis',context);
+ const helper=source.match(/function oldXPQueryMock\(\)\{([\s\S]*?)\n\}/)[0];
+ vm.runInContext(mock+'\n'+helper+'\noldXPQueryMock();',context);
+ const db=vm.runInContext('firebase.initializeApp({}).firestore()',context);
+ const empty=await db.collection('ybsCourses/115-g9/attempts').where('uid','==','synthetic-a').get();
+ assert.equal(empty.metadata.fromCache,false);assert.equal(empty.docs.length,0,'空紀錄也應確認載入完成');
+ const documents=vm.runInContext('__firebaseMock.documents',context);
+ documents.set('ybsCourses/115-g9/attempts/a',{uid:'synthetic-a'});
+ documents.set('ybsCourses/115-g9/attempts/b',{uid:'synthetic-b'});
+ const result=await db.collection('ybsCourses/115-g9/attempts').where('uid','==','synthetic-a').get();
+ assert.equal(result.metadata.fromCache,false);assert.equal(result.docs.length,1);assert.equal(result.docs[0].data().uid,'synthetic-a');
+ assert.match(source,/xp-total.*endsWith\(' XP'\)/);
 });

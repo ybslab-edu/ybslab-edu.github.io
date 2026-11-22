@@ -16,6 +16,8 @@ for(const [label,activities,build,result] of [['第1批',BATCH1,buildBatch1,{act
     const html=await readFile(join(output,a.file),'utf8');
     assert.match(html,new RegExp(`"week":${a.activity}`));assert.ok(html.includes(config.workerOrigin));
     assert.match(html,new RegExp(`frame-src https://${config.firebase.projectId}.firebaseapp.com`));
+    const policy=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+    assert.ok(policy.split(';').find(s=>s.trim().startsWith('script-src ')).split(/\s+/).includes('https://apis.google.com'),a.file);
     assert.doesNotMatch(html,/const ROUNDS|gen\(|check\(|fill:|teacher\.js|lock\.js|shell\.js|warmup|TEACHER|sol:|ans:/);
     assert.match(html,/YBS.mountActivity/);
   }

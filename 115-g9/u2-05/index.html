@@ -78,7 +78,7 @@ function qTwoExpected(i){return [i.audience,i.dataType,i.fields.filter(f=>f.keep
 function qThreeExpected(i){return ['告知與同意','提交表單',i.parent,'志工安排',...i.questions.map(q=>q.type),i.questions.filter(q=>q.required).length]}
 function qFourExpected(i){return [...i.changes.map(c=>c.ok?'可用主題設定完成':'需改用其他方式'),'作答者連結','連結至試算表',i.rows.filter(r=>r[1]===i.job&&r[2]===i.slot).length,'不會']}
 const ROUNDS=[
- {lv:1,name:'這份回覆能告訴你什麼',now:'你收到兩組報名回覆，要替主辦方比較職務意願。',goal:'讀表與兩組長條圖，判斷各組最高職務、數量與資料／資訊。',
+ {lv:1,name:'報名回覆藏著什麼',now:'你收到兩組報名回覆，要替主辦方比較職務意願。',goal:'讀表與兩組長條圖，判斷各組最高職務、數量與資料／資訊。',
  tip:'先辨認組別，再比較同組長條；原始紀錄與計算、分析後的內容不同。',
  steps:i=>'<p>任務 '+i.t+'：將 '+i.rows.length+' 筆回覆按組別與職務分開計數，再比較長條；不能用其中一組代表另一組。</p>',learn:'你能把原始回覆整理成資訊，並保留組別差異。',
  gen(rnd){const n=qVersion(rnd),a=n%3,b=(a+1)%3;const rows=[];for(let g=0;g<2;g++)for(let j=0;j<3;j++){const count=j===(g?b:a)?4+Math.floor(n/3):1+((n+g+j)%2);for(let k=0;k<count;k++)rows.push([qGroups[g],qJobs[j]])}return {t:'1-'+(n+1),rows,query:n%3,group:n%2}},
@@ -86,19 +86,19 @@ const ROUNDS=[
  {label:'國中組最多人選哪個職務？',options:qJobs},{label:'高中組最多人選哪個職務？',options:qJobs},{label:qGroups[i.group]+'選「'+qJobs[i.query]+'」的有幾人？'},{label:'兩組選「'+qJobs[i.query]+'」的人數相差幾人？'},
  {label:'「第 1 筆原始回答：'+i.rows[0].join('、')+'」屬於？',options:['資料','資訊']},{label:'「計算後，'+qGroups[i.group]+'有 '+qCounts(i,i.group)[i.query]+' 人選'+qJobs[i.query]+'」屬於？',options:['資料','資訊']},{label:'「比較後，兩組最熱門職務不同」屬於？',options:['資料','資訊']}],qOneExpected(i))},
  check:(i,a)=>qCheck(a,qOneExpected(i),['請只比較國中組的三條長條。','請只比較高中組的三條長條。','請先核對組別和職務，再逐列計數。','請比較同一職務的兩個組別人數。',...Array(3).fill('請判斷這句是否保留原始回答，或已經計算、比較。')])},
- {lv:1,name:'只問這次需要知道的事',now:'你要依委託目的，審查報名對象、欄位與蒐集方式。',goal:'選對對象和數據類型，逐欄判斷是否該收，再找出違反的原則。',
+ {lv:1,name:'志工資料只收必要的',now:'你要依委託目的，審查報名對象、欄位與蒐集方式。',goal:'選對對象和數據類型，逐欄判斷是否該收，再找出違反的原則。',
  tip:'必要性由用途決定；緊急聯絡有安全用途，但不能因此多收無關資料。',steps:i=>'<p>任務 '+i.t+'：逐項對照「'+i.audience+'」的需求，審查 '+i.fields.length+' 個問題，再區分三種蒐集原則。</p>',learn:'你能把蒐集範圍限於目的，並檢查告知與同意。',
  gen(rnd){const n=qVersion(rnd),slot=n%2?'下午場 13:00–17:00':'上午場 09:00–12:00',audience=n&2?'兩個時段皆能到場的志工申請者':slot+'能到場的志工申請者',dataType=n&4?'職務操作熟悉度（1～5 分）':'可到場時段（類別）';return {t:'2-'+(n+1),slot,audience,dataType,fields:[{name:'可到場時段',keep:true},{name:'職務意願',keep:true},{name:'緊急聯絡人及聯絡方式',keep:true},{name:n%2?'社群帳號密碼':'家庭每月收入',keep:false},{name:'職務操作熟悉度',keep:!!(n&4)},{name:'最喜歡的角色生日',keep:false}],cases:[{text:'用途欄只寫「填完有好禮」，沒有說明資料如何使用。',rule:'告知'},{text:'窗口說：「都是社團朋友，直接用舊通訊錄替大家報名，不用取得同意。」',rule:'同意'},{text:'除了排班和緊急聯繫，還要求提供家中財務狀況。',rule:'限制蒐集'}]}},
  view(i,el,api){return qView(i,el,api,'<p>委託：招募'+i.audience+'，依職務意願與時段排班，並在活動突發狀況時緊急聯繫。'+(i.dataType.startsWith('職務')?'本組另需依操作熟悉度安排培訓。':'本組不依熟悉度安排培訓；先掌握可到場時段。')+'資料只供招募窗口排班、必要培訓與緊急聯繫，活動結束 30 天後刪除。</p>'+qTable('待審查的問題',['編號','問題欄位'],i.fields.map((f,k)=>[k+1,f.name])),[
  {label:'這次應向誰蒐集？',options:[i.audience,'所有展覽觀眾','所有攤商負責人']},{label:'依本組額外需求／優先目標，應取得哪種數據？',options:[i.dataType,i.dataType.startsWith('職務')?'最愛作品（文字）':'觀看動畫時間（分鐘）','家庭財務狀況（金額）']},{label:'總共該保留幾個欄位？'},...i.fields.map(f=>({label:'「'+f.name+'」該收嗎？',options:['該收','不該收']})),...i.cases.map(c=>({label:c.text+' 主要違反哪個原則？',options:['告知','同意','限制蒐集']}))],qTwoExpected(i),'<p>招募窗口阿岑的需求單：確認到場能力、職務分配與必要培訓；緊急聯絡人只供當天突發狀況使用，不作行銷。請審查問題欄位，不必填入任何聯絡內容。</p>')},
  check:(i,a)=>qCheck(a,qTwoExpected(i),['請確認委託需要誰的到場與職務資料。','請看本組要安排培訓，還是先掌握時段。','請逐項對照目的，再計算保留欄位。',...i.fields.map(()=> '請對照排班、培訓或緊急聯繫用途；與人有關不代表一定不能收。'),...i.cases.map(()=> '請區分用途未說明、未取得允許及超出目的三種問題。')])},
- {lv:2,name:'讓不同回答走到對的地方',now:'你接手的表單把同意書放錯位置，分流與題型也有錯。',goal:'修正第一區段、兩條分流、五種題型，並計算志工安排的必填題數。',
+ {lv:2,name:'讓每位報名者走對路',now:'你接手的表單把同意書放錯位置，分流與題型也有錯。',goal:'修正第一區段、兩條分流、五種題型，並計算志工安排的必填題數。',
  tip:'先決定誰能看到報名題；題型取決於能選幾個、是否短文字或逐列評分。',steps:i=>'<p>任務 '+i.t+'：先追蹤年齡分流到「'+i.parent+'」的路徑，再檢查 '+i.questions.length+' 題的回答要求與必填標記。</p>',learn:'你能用區段控制路徑，用題型與必填確保回覆符合需求。',
  gen(rnd){const n=qVersion(rnd);return {t:'3-'+(n+1),parent:'家長同意確認'+(n%2?' A':' B'),questions:[{name:'報名代號',need:'輸入一小段文字',type:'簡答',required:true},{name:'第一志願職務',need:'只能選一項',type:'選擇題',required:true},{name:'可到場時段',need:'可以同時勾選上午與下午',type:'核取方塊',required:true},{name:'服務期待程度',need:'在 1～'+(5+n%3)+' 分選一個分數，兩端標示低與高',type:'線性刻度',required:!!(n&2)},{name:'各職務操作熟悉度',need:'每列一個職務，每列只選一個熟悉程度',type:'單選方格',required:!!(n&4)}]}},
  view(i,el,api){const spec=qTable('志工安排修復規格',['題目','需要的回答方式','填答要求'],i.questions.map(q=>[q.name,q.need,q.required?'必填':'選填']));return qView(i,el,api,'<p>草稿錯誤：先問志工安排，再顯示告知與同意；不同意者仍進入報名題；未滿 18 歲者略過家長確認；所有題目都設成簡答且必填。</p><p>你的修復規格：第一區段取得同意。不同意即提交；同意者進「年齡分流」，已滿 18 歲進「志工安排」，未滿 18 歲先進「'+i.parent+'」，取得家長同意後才進「志工安排」，未取得則提交。年齡分流使用選擇題。</p>'+spec,[
  {label:'第一區段應放什麼？',options:['志工安排','告知與同意','年齡分流']},{label:'不同意應前往哪裡？',options:['提交表單','志工安排',i.parent]},{label:'同意但未滿 18 歲應先前往哪裡？',options:['志工安排',i.parent,'提交表單']},{label:'已取得家長同意，下一區段是？',options:['志工安排','告知與同意','提交表單']},...i.questions.map(q=>({label:'「'+q.name+'」應改成哪種題型？',options:qTypes})),{label:'「志工安排」區段應有幾題必填（不含其他區段）？'}],qThreeExpected(i),'<p>表單區段清單：志工安排／年齡分流／'+i.parent+'／告知與同意。請依修復規格重新安排；分流用選擇題「根據答案前往相關區段」，不可用核取方塊代替。</p>')},
  check:(i,a)=>qCheck(a,qThreeExpected(i),['請想填答者應在交出資料前先知道並決定什麼。','請從不同意開始追蹤，確認不進報名題。','請查未成年者需要先完成的確認。','請依取得家長同意後的路徑繼續。',...i.questions.map(()=> '請對照可選數量、文字長度與逐列作答需求。'),'請只計算志工安排規格中標成必填的題目。'])},
- {lv:2,name:'外觀改好了，資料有接上嗎',now:'你要把表單交給招募窗口，確認外觀需求、分享權限與回覆。',goal:'判斷三個外觀需求、選對分享方式，並用兩個條件計算人數。',
+ {lv:2,name:'上線招募前最後檢查',now:'你要把表單交給招募窗口，確認外觀需求、分享權限與回覆。',goal:'判斷三個外觀需求、選對分享方式，並用兩個條件計算人數。',
  tip:'主題設定與題目內容分開；同時符合職務和時段才計入，不能只篩一欄。',steps:i=>'<p>任務 '+i.t+'：先核對三項主題需求與連結用途，再從 '+i.rows.length+' 筆回覆找出職務「'+i.job+'」且時段「'+i.slot+'」的列。</p>',learn:'你能分享正確連結，並從連結的試算表核對回覆；下一步是整理資料。',
  gen(rnd){const n=qVersion(rnd),job=qJobs[n%3],slot=n&1?'下午場':'上午場';return {t:'4-'+(n+1),job,slot,changes:[{text:n&2?'換成展覽首頁圖片':'設定表單背景顏色',ok:true},{text:n&4?'調整標題的文字樣式':'調整表單主題顏色',ok:true},{text:'只把題目文字改成指定紅色，保留原主題與背景',ok:false}],rows:Array.from({length:8},(_,k)=>['V'+(k+1),k<2+n%3?job:qJobs[(n+1)%3],k%3===0?slot:(slot==='上午場'?'下午場':'上午場')])}},
  view(i,el,api){return qView(i,el,api,'<p>你已收到三項外觀需求。請判斷能否由 Google 表單「自訂主題」完成，再確認招募分享與排班回覆。</p>'+qTable('回覆連結至試算表後的節錄',['報名代號','第一志願職務','可到場時段'],i.rows),[

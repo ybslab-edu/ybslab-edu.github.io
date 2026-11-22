@@ -275,8 +275,8 @@ export function renderQuestion(q,host,api={changed(){}}) {
   const d=q.data;host.dataset.questionType=q.type;host.dataset.slot=q.slot;
   section(host,d.heading||q.title,d.story||q.instruction);
   if(q.type==='finite-bank-v1') {
-    section(host,'任務',d.task);section(host,'提示',d.hint);
-    if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
+    if(!api.shell){section(host,'任務',d.task);section(host,'提示',d.hint);}
+    if(d.guide&&!api.shell){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
     if(d.mode?.startsWith('recording-'))return renderRecording(q,host,api);
@@ -344,5 +344,5 @@ export function renderQuestion(q,host,api={changed(){}}) {
 export function activityConfig(cfg) {
   let entry=MANAGED_ACTIVITIES.find(a=>a.activity===cfg.week&&cfg.course==='115-g9');
   if(cfg.course==='115-g9'&&cfg.week===4)entry={...entry,managed:[0,1,2,3]};
-  return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
+  return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({...cfg.rounds?.[r],name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
 }

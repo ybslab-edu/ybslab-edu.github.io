@@ -77,11 +77,12 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
 test('PR8 read adapter authenticates fresh identity, never lists Firestore or falls back on 503',async()=>{
  let user={getIdToken:async()=> 'synthetic'},requests=[];
  const auth={get currentUser(){return user;}},session=async()=>({app:{options:{projectId:config.firebase.projectId}},auth});
- const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher:async(url,init)=>{requests.push({url,init});return Response.json({error:'temporarily_unavailable'},{status:503});}});
+ const waits=[];
+ const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,wait:async ms=>waits.push(ms),fetcher:async(url,init)=>{requests.push({url,init});return Response.json({error:'temporarily_unavailable'},{status:503});}});
  await assert.rejects(model.context({course:'115-g9',classKey:'c901',activity:5,round:0}),{code:'read-model-pending'});
- assert.equal(requests.length,1);assert.equal(requests[0].url.pathname,'/context');assert.equal(requests[0].init.redirect,'error');
- assert.throws(()=>model.controls({course:'115-df',classKey:'c901'}),{code:'invalid-course'});assert.equal(requests.length,1);
- user=null;await assert.rejects(model.controls({course:'115-g9',classKey:'c901'}),{code:'login-required'});assert.equal(requests.length,1);
+ assert.equal(requests.length,4);assert.deepEqual(waits,[1000,2000,4000]);assert.equal(requests[0].url.pathname,'/context');assert.equal(requests[0].init.redirect,'error');
+ assert.throws(()=>model.controls({course:'115-df',classKey:'c901'}),{code:'invalid-course'});assert.equal(requests.length,4);
+ user=null;await assert.rejects(model.controls({course:'115-g9',classKey:'c901'}),{code:'login-required'});assert.equal(requests.length,4);
 });
 
 test('DF 60-second cooldown preserves changed draft, identical receipt is idempotent, retry after interval succeeds',async t=>{

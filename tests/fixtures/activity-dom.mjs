@@ -58,7 +58,7 @@ export class Element {
     if(selector.includes('>')){const parts=selector.split('>');return this.matches(parts.pop().trim())&&!!this.parentElement?.matches(parts.join('>').trim())}
     if(selector.includes(' ')){const parts=selector.split(' ');return this.matches(parts.pop())&&!!this.parentElement?.closest(parts.join(' '))}
     const attrs=[...selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g)];
-    if(!attrs.every(([,k,v])=>this[k]!==undefined&&(v===undefined||this[k]===v)))return false;
+    if(!attrs.every(([,k,v])=>{const value=k.startsWith('data-')?this.dataset[k.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]??this[k]:this[k];return value!==undefined&&(v===undefined||String(value)===v)}))return false;
     selector=selector.replace(/\[[^\]]+\]/g,'');
     if(selector.startsWith('#'))return this.id===selector.slice(1);
     if(selector.startsWith('.'))return selector.slice(1).split('.').every(c=>(this.className||'').split(' ').includes(c));
@@ -66,7 +66,8 @@ export class Element {
   }
   closest(selector){return this.matches(selector)?this:this.parentElement?.closest(selector)||null}
   appendChild(el){this.append(el);return el}
-  append(el){if(el.parentElement){const a=el.parentElement.childNodes;a.splice(a.indexOf(el),1)}el.parentElement=this;this.childNodes.push(el)}
+  append(...elements){for(const el of elements){if(el.parentElement){const a=el.parentElement.childNodes;a.splice(a.indexOf(el),1)}el.parentElement=this;this.childNodes.push(el)}}
+  replaceChildren(...elements){this.childNodes.forEach(el=>el.parentElement=null);this.childNodes=[];this.append(...elements)}
   get previousElementSibling(){const a=this.parentElement.childNodes.filter(n=>n.nodeType===1);return a[a.indexOf(this)-1]}
   get parentNode(){return this.parentElement}
   get lastElementChild(){return this.childNodes.filter(n=>n.nodeType===1).at(-1)}

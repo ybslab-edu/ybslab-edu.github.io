@@ -31,6 +31,19 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const identityBox=node('div');identityBox.id='g-who';identityBox.hidden=true;identityBox.innerHTML='<p id="g-whotext" aria-live="polite"></p><div class="btns" style="justify-content:center"><button type="button" class="btn" id="g-notme">不是我</button><button type="button" class="btn primary" id="g-isme" hidden>對，開始</button></div>';gate.append(identityBox);
  const main=node('div');main.className='wrap fullrev-activity';main.id='main';main.hidden=true;
  main.innerHTML=`<header class="top"><div class="activity-heading"><div class="title-rounds"><h1 id="activity-title"></h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div><div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">教師／登入不了</summary></details></div></div><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-mono" id="xp-total">載入中…</span><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next">等待雲端紀錄</span></a></aside></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><div id="stage"></div><div class="btns"><button class="btn primary" id="b-send" type="button" disabled>送出</button><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint"></span></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>`;
+ let clientWarmupReset=()=>{};
+ // 暖身只用公開活動導覽做回想，不載入舊站答案題庫，也不上傳。
+ const previous=typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course&&a.date&&activity?.date&&a.date<activity.date&&(typeof isActivityOpen!=='function'||isActivityOpen(a))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+ if(previous.length){
+  const warm=node('section');warm.id='warmup';warm.className='warmup';
+  const resetWarmup=()=>{warm.replaceChildren(node('h2','開場暖身 '+previous.length+' 題'));para(warm,'快速複習前幾週，可隨時跳過；不影響過關、成績或 XP，答案不上傳。');
+   const skip=node('button','跳過暖身'),begin=node('button','開始暖身');skip.type=begin.type='button';skip.className=begin.className='btn';skip.onclick=()=>{warm.hidden=true;};
+   const show=i=>{warm.replaceChildren(node('h2','暖身 '+(i+1)+'／'+previous.length));para(warm,'回想「'+previous[i].title+'」：你用了什麼方法完成任務？');
+    for(const label of ['還記得','想再複習','跳過暖身']){const b=node('button',label);b.type='button';b.className='btn';b.onclick=()=>{if(label==='跳過暖身'||i+1===previous.length)warm.hidden=true;else show(i+1);};warm.append(b);}};
+   begin.onclick=()=>show(0);warm.append(skip,begin);};resetWarmup();
+  main.querySelector('header').insertAdjacentHTML('afterend','<div id="warmup-slot"></div>');main.querySelector('#warmup-slot').append(warm);
+  clientWarmupReset=()=>{warm.hidden=false;resetWarmup();};
+ }
  const lock=node('div');lock.id='activity-lock';lock.hidden=true;
  lock.innerHTML=`<div><h1>這個活動還沒開放</h1><p>請回到 YBS Lab 首頁，做老師這週指定的活動。</p><p><a href="/">← 回 YBS Lab 首頁</a></p><p class="activity-unlock"><button type="button" class="linkbtn">教師解鎖</button></p></div>`;
  document.body.replaceChildren(gate,main,lock);
@@ -57,6 +70,15 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   stage.append(node('h3','這一關的說明'));if(typeof cfg.demonstrate==='function')cfg.demonstrate(stage);else para(stage,'請依這一關的任務說明練習。');
  });
  const reread=tool('重新讀取',()=>refresh());reread.hidden=true;
+ const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=()=>refresh();identityBox.append(gateReread);
+ function confirmIdentity(){
+  const confirm=identityBox.querySelector('#g-isme'),message=identityBox.querySelector('#g-whotext');
+  const valid=!!result;confirm.hidden=!valid;gateReread.hidden=valid;
+  if(!valid){message.textContent='身分尚未確認，請重新讀取或告訴老師。';return;}
+  const person=snapshot.people?.find(p=>p.subject===snapshot.subject);
+  if(person){$('who').textContent=person.cls+' 班 '+person.seat+' 號';message.textContent='你是 '+person.cls+' 班 '+person.seat+' 號，對嗎？';}
+  else message.textContent='已登入，準備好開始了嗎？';
+ }
  function controls(){
   const state=client.state(),changed=handle&&JSON.stringify(handle.get())!==sentValue;
   send.disabled=!handle||(handle.ready&&!handle.ready())||mode!=='working'||state.pending||['sending','restart-required','stale'].includes(state.status)||starting||!changed&&submitted;
@@ -81,11 +103,31 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  function instructions(){
   $('says').replaceChildren();['現在','要做到'].forEach((label,k)=>{const span=node('span');span.className='tk';span.append(node('b',label),node('span',[info().now||last?.question?.instruction||info().name,info().goal||last?.question?.data?.task||'完成兩組不同資料。'][k]));$('says').append(span);});
  }
+ function layoutOutcome(d){
+  if(!d?.questions||!d.kinds)return;
+  stage.classList.add('quest-outcome');
+  const intro=stage.querySelector('.panel'),work=node('div');work.className='quest-work panel';
+  if(intro){intro.className='quest-note';const heading=intro.querySelector('h3');if(heading)heading.hidden=true;}
+  const tables=stage.querySelectorAll('.fullrev-outcome-table');
+  tables.forEach(wrap=>{const t=wrap.querySelector('table');t.className='quest-table';});
+  let chartLabel=null;
+  if(d.chartNames){
+   const chart=stage.querySelector('[aria-label="人數長條圖"]');chart.replaceChildren();chart.className='quest-chart';
+   const total=d.chartCounts.reduce((sum,n)=>sum+n,0);chartLabel=para(stage,'統計圖（由同一份回覆計算；單位：人）');
+   d.chartNames.forEach((name,k)=>{const row=node('div'),track=node('span'),bar=node('span');row.className='quest-chart-row';track.className='track';bar.className='bar';bar.style.width=d.chartCounts[k]/total*100+'%';track.append(bar);row.append(node('span',name),track,node('span',d.chartCounts[k]+' 人'));chart.append(row);});
+  }
+  const children=[...stage.childNodes].filter(e=>e.nodeType===1&&e!==intro);
+  const chart=stage.querySelector('.quest-chart');
+  work.append(node('h3',text(d.guide).match(/任務\s+(\d+-\d+)/)?.[0]||d.heading||info().name));
+  if(tables.length&&d.indexRows){const caption=node('caption','原始回覆（示意）');tables[0].querySelector('table').append(caption);}
+  for(const el of children){if(el===chartLabel&&chart)continue;if(el===chart&&chartLabel)work.append(chartLabel);work.append(el);}
+  stage.append(work);
+ }
  function showQuestion(value){
-  stage.dataset.round=round;
+  stage.classList.remove('quest-outcome');stage.dataset.round=round;
   const carry=handle?.carry?.();handle?.dispose?.();stage.replaceChildren();handle=null;
   if(typeof cfg.renderQuestion!=='function')throw Error('renderer-pending');
-  handle=cfg.renderQuestion(value.question,stage,{changed:controls,carry:value.photoAnswer||value.performanceOrder||carry,demonstration:false,shell:true});mode='working';sentValue='';submitted=false;verdict.hidden=true;count(value.question.slot);instructions();hints();controls();
+  handle=cfg.renderQuestion(value.question,stage,{changed:controls,carry:value.photoAnswer||value.performanceOrder||carry,demonstration:false,shell:true});layoutOutcome(value.question.data);mode='working';sentValue='';submitted=false;verdict.hidden=true;count(value.question.slot);instructions();hints();controls();
  }
  function problem(e){
   if(e.code==='identity-changed'||!client.state().profile)return;
@@ -128,14 +170,18 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    snapshot=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
    result=value.state==='confirmed'?value:null;reread.hidden=!!result;
-   if(!result){say(explain(value));return;}
+   confirmIdentity();if(!result){say(explain(value));return;}
    $('xp-header').hidden=false;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
    rounds();if(last?.completed)passed();else say('');
-  }catch(e){if(n===read&&g===revision){result=null;reread.hidden=false;problem(e);}}
+  }catch(e){if(n===read&&g===revision){result=null;reread.hidden=false;confirmIdentity();problem(e);}}
   finally{if(n===read){reading=false;if(refreshAgain){refreshAgain=false;refresh();}}}
  }
  async function start(i=round,reopen=false){
-  if(starting)return;round=i;chooser.value=i;
+  // 待送時保留目前題面；重整後尚無題面，須讓 client.start 續傳同關草稿。
+  if(starting||client.state().pending&&(handle||i!==round||reopen))return;
+  // Worker 一次只保留一個作答 session；先續作原關，保留答案與累積次數。
+  if(i!==round&&last&&!last.completed){say('請先完成第 '+(round+1)+' 關，再切換其他關卡；目前答案已保留。');return;}
+  round=i;chooser.value=i;
   try{sessionStorage.setItem(roundKey(),String(i));}catch{}
   const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;last=null;key='';mode='loading';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
   if(client.state().profile?.owner){starting=false;mode='practice';controls();practice.onclick();return;}
@@ -154,7 +200,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(Number(chooser.value)).then(refresh);};
  lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('details').open=true;};
- function clear(){clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ function clear(){clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();return;}
   const id=state.profile.uid+':'+state.profile.owner;
@@ -164,14 +210,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    else{
     gate.hidden=false;main.hidden=true;login.hidden=true;identityBox.hidden=false;
     const message=identityBox.querySelector('#g-whotext'),confirm=identityBox.querySelector('#g-isme');confirm.hidden=true;message.textContent='正在確認你的身分…';
-    (async()=>{try{
-     // 身分由可信名冊確認；所選關卡的開放與授權在 start 時檢查。
-     await refresh();if(identity!==id)return;
-     const person=snapshot?.people?.find(p=>p.subject===snapshot.subject);
-     if(!snapshot){message.textContent='身分尚未確認，請重新登入或告訴老師。';return;}
-     if(person){$('who').textContent=person.cls+' 班 '+person.seat+' 號';message.textContent='你是 '+person.cls+' 班 '+person.seat+' 號，對嗎？';}
-     else message.textContent='已登入，準備好開始了嗎？';confirm.hidden=false;
-    }catch(e){if(identity===id){message.textContent=explain(e);problem(e);}}})();
+    refresh();
    }
   }
   if(state.status==='stale'){clear();identity='';return;}

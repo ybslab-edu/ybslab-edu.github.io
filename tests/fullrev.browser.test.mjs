@@ -8,7 +8,7 @@ const coursePages=[...new Set([...MANAGED_ACTIVITIES,...BATCH8].map(a=>'/'+a.fil
   '/115-g9/me/index.html','/115-g9/teacher/index.html','/115-g9/teacher/report/index.html','/115-df/teacher/index.html'];
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let server,browser,base;
-const html=`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><body>
+const html=`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/assets/shell.css"><body>
 <script src="/assets/xp.js"></script><script src="/assets/vendor/xlsx-0.20.3.full.min.js"></script><script>const ACTIVITIES=[{course:'115-g9',week:5,unit:2,title:'合成活動',rounds:['甲','乙','丙','丁'],codes:[]}];</script>
 <script type="module">
 import {harness,snapshot,record,response} from '/tests/fixtures/fullrev.mjs';

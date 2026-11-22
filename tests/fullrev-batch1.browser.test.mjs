@@ -114,8 +114,12 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       const outcome=['form-','sheet-','media-'].some(prefix=>q.questions[0].data.mode?.startsWith(prefix));
       if(outcome){
         assert.match(await page.locator('body').innerText(),/抽查|抽看/);
-        const requests=current.requests.length;await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
-        assert.equal(current.requests.length,requests,'備用紀錄不可上傳或採計');assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+        const requests=current.requests.length,session=structuredClone(q);
+        // 開始後的背景進度查詢可能尚未結束；只允許原有唯讀請求，備用操作不得送出答案或變更 session。
+        await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
+        assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[],'備用紀錄不可上傳或採計');
+        assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session,'備用紀錄不可變更作答或累計答對');
+        assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
         assert.ok(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.endsWith(':fallback:v1')&&localStorage.getItem(k).includes('未實際操作'))));
         for(const file of q.questions[0].data.assets||[]){
           const link=page.locator(`[data-material="${file[0]}"]`);await link.waitFor();
@@ -202,7 +206,11 @@ test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回�
         await page.route('**/worker/answer',route=>{const b=route.request().postDataJSON();return b.slot===1?route.abort():route.continue();});
         await page.evaluate(({activity,order})=>app.client.answer(activity,0,order),{activity,order});
       }else{
-        current.dropSecond=true;await fill(page,'finite-bank-v1',order);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
+        current.dropSecond=true;await fill(page,'finite-bank-v1',order);
+        // 第一槽送出也會顯示「上傳中」；須等到第二槽的遺失回應，才檢查已寫入的唯一成績。
+        const lostResponse=page.waitForResponse(r=>r.url()===base+'/worker/answer'&&r.request().postDataJSON().slot===1&&r.status()===503);
+        await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();await lostResponse;
+        await page.waitForFunction(()=>app.client.state().status==='pending');
         await page.getByText('上傳中，請稍候，答案已保留。',{exact:true}).waitFor();
         assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
         assert.equal(await page.locator('#xp-total').filter({hasText:'15 XP'}).count(),0,'失去成功回應不可先顯示過關');

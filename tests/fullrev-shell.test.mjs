@@ -87,6 +87,18 @@ test('試算表活動使用同一外框與原 renderer，不帶問卷專用文�
  assert.equal(h.$('xp-total').textContent,'15 XP');
 });
 
+test('問卷、試算表與媒體的備用紀錄只存本機，不送出或採計',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ for(const activityId of [7,8,9]){
+  const h=await setup(t,{activityId}),calls=h.calls.length;
+  const session=structuredClone(h.db.docs.get(h.paths.head('synthetic-a')).activeSession);
+  h.button('使用備用素材並記錄').onclick();await tick();
+  assert.equal(h.calls.length,calls,'備用操作不得呼叫 Worker');
+  assert.deepEqual(h.db.docs.get(h.paths.head('synthetic-a')).activeSession,session);
+  assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+  assert.match(localStorage.getItem(`ybs:u2-0${activityId-2}:fallback:v1`),/未實際操作/);
+ }
+});
+
 test('直接選第 3 關與重整還原，不先建立第 0 關 session',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{initialRound:2});
  assert.equal(h.$('stage').dataset.round,2);assert.ok(h.calls.filter(c=>c.op==='start').every(c=>c.body.round===2));

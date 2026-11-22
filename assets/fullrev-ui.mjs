@@ -137,7 +137,7 @@ export async function mountActivity({client:promise,cfg}) {
       // 錯答沿用原 renderer 與已填欄位，讓學生只修改錯誤處。
       if(!(value.correct===false&&handle&&previous?.sid===value.sid&&previous.question?.slot===value.question.slot))await render(value);
       send.disabled=!handle||!!handle.ready&&!handle.ready();
-      p.status.textContent=value.correct===false?'再修改同一題，不扣分。':'作答中。';
+      p.status.textContent=value.correct===false?(value.feedback||'再修改同一題，不扣分。'):'作答中。';
     }
   }
   function continuePair(value){

@@ -47,3 +47,18 @@ test('all nine private string answer types are blocked in templates, HTML text a
   assert.doesNotThrow(()=>scanPrivateAnswers('const label=`請輸入答案`; <button title="下一組">開始作答</button><p>尚未完成</p>',answers));
  });
 });
+
+test('volunteer private mixed answer vectors are detected in literal, stringified and numeric-string forms',async t=>{
+ const workerSource=process.env.YBS_WORKER_SOURCE;
+ if(!workerSource&&process.env.CI){t.skip('需本機私有來源');return;}
+ assert.ok(workerSource,'志工答案掃描需設定 YBS_WORKER_SOURCE');
+ const {default:banks}=await import(pathToFileURL(resolve(workerSource,'src/formal/banks/pr6-batch5.mjs')).href);
+ const bundle=Object.entries(banks).find(([key])=>key.startsWith('7:'))[1];let count=0;
+ for(const bank of Object.values(bundle.rounds))for(const c of bank.cases){
+  assert.ok(c.facts.mode.startsWith('form-volunteer-'));assert.ok(c.answer.some(v=>typeof v==='number'));assert.ok(c.answer.some(v=>typeof v==='string'));
+  for(const value of [JSON.stringify(c.answer),JSON.stringify(c.answer.map(String)),JSON.stringify(JSON.stringify(c.answer)),'`'+JSON.stringify(c.answer)+'`']){
+   assert.throws(()=>scanPrivateAnswers('const leaked='+value+';',[c.answer]),/release_private_answer_array/);
+  }count++;
+ }
+ assert.equal(count,32);t.diagnostic('volunteer private answer vectors: 32; injection forms: 128 detected');
+});

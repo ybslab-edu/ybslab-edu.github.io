@@ -27,7 +27,7 @@ async function activity(t) {
   const input=()=>body.querySelectorAll('input').find(el=>el.dataset.answerField==='value');
   const fill=value=>{input().value=value;input().oninput();};
   fill('7');assert.equal(button('送出').disabled,false);
-  return {...h,button,input,fill};
+  return {...h,button,input,fill,body};
 }
 
 test('第一組答對後修改舊答案不能送到第二組，按下一組並填妥才可送出',async t=>{
@@ -67,4 +67,13 @@ test('斷線待送時修改答案不會取代原答案，重試成功後恢復�
   h.advance();h.state.fetcher=async()=>Response.json(view(0,{nextSeq:2,correct:false}));
   await h.button('重試送出').onclick();assert.deepEqual(h.requests.at(-1).body,original);
   h.fill('9');assert.equal(send.disabled,false);
+});
+
+test('Worker 錯答提示顯示為文字並保留同題答案',async t=>{
+  const h=await activity(t),oldInput=h.input();
+  const feedback='合成提示：請重新核對觀察表 <不作 HTML>。';
+  h.state.fetcher=async()=>Response.json(view(0,{nextSeq:2,correct:false,feedback}));
+  await h.button('送出').onclick();
+  assert.equal(h.input(),oldInput);assert.equal(h.input().value,'7');assert.equal(h.button('送出').disabled,false);
+  assert.ok(h.body.textContent.includes(feedback));
 });

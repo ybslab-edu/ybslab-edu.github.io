@@ -38,6 +38,17 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('activity-title').textContent=title;
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
  let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshAgain=false;
+ // 開始前先選關，避免先建立第 0 關的 Worker session；重整沿用本人最後一關。
+ const firstRound=Math.max(0,cfg.rounds.findIndex(r=>r.managed!==false));
+ const roundKey=()=>`ybs:fullrev:round:${client.project}:${cfg.course}:${cfg.week}:${client.state().profile?.uid}`;
+ const chooser=node('select');chooser.id='g-round';chooser.setAttribute('aria-label','開始關卡');
+ cfg.rounds.forEach((r,i)=>{if(r.managed===false)return;const option=node('option',r.name);option.value=i;chooser.append(option);});
+ const chooseLabel=node('label','開始關卡：');chooseLabel.append(chooser);identityBox.append(chooseLabel);
+ function restoreRound(){
+  round=firstRound;
+  try{const saved=sessionStorage.getItem(roundKey());const n=Number(saved);if(saved!==null&&Number.isInteger(n)&&cfg.rounds[n]&&cfg.rounds[n].managed!==false)round=n;}catch{}
+  chooser.value=round;
+ }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
  const say=value=>{status.textContent=value;status.hidden=!value;status.className='sync';};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
@@ -124,7 +135,9 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   finally{if(n===read){reading=false;if(refreshAgain){refreshAgain=false;refresh();}}}
  }
  async function start(i=round,reopen=false){
-  if(starting)return;round=i;const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;last=null;key='';mode='loading';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
+  if(starting)return;round=i;chooser.value=i;
+  try{sessionStorage.setItem(roundKey(),String(i));}catch{}
+  const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;last=null;key='';mode='loading';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
   if(client.state().profile?.owner){starting=false;mode='practice';controls();practice.onclick();return;}
   if(info().managed===false){starting=false;mode='unmanaged';say('這一關尚待老師確認，請選其他關卡。');controls();return;}
   say('載入中…');
@@ -139,20 +152,21 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('b-retry').onclick=async()=>{try{const values=await client.retry();if(values.length)await receive(values.at(-1));}catch(e){problem(e);}};
  $('b-swap').onclick=()=>client.logout().catch(problem);
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
- identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(0).then(refresh);};
+ identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(Number(chooser.value)).then(refresh);};
  lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('details').open=true;};
  function clear(){clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();return;}
   const id=state.profile.uid+':'+state.profile.owner;
-  if(id!==identity){identity=id;
+  if(id!==identity){identity=id;restoreRound();
    $('who').textContent=state.profile.owner?'教師模式':state.profile.provider==='anonymous'?'訪客':'已登入';
-   if(state.profile.owner||state.profile.provider==='anonymous'){gate.hidden=true;main.hidden=false;start(0);}
+   if(state.profile.owner||state.profile.provider==='anonymous'){gate.hidden=true;main.hidden=false;start(round);}
    else{
     gate.hidden=false;main.hidden=true;login.hidden=true;identityBox.hidden=false;
     const message=identityBox.querySelector('#g-whotext'),confirm=identityBox.querySelector('#g-isme');confirm.hidden=true;message.textContent='正在確認你的身分…';
     (async()=>{try{
-     await client.context(cfg.week,0);if(identity!==id)return;await refresh();if(identity!==id)return;
+     // 身分由可信名冊確認；所選關卡的開放與授權在 start 時檢查。
+     await refresh();if(identity!==id)return;
      const person=snapshot?.people?.find(p=>p.subject===snapshot.subject);
      if(!snapshot){message.textContent='身分尚未確認，請重新登入或告訴老師。';return;}
      if(person){$('who').textContent=person.cls+' 班 '+person.seat+' 號';message.textContent='你是 '+person.cls+' 班 '+person.seat+' 號，對嗎？';}

@@ -70,6 +70,7 @@ export class Element {
   replaceChildren(...elements){this.childNodes.forEach(el=>el.parentElement=null);this.childNodes=[];this.append(...elements)}
   get previousElementSibling(){const a=this.parentElement.childNodes.filter(n=>n.nodeType===1);return a[a.indexOf(this)-1]}
   get parentNode(){return this.parentElement}
+  get firstChild(){return this.childNodes[0]||null}
   get lastElementChild(){return this.childNodes.filter(n=>n.nodeType===1).at(-1)}
   getContext(){
     // 畫布只替代像素 I/O；照片產生、取樣、量化、UI 與判定仍執行頁面原碼。

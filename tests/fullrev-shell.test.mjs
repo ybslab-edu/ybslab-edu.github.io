@@ -12,7 +12,7 @@ import {Element} from './fixtures/activity-dom.mjs';
 import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function until(check){for(let i=0;i<100;i++){if(check())return;await tick();}assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,activityId=7}={}){
+async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRound,restoredRound}={}){
  const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[]}];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
@@ -33,24 +33,27 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7}={}){
  const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher,now:()=>clock,wait:async ms=>{waits.push(ms);clock+=ms;}});
  const client=createClient({config,session,readModel:model,fetcher,shared:store(),storage:store(),now:()=>clock,events:{addEventListener(){}}});
  const xpContext=vm.createContext({});vm.runInContext(await readFile(new URL('../assets/xp.js',import.meta.url),'utf8'),xpContext);const xp=vm.runInContext('YBSXP',xpContext);
+ const sessionStore=store();if(restoredRound!==undefined)sessionStore.setItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:${activityId}:fake-uid-a`,String(restoredRound));
  const body=new Element('body'),head=new Element('head'),document={body,head,createElement:tag=>new Element(tag),addEventListener(){}},storage=store();
- for(const [key,value] of Object.entries({document,window:{addEventListener(){}},ACTIVITIES:catalog,YBSXP:xp,localStorage:storage})){
+ for(const [key,value] of Object.entries({document,window:{addEventListener(){}},ACTIVITIES:catalog,YBSXP:xp,localStorage:storage,sessionStorage:sessionStore})){
   const original=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,value});t.after(()=>{if(original)Object.defineProperty(globalThis,key,original);else delete globalThis[key];});
  }
  await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title})});
  const $=id=>body.querySelector('#'+id),button=label=>body.querySelectorAll('button').find(b=>b.textContent===label);
  const fill=answer=>{answer.forEach((value,k)=>{const field=$('stage').querySelectorAll('input').concat($('stage').querySelectorAll('select')).find(f=>String(f.dataset.answerField)===String(k));field.value=value;field.oninput();});};
  await client.login('password','9990001','synthetic-password');
- if(!closed){await until(()=>!$('g-isme').hidden);$('g-isme').onclick();}
+ await until(()=>!$('g-isme').hidden);assert.equal(calls.some(c=>c.op==='start'),false,'確認身分前不可建立作答 session');
+ if(initialRound!==undefined)$('g-round').value=initialRound;
+ await $('g-isme').onclick();
  await until(()=>closed?!$('activity-lock').hidden:!!$('stage').querySelector('input'));
  if(!closed)await until(()=>!!client.state().snapshot);
- return {client,db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release};
+ return {client,db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore};
 }
 test('u2-05 四關：真實 Worker、舊版 DOM、429 自動恢復、錯答修正、兩組確認及可信 XP',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t);assert.deepEqual(h.waits,[3000]);assert.equal(h.$('gate').hidden,true);assert.equal(h.$('main').hidden,false);
  assert.ok(h.$('task-instructions'));assert.equal(h.button('重試上傳').hidden,true);assert.equal(h.button('重新開始').hidden,true);
  for(let r=0;r<4;r++){
-  if(r){await h.$('rounds').querySelectorAll('button')[r].onclick();await until(()=>h.$('stage').querySelectorAll('[data-answer-field]').length>0);}
+  if(r){await h.button('下一關').onclick();assert.equal(h.$('stage').dataset.round,r);await until(()=>h.$('stage').querySelectorAll('[data-answer-field]').length>0);}
   const inputs=h.$('stage').querySelectorAll('[data-answer-field]'),correct=h.answer(),wrong=structuredClone(correct);wrong[0]=typeof wrong[0]==='number'?wrong[0]+1:'合成錯答';
   h.fill(wrong);await h.button('送出').onclick();assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');assert.equal(h.$('stage').querySelectorAll('[data-answer-field]')[0],inputs[0]);assert.equal(h.button('送出').disabled,true);
   assert.match(h.$('hint-content').textContent,/第 1 層：方向/);assert.match(h.$('streak').textContent,/0\/2/);
@@ -82,4 +85,17 @@ test('試算表活動使用同一外框與原 renderer，不帶問卷專用文�
  h.fill(h.answer());await h.button('送出').onclick();assert.equal(h.$('verdict').className,'verdict mid');
  h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await until(()=>h.$('verdict').className==='verdict ok');
  assert.equal(h.$('xp-total').textContent,'15 XP');
+});
+
+test('直接選第 3 關與重整還原，不先建立第 0 關 session',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{initialRound:2});
+ assert.equal(h.$('stage').dataset.round,2);assert.ok(h.calls.filter(c=>c.op==='start').every(c=>c.body.round===2));
+ assert.equal(h.sessionStore.getItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:7:fake-uid-a`),'2');
+ const restored=await setup(t,{restoredRound:2});assert.equal(restored.$('g-round').value,'2');assert.equal(restored.$('stage').dataset.round,2);
+ assert.ok(restored.calls.filter(c=>c.op==='context'||c.op==='start').every(c=>c.body.round===2));
+});
+test('名冊確認不依賴第 0 關開放，活動 4 可直接開始第 4 關',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{activityId:4,initialRound:3});
+ assert.equal(h.$('gate').hidden,true);assert.equal(h.$('stage').dataset.round,3);
+ assert.ok(h.calls.filter(c=>c.op==='context'||c.op==='start').every(c=>c.body.round===3));
 });

@@ -106,7 +106,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       await page.goto(base+'/'+a.file);await page.getByRole('button',{name:'登入',exact:true}).waitFor();
       assert.equal(current.requests.length,0);assert.equal(await page.locator('#ybs-lock,#t-open').count(),0);
       await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');
-      await page.getByRole('button',{name:'登入',exact:true}).click();await page.locator('#g-isme').click();await page.locator('#stage [data-question-type],#stage[data-question-type]').waitFor();if(round!==0)await page.getByRole('button',{name:a.rounds[round],exact:true}).click();
+      await page.getByRole('button',{name:'登入',exact:true}).click();await page.getByLabel('開始關卡',{exact:true}).selectOption(String(round));await page.locator('#g-isme').click();
       await page.locator('[data-question-type]').waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'手機版不得橫向溢出');
       let q=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;
@@ -158,8 +158,8 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         assert.ok(Number(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'))>=0);
       }
       assert.equal(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot,0);
-      await page.reload();await page.locator('#g-isme').click();await page.locator('#stage [data-question-type],#stage[data-question-type]').waitFor();if(round!==0)await page.getByRole('button',{name:a.rounds[round],exact:true}).click();await page.locator('[data-question-type]').waitFor();
-      assert.ok(current.requests.some(r=>r.op==='resume'));
+      await page.reload();await page.locator('#g-isme').waitFor();assert.equal(await page.getByLabel('開始關卡',{exact:true}).inputValue(),String(round),'重整須保留本人關卡，不可先開始第 0 關');await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
+      assert.ok(current.requests.some(r=>r.op==='resume'));assert.ok(current.requests.filter(r=>r.op==='start').every(r=>r.body.round===round),'不得先建立其他關卡的 session');
       await fill(page,type,answer);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
       if(!q.questions[0].data.mode?.endsWith('-performance')&&q.questions[0].data.mode!=='photo'){
       await page.getByRole('button',{name:'下一組',exact:true}).waitFor({state:'visible'});

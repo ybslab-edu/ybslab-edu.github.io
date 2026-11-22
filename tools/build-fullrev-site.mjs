@@ -7,6 +7,7 @@ import {buildBatches} from './build-fullrev-batch1.mjs';
 import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
 import {scanPrivateAnswers} from './scan-private-answers.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
+import {fullrevCsp,assertFullrevCsp} from './fullrev-csp.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 const assets=['fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs','login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js','activities.js','curriculum.js','fullrev-config.js'];
 // The deferred DF flow is preserved byte-for-byte, with only local resource URLs relocated.
@@ -30,7 +31,7 @@ const copiedPages=['index.html','404.html','map/index.html','about/index.html','
 const mountedPages={'115-g9/me/index.html':'mountGrowth','115-g9/teacher/index.html':'mountTeacher','115-g9/teacher/report/index.html':'mountTeacher'};
 const extraPages=Object.keys(legacyDFSources).concat('assets/legacy-df/config.js');
 export const releasePaths=()=>[...assets.map(a=>'assets/'+a),...copiedPages,...Object.keys(mountedPages),...extraPages,...new Set([...MANAGED_ACTIVITIES,...BATCH8].filter(a=>a.course!=='115-df').map(a=>a.file)),...Array.from({length:30},(_,i)=>`115-g9/w${String(i+1).padStart(2,'0')}/index.html`),'.nojekyll'].sort();
-const csp=(html,config)=>html.replace(/(http-equiv="Content-Security-Policy" content=")([^"]+)(")/,(_,a,value,z)=>a+value.split(';').map(v=>v.trim()).filter(Boolean).map(v=>v.startsWith('connect-src ')?v+' '+config.workerOrigin:v.startsWith('frame-src ')?'frame-src https://'+config.firebase.projectId+'.firebaseapp.com':v).join('; ')+z);
+const csp=(html,config)=>html.replace(/(http-equiv="Content-Security-Policy" content=")([^"]+)(")/,(_,a,value,z)=>a+fullrevCsp(value,config)+z);
 const shell=(policy,title,body)=>`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${policy}"><title>${title}｜YBS Lab</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/shell.css"></head><body>${body}</body></html>`;
 const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261122legacy"></script>`).join('');
 function releaseConfig(config){
@@ -52,8 +53,9 @@ export async function scanRelease({output,workerSource}){
  }}await walk(output);
  const expected=releasePaths();if(JSON.stringify(found.sort())!==JSON.stringify(expected))throw Error('release_allowlist_mismatch');
  const cfg=text.find(t=>t.path==='assets/fullrev-config.js')?.bytes.toString('utf8').match(/^const YBS_FULLREV_CONFIG=Object\.freeze\(([^\n]+)\);\n$/);
- if(!cfg)throw Error('release_config_missing');releaseConfig(JSON.parse(cfg[1]));
+ if(!cfg)throw Error('release_config_missing');const config=JSON.parse(cfg[1]);releaseConfig(config);
  for(const file of text){
+  if(file.path.endsWith('.html')&&!Object.hasOwn(legacyDFSources,file.path))assertFullrevCsp(file.bytes.toString('utf8'),config);
   if(Object.hasOwn(legacyDFSources,file.path)){
    // Pinned compatibility files are not a directory-wide exemption: any byte change fails.
    const original=await readFile(join(root,legacyDFSources[file.path]));

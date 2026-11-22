@@ -18,6 +18,23 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
  await assert.rejects(buildSite({output,config:{...config,privateKey:'synthetic-forbidden'},workerSource}),/public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ // Every new release page, including all w01–w30 redirects, shares popup CSP.
+ // The three pinned legacy DF pages retain their separate, byte-checked policy.
+ for(const p of releasePaths().filter(p=>p.endsWith('.html')&&!p.startsWith('115-df/'))){
+  const html=await readFile(join(output,p),'utf8');
+  const directives=Object.fromEntries(html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1].split(';').map(s=>s.trim().split(/\s+/)).map(([name,...sources])=>[name,sources]));
+  assert.ok(directives['script-src'].includes('https://apis.google.com'),p);
+  assert.deepEqual(directives['script-src'],["'self'","'unsafe-inline'",'https://www.gstatic.com/firebasejs/','https://apis.google.com'],p);
+  assert.deepEqual(directives['connect-src'],["'self'",'https://identitytoolkit.googleapis.com','https://securetoken.googleapis.com','https://firestore.googleapis.com',config.workerOrigin],p);
+  assert.deepEqual(directives['frame-src'],[`https://${config.firebase.projectId}.firebaseapp.com`],p);
+ }
+ const cspFile=join(output,'115-g9/u2-05/index.html'),cspOriginal=await readFile(cspFile,'utf8');
+ for(const source of ['https://apis.google.com',config.workerOrigin,'https://identitytoolkit.googleapis.com','https://securetoken.googleapis.com',`https://${config.firebase.projectId}.firebaseapp.com`]){
+  await writeFile(cspFile,cspOriginal.replace(' '+source,''));
+  await assert.rejects(scanRelease({output,workerSource}),/release_csp_missing_source/);
+ }
+ await writeFile(cspFile,cspOriginal);
+ assert.match(await readFile(join(output,'115-df/teacher/index.html'),'utf8'),/script-src [^;]*https:\/\/apis\.google\.com/);
  for(const p of ['index.html','map/index.html','about/index.html','115-g9/me/index.html','115-g9/teacher/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-df/a/index.html','assets/fullrev-read-model.mjs'])assert.ok((await readFile(join(output,p))).length);
  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.doesNotMatch(login,/class-score-86020|guestId\(|validGuest|\.collection\(/);
  const df=await readFile(join(output,'115-df/a/index.html'),'utf8');

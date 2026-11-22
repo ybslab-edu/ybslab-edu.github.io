@@ -5,6 +5,7 @@ import {resolve,dirname,join,relative,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8} from '../assets/fullrev-activities.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
+import {fullrevCsp} from './fullrev-csp.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 export const buildBatch1=options=>buildBatches({...options,batches:[1]});
 export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5,6,7,8],courses=['115-g9','115-df']}) {
@@ -33,8 +34,7 @@ export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5
     const original=await readFile(join(source,a.file),'utf8');
     const csp=original.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1];
     if(!csp)throw Error('csp_missing');
-    const policy=csp.split(';').map(s=>s.trim()).filter(Boolean).map(s=>s.startsWith('connect-src ')?`${s} ${config.workerOrigin}`:
-      s.startsWith('frame-src ')?`frame-src https://${config.firebase.projectId}.firebaseapp.com`:s).join('; ');
+    const policy=fullrevCsp(csp,config);
     const scripts=['fullrev-config.js','login.js'].map(name=>`<script src="/assets/${name}?v=20261120b8"></script>`).join('\n');
     const cfg={week:a.activity,course:a.course||'115-g9',unit:a.unit,title:a.title,rounds:a.rounds.map(name=>({name}))};
     // 不保留舊 inline script、gen/check/fill、題庫、暖身答案、教師雜湊或遮罩。

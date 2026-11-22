@@ -26,6 +26,7 @@ function materials(host,d){
 }
 export function renderOutcome(host,d,changed){
   if(!d.questions||!d.kinds)return;
+  const volunteer=d.mode.startsWith('form-volunteer-');
   host.append(node('style',`@media(max-width:559px){
     .fullrev-outcome-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
     .fullrev-outcome-table tr{display:block;margin-bottom:8px;border:1px solid #aaa}
@@ -40,13 +41,24 @@ export function renderOutcome(host,d,changed){
     const chart=node('section');chart.setAttribute('aria-label','人數長條圖');const total=d.chartCounts.reduce((sum,n)=>sum+n,0);
     d.chartNames.forEach((name,k)=>{const count=d.chartCounts[k],row=node('div',`${name}：${count} 人`),bar=node('div');bar.style.cssText=`height:12px;background:#718b9a;width:${count/total*100}%`;row.append(bar);chart.append(row);});host.append(chart);
   }
+  if(d.chartRows){
+    const chart=node('section');chart.setAttribute('aria-label','職務第一志願比較（人）');
+    paragraph(chart,'實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
+    for(const [job,group,count] of d.chartRows){
+      const row=node('div',`${job}／${group}：${count} 人`),track=node('div'),bar=node('div');
+      track.style.cssText='background:var(--panel-hi);margin-bottom:8px';
+      bar.style.cssText=`height:12px;width:${count/6*100}%;background:${group==='高中組'?'repeating-linear-gradient(135deg,var(--ember) 0 4px,var(--panel-hi) 4px 6px)':'var(--dim)'}`;
+      track.append(bar);row.append(track);chart.append(row);
+    }host.append(chart);
+  }
   if(d.copyGuide){
     const copy=node('details');copy.append(node('summary','複製到試算表的素材與操作提示'));const pre=node('pre',[d.headers,...rows].map(r=>r.join('\t')).join('\n'));pre.style.cssText='white-space:pre;overflow:auto;max-width:100%';copy.append(pre);paragraph(copy,d.copyGuide);host.append(copy);
   }
   if(d.summaryRows)table(host,d.summaryHeaders,d.summaryRows);
   materials(host,d);
+  if(!volunteer||d.backup){
   const fallback=node('details'),use=node('button','使用備用素材並記錄'),log=node('p');use.type='button';use.dataset.fallback='use';log.setAttribute('role','status');
-  fallback.append(node('summary','備用素材：設備或 Google 權限受阻時使用'));
+  fallback.append(node('summary',volunteer?'備用素材：本組委託附件':'備用素材：設備或 Google 權限受阻時使用'));
   paragraph(fallback,'可讀本題示意素材當場作答；請告知老師未實際操作。紀錄只存此瀏覽器，屬於本機備用紀錄，不是個人成績，不會上傳，也不會自動過關或補過其他關卡。');fallback.append(use,log);host.append(fallback);
   const key='ybs:u2-'+(d.mode.startsWith('form-')?'05':d.mode.startsWith('sheet-')?'06':'07')+':fallback:v1';
   const read=()=>{try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a.filter(v=>typeof v==='string').slice(-64):[];}catch{return [];}};
@@ -59,6 +71,7 @@ export function renderOutcome(host,d,changed){
     else paragraph(fallback,'請使用上方示意表格、任務結構或燈牌，在紙上或本機編輯器保留兩組成果，依規則逐項核對。');
     use.disabled=true;
   };
+  }
   const inputs=d.questions.map(([text,...options],k)=>{
     const label=node('label',text),input=node(options.length?'select':'input');label.style.cssText='display:block;margin:12px 0;min-width:0';input.style.cssText='display:block;width:100%;max-width:100%;box-sizing:border-box;min-height:44px';
     input.dataset.answerField=k;input.setAttribute('aria-label',text);
@@ -66,5 +79,5 @@ export function renderOutcome(host,d,changed){
     else{input.type='text';input.autocomplete='off';input.maxLength=256;if(d.kinds[k]==='n')input.inputMode='numeric';}
     input.oninput=input.onchange=changed;label.append(input);host.append(label);return input;
   });
-  return {get:()=>inputs.map((e,k)=>d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12))};
+  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12))};
 }

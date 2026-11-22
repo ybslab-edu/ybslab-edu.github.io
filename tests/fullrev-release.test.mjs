@@ -18,6 +18,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
  await assert.rejects(buildSite({output,config:{...config,privateKey:'synthetic-forbidden'},workerSource}),/public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}`);
  // Every new release page, including all w01–w30 redirects, shares popup CSP.
  // The three pinned legacy DF pages retain their separate, byte-checked policy.
  for(const p of releasePaths().filter(p=>p.endsWith('.html')&&!p.startsWith('115-df/'))){
@@ -49,7 +50,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
    if(!key.startsWith('115-df:')&&typeof c.answer==='string')shortAnswers.push(c.answer);
   }
  }
- assert.equal(privateArrays.length,1357);
+ assert.equal(privateArrays.length,1361);
  const victim=join(output,'assets/fullrev-read-model.mjs'),clean=await readFile(victim);
  const stringifyLeaves=value=>Array.isArray(value)?value.map(stringifyLeaves):String(value);
  for(const payload of [JSON.stringify(privateArrays),JSON.stringify(privateArrays.map(stringifyLeaves)),JSON.stringify(JSON.stringify(privateArrays)),JSON.stringify(privateArrays,null,2)]){
@@ -63,7 +64,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
   await mkdir(join(output,injected,'..'),{recursive:true});await writeFile(join(output,injected),'private');await assert.rejects(scanRelease({output,workerSource}),/allowlist/);await rm(join(output,injected));if(injected.startsWith('tools/'))await rm(join(output,'tools'),{recursive:true});
  }
  const file=join(output,'assets/fullrev-read-model.mjs'),original=await readFile(file);
- for(const content of ['//# sourceMappingURL=private.map','const TEACHER_HASH="synthetic";','const answers="class-score-86020";']){
+ for(const content of ['//# sourceMappingURL=private.map','const TEACHER_HASH="synthetic";','const answers="class-score-86020";','function volunteerCheck(){}','function qCheck(){}','const qThreeExpected=()=>[];']){
   await writeFile(file,content);await assert.rejects(scanRelease({output,workerSource}),/forbidden_content/);
  }
  await writeFile(file,original);await rm(file);await symlink('/tmp',file);await assert.rejects(scanRelease({output,workerSource}),/nonregular/);await rm(file);await writeFile(file,original);

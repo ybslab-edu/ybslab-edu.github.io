@@ -66,7 +66,7 @@ export async function scanRelease({output,workerSource}){
  const all=text.map(t=>t.bytes.toString('utf8')).join('\n');
  for(const {path,bytes} of text){
   const legacy=Object.hasOwn(legacyDFSources,path);
-  if(!legacy&&/(?:legacy-df\/|sourceMappingURL|sourceURL=|class-score-86020|ybs-pilot|TEACHER_HASH|TEACHER\.remember|teacher\.js|lock\.js|pr6-batch\d|BEGIN PRIVATE KEY|soundBest|minimumBytes|checkRecordingAnswer|"budget"\s*:)/.test(bytes.toString('utf8')))throw Error('release_forbidden_content:'+path);
+  if(!legacy&&/(?:legacy-df\/|sourceMappingURL|sourceURL=|class-score-86020|ybs-pilot|TEACHER_HASH|TEACHER\.remember|teacher\.js|lock\.js|pr6-batch\d|BEGIN PRIVATE KEY|soundBest|minimumBytes|checkRecordingAnswer|volunteer-questions|volunteerAnswer|volunteerCheck|q(?:One|Two|Three|Four)Expected|qCheck|"budget"\s*:)/.test(bytes.toString('utf8')))throw Error('release_forbidden_content:'+path);
   if(!legacy&&/(?:^|\/)(?:tools|tests|fixtures|workers|backups?|\.git)(?:\/|$)|\.(?:map|bak|zip|pdf)$|(?:teacher|lock)\.js$/.test(path))throw Error('release_forbidden_path');
  }
  let cases=0;const answers=[];

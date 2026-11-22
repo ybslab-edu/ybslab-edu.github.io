@@ -16,7 +16,8 @@ before(async()=>{
   const load=p=>import(pathToFileURL(resolve(workerSource,p)).href);
   const [{createFormalWorker},{MemoryFirestore},{readPath:formalPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
     load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal/read-model.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
-  modules={createFormalWorker,MemoryFirestore,formalPath,batchData,privateAnswer,ENV,CLASS_HINTS,password,paths,EPOCH,ORIGIN};
+  const {volunteerCheck}=await load('src/formal/volunteer-questions.mjs');
+  modules={createFormalWorker,MemoryFirestore,formalPath,batchData,privateAnswer,ENV,CLASS_HINTS,password,paths,EPOCH,ORIGIN,volunteerCheck};
   dir=await mkdtemp(join(tmpdir(),'ybs-pr6-browser-'));output=join(dir,'public');await buildSite({output,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'},workerSource});
   server=createServer(async(req,res)=>{
     try {
@@ -112,7 +113,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       let q=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;
       const type=q.type,answer=modules.privateAnswer(current.db);
       const outcome=['form-','sheet-','media-'].some(prefix=>q.questions[0].data.mode?.startsWith(prefix));
-      if(outcome){
+      if(outcome&&a.activity!==7){
         assert.match(await page.locator('body').innerText(),/抽查|抽看/);
         const requests=current.requests.length;await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
         assert.equal(current.requests.length,requests,'備用紀錄不可上傳或採計');assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
@@ -129,6 +130,18 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         if(a.activity===8&&round===1){
           await page.evaluate(()=>window.scrollTo(0,document.querySelector('table').getBoundingClientRect().top+scrollY));
           await page.screenshot({path:'/tmp/ybs-pr6b5-sheet-mobile.png'});
+        }
+      }
+      if(a.activity===7){
+        assert.equal(await page.locator('h1').innerText(),'動漫／遊戲展志工招募');
+        if(round===0){
+          assert.equal(await page.getByRole('region',{name:'職務第一志願比較（人）'}).count(),1);
+          assert.equal(await page.locator('[data-fallback="use"]').count(),0);
+        }else{
+          const requests=current.requests.length;await page.getByText('備用素材：本組委託附件',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
+          assert.equal(current.requests.length,requests,'委託附件紀錄不可上傳或採計');
+          assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+          assert.ok(await page.evaluate(()=>localStorage.getItem('ybs:u2-05:fallback:v1')?.includes('未實際操作')));
         }
       }
       let wrong=structuredClone(answer);
@@ -151,7 +164,8 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       if(q.questions[0].data.mode==='photo'){wrong=structuredClone(answer);wrong.answers[1][0]=(wrong.answers[1][0]+1)%6;}
       if(type==='recording-capacity-v1')wrong.q=(answer.q+1)%3;
       await fill(page,type,wrong);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
-      await page.getByText('再修改同一題，不扣分。',{exact:true}).waitFor();
+      await page.getByText(a.activity===7?modules.volunteerCheck(q.questions[0].data,wrong):'再修改同一題，不扣分。',{exact:true}).waitFor();
+      if(a.activity===7){const value=await page.locator('[data-answer-field="0"]').inputValue();assert.equal(value,String(wrong[0]),'錯答後保留欄位');}
       if(q.questions[0].data.mode?.endsWith('-performance')){
         await page.locator('[data-performance-frame]').waitFor();
         await page.getByRole('button',{name:'下一步',exact:true}).click();

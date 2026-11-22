@@ -146,12 +146,25 @@ async function newRun(width,height){
  await reset();const context=await browser.newContext({viewport:{width,height}}),page=await context.newPage();
  await page.route('**/*',r=>r.request().url().startsWith(base+'/')?r.continue():r.abort());
  const login=async()=>{await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'登入',exact:true}).click();};
+ // 登入只讀取身分／進度；選關並確認後才檢查開放狀態、建立作答 session。
+ const confirm=async()=>{
+  await page.locator('#g-isme').waitFor();
+  await page.getByLabel('開始關卡',{exact:true}).selectOption('0');
+  assert.equal(current.requests.some(r=>r.op==='context'||r.op==='start'),false,'確認身分前不應開始活動');
+  await page.locator('#g-isme').click();
+ };
  try{
   current.db.docs.get(modules.paths.global).activities[7].opensAt=current.clock+86400000;
-  await page.goto(base+'/115-g9/u2-05/');await login();await page.locator('#activity-lock').waitFor();await capture(page,'closed',width,'new');
+  await page.goto(base+'/115-g9/u2-05/');await login();await confirm();await page.locator('#activity-lock').waitFor();
+  assert.equal(await page.locator('#gate').isVisible(),false);assert.equal(await page.locator('#main').isVisible(),false);
+  assert.equal(current.requests.some(r=>r.op==='context'),true,'須實際檢查活動開放狀態');
+  assert.equal(current.requests.some(r=>r.op==='start'),false,'未開放不得建立作答 session');
+  await capture(page,'closed',width,'new');
   await context.clearCookies();await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});await reset();current.throttle=true;
-  await page.reload();await page.getByRole('button',{name:'登入',exact:true}).waitFor();await capture(page,'signed-out',width,'new');await login();await page.locator('#g-isme').click();
-  await page.locator('[data-answer-field]').first().waitFor();await page.waitForFunction(()=>app.client.state().snapshot);await capture(page,'working',width,'new');
+  await page.reload();await page.getByRole('button',{name:'登入',exact:true}).waitFor();await capture(page,'signed-out',width,'new');await login();await confirm();
+  await page.locator('#stage[data-round="0"] [data-answer-field]').first().waitFor();await page.waitForFunction(()=>app.client.state().snapshot);
+  const skip=page.getByRole('button',{name:'跳過暖身',exact:true});if(await skip.isVisible())await skip.click();
+  assert.equal(current.throttle,false,'須經過 context 429 自動重試');await capture(page,'working',width,'new');
   const type='finite-bank-v1',answer=modules.privateAnswer(current.db),wrong=structuredClone(answer);wrong[0]++;
   await fill(page,type,wrong);await page.locator('#b-send').click();await page.locator('#verdict.no').waitFor();await capture(page,'wrong',width,'new');
   await fill(page,type,answer);await page.locator('#b-send').click();await page.locator('#b-next-group').waitFor();await capture(page,'first-correct',width,'new');

@@ -84,7 +84,7 @@ test('u2-05 備用素材本機紀錄、同題修正、重送不加計及鍵盤�
    await page.locator('[data-fallback="use"]').click();
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(qFallbackKey)).filter(x=>x.startsWith(APP.inst.t+'：')).length),1);
    await page.locator('#tb-ans').click();
-   await page.locator('.quest-answers input').first().fill('999');
+   await page.locator('.quest-answers input[type="number"]').first().fill('999');
    await page.locator('#b-send').click();
    assert.match(await page.locator('#verdict').textContent(),/還不對/);
    await page.locator('#tb-ans').click();await page.locator('#b-send').click();

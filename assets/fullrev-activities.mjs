@@ -36,7 +36,7 @@ export const BATCH4=Object.freeze([
   {activity:29,file:'115-g9/u1-04/index.html',title:'演唱會倒數直播',unit:1,rounds:['收進來還是送出去','輸入、處理、輸出','幫小裝置挑零件','直播的一秒鐘'],managed:[0,1,2,3]}
 ]);
 export const BATCH5=Object.freeze([
-  {activity:7,file:'115-g9/u2-05/index.html',title:'後援會問卷',unit:2,rounds:['這份回覆能告訴你什麼','只問這次需要知道的事','讓不同回答走到對的地方','外觀改好了，資料有接上嗎'],managed:[0,1,2,3]},
+  {activity:7,file:'115-g9/u2-05/index.html',title:'後援會問卷',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查'],managed:[0,1,2,3]},
   {activity:8,file:'115-g9/u2-06/index.html',title:'問卷回來一團亂',unit:2,rounds:['先留下原始資料','找出不能直接分析的列','時間不同，內容還是重複','用乾淨資料回答問題'],managed:[0,1,2,3]},
   {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
 ]);

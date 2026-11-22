@@ -113,12 +113,24 @@ async function oldSetup(){
 async function capture(page,state,width,kind){
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:join(out,`${state}-${width}-${kind}.png`),fullPage:true});
 }
+// 共用 mock 尚無 where 與伺服器 metadata；只在本截圖補齊，讓舊 XP 完成載入。
+function oldXPQueryMock(){
+  const initialize=window.firebase.initializeApp;
+  window.firebase.initializeApp=(...args)=>{
+   const app=initialize(...args),db=app.firestore(),collection=db.collection;
+   db.collection=path=>{const query=collection(path);return {...query,where(field,op,value){
+    if(op!=='==')throw Error('synthetic query only supports equality');
+    return {get:async()=>{const result=await query.get();return {...result,metadata:{fromCache:false},docs:result.docs.filter(doc=>doc.data()[field]===value)};}};
+   }};};return app;
+  };
+}
 async function oldRun(width,height){
  const context=await browser.newContext({viewport:{width,height}}),page=await context.newPage();
  const mock=(await readFile(new URL('../../tools/dev/firebase-mock.js',import.meta.url),'utf8'))
   .replace(/if \(e === '[^']+' && p === '[^']+'\)/,"if(e==='cgjh9990001@ybslab-edu.github.io'&&p==='synthetic-password')")
   .replace(/path\.endsWith\('[^']*\/roster\/[^']+'\)/,"path.includes('/roster/')");
- await context.addInitScript(mock);
+ // 單一 init script 保證先建立 mock，再補查詢功能。
+ await context.addInitScript(mock+'\n;('+oldXPQueryMock.toString()+')();');
  await page.route('**/*',r=>{
   const u=r.request().url();if(u.startsWith(oldBase+'/'))return r.continue();
   if(u.startsWith('https://www.gstatic.com/firebasejs/'))return r.fulfill({body:'// mock already injected',contentType:'text/javascript'});
@@ -127,7 +139,9 @@ async function oldRun(width,height){
  try{
   closed=true;await page.goto(oldBase+'/115-g9/u2-05/');await page.locator('#ybs-lock').waitFor();await capture(page,'closed',width,'old');
   closed=false;await page.reload();await page.locator('#g-gbtn input[name=a]').waitFor();await capture(page,'signed-out',width,'old');
-  await page.locator('input[name=a]').fill('9990001');await page.locator('input[name=p]').fill('synthetic-password');await page.locator('#g-gbtn button[type=submit]').click();await page.locator('#g-isme').click();await page.locator('#main').waitFor();await capture(page,'working',width,'old');
+  await page.locator('input[name=a]').fill('9990001');await page.locator('input[name=p]').fill('synthetic-password');await page.locator('#g-gbtn button[type=submit]').click();await page.locator('#g-isme').click();await page.locator('#main').waitFor();await page.locator('#warmup').waitFor();
+  await page.waitForFunction(()=>document.querySelector('#xp-total')?.textContent.endsWith(' XP'));
+  await capture(page,'working',width,'old');
   await page.evaluate(()=>{oldShell.handle.fill();const f=document.querySelector('#stage input');f.value=String(Number(f.value)+1);f.dispatchEvent(new Event('input'));});
   await page.locator('#b-send').click();await page.locator('#verdict.no').waitFor();await capture(page,'wrong',width,'old');
   await page.evaluate(()=>{oldShell.handle.fill();document.querySelector('#stage input').dispatchEvent(new Event('input'));});await page.locator('#b-send').click();await page.locator('#b-next-group').waitFor();await capture(page,'first-correct',width,'old');
@@ -146,12 +160,26 @@ async function newRun(width,height){
  await reset();const context=await browser.newContext({viewport:{width,height}}),page=await context.newPage();
  await page.route('**/*',r=>r.request().url().startsWith(base+'/')?r.continue():r.abort());
  const login=async()=>{await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'登入',exact:true}).click();};
+ // 登入只讀取身分／進度；選關並確認後才檢查開放狀態、建立作答 session。
+ const confirm=async()=>{
+  await page.locator('#g-isme').waitFor();
+  await page.getByLabel('開始關卡',{exact:true}).selectOption('0');
+  assert.equal(current.requests.some(r=>r.op==='context'||r.op==='start'),false,'確認身分前不應開始活動');
+  await page.locator('#g-isme').click();
+ };
  try{
   current.db.docs.get(modules.paths.global).activities[7].opensAt=current.clock+86400000;
-  await page.goto(base+'/115-g9/u2-05/');await login();await page.locator('#activity-lock').waitFor();await capture(page,'closed',width,'new');
+  await page.goto(base+'/115-g9/u2-05/');await login();await confirm();await page.locator('#activity-lock').waitFor();
+  assert.equal(await page.locator('#gate').isVisible(),false);assert.equal(await page.locator('#main').isVisible(),false);
+  assert.equal(current.requests.some(r=>r.op==='context'),true,'須實際檢查活動開放狀態');
+  assert.equal(current.requests.some(r=>r.op==='start'),false,'未開放不得建立作答 session');
+  await capture(page,'closed',width,'new');
   await context.clearCookies();await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});await reset();current.throttle=true;
-  await page.reload();await page.getByRole('button',{name:'登入',exact:true}).waitFor();await capture(page,'signed-out',width,'new');await login();await page.locator('#g-isme').click();
-  await page.locator('[data-answer-field]').first().waitFor();await page.waitForFunction(()=>app.client.state().snapshot);await capture(page,'working',width,'new');
+  await page.reload();await page.getByRole('button',{name:'登入',exact:true}).waitFor();await capture(page,'signed-out',width,'new');await login();await confirm();
+  await page.locator('#stage[data-round="0"] [data-answer-field]').first().waitFor();await page.waitForFunction(()=>app.client.state().snapshot);
+  await page.locator('#warmup').waitFor();
+  assert.equal(await page.locator('#warmup').isVisible(),true,'新舊 working 均保留預設暖身卡');
+  assert.equal(current.throttle,false,'須經過 context 429 自動重試');await capture(page,'working',width,'new');
   const type='finite-bank-v1',answer=modules.privateAnswer(current.db),wrong=structuredClone(answer);wrong[0]++;
   await fill(page,type,wrong);await page.locator('#b-send').click();await page.locator('#verdict.no').waitFor();await capture(page,'wrong',width,'new');
   await fill(page,type,answer);await page.locator('#b-send').click();await page.locator('#b-next-group').waitFor();await capture(page,'first-correct',width,'new');

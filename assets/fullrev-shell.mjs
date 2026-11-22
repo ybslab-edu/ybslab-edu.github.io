@@ -3,6 +3,12 @@ import {growth} from './fullrev-progress.mjs';
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const text=value=>Array.isArray(value)?value.join(''):value||'';
 const para=(host,value)=>{if(value){const p=node('p',text(value));host.append(p);return p;}};
+// 舊活動公開說明的版面副本；不含題庫、答案或判題。
+const outcomeNotes={
+ "7": "<div class=\"quest-note\"><p>你要替虛構音樂活動團隊做一份可以填寫的問卷。這裡全部是示意資料；不要填入你或別人的真實個資。</p><p>先完成前測，再於課外看 2-13／2-14；課內依老師安排看 2-15。前測完成前，請先停在這裡。</p><p>你只需複製老師提供的半成品表單一次。把兩組成果分別保留並標上任務版本，不必重新建檔。每關答對兩組不同資料才完成；答錯可以修正，不扣分。</p><p>成果答案符合任務，仍需由老師巡堂抽看表單、預覽與試算表。設備或 Google 權限受阻時，展開下方「備用素材」，告訴老師你未實際操作。</p><details><summary>查看既有紀錄與待確認項目</summary><p>你原有的過關紀錄會保留：原第 1～4 關依序對應現在第 1～4 關，表示舊版完成紀錄，不代表做過這次 Google 實作。</p><p>前測第 2 題完整題意待老師核對；第 6 題主題設定題面待確認，本頁先讓你觀察，不預設該題答案。</p></details></div>",
+ "8": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原第 1～4 關依索引對應目前第 1～4 關；舊紀錄保留，但不代表已完成新版備份、條件式格式、去重與圖表實作。</p></details> <p><strong>你先依老師安排觀看 2-16、2-17、2-18，再完成四關。</strong></p></div>",
+ "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；新版第 1 關是轉換，第 2 關合併燈牌，第 3、4 關加入素材實作，舊紀錄不代表做過新增操作。</p></details> <p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助；未完成操作請如實告知老師，不為趕進度勾成完成。文字轉語音由影片與配對涵蓋，不另做酷英實作。</strong></p></div>"
+};
 export async function mountStudentLogin({client,host,onLogin,explain}){
  const form=node('form');form.className='ybs-login';form.autocomplete='off';
  form.innerHTML=`<label>帳號<input name="account" inputmode="text" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號"></label><div><label for="activity-password">密碼</label><div class="ybs-password"><input id="activity-password" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號"><input type="button" class="ybs-password-toggle" value="顯示" aria-label="顯示密碼" aria-pressed="false" aria-controls="activity-password"><svg class="ybs-password-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></div></div><button type="submit" class="btn primary">登入</button>`;
@@ -63,7 +69,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   chooser.value=round;
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
- const say=value=>{status.textContent=value;status.hidden=!value;status.className='sync';};
+ const say=value=>{const label=value||(result?'✓ 雲端紀錄已確認':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
  const restart=tool('重新開始',()=>start(round,true)),claims=tool('老師已核發，重新確認',async()=>{try{await client.refreshClaims();await start(round,true);}catch(e){problem(e);}}),practice=tool('本機練習／示範',()=>{
   revision++;handle?.dispose?.();handle=null;last=null;stage.replaceChildren();mode='practice';verdict.hidden=true;send.disabled=true;say('本機練習／教師示範，不送出成績。');
@@ -71,13 +77,32 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  });
  const reread=tool('重新讀取',()=>refresh());reread.hidden=true;
  const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=()=>refresh();identityBox.append(gateReread);
+ // 每個本人／控制版本只查一次單筆名冊；不列名單、不持久保存，也不作為作答授權。
+ let person=null,personKey='';
+ async function readPerson(value){
+  const profile=client.state().profile;
+  if(!profile||profile.owner||!['google.com','password'].includes(profile.provider))return null;
+  const cacheKey=JSON.stringify([profile.uid,value.subject,value.controlVersions]);
+  if(cacheKey===personKey)return person;
+  const {auth,db}=await client.session(),user=auth.currentUser;
+  if(user?.uid!==profile.uid)return null;
+  const {claims}=await user.getIdTokenResult();
+  const provider=claims.firebase?.sign_in_provider;
+  if(provider!==profile.provider||typeof claims.email!=='string'||provider==='google.com'&&claims.email_verified!==true)return null;
+  const email=claims.email.toLowerCase();
+  if(!(provider==='password'?/^cgjh\d{3,12}@ybslab-edu\.github\.io$/:/^[a-z0-9._%+-]+@cgjh\.hcc\.edu\.tw$/).test(email))return null;
+  const ref=await db.doc(`ybsCourses/${cfg.course}/roster/${email.replace('@ybslab-edu.github.io','@cgjh.hcc.edu.tw')}`).get({source:'server'});
+  const row=ref.exists&&!ref.metadata?.fromCache&&ref.data();
+  return row?.schemaVersion===1&&row.active===true&&row.subject===value.subject
+   &&Number.isInteger(row.cls)&&row.cls>=100&&row.cls<=999&&Number.isInteger(row.seat)&&row.seat>=1&&row.seat<=60
+   ?{subject:row.subject,cls:row.cls,seat:row.seat}:null;
+ }
  function confirmIdentity(){
   const confirm=identityBox.querySelector('#g-isme'),message=identityBox.querySelector('#g-whotext');
   const valid=!!result;confirm.hidden=!valid;gateReread.hidden=valid;
   if(!valid){message.textContent='身分尚未確認，請重新讀取或告訴老師。';return;}
-  const person=snapshot.people?.find(p=>p.subject===snapshot.subject);
   if(person){$('who').textContent=person.cls+' 班 '+person.seat+' 號';message.textContent='你是 '+person.cls+' 班 '+person.seat+' 號，對嗎？';}
-  else message.textContent='已登入，準備好開始了嗎？';
+  else{$('who').textContent='已登入';message.textContent='已登入，準備好開始了嗎？';}
  }
  function controls(){
   const state=client.state(),changed=handle&&JSON.stringify(handle.get())!==sentValue;
@@ -87,6 +112,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   restart.hidden=state.status!=='restart-required';claims.hidden=!['binding-pending','anonymous'].includes(mode)&&state.profile?.provider!=='anonymous';
   practice.hidden=!state.profile?.owner&&state.profile?.provider!=='anonymous'&&mode!=='binding-pending';
   $('b-retry').hidden=!state.pending;
+  $('activity-tools').hidden=[restart,claims,practice,reread].every(b=>b.hidden);
  }
  function rounds(){
   nav.replaceChildren();cfg.rounds.forEach((r,i)=>{const passed=result?.records.some(r=>r.activity===cfg.week&&r.round===i);const b=node('button',r.name+(passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);nav.append(b);});
@@ -107,21 +133,36 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   if(!d?.questions||!d.kinds)return;
   stage.classList.add('quest-outcome');
   const intro=stage.querySelector('.panel'),work=node('div');work.className='quest-work panel';
-  if(intro){intro.className='quest-note';const heading=intro.querySelector('h3');if(heading)heading.hidden=true;}
+  if(intro){
+   if(outcomeNotes[cfg.week]){const fragment=node('div');fragment.innerHTML=outcomeNotes[cfg.week];intro.replaceChildren(...fragment.firstChild.childNodes);}
+   else{const heading=intro.querySelector('h3');if(heading)heading.hidden=true;}
+   intro.className='quest-note';
+  }
   const tables=stage.querySelectorAll('.fullrev-outcome-table');
   tables.forEach(wrap=>{const t=wrap.querySelector('table');t.className='quest-table';});
   let chartLabel=null;
   if(d.chartNames){
-   const chart=stage.querySelector('[aria-label="人數長條圖"]');chart.replaceChildren();chart.className='quest-chart';
+   const originalChart=stage.querySelector('[aria-label="人數長條圖"]'),chart=node('ul');chart.className='quest-chart';chart.setAttribute('aria-label','人數長條圖');
+   stage.replaceChildren(...[...stage.childNodes].map(el=>el===originalChart?chart:el));
    const total=d.chartCounts.reduce((sum,n)=>sum+n,0);chartLabel=para(stage,'統計圖（由同一份回覆計算；單位：人）');
-   d.chartNames.forEach((name,k)=>{const row=node('div'),track=node('span'),bar=node('span');row.className='quest-chart-row';track.className='track';bar.className='bar';bar.style.width=d.chartCounts[k]/total*100+'%';track.append(bar);row.append(node('span',name),track,node('span',d.chartCounts[k]+' 人'));chart.append(row);});
+   d.chartNames.forEach((name,k)=>{const row=node('li'),track=node('span'),bar=node('span');row.className='quest-chart-row';track.className='track';bar.className='bar';bar.style.width=d.chartCounts[k]/total*100+'%';track.append(bar);row.append(node('span',name),track,node('span',d.chartCounts[k]+' 人'));chart.append(row);});
   }
-  const children=[...stage.childNodes].filter(e=>e.nodeType===1&&e!==intro);
+  const children=[...stage.childNodes].filter(e=>e.nodeType===1&&e!==intro&&e.tagName!=='STYLE');
   const chart=stage.querySelector('.quest-chart');
-  work.append(node('h3',text(d.guide).match(/任務\s+(\d+-\d+)/)?.[0]||d.heading||info().name));
+  const task=text(d.guide).match(/任務\s+(\d+-\d+)/)?.[1];
+  work.append(node('h3',task?'示意任務 '+task:d.heading||info().name));
+  const answers=node('div');answers.className='quest-answers';
   if(tables.length&&d.indexRows){const caption=node('caption','原始回覆（示意）');tables[0].querySelector('table').append(caption);}
-  for(const el of children){if(el===chartLabel&&chart)continue;if(el===chart&&chartLabel)work.append(chartLabel);work.append(el);}
-  stage.append(work);
+  for(const el of children){
+   if(el===chartLabel&&chart)continue;
+   // 舊第 1 關表格後直接接統計圖，不再重述任務說明中的目標。
+   if(d.mode==='form-summary'&&el.tagName==='P'&&el.textContent===text(d.passages))continue;
+   if(el.tagName==='LABEL'){answers.append(el);continue;}
+   if(el===chart&&chartLabel)work.append(chartLabel);
+   if(el.tagName==='DETAILS'&&el.querySelector('[data-fallback]')){el.className='quest-fallback';el.hidden=d.mode==='form-summary';}
+   work.append(el);
+  }
+  work.append(answers);stage.append(work);
  }
  function showQuestion(value){
   stage.classList.remove('quest-outcome');stage.dataset.round=round;
@@ -161,20 +202,23 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    const bits=['+'+detail.passXP+' 過關'];if(detail.onTimeXP)bits.push('+'+detail.onTimeXP+' 準時');if(item.completeXP>(old?.completeXP||0))bits.push('+'+item.completeXP+' 全過');para(verdict,'本關 XP：'+bits.join('、')).className='xp-detail';
    if(before&&result.level>before.level){const card=node('div');card.className='xp-title-card';card.append(node('strong','升級！Lv '+result.level));para(card,result.title);verdict.append(card);}
   }
-  const btns=node('div');btns.className='btns';if(round+1<cfg.rounds.length){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}else para(btns,item.passed===cfg.rounds.length?'全部過關！':`這一關完成了！這個活動目前完成 ${item.passed}／${cfg.rounds.length} 關。`);verdict.append(btns);verdict.hidden=false;hint=0;submitted=false;hints();say('已上傳');controls();
+  const btns=node('div');btns.className='btns';if(round+1<cfg.rounds.length){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}else para(btns,item.passed===cfg.rounds.length?'全部過關！':`這一關完成了！這個活動目前完成 ${item.passed}／${cfg.rounds.length} 關。`);verdict.append(btns);verdict.hidden=false;hint=0;submitted=false;hints();say('✓ 紀錄已上傳給老師');controls();
  }
  async function refresh(){
   if(!client.state().profile||client.state().profile.owner)return;if(reading){refreshAgain=true;return;}
   reading=true;const n=++read,g=revision;
   try{
-   snapshot=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
+   const fresh=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
+   const cacheKey=JSON.stringify([client.state().profile.uid,fresh.subject,fresh.controlVersions]);
+   const currentPerson=await readPerson(fresh).catch(()=>null);if(n!==read||g!==revision)return;
+   snapshot=fresh;person=currentPerson;personKey=cacheKey;
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
    result=value.state==='confirmed'?value:null;reread.hidden=!!result;
    confirmIdentity();if(!result){say(explain(value));return;}
    $('xp-header').hidden=false;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
    rounds();if(last?.completed)passed();else say('');
   }catch(e){if(n===read&&g===revision){result=null;reread.hidden=false;confirmIdentity();problem(e);}}
-  finally{if(n===read){reading=false;if(refreshAgain){refreshAgain=false;refresh();}}}
+  finally{if(n===read){controls();reading=false;if(refreshAgain){refreshAgain=false;refresh();}}}
  }
  async function start(i=round,reopen=false){
   // 待送時保留目前題面；重整後尚無題面，須讓 client.start 續傳同關草稿。
@@ -200,7 +244,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(Number(chooser.value)).then(refresh);};
  lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('details').open=true;};
- function clear(){clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ function clear(){clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();return;}
   const id=state.profile.uid+':'+state.profile.owner;

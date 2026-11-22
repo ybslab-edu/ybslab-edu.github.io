@@ -91,10 +91,12 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(kind==='guest')credential=await auth.signInAnonymously();
       else if(kind==='google'||kind==='owner')credential=await auth.signInWithPopup(googleProvider());
       else {
-        const name=String(account||'').trim().toLowerCase().replace(/@.*$/,'');
+        const name=String(account||'').trim().toLowerCase().replace(/@.*$/,'').replace(/\s+/g,'');
         const normalized=/^\d{3,12}$/.test(name)?'cgjh'+name:name;
         if(!/^cgjh\d{3,12}$/.test(normalized)||!password)throw fail('invalid-account');
-        credential=await auth.signInWithEmailAndPassword(normalized+'@ybslab-edu.github.io',password);
+        // Keep the old login.js normalization, without changing SESSION persistence.
+        const text=String(password||'').trim(),match=text.match(/^cgjh([a-z][0-9a-d]\d{8})$/i);
+        credential=await auth.signInWithEmailAndPassword(normalized+'@ybslab-edu.github.io',match?'cgjh'+match[1].toUpperCase():text);
       }
       if(g!==generation||savedSignal()!==signal){await auth.signOut();throw fail('identity-changed');}
       profile={uid:credential.user.uid,kind};

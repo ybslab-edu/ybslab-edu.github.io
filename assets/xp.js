@@ -47,7 +47,9 @@ const YBSXP = (() => {
         const passXP = passed ? RULES.pass : 0;
         const onTimeXP = passed && at >= open && at <= open + RULES.windowMs ? RULES.onTime : 0;
         const result = {round, name, passed, passXP, onTimeXP, totalXP:passXP + onTimeXP};
-        if (worker) result.onTimeState = passed && (!Number.isFinite(at) || !Number.isFinite(open)) ? 'unknown' : 'confirmed';
+        // Legacy unknown time earned pass XP only in the old app; it is not an unknown new result.
+        if (worker) result.onTimeState = passed && ((!Number.isFinite(at) && record.source !== 'legacy-unverified')
+          || !Number.isFinite(open)) ? 'unknown' : 'confirmed';
         return result;
       });
       const passed = rounds.filter(r => r.passed).length;

@@ -77,21 +77,33 @@ test('u2-05 全變體有解、逐項錯答被拒，內容不同且產題有界',
   }
 });
 
-test('u2-05 第一關全部八個版本最多人選的項目皆唯一且判定正確',()=>{
+test('u2-05 八版本：兩組最高者不同，expected 可由委託資料獨立推得',()=>{
   const h=setup('u2-05');
-  const activities=['安可曲','燈牌展示','周邊攤位'];
-  for(let variant=0;variant<8;variant++){
-    h.run(`globalThis.qTestInst=ROUNDS[0].gen(()=>${variant}/8)`);
-    const inst=JSON.parse(h.run('JSON.stringify(qTestInst)'));
-    assert.equal(inst.t,'1-'+(variant+1));
-    const counts=activities.map(activity=>inst.rows.filter(row=>row===activity).length);
-    const winners=activities.filter((_,index)=>counts[index]===Math.max(...counts));
-    assert.equal(winners.length,1,`${inst.t} 不得並列最多：${counts}`);
-    assert.ok(inst.rows.length>=6&&inst.rows.length<=10,'維持 6～10 筆示意回覆');
-    const answer=[counts[inst.query],Math.max(...counts)-Math.min(...counts),winners[0],'資料','資訊'];
-    for(const activity of activities){
-      answer[2]=activity;
-      assert.equal(h.run(`ROUNDS[0].check(qTestInst,${JSON.stringify(answer)})===true`),activity===winners[0],`${inst.t}：${activity}`);
+  for(let variant=0;variant<8;variant++)for(let round=0;round<4;round++){
+    h.run(`globalThis.qTestInst=ROUNDS[${round}].gen(()=>${variant}/8)`);
+    const i=JSON.parse(h.run('JSON.stringify(qTestInst)'));
+    let answer;
+    if(round===0){
+      const jobs=['入口引導','遊戲體驗','舞台支援'];
+      const counts=['國中組','高中組'].map(g=>jobs.map(j=>i.rows.filter(r=>r[0]===g&&r[1]===j).length));
+      const winners=counts.map(c=>{assert.equal(c.filter(x=>x===Math.max(...c)).length,1);return jobs[c.indexOf(Math.max(...c))]});
+      assert.notEqual(winners[0],winners[1]);
+      answer=[...winners,counts[i.group][i.query],Math.abs(counts[0][i.query]-counts[1][i.query]),'資料','資訊','資訊'];
+    }else if(round===1){
+      const keep=i.fields.map(f=>['可到場時段','職務意願','緊急聯絡人及聯絡方式'].includes(f.name)||(f.name==='職務操作熟悉度'&&i.dataType.startsWith('職務')));
+      answer=[i.audience,i.dataType,keep.filter(Boolean).length,...keep.map(x=>x?'該收':'不該收'),'告知','同意','限制蒐集'];
+    }else if(round===2){
+      answer=['告知與同意','提交表單',i.parent,'志工安排','簡答','選擇題','核取方塊','線性刻度','單選方格',3+Number(i.questions[3].required)+Number(i.questions[4].required)];
+    }else{
+      answer=['可用主題設定完成','可用主題設定完成','需改用其他方式','作答者連結','連結至試算表',i.rows.reduce((n,r)=>n+Number(r[1]===i.job&&r[2]===i.slot),0),'不會'];
+      assert.ok(i.rows.some(r=>r[1]===i.job&&r[2]!==i.slot),'只比職務會誤算');
+      assert.ok(i.rows.some(r=>r[1]!==i.job&&r[2]===i.slot),'只比時段會誤算');
+    }
+    assert.equal(h.run(`ROUNDS[${round}].check(qTestInst,${JSON.stringify(answer)})`),true);
+    for(let k=0;k<answer.length;k++){
+      const bad=[...answer];bad[k]=typeof bad[k]==='number'?bad[k]+1:'不符需求';
+      const hint=h.run(`ROUNDS[${round}].check(qTestInst,${JSON.stringify(bad)})`);
+      assert.equal(typeof hint,'string');assert.ok(hint.length>5);
     }
   }
 });
@@ -116,13 +128,12 @@ test('u2-05 每關兩組、錯答可修正，答對原題與重送不能加計',
   }
 });
 
-test('u2-05 ID、索引、前測順序、題面待確認與未操作提醒',()=>{
+test('u2-05 ID 與索引不變，說明移除內部備註並保留素材機制',()=>{
   const h=setup('u2-05'),html=read('115-g9/u2-05/index.html');
   assert.match(html,/week:7,termWeek:13/);
   assert.equal(h.run('ROUNDS.length'),4);
-  assert.match(html,/先完成前測，再於課外看 2-13／2-14/);
-  assert.match(html,/第 6 題.*題面待確認/);
-  assert.match(html,/原第 1～4 關依序對應現在第 1～4 關/);
+  assert.doesNotMatch(html,/虛構|示意|後援會|2-13|前測|半成品|巡堂|待確認/);
+  assert.match(html,/每關答對兩組不同資料才完成；答錯可修正，不扣分/);
   for(let round=1;round<4;round++){
     h.run(`APP.load(${round})`);
     const b=h.body.querySelector('[data-fallback="use"]');b.click();

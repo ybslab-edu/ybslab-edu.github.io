@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>後援會問卷｜第 13 週</title>
+<title>動漫／遊戲展志工招募｜第 13 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261116fb">
@@ -19,6 +19,7 @@
 .quest-chart li{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
 .quest-chart .track{height:1em;background:var(--panel-hi)}
 .quest-chart .bar{display:block;height:100%;background:var(--dim)}
+.quest-chart .bar-high{background:repeating-linear-gradient(135deg,var(--ember) 0 4px,var(--panel-hi) 4px 6px)}
 .quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
 .quest-answers label{display:grid;gap:var(--u);min-width:0}
 .quest-answers input,.quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
@@ -34,19 +35,19 @@ body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 <script src="../../assets/fullrev-config.js?v=20261120a"></script>
 <script src="../../assets/login.js?v=20261121pr8"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
-<script src="../../assets/activities.js?v=20261105m"></script>
+<script src="../../assets/activities.js?v=20261122u205"></script>
 <script src="../../assets/shell.js?v=20261120a"></script>
 <script>
 const qEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qTable=(caption,heads,rows)=>'<table class="quest-table"><caption>'+qEsc(caption)+'</caption><thead><tr>'+heads.map(h=>'<th scope="col">'+qEsc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+qEsc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
 const qVersion=rnd=>Math.floor(rnd()*8);
-const qCommon='<div class="quest-note"><p>你要替虛構音樂活動團隊做一份可以填寫的問卷。這裡全部是示意資料；不要填入你或別人的真實個資。</p><p>先完成前測，再於課外看 2-13／2-14；課內依老師安排看 2-15。前測完成前，請先停在這裡。</p><p>你只需複製老師提供的半成品表單一次。把兩組成果分別保留並標上任務版本，不必重新建檔。每關答對兩組不同資料才完成；答錯可以修正，不扣分。</p><p>成果答案符合任務，仍需由老師巡堂抽看表單、預覽與試算表。設備或 Google 權限受阻時，展開下方「備用素材」，告訴老師你未實際操作。</p><details><summary>查看既有紀錄與待確認項目</summary><p>你原有的過關紀錄會保留：原第 1～4 關依序對應現在第 1～4 關，表示舊版完成紀錄，不代表做過這次 Google 實作。</p><p>前測第 2 題完整題意待老師核對；第 6 題主題設定題面待確認，本頁先讓你觀察，不預設該題答案。</p></details></div>';
+const qCommon='<div class="quest-note"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；展開「備用素材」即可查看本組委託附件。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>';
 // 僅記本機使用備用素材的版本與時間；不加入既有成績／雲端格式，不含學生身分。
 const qFallbackKey='ybs:u2-05:fallback:v1';
 function qReadLog(){try{const a=JSON.parse(localStorage.getItem(qFallbackKey)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string').slice(-64):[]}catch{return []}}
 function qView(inst,el,api,content,questions,expected,fallback){
-  el.innerHTML=qCommon+'<div class="panel"><h3>示意任務 '+qEsc(inst.t)+'</h3>'+content+
-    (fallback?'<details class="quest-fallback"><summary>備用素材：設備或 Google 權限受阻時使用</summary><p>你可以讀模擬成果當場作答。按下按鈕會在此瀏覽器記錄「未實際操作」，不會因此完成關卡；請讓老師另行記錄操作狀況。</p><button class="btn" type="button" data-fallback="use">使用備用素材並記錄</button><div data-fallback="material" hidden>'+fallback+'</div><p class="small quest-log" data-fallback="log" role="status"></p></details>':'')+
+  el.innerHTML=qCommon+'<div class="panel"><h3>委託任務 '+qEsc(inst.t)+'</h3>'+content+
+    (fallback?'<details class="quest-fallback"><summary>備用素材：本組委託附件</summary><p>你可以直接讀取附件作答，無須另外建立表單。開啟素材只記錄使用狀況，仍須回答下方問題。</p><button class="btn" type="button" data-fallback="use">開啟本組素材</button><div data-fallback="material" hidden>'+fallback+'</div><p class="small quest-log" data-fallback="log" role="status"></p></details>':'')+
     '<div class="quest-answers">'+questions.map((q,k)=>'<label>'+qEsc(q.label)+(q.options?'<select data-answer="'+k+'" aria-label="'+qEsc(q.label)+'"><option value="">請選擇</option>'+q.options.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('')+'</select>':'<input data-answer="'+k+'" type="number" min="0" step="1" inputmode="numeric" aria-label="'+qEsc(q.label)+'">')+'</label>').join('')+'</div></div>';
   const fields=questions.map((_,k)=>el.querySelector('[data-answer="'+k+'"]'));
   fields.forEach(f=>{f.oninput=()=>api.changed();f.onchange=()=>api.changed()});
@@ -57,7 +58,7 @@ function qView(inst,el,api,content,questions,expected,fallback){
       el.querySelector('[data-fallback="material"]').hidden=false;
       const entry=inst.t+'：未實際操作';let records=qReadLog();
       if(!records.some(x=>x.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
-      try{localStorage.setItem(qFallbackKey,JSON.stringify(records.slice(-64)));log.textContent='本機備用紀錄：\n'+records.slice(-64).join('\n')}catch{log.textContent=entry+'；瀏覽器無法保存，請讓老師記錄。'}
+      try{localStorage.setItem(qFallbackKey,JSON.stringify(records.slice(-64)));log.textContent='本機備用紀錄：\n'+records.slice(-64).join('\n')}catch{log.textContent=entry+'；瀏覽器無法保存，本次仍可繼續作答。'}
     };
   }
   return {get:()=>fields.map(f=>f.value),ready:()=>fields.every(f=>f.value!==''),fill:()=>{expected.forEach((x,k)=>fields[k].value=String(x))}};
@@ -67,50 +68,44 @@ function qCheck(answer,expected,hints){
   const wrong=expected.findIndex((x,k)=>answer[k]==null||String(answer[k]).trim()===''||(typeof x==='number'?(!/^\d+$/.test(String(answer[k]))||Number(answer[k])!==x):answer[k]!==x));
   return wrong<0?true:hints[wrong];
 }
-const qActivities=['安可曲','燈牌展示','周邊攤位'];
-function qCounts(i){return qActivities.map(x=>i.rows.filter(r=>r===x).length)}
-function qOneExpected(i){const c=qCounts(i);return [c[i.query],Math.max(...c)-Math.min(...c),qActivities[c.indexOf(Math.max(...c))],'資料','資訊']}
-function qTwoExpected(i){return [i.fields.filter(f=>f.preference).length,'告知與同意',i.fields[i.query].keep?'保留':'移除']}
-function qThreeExpected(i){return [i.sections.length,i.options.length,'不會','單選題','核取方塊','簡答題','線性刻度']}
-function qFourExpected(i){return [i.heads[i.column],i.rows.filter(r=>r[i.column]===i.target).length,'沒有改變']}
+const qJobs=['入口引導','遊戲體驗','舞台支援'];
+const qGroups=['國中組','高中組'];
+const qTypes=['簡答','選擇題','核取方塊','線性刻度','單選方格'];
+const qCounts=(i,g)=>qJobs.map(job=>i.rows.filter(r=>r[0]===qGroups[g]&&r[1]===job).length);
+const qWinner=c=>qJobs[c.indexOf(Math.max(...c))];
+function qOneExpected(i){const c=qCounts(i,i.group);return [qWinner(qCounts(i,0)),qWinner(qCounts(i,1)),c[i.query],Math.abs(qCounts(i,0)[i.query]-qCounts(i,1)[i.query]),'資料','資訊','資訊']}
+function qTwoExpected(i){return [i.audience,i.dataType,i.fields.filter(f=>f.keep).length,...i.fields.map(f=>f.keep?'該收':'不該收'),...i.cases.map(c=>c.rule)]}
+function qThreeExpected(i){return ['告知與同意','提交表單',i.parent,'志工安排',...i.questions.map(q=>q.type),i.questions.filter(q=>q.required).length]}
+function qFourExpected(i){return [...i.changes.map(c=>c.ok?'可用主題設定完成':'需改用其他方式'),'作答者連結','連結至試算表',i.rows.filter(r=>r[1]===i.job&&r[2]===i.slot).length,'不會']}
 const ROUNDS=[
- {lv:1,name:'這份回覆能告訴你什麼',now:'你收到一份觀眾回覆，要替音樂活動團隊讀出重點。',goal:'讀表與統計圖，填入數量、比較結果及資料／資訊分類。',
-  tip:'用原始列逐筆計數，再對照圖；比較最高與最低的長條。分類時看是否經過彙整。',
-  steps:i=>'<ol><li>任務 '+i.t+'：先把 '+i.rows.length+' 筆示意回覆按活動分組。</li><li>查「'+qActivities[i.query]+'」的長條，再比較最多與最少。</li><li>分別檢查單筆回覆與統計比較句是否經過彙整。</li></ol>',
-  learn:'你可以從原始回覆整理出統計資訊，再用資訊判斷活動需求。',
-  gen(rnd){const n=qVersion(rnd),counts=[4+n%2,2+Math.floor(n/2)%2,1+Math.floor(n/4)];return {t:'1-'+(n+1),query:n%3,rows:counts.flatMap((c,k)=>Array(c).fill(qActivities[k]))}},
-  view(i,el,api){const c=qCounts(i);return qView(i,el,api,qTable('原始回覆（示意）',['回覆編號','你想參加的活動'],i.rows.map((r,k)=>[k+1,r]))+'<p>統計圖（由同一份回覆計算；單位：人）</p><ul class="quest-chart">'+qActivities.map((x,k)=>'<li><span>'+x+'</span><span class="track"><span class="bar" style="width:'+c[k]/i.rows.length*100+'%"></span></span><span>'+c[k]+' 人</span></li>').join('')+'</ul>',[
-   {label:'選「'+qActivities[i.query]+'」的有幾人？'},{label:'最多與最少相差幾人？'},{label:'最多人選哪項活動？',options:qActivities},
-   {label:'「第 1 筆回覆：'+i.rows[0]+'」屬於什麼？',options:['資料','資訊']},{label:'「統計比較後，安可曲人數最多」屬於什麼？',options:['資料','資訊']}],qOneExpected(i))},
-  check:(i,a)=>qCheck(a,qOneExpected(i),['請查原始回覆中指定活動的筆數，再對照同名長條。','請查圖上最高與最低的人數，再計算差距。','請比較圖中各長條的人數。','請查看這一句是否只是保留單筆原始回答。','請查看這一句有沒有先做統計或比較。'])},
- {lv:1,name:'只問這次需要知道的事',now:'你要修整老師提供的半成品表單，讓蒐集內容符合用途。',goal:'完成開頭說明與同意區段，移除沒有用途的欄位，再回答成果。',
-  tip:'逐欄對照用途，不因欄位與人有關就一律刪除；先讓填答者知道資料怎麼使用。',
-  steps:i=>'<ol><li>任務 '+i.t+'：對照「'+i.purpose+'」檢查 '+i.fields.length+' 個欄位。</li><li>將用途、只看彙整結果、活動後刪除回覆寫入說明，再安排告知與同意區段。</li><li>在你的表單保留這組修整成果，數出偏好題，再檢查「'+i.fields[i.query].name+'」。</li></ol>',
-  learn:'你收集的每個欄位都要有用途，填答者也需要知道資料會如何使用及選擇是否同意。',
-  gen(rnd){const n=qVersion(rnd),preference=[n&4?'演出時段偏好':'安可曲偏好','燈牌色彩',...(n%2?['周邊種類']:[])];return {t:'2-'+(n+1),purpose:'統計'+preference.join('、')+(n&2?'，並依可到場時段安排人力':''),fields:[...preference.map(name=>({name,keep:true,preference:true})),{name:'可到場時段',keep:!!(n&2),preference:false},{name:'真實姓名（僅示意欄位名，勿填）',keep:false,preference:false},{name:'電話（僅示意欄位名，勿填）',keep:false,preference:false}],query:n%2?preference.length:preference.length+1}},
-  view(i,el,api){return qView(i,el,api,'<p>你這組的用途：'+i.purpose+'。資料只看彙整結果，活動後刪除回覆；不收聯絡資料。</p>'+qTable('待修整欄位（示意，不填任何個資）',['編號','欄位'],i.fields.map((f,k)=>[k+1,f.name]))+'<ol><li>在半成品的對應組別刪除無用途欄位。</li><li>在第一區段寫用途、使用方式及刪除時間，保留單選「是否同意作答」。</li><li>預覽確認你先看到告知與同意，後面才是活動偏好調查。</li></ol>',[
-   {label:'修整後保留幾題活動偏好題？'},{label:'哪個區段先出現？',options:['活動偏好調查','告知與同意']},{label:'「'+i.fields[i.query].name+'」應保留或移除？',options:['保留','移除']}],qTwoExpected(i),qTable('備用：修整後的表單大綱（示意）',['區段','內容'],[['告知與同意','用途、使用方式、活動後刪除回覆；是否同意作答'],['活動偏好調查',i.fields.filter(f=>f.keep).map(f=>f.name).join('、')]]))},
-  check:(i,a)=>qCheck(a,qTwoExpected(i),['請逐欄對照用途，只計算保留的活動偏好題。','請回到預覽開頭，檢查填答前需要先知道哪些事。','請查任務用途是否需要這個欄位，不要只看欄位名稱。'])},
- {lv:2,name:'讓不同回答走到對的地方',now:'你要讓同意與不同意的人走不同路徑，並設定調查題型。',goal:'修改半成品的區段、必填與四種題型，用預覽測試兩條路徑後回答。',
-  tip:'從同意題逐段追蹤路徑；複選題選項數不包含同意題，也不包含按鈕。',
-  steps:i=>'<ol><li>任務 '+i.t+'：依 '+i.sections.length+' 個調查區段安排題目，設定 '+i.options.length+' 個複選選項。</li><li>將不同意設為提交表單；同意才進調查。依用途設定四種題型及必要題。</li><li>用預覽測試兩條路徑，並試著漏答必填題；查看是否被阻擋。</li></ol>',
-  learn:'你用題型決定回答方式，用區段分流決定誰會看到哪些題；預覽能發現漏答與路徑問題。',
-  gen(rnd){const n=qVersion(rnd);return {t:'3-'+(n+1),sections:n%2?['活動偏好','參與安排']:['活動偏好'],options:['毛巾','手幅','燈牌',...(n&2?['貼紙']:[]),...(n&4?['徽章']:[])]}},
-  view(i,el,api){const spec=[['告知與同意','是否同意作答','同意／不同意，必填，只能選一個'],[i.sections[0],'安可曲','選一首，必填'],[i.sections[0],'周邊種類',i.options.join('、')+'；可複選，至少選一項，必填'],[i.sections.at(-1),'口號提案','自由寫一句虛構口號，非必填'],[i.sections.at(-1),'期待程度','1～5 分，必填']];return qView(i,el,api,'<p>你要依序建立：告知與同意 → '+i.sections.join(' → ')+' → 提交。同意才進入全部調查區段；不同意直接提交。</p>'+qTable('你要修改的結構（示意）',['區段','題目','要求'],spec)+'<p>你可以沿用同一份表單兩組成果。調查區段結尾依序前進；不同意應直接提交。用預覽分別測同意、不同意與漏答必填題。</p>',[
-   {label:'同意路徑會遇到幾個調查區段（不含同意區段）？'},{label:'周邊複選題共有幾個選項？'},{label:'不同意路徑會出現「周邊種類」嗎？',options:['會','不會']},
-   ...['是否同意作答','周邊種類','口號提案','期待程度'].map(name=>({label:'你為「'+name+'」設定的題型是？',options:['簡答題','單選題','線性刻度','核取方塊']}))],qThreeExpected(i),qTable('備用：預覽觀察紀錄（示意）',['操作','觀察'],[['選同意',i.sections.join(' → ')+' → 提交'],['選不同意','提交，未進入調查'],['查看周邊種類',i.options.join('、')+'；每項可分別勾選'],['查看題型','是否同意只能選一個；周邊可選多個；口號填短文字；期待程度選 1～5 分'],['漏填安可曲或期待程度','必填提示阻擋提交']]))},
-  check:(i,a)=>qCheck(a,qThreeExpected(i),['請從預覽的同意選項開始，逐段數調查區段，不含開頭。','請查周邊題的選項清單，不要把其他題算進來。','請從不同意的分流設定追蹤到終點。',...Array(4).fill('請查結構表的回答要求，再對照你表單中的題型與預覽。')])},
- {lv:2,name:'外觀改好了，資料有接上嗎',now:'你要檢查外觀、回覆與試算表是否一致，燈牌資料也在這關核對。',goal:'調整一項老師確認可用的外觀設定，送出兩筆示意回覆並連結試算表，核對欄名與內容。',
-  tip:'外觀調整前後都預覽一次；回覆資料請到試算表看欄名與逐列內容。',
-  steps:i=>'<ol><li>任務 '+i.t+'：調整外觀前記下燈牌題的 '+i.options.length+' 個選項，調整後再查看。</li><li>依清單送出兩筆示意回答，只核對這組資料。</li><li>到回覆區連結試算表，查「'+i.target+'」所在欄名及列數。不要把時間戳記或前組回覆算進來。</li></ol>',
-  learn:'你已核對問卷外觀、示意回覆與試算表內容。下一站，你會整理這些回覆。',
-  gen(rnd){const n=qVersion(rnd),colors=['霜白','暖橙',...(n&4?['銀灰']:[])],heads=n&2?['周邊種類','燈牌色彩']:['燈牌色彩','周邊種類'],column=n&1?heads.indexOf('周邊種類'):heads.indexOf('燈牌色彩');const rows=[['霜白','毛巾'],[n&4?'霜白':'暖橙',n&1?'毛巾':'手幅']].map(r=>heads[0]==='燈牌色彩'?r:[r[1],r[0]]);return {t:'4-'+(n+1),options:colors,heads,column,rows,target:column===heads.indexOf('燈牌色彩')?'霜白':'毛巾'}},
-  view(i,el,api){return qView(i,el,api,'<p>你這組燈牌色彩選項：'+i.options.join('、')+'。將題目依「'+i.heads.join('、')+'」順序排列。</p><ol><li>記下題目與選項，再調整一項老師已確認可用的主題外觀設定，重新預覽比較。前測第 6 題題面待確認，你先觀察主題面板，不預設該題答案。</li><li>依下表發布／預覽並送出兩筆虛構回答。</li><li>在「回覆」連結試算表；可沿用同一檔案，只核對本組兩筆回覆。</li></ol>'+qTable('你要送出的兩筆回答（示意）',i.heads,i.rows),[
-   {label:'「'+i.target+'」所在欄名是？',options:i.heads},{label:'本組兩筆回覆中，有幾筆選了「'+i.target+'」？'},{label:'只調整外觀後，燈牌題選項數有改變嗎？',options:['有改變','沒有改變']}],qFourExpected(i),qTable('備用：連結後的試算表節錄（示意）',['時間戳記',...i.heads],i.rows.map((r,k)=>['示意時間 '+(k+1),...r]))+'<p>模擬觀察紀錄：僅更動老師指定的外觀設定；預覽中的題目文字與選項清單和調整前相同。</p>')},
-  check:(i,a)=>qCheck(a,qFourExpected(i),['請查看指定值上方的試算表欄名，別用欄位字母代替題目名稱。','請逐列查看本組兩筆示意回覆的指定欄位，不含前組資料。','請對照外觀調整前後的燈牌題選項清單。'])}
+ {lv:1,name:'這份回覆能告訴你什麼',now:'你收到兩組報名回覆，要替主辦方比較職務意願。',goal:'讀表與兩組長條圖，判斷各組最高職務、數量與資料／資訊。',
+ tip:'先辨認組別，再比較同組長條；原始紀錄與計算、分析後的內容不同。',
+ steps:i=>'<p>任務 '+i.t+'：將 '+i.rows.length+' 筆回覆按組別與職務分開計數，再比較長條；不能用其中一組代表另一組。</p>',learn:'你能把原始回覆整理成資訊，並保留組別差異。',
+ gen(rnd){const n=qVersion(rnd),a=n%3,b=(a+1)%3;const rows=[];for(let g=0;g<2;g++)for(let j=0;j<3;j++){const count=j===(g?b:a)?4+Math.floor(n/3):1+((n+g+j)%2);for(let k=0;k<count;k++)rows.push([qGroups[g],qJobs[j]])}return {t:'1-'+(n+1),rows,query:n%3,group:n%2}},
+ view(i,el,api){return qView(i,el,api,qTable('報名原始回覆',['編號','組別','第一志願'],i.rows.map((r,k)=>[k+1,...r]))+'<p>職務第一志願比較（人）；實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。</p><ul class="quest-chart">'+qJobs.map((job,k)=>qGroups.map((g,j)=>{const count=qCounts(i,j)[k];return '<li><span>'+job+'<br>'+g+'</span><span class="track"><span class="bar '+(j?'bar-high':'')+'" style="width:'+count/6*100+'%"></span></span><span>'+count+' 人</span></li>'}).join('')).join('')+'</ul>',[
+ {label:'國中組最多人選哪個職務？',options:qJobs},{label:'高中組最多人選哪個職務？',options:qJobs},{label:qGroups[i.group]+'選「'+qJobs[i.query]+'」的有幾人？'},{label:'兩組選「'+qJobs[i.query]+'」的人數相差幾人？'},
+ {label:'「第 1 筆原始回答：'+i.rows[0].join('、')+'」屬於？',options:['資料','資訊']},{label:'「計算後，'+qGroups[i.group]+'有 '+qCounts(i,i.group)[i.query]+' 人選'+qJobs[i.query]+'」屬於？',options:['資料','資訊']},{label:'「比較後，兩組最熱門職務不同」屬於？',options:['資料','資訊']}],qOneExpected(i))},
+ check:(i,a)=>qCheck(a,qOneExpected(i),['請只比較國中組的三條長條。','請只比較高中組的三條長條。','請先核對組別和職務，再逐列計數。','請比較同一職務的兩個組別人數。',...Array(3).fill('請判斷這句是否保留原始回答，或已經計算、比較。')])},
+ {lv:1,name:'只問這次需要知道的事',now:'你要依委託目的，審查報名對象、欄位與蒐集方式。',goal:'選對對象和數據類型，逐欄判斷是否該收，再找出違反的原則。',
+ tip:'必要性由用途決定；緊急聯絡有安全用途，但不能因此多收無關資料。',steps:i=>'<p>任務 '+i.t+'：逐項對照「'+i.audience+'」的需求，審查 '+i.fields.length+' 個問題，再區分三種蒐集原則。</p>',learn:'你能把蒐集範圍限於目的，並檢查告知與同意。',
+ gen(rnd){const n=qVersion(rnd),slot=n%2?'下午場 13:00–17:00':'上午場 09:00–12:00',audience=n&2?'兩個時段皆能到場的志工申請者':slot+'能到場的志工申請者',dataType=n&4?'職務操作熟悉度（1～5 分）':'可到場時段（類別）';return {t:'2-'+(n+1),slot,audience,dataType,fields:[{name:'可到場時段',keep:true},{name:'職務意願',keep:true},{name:'緊急聯絡人及聯絡方式',keep:true},{name:n%2?'社群帳號密碼':'家庭每月收入',keep:false},{name:'職務操作熟悉度',keep:!!(n&4)},{name:'最喜歡的角色生日',keep:false}],cases:[{text:'用途欄只寫「填完有好禮」，沒有說明資料如何使用。',rule:'告知'},{text:'窗口說：「都是社團朋友，直接用舊通訊錄替大家報名，不用取得同意。」',rule:'同意'},{text:'除了排班和緊急聯繫，還要求提供家中財務狀況。',rule:'限制蒐集'}]}},
+ view(i,el,api){return qView(i,el,api,'<p>委託：招募'+i.audience+'，依職務意願與時段排班，並在活動突發狀況時緊急聯繫。'+(i.dataType.startsWith('職務')?'本組另需依操作熟悉度安排培訓。':'本組不依熟悉度安排培訓；先掌握可到場時段。')+'資料只供招募窗口排班、必要培訓與緊急聯繫，活動結束 30 天後刪除。</p>'+qTable('待審查的問題',['編號','問題欄位'],i.fields.map((f,k)=>[k+1,f.name])),[
+ {label:'這次應向誰蒐集？',options:[i.audience,'所有展覽觀眾','所有攤商負責人']},{label:'依本組額外需求／優先目標，應取得哪種數據？',options:[i.dataType,i.dataType.startsWith('職務')?'最愛作品（文字）':'觀看動畫時間（分鐘）','家庭財務狀況（金額）']},{label:'總共該保留幾個欄位？'},...i.fields.map(f=>({label:'「'+f.name+'」該收嗎？',options:['該收','不該收']})),...i.cases.map(c=>({label:c.text+' 主要違反哪個原則？',options:['告知','同意','限制蒐集']}))],qTwoExpected(i),'<p>招募窗口阿岑的需求單：確認到場能力、職務分配與必要培訓；緊急聯絡人只供當天突發狀況使用，不作行銷。請審查問題欄位，不必填入任何聯絡內容。</p>')},
+ check:(i,a)=>qCheck(a,qTwoExpected(i),['請確認委託需要誰的到場與職務資料。','請看本組要安排培訓，還是先掌握時段。','請逐項對照目的，再計算保留欄位。',...i.fields.map(()=> '請對照排班、培訓或緊急聯繫用途；與人有關不代表一定不能收。'),...i.cases.map(()=> '請區分用途未說明、未取得允許及超出目的三種問題。')])},
+ {lv:2,name:'讓不同回答走到對的地方',now:'你接手的表單把同意書放錯位置，分流與題型也有錯。',goal:'修正第一區段、兩條分流、五種題型，並計算志工安排的必填題數。',
+ tip:'先決定誰能看到報名題；題型取決於能選幾個、是否短文字或逐列評分。',steps:i=>'<p>任務 '+i.t+'：先追蹤年齡分流到「'+i.parent+'」的路徑，再檢查 '+i.questions.length+' 題的回答要求與必填標記。</p>',learn:'你能用區段控制路徑，用題型與必填確保回覆符合需求。',
+ gen(rnd){const n=qVersion(rnd);return {t:'3-'+(n+1),parent:'家長同意確認'+(n%2?' A':' B'),questions:[{name:'報名代號',need:'輸入一小段文字',type:'簡答',required:true},{name:'第一志願職務',need:'只能選一項',type:'選擇題',required:true},{name:'可到場時段',need:'可以同時勾選上午與下午',type:'核取方塊',required:true},{name:'服務期待程度',need:'在 1～'+(5+n%3)+' 分選一個分數，兩端標示低與高',type:'線性刻度',required:!!(n&2)},{name:'各職務操作熟悉度',need:'每列一個職務，每列只選一個熟悉程度',type:'單選方格',required:!!(n&4)}]}},
+ view(i,el,api){const spec=qTable('志工安排修復規格',['題目','需要的回答方式','填答要求'],i.questions.map(q=>[q.name,q.need,q.required?'必填':'選填']));return qView(i,el,api,'<p>草稿錯誤：先問志工安排，再顯示告知與同意；不同意者仍進入報名題；未滿 18 歲者略過家長確認；所有題目都設成簡答且必填。</p><p>你的修復規格：第一區段取得同意。不同意即提交；同意者進「年齡分流」，已滿 18 歲進「志工安排」，未滿 18 歲先進「'+i.parent+'」，取得家長同意後才進「志工安排」，未取得則提交。年齡分流使用選擇題。</p>'+spec,[
+ {label:'第一區段應放什麼？',options:['志工安排','告知與同意','年齡分流']},{label:'不同意應前往哪裡？',options:['提交表單','志工安排',i.parent]},{label:'同意但未滿 18 歲應先前往哪裡？',options:['志工安排',i.parent,'提交表單']},{label:'已取得家長同意，下一區段是？',options:['志工安排','告知與同意','提交表單']},...i.questions.map(q=>({label:'「'+q.name+'」應改成哪種題型？',options:qTypes})),{label:'「志工安排」區段應有幾題必填（不含其他區段）？'}],qThreeExpected(i),'<p>表單區段清單：志工安排／年齡分流／'+i.parent+'／告知與同意。請依修復規格重新安排；分流用選擇題「根據答案前往相關區段」，不可用核取方塊代替。</p>')},
+ check:(i,a)=>qCheck(a,qThreeExpected(i),['請想填答者應在交出資料前先知道並決定什麼。','請從不同意開始追蹤，確認不進報名題。','請查未成年者需要先完成的確認。','請依取得家長同意後的路徑繼續。',...i.questions.map(()=> '請對照可選數量、文字長度與逐列作答需求。'),'請只計算志工安排規格中標成必填的題目。'])},
+ {lv:2,name:'外觀改好了，資料有接上嗎',now:'你要把表單交給招募窗口，確認外觀需求、分享權限與回覆。',goal:'判斷三個外觀需求、選對分享方式，並用兩個條件計算人數。',
+ tip:'主題設定與題目內容分開；同時符合職務和時段才計入，不能只篩一欄。',steps:i=>'<p>任務 '+i.t+'：先核對三項主題需求與連結用途，再從 '+i.rows.length+' 筆回覆找出職務「'+i.job+'」且時段「'+i.slot+'」的列。</p>',learn:'你能分享正確連結，並從連結的試算表核對回覆；下一步是整理資料。',
+ gen(rnd){const n=qVersion(rnd),job=qJobs[n%3],slot=n&1?'下午場':'上午場';return {t:'4-'+(n+1),job,slot,changes:[{text:n&2?'換成展覽首頁圖片':'設定表單背景顏色',ok:true},{text:n&4?'調整標題的文字樣式':'調整表單主題顏色',ok:true},{text:'只把題目文字改成指定紅色，保留原主題與背景',ok:false}],rows:Array.from({length:8},(_,k)=>['V'+(k+1),k<2+n%3?job:qJobs[(n+1)%3],k%3===0?slot:(slot==='上午場'?'下午場':'上午場')])}},
+ view(i,el,api){return qView(i,el,api,'<p>你已收到三項外觀需求。請判斷能否由 Google 表單「自訂主題」完成，再確認招募分享與排班回覆。</p>'+qTable('回覆連結至試算表後的節錄',['報名代號','第一志願職務','可到場時段'],i.rows),[
+ ...i.changes.map(c=>({label:'「'+c.text+'」如何處理？',options:['可用主題設定完成','需改用其他方式']})),{label:'你要在招募公告分享哪個連結？',options:['作答者連結','編輯者連結']},{label:'要讓新回覆自動進入表格，應在「回覆」做什麼？',options:['連結至試算表','只更換主題','複製編輯者連結']},{label:'第一志願是「'+i.job+'」且時段是「'+i.slot+'」的共有幾人？'},{label:'只更換主題，會自動改變回覆中的職務與時段嗎？',options:['會','不會']}],qFourExpected(i),'<p>交付檢查單：使用「發布」後的「複製作答者連結」讓志工填答；編輯者連結交給協作者修改表單。回覆分頁可連結試算表，新回覆會持續加入。主題可設定文字樣式、主題／背景顏色及首頁圖片，不能獨立指定題目文字顏色。</p>')},
+ check:(i,a)=>qCheck(a,qFourExpected(i),[...i.changes.map(()=> '請分辨整體主題、文字樣式與單獨指定文字顏色。'),'請想招募對象需要填答還是修改題目。','請找能讓新回覆持續進入表格的功能。','請逐列同時核對職務與時段，只有兩者皆符合才計入。','請分辨外觀設定與回覆內容。'])}
 ];
-// 活動與關卡索引不變：既有 round 0～3 / mask 四個位元直接沿用，舊完成紀錄不重算。
-const APP=SHELL({week:7,termWeek:13,title:'後援會問卷',course:'115-g9',unit:2,rounds:ROUNDS,finale:'你已完成問卷成果確認。請保留兩組示意成果，讓老師抽看操作；使用備用素材時，請告知老師「未實際操作」。'});
+const APP=SHELL({week:7,termWeek:13,title:'動漫／遊戲展志工招募',course:'115-g9',unit:2,rounds:ROUNDS,finale:'你已完成志工報名表設計審查。下一站，你會整理回覆，協助主辦方安排人力。'});
 </script>
 </body>
 </html>

@@ -1,8 +1,8 @@
-import {renderRecording} from './fullrev-recording.mjs?v=20261121pr8';
+import {renderRecording} from './fullrev-recording.mjs?v=20261122legacy';
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
-import {renderPhotos} from './fullrev-photos.mjs?v=20261121pr8';
-import {renderPerformance} from './fullrev-performance.mjs?v=20261121pr8';
-import {renderOutcome} from './fullrev-outcomes.mjs?v=20261121pr8';
+import {renderPhotos} from './fullrev-photos.mjs?v=20261122legacy';
+import {renderPerformance} from './fullrev-performance.mjs?v=20261122legacy';
+import {renderOutcome} from './fullrev-outcomes.mjs?v=20261122legacy';
 export const BATCH1=Object.freeze([
   {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場'],managed:[3]},
   {activity:5,file:'115-g9/u2-03/index.html',title:'燈牌只有亮和暗',unit:2,rounds:['點亮生日','看燈猜數字','沒有標數字的燈牌','要幾顆燈才夠','燈牌要幾個位元組'],managed:[0,1,2,3,4]},

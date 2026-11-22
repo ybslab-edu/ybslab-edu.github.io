@@ -18,13 +18,21 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
   if (!snapshot || snapshot.schemaVersion !== 1 || snapshot.sourceProject !== project || snapshot.course !== course
       || snapshot.state !== 'confirmed' || snapshot.complete !== true || !versions(snapshot.controlVersions)
       || !Array.isArray(snapshot.records)) return unknown('control-unconfirmed');
-  const selected = new Map(), exclusions = [];
+  const selected = new Map(), validatedIds = new Map(), exclusions = [];
   for (const r of snapshot.records) {
     if (!r || !id(r.subject) || subject && r.subject !== subject) return unknown('subject-mismatch');
     if (r.validity?.state === 'excluded') { exclusions.push({resultId:r.resultId,reason:r.validity.reason}); continue; }
     if (r.validity?.state !== 'effective' || !sameVersions(r.validity.controlVersions,snapshot.controlVersions)) return unknown('validity-unconfirmed');
     const a = activities.find(a => a.course === course && a.week === r.activity);
-    if (r.schemaVersion !== 1 || r.source !== 'worker-validated' || !id(r.resultId) || !id(r.uid)
+    const legacy = r.source === 'legacy-unverified';
+    if (legacy) {
+      if (course !== '115-g9' || r.schemaVersion !== 1 || !/^l_[a-f0-9]{64}$/.test(r.resultId)
+          || r.displayPolicy !== 'migration-initial-epochs-v1' || r.provider !== 'password'
+          || !a || !int(r.round) || r.round >= a.rounds.length || r.unit !== a.unit
+          || r.unitEpoch !== 0 || r.roundEpoch !== 0
+          || r.completedAt !== null && !Number.isFinite(time(r.completedAt))
+          || !Number.isFinite(time(r.xpPolicySnapshot?.openedAt))) return unknown('legacy-invalid');
+    } else if (r.schemaVersion !== 1 || r.source !== 'worker-validated' || !id(r.resultId) || !id(r.uid)
         || !['google.com','password','anonymous'].includes(r.provider) || !id(r.sid) || !id(r.classKeyAtPass)
         || !int(r.bindingVersion,1) || !a
         || !int(r.round) || r.round >= a.rounds.length || r.unit !== a.unit
@@ -33,8 +41,17 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
         || !/^[a-f0-9]{64}$/.test(r.contentHash) || !id(r.graderVersion)
         || !Number.isFinite(time(r.completedAt))) return unknown('result-invalid');
     const key = JSON.stringify([r.subject,r.activity,r.round]);
+    if (!legacy) {
+      if (validatedIds.has(key) && validatedIds.get(key) !== r.resultId) return unknown('completion-collision');
+      validatedIds.set(key,r.resultId);
+    }
     const old = selected.get(key);
-    if (old && old.resultId !== r.resultId) return unknown('completion-collision');
+    if (old && (legacy || old.source === 'legacy-unverified')) {
+      const previous = time(old.completedAt), next = time(r.completedAt);
+      // Old XP oracle: unknown first-pass time wins; otherwise choose the earliest.
+      if (!(Number.isFinite(previous) && (!Number.isFinite(next) || next < previous)
+          || Object.is(next,previous) && legacy)) continue;
+    }
     selected.set(key,{...r,course});
   }
   return {state:'confirmed',records:[...selected.values()],exclusions};
@@ -68,7 +85,7 @@ export function exportRows(snapshot, options, xp) {
     for (const a of options.activities) for (let round=0;round<a.rounds.length;round++) {
       const record = records.find(r => r.activity === a.week && r.round === round);
       const detail = progress.activities?.find(v => v.activity === a.week)?.rounds[round];
-      rows.push([person.cls,person.seat,a.title,a.rounds[round],record?'已確認過關':'尚未過關',
+      rows.push([person.cls,person.seat,a.title,a.rounds[round],record?(record.source==='legacy-unverified'?'舊紀錄過關（未驗證）':'已確認過關'):'尚未過關',
         record?.completedAt || '',progress.totalXP === null ? '待確認' : detail?.totalXP || 0,record?.resultId || '']);
     }
     rows.push([person.cls,person.seat,'合計','','','',progress.totalXP === null?'待確認':progress.totalXP,'']);

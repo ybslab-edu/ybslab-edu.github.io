@@ -1,5 +1,5 @@
 // Only authenticated Worker projections; no direct list or private-control reads.
-import {fail} from './fullrev-progress.mjs?v=20261121pr8';
+import {fail} from './fullrev-progress.mjs?v=20261122legacy';
 export function createReadModel({session,project,course,workerOrigin,fetcher=globalThis.fetch}){
  const origin=new URL(workerOrigin);
  if(origin.protocol!=='https:'||!origin.hostname.endsWith('.workers.dev')||origin.origin!==workerOrigin)throw fail('configuration-pending');

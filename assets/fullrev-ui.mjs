@@ -1,4 +1,4 @@
-import {growth,exportRows} from './fullrev-progress.mjs?v=20261121pr8';
+import {growth,exportRows} from './fullrev-progress.mjs?v=20261122legacy';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
@@ -61,7 +61,7 @@ const pairAnswer=value=>value?.photoAnswer||value?.performanceOrder;
 const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course==='115-g9');
 async function xpCore() {
   if(typeof YBSXP!=='undefined')return YBSXP;
-  await new Promise((resolve,reject)=>{const script=node('script');script.src='/assets/xp.js?v=20261121pr8';script.onload=resolve;script.onerror=reject;document.head.append(script);});
+  await new Promise((resolve,reject)=>{const script=node('script');script.src='/assets/xp.js?v=20261122legacy';script.onload=resolve;script.onerror=reject;document.head.append(script);});
   return YBSXP;
 }
 function showGrowth(host,snapshot,client,xp) {

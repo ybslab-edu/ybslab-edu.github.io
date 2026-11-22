@@ -97,8 +97,16 @@ test('新活動：錯答同題、下一組才換題、回條不先給分、重�
   assert.equal(await page.evaluate(()=>app.requests.length),sent);assert.deepEqual(await page.evaluate(()=>seenQuestions),[0]);
   await page.getByRole('button',{name:'下一組',exact:true}).click();assert.deepEqual(await page.evaluate(()=>seenQuestions),[0,1]);
   assert.equal(await page.getByLabel('合成答案').inputValue(),'');
-  await page.evaluate(()=>app.state.fetcher=async()=>Response.json({completed:true,resultId:'c_done'}));
-  await page.getByLabel('合成答案').fill('7');await page.getByRole('button',{name:'送出',exact:true}).click();await page.waitForFunction(()=>app.client.state().view?.completed&&app.client.state().snapshot?.records.length===0);assert.equal(await page.locator('#xp-total').textContent(),'0 XP');assert.equal(await page.getByText('過關！',{exact:true}).count(),0);
+  await page.evaluate(()=>{
+    // 題面只透過訂閱事件提供；state() 不暴露 view。
+    window.completedReceipt=null;
+    app.client.subscribe(state=>{if(state.view?.completed)window.completedReceipt=state.view;});
+    app.state.fetcher=async()=>Response.json({completed:true,resultId:'c_done'});
+  });
+  await page.getByLabel('合成答案').fill('7');await page.getByRole('button',{name:'送出',exact:true}).click();
+  await page.waitForFunction(()=>completedReceipt?.resultId==='c_done'&&app.client.state().status==='confirmed'&&app.client.state().snapshot?.records.length===0);
+  await page.locator('#xp-total').getByText('0 XP',{exact:true}).waitFor();
+  assert.equal(await page.locator('#xp-total').textContent(),'0 XP');assert.equal(await page.getByText('過關！',{exact:true}).count(),0);
   // 成長頁從同一有效集合重算，取消的過關與徽章可減少。
   const growth=await pageFor(t,'?growth');await login(growth);
   await growth.evaluate(()=>app.state.snapshot=snapshot([0,1,2,3].map(i=>record(i))));
@@ -188,7 +196,9 @@ test('斷線答案待確認；換人及其他分頁登出清空題面與待送',
 test('owner 示範無請求、非owner不能匯出；未知投影不下載',async t=>{
   const page=await pageFor(t);await page.evaluate(()=>app.state.owner=true);
   await page.locator('#g-gbtn summary').click();await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByText('本機練習／教師示範，不送出成績。',{exact:true}).waitFor();
+  await page.locator('#activity-tools summary').click();
   await page.getByRole('button',{name:'本機練習／示範',exact:true}).click();assert.equal(await page.evaluate(()=>app.requests.length),0);
+  await page.getByText('合成示範',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isEnabled(),false);
   const teacher=await pageFor(t,'?teacher');await teacher.evaluate(()=>app.state.owner=false);
   await teacher.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await teacher.getByText('只有此課程擁有者可以使用。',{exact:true}).waitFor();

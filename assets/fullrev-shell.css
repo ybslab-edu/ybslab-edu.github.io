@@ -1,0 +1,53 @@
+/* 新版活動共用外框，沿用 shell.css 的尺寸與色彩。 */
+.fullrev-activity #stage{overflow-wrap:anywhere}
+.fullrev-activity .quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
+.fullrev-activity .quest-note p{margin:var(--u) 0}
+.fullrev-activity .quest-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.fullrev-activity .quest-table th,.fullrev-activity .quest-table td{padding:var(--u);border:1px solid var(--edge);text-align:left;overflow-wrap:anywhere}
+.fullrev-activity .quest-table caption{text-align:left;font-weight:700;margin-block:var(--u)}
+.fullrev-activity .quest-chart{list-style:none;padding:0;display:grid;gap:var(--u)}
+.fullrev-activity .quest-chart li{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
+.fullrev-activity .quest-chart .track{height:1em;background:var(--panel-hi)}
+.fullrev-activity .quest-chart .bar{display:block;height:100%;background:var(--dim)}
+.fullrev-activity .quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
+.fullrev-activity .quest-answers label{display:grid;gap:var(--u);min-width:0}
+.fullrev-activity .quest-answers input,.fullrev-activity .quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
+.fullrev-activity .quest-fallback{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
+.fullrev-activity .quest-fallback summary{cursor:pointer;padding:var(--u);text-decoration:underline}
+.fullrev-activity .quest-log{white-space:pre-line;overflow-wrap:anywhere}
+.fullrev-activity .ybs-login{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left}
+.fullrev-activity .ybs-login label{font-size:15px;font-weight:700}
+.fullrev-activity .ybs-login input:not([type="button"]){display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:calc(var(--u)*1.25) calc(var(--u)*1.5);border-radius:0;border:2px solid var(--edge);background:var(--panel-hi);color:var(--text);box-shadow:none}
+.fullrev-activity .ybs-login input::placeholder{color:var(--dim);opacity:1}
+.fullrev-activity .ybs-login .btn{width:100%;min-height:44px;font:inherit;font-weight:700;padding:calc(var(--u)*1.25) calc(var(--u)*3);border:0}
+.fullrev-activity .ybs-password{position:relative}
+.fullrev-activity .ybs-password input[name="password"]{padding-right:92px}
+.fullrev-activity .ybs-password-icon{position:absolute;right:59px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text)}
+.fullrev-activity .ybs-password-toggle{position:absolute;right:3px;top:50%;transform:translateY(-50%);box-sizing:border-box;width:80px;min-height:44px;padding:4px 4px 4px 26px;font:inherit;font-size:14px;border:0;border-radius:0;background:transparent;color:var(--text);box-shadow:none;cursor:pointer}
+.fullrev-activity .tlogin{margin-top:12px;text-align:center}
+.fullrev-activity .tlogin summary{font-size:14px;color:var(--dim);cursor:pointer;text-decoration:underline}
+.fullrev-activity .tlogin .linkbtn{display:block;margin:12px auto}
+.fullrev-activity #activity-tools{font-size:14px}
+.fullrev-activity #activity-tools button{display:block;margin-block:10px}
+#activity-lock{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--void);color:var(--text);font:18px/1.6 "Noto Sans TC",system-ui,sans-serif;text-align:center;color-scheme:dark}
+#activity-lock>div{max-width:480px;min-width:0;padding:32px 24px;background:var(--panel);border:2px solid var(--edge);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+#activity-lock h1{font-size:26px;font-weight:900;margin:8px 0}
+#activity-lock>div>p:first-of-type{color:var(--dim);margin:0 0 20px}
+#activity-lock a{display:inline-block;max-width:100%;padding:10px 24px;background:var(--ember);color:var(--on-ember);font-weight:700;text-decoration:none;outline-offset:-4px;clip-path:polygon(var(--slant) 0,100% 0,calc(100% - var(--slant)) 100%,0 100%)}
+#activity-lock .activity-unlock{margin-top:28px}
+#activity-lock button{color:var(--dim)}
+
+.fullrev-activity #stage input:not([type=range]),.fullrev-activity #stage select{font:inherit;min-width:0;max-width:100%;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
+.fullrev-activity #stage button{min-height:44px}
+.fullrev-activity :focus-visible{outline:3px solid var(--text);outline-offset:3px}
+/* 成果題面沿用舊站的資料表、橫條圖與單欄作答排列。 */
+.fullrev-activity #stage.quest-outcome .quest-note h3[hidden]{display:none}
+.fullrev-activity #stage.quest-outcome .fullrev-outcome-table table{table-layout:fixed}
+.fullrev-activity #stage.quest-outcome .fullrev-outcome-table thead{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+.fullrev-activity #stage.quest-outcome .fullrev-outcome-table tr{display:table-row;margin:0;border:0}
+.fullrev-activity #stage.quest-outcome .fullrev-outcome-table th,
+.fullrev-activity #stage.quest-outcome .fullrev-outcome-table td{display:table-cell;padding:var(--u)!important;border:1px solid var(--edge)!important;text-align:left;overflow-wrap:anywhere}
+.fullrev-activity #stage.quest-outcome .fullrev-outcome-table td::before{content:none}
+.fullrev-activity .quest-chart-row{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
+.fullrev-activity #stage.quest-outcome .quest-work>label{display:grid!important;gap:var(--u);margin:calc(var(--u)*2) 0!important}
+.fullrev-activity #stage.quest-outcome .quest-work>details{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}

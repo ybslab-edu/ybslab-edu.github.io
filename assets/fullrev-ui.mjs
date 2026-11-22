@@ -18,7 +18,8 @@ function layout(title) {
   root.append(status,login,tools,content);document.body.replaceChildren(root);
   return {root,status,login,tools,content};
 }
-export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false}) {
+export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false,oldlook=false}) {
+  if(oldlook)return (await import('./fullrev-shell.mjs')).mountStudentLogin({client,host,onLogin,explain});
   const form=node('form'), account=node('input'), password=node('input'), alert=node('p');
   form.style.cssText='display:grid;gap:8px;max-width:320px';
   for(const input of [account,password])input.style.cssText='display:block;box-sizing:border-box;width:100%;min-height:44px';
@@ -96,6 +97,7 @@ function eventsRefresh(p,refresh) {
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&p.client.state().profile)refresh();});
 }
 export async function mountActivity({client:promise,cfg}) {
+  if(cfg.course==='115-g9')return (await import('./fullrev-shell.mjs')).mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain});
   const p=await setup(promise,cfg.title);if(!p.client)return;
   const stage=node('section'),summary=node('section'),nav=node('nav');
   p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='',pairTimer=null,generation=0;

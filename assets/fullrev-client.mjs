@@ -27,14 +27,15 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   if(!['115-g9','115-df'].includes(course))throw fail('invalid-course');
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
   let profile=null, generation=0, firebaseSession, sessionOpening, drafts={}, readVersion=0, signal='', timer;
-  let status='signed-out', snapshot=null, view=null;
+  let status='signed-out', snapshot=null, view=null, readingRetry=null;
   const listeners = new Set(), running = new Map();
   const emit = next => { status=next; for (const f of listeners) f({profile:profile&&{...profile},status,
-    pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),snapshot,view}); };
+    pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),snapshot,view,readingRetry}); };
+  readModel?.subscribeRetry?.(value=>{readingRetry=profile?value:null;emit(status);});
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
   function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts}));}catch{emit('storage-pending');}}
-  function clear() {cancel(timer);timer=null;generation++;readVersion++;running.clear();drafts={};snapshot=null;view=null;profile=null;
+  function clear() {cancel(timer);timer=null;generation++;readVersion++;running.clear();drafts={};snapshot=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
   function broadcast() {signal=requestId();try{shared?.setItem(signalKey,signal);}catch{}}
   function active(mark) {
@@ -314,7 +315,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   return Object.freeze({project,course,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
-    state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});
+    state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});
 }
 
 export async function createBrowserClient(config) {

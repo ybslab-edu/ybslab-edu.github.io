@@ -104,10 +104,10 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
     page.setDefaultTimeout(6000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
     try {
-      await page.goto(base+'/'+a.file);await page.getByRole('button',{name:'帳號登入',exact:true}).waitFor();
+      await page.goto(base+'/'+a.file);await page.getByRole('button',{name:'登入',exact:true}).waitFor();
       assert.equal(current.requests.length,0);assert.equal(await page.locator('#ybs-lock,#t-open').count(),0);
       await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');
-      await page.getByRole('button',{name:'帳號登入',exact:true}).click();await page.getByRole('button',{name:a.rounds[round],exact:true}).click();
+      await page.getByRole('button',{name:'登入',exact:true}).click();await page.getByLabel('開始關卡',{exact:true}).selectOption(String(round));await page.locator('#g-isme').click();
       await page.locator('[data-question-type]').waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'手機版不得橫向溢出');
       let q=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;
@@ -115,8 +115,12 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       const outcome=['form-','sheet-','media-'].some(prefix=>q.questions[0].data.mode?.startsWith(prefix));
       if(outcome&&a.activity!==7){
         assert.match(await page.locator('body').innerText(),/抽查|抽看/);
-        const requests=current.requests.length;await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
-        assert.equal(current.requests.length,requests,'備用紀錄不可上傳或採計');assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+        const requests=current.requests.length,session=structuredClone(q);
+        // 開始後的背景進度查詢可能尚未結束；只允許原有唯讀請求，備用操作不得送出答案或變更 session。
+        await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
+        assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[],'備用紀錄不可上傳或採計');
+        assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session,'備用紀錄不可變更作答或累計答對');
+        assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
         assert.ok(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.endsWith(':fallback:v1')&&localStorage.getItem(k).includes('未實際操作'))));
         for(const file of q.questions[0].data.assets||[]){
           const link=page.locator(`[data-material="${file[0]}"]`);await link.waitFor();
@@ -133,13 +137,14 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         }
       }
       if(a.activity===7){
-        assert.equal(await page.locator('h1').innerText(),'動漫／遊戲展志工招募');
+        assert.match(await page.locator('#activity-title').innerText(),/動漫／遊戲展志工招募$/);
         if(round===0){
           assert.equal(await page.getByRole('region',{name:'職務第一志願比較（人）'}).count(),1);
           assert.equal(await page.locator('[data-fallback="use"]').count(),0);
         }else{
-          const requests=current.requests.length;await page.getByText('備用素材：本組委託附件',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
-          assert.equal(current.requests.length,requests,'委託附件紀錄不可上傳或採計');
+          const requests=current.requests.length,session=structuredClone(q);await page.getByText('備用素材：本組委託附件',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
+          assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[],'委託附件紀錄不可上傳或採計');
+          assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session,'委託附件紀錄不可變更作答或累計答對');
           assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
           assert.ok(await page.evaluate(()=>localStorage.getItem('ybs:u2-05:fallback:v1')?.includes('未實際操作')));
         }
@@ -164,7 +169,8 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       if(q.questions[0].data.mode==='photo'){wrong=structuredClone(answer);wrong.answers[1][0]=(wrong.answers[1][0]+1)%6;}
       if(type==='recording-capacity-v1')wrong.q=(answer.q+1)%3;
       await fill(page,type,wrong);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
-      await page.getByText(a.activity===7?modules.volunteerCheck(q.questions[0].data,wrong):'再修改同一題，不扣分。',{exact:true}).waitFor();
+      await page.getByText('修改答案後再送一次',{exact:true}).waitFor();
+      if(a.activity===7)await page.getByText(modules.volunteerCheck(q.questions[0].data,wrong),{exact:true}).waitFor();
       if(a.activity===7){const value=await page.locator('[data-answer-field="0"]').inputValue();assert.equal(value,String(wrong[0]),'錯答後保留欄位');}
       if(q.questions[0].data.mode?.endsWith('-performance')){
         await page.locator('[data-performance-frame]').waitFor();
@@ -172,8 +178,8 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         assert.ok(Number(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'))>=0);
       }
       assert.equal(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot,0);
-      await page.reload();await page.getByRole('button',{name:a.rounds[round],exact:true}).click();await page.locator('[data-question-type]').waitFor();
-      assert.ok(current.requests.some(r=>r.op==='resume'));
+      await page.reload();await page.locator('#g-isme').waitFor();assert.equal(await page.getByLabel('開始關卡',{exact:true}).inputValue(),String(round),'重整須保留本人關卡，不可先開始第 0 關');await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
+      assert.ok(current.requests.some(r=>r.op==='resume'));assert.ok(current.requests.filter(r=>r.op==='start').every(r=>r.body.round===round),'不得先建立其他關卡的 session');
       await fill(page,type,answer);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
       if(!q.questions[0].data.mode?.endsWith('-performance')&&q.questions[0].data.mode!=='photo'){
       await page.getByRole('button',{name:'下一組',exact:true}).waitFor({state:'visible'});
@@ -192,7 +198,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         assert.equal(await page.locator('canvas[data-photo]').count(),2);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
         await page.screenshot({path:`/tmp/ybs-pr6b7-photo-${round}-mobile.png`,fullPage:true});
       }
-      await page.getByText(/· 15 XP$/).first().waitFor();
+      await page.locator('#xp-total').filter({hasText:'15 XP'}).first().waitFor();
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
       assert.deepEqual(errors,[]);
     }catch(error){t.diagnostic(JSON.stringify({errors,requests:current.requests,body:await page.locator('body').innerText()}));throw error;}
@@ -208,20 +214,24 @@ test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回�
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
     page.setDefaultTimeout(6000);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
     try{
-      await page.goto(base+(photo?'/115-g9/u2-01/':'/115-g9/u1-05/'));await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'帳號登入',exact:true}).click();
-      await page.getByRole('button',{name:title,exact:true}).click();await page.locator('[data-question-type]').waitFor();
+      await page.goto(base+(photo?'/115-g9/u2-01/':'/115-g9/u1-05/'));await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'登入',exact:true}).click();await page.locator('#g-isme').click();
+      await page.locator('[data-question-type]').waitFor();
       const order=modules.privateAnswer(current.db);
       if(mode==='resume-first'){
         // 先直接接受第一槽，關閉頁面，模擬第二槽尚未發送就離開。
         await page.route('**/worker/answer',route=>{const b=route.request().postDataJSON();return b.slot===1?route.abort():route.continue();});
         await page.evaluate(({activity,order})=>app.client.answer(activity,0,order),{activity,order});
       }else{
-        current.dropSecond=true;await fill(page,'finite-bank-v1',order);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
-        await page.getByText('尚未確認，答案已保留，稍後可重試。',{exact:true}).waitFor();
+        current.dropSecond=true;await fill(page,'finite-bank-v1',order);
+        // 第一槽送出也會顯示「上傳中」；須等到第二槽的遺失回應，才檢查已寫入的唯一成績。
+        const lostResponse=page.waitForResponse(r=>r.url()===base+'/worker/answer'&&r.request().postDataJSON().slot===1&&r.status()===503);
+        await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();await lostResponse;
+        await page.waitForFunction(()=>app.client.state().status==='pending');
+        await page.getByText('上傳中，請稍候，答案已保留。',{exact:true}).waitFor();
         assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
-        assert.equal(await page.getByText(/· 15 XP$/).count(),0,'失去成功回應不可先顯示過關');
+        assert.equal(await page.locator('#xp-total').filter({hasText:'15 XP'}).count(),0,'失去成功回應不可先顯示過關');
       }
-      await page.unroute('**/worker/answer');await page.reload();await page.getByRole('button',{name:title,exact:true}).waitFor();await page.evaluate(()=>app.advance(61000));await page.getByRole('button',{name:title,exact:true}).click();
+      await page.unroute('**/worker/answer');await page.reload();await page.locator('#g-isme').waitFor();await page.evaluate(()=>app.advance(61000));await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
       await page.waitForFunction(()=>app.client.state().snapshot?.records.length===1);
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
       const answers=current.requests.filter(r=>r.op==='answer');for(const a of answers)assert.deepEqual(a.body.answer,order);

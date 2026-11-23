@@ -225,9 +225,26 @@ test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',
 test('暖身與成果題面保留舊版表格、圖表排列，不使用手機卡片表格',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
  assert.ok(h.$('stage').querySelector('.quest-note'));assert.ok(h.$('stage').querySelector('.quest-work'));
- const chart=h.$('stage').querySelector('ul[aria-label="職務第一志願比較（人）"]');assert.ok(chart);assert.equal(chart.childNodes.length,6);assert.ok(h.$('stage').querySelector('.quest-table'));
+ const region=h.$('stage').querySelector('section[aria-label="職務第一志願比較（人）"]'),chart=region.querySelector('.quest-chart');assert.equal(chart.tagName,'UL');assert.equal(chart.childNodes.length,6);assert.ok(h.$('stage').querySelector('.quest-table'));
  const calls=h.calls.length;h.button('開始暖身').onclick();assert.match(h.$('warmup').textContent,/暖身 1／3/);h.button('還記得').onclick();assert.match(h.$('warmup').textContent,/暖身 2／3/);h.button('跳過暖身').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
  await h.client.logout();assert.equal(h.$('warmup').hidden,false);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
+});
+
+test('志工第 1 關三欄長條圖保留具名 region，換組與重整後作答欄仍完整',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t);
+ const check=()=>{
+  const stage=h.$('stage'),session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[session.slot].data;
+  // 具名 section 隱含 region；只有具名 ul 仍是 list，無法通過瀏覽器的 region 查詢。
+  const regions=stage.querySelectorAll('section[aria-label="職務第一志願比較（人）"]');
+  assert.equal(regions.length,1,'長條圖須保留一個具名 region');
+  assert.ok([null,'region'].includes(regions[0].getAttribute('role')),'不可覆寫 section 的 region 語意');
+  const chart=regions[0].querySelector('.quest-chart');assert.equal(chart.tagName,'UL');
+  assert.equal(chart.childNodes.length,d.chartRows.length);
+  assert.ok(chart.childNodes.every(row=>row.tagName==='LI'&&row.childNodes.length===3));
+  assert.deepEqual(stage.querySelectorAll('[data-answer-field]').map(e=>String(e.dataset.answerField)),d.questions.map((_,k)=>String(k)));
+ };
+ check();h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();check();
+ await h.reload();await h.$('g-isme').onclick();await h.retry();check();assert.equal(h.$('stage').dataset.slot,1);
 });
 
 
@@ -255,12 +272,12 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
    const stageNodes=h.$('stage').childNodes;
    assert.deepEqual(stageNodes.slice(stageNodes.indexOf(note)+1,stageNodes.indexOf(work)).filter(n=>n.tagName!=='STYLE').map(n=>n.textContent),[],'說明卡與任務卡之間不得留下段落或遊離文字');
    assert.ok(!h.$('stage').textContent.includes(d.passages.join('')),'重複任務目標須移除原節點');
-   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','P','UL','DIV']);
+   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','SECTION','DIV']);
    assert.equal(d.mode,'form-volunteer-summary');
-   const chart=children[3];
-   assert.equal(chart.getAttribute('aria-label'),'職務第一志願比較（人）');
+   const region=children[2],chart=region.querySelector('.quest-chart');
+   assert.equal(region.getAttribute('aria-label'),'職務第一志願比較（人）');
    assert.equal(chart.className,'quest-chart');assert.equal(chart.childNodes.length,d.chartRows.length);
-   assert.equal(children[2].textContent,'職務第一志願比較（人）；實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
+   assert.equal(region.firstChild.textContent,'職務第一志願比較（人）；實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
    d.chartRows.forEach(([job,group,count],k)=>{
     const row=chart.childNodes[k],[label,track,number]=row.childNodes;
     assert.equal(row.tagName,'LI');assert.equal(row.childNodes.length,3);

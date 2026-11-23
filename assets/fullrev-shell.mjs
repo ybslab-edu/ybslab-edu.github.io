@@ -142,14 +142,15 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   tables.forEach(wrap=>{const t=wrap.querySelector('table');t.className='quest-table';});
   let chartLabel=null;
   if(d.chartRows){
-   const originalChart=stage.querySelector('[aria-label="職務第一志願比較（人）"]'),chart=node('ul');chart.className='quest-chart';chart.setAttribute('aria-label','職務第一志願比較（人）');
+   const originalChart=stage.querySelector('[aria-label="職務第一志願比較（人）"]'),chart=node('ul');chart.className='quest-chart';
    const caption=node('p','職務第一志願比較（人）；實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
    for(const [job,group,count] of d.chartRows){
     const row=node('li'),label=node('span',job),track=node('span'),bar=node('span');
     label.append(node('br'),node('span',group));track.className='track';bar.className='bar'+(group==='高中組'?' bar-high':'');bar.style.width=count/6*100+'%';
     track.append(bar);row.append(label,track,node('span',count+' 人'));chart.append(row);
    }
-   stage.replaceChildren(...[...stage.childNodes].flatMap(el=>el===originalChart?[caption,chart]:[el]));
+   // 保留具名 section 的 region 語意，僅替換區域內的圖表排列。
+   originalChart.replaceChildren(caption,chart);
   }
   if(d.chartNames){
    const originalChart=stage.querySelector('[aria-label="人數長條圖"]'),chart=node('ul');chart.className='quest-chart';chart.setAttribute('aria-label','人數長條圖');

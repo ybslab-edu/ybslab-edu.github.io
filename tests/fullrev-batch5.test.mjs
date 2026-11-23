@@ -8,7 +8,7 @@ import {BATCH5} from '../assets/fullrev-activities.mjs';
 import {buildBatches} from '../tools/build-fullrev-batch1.mjs';
 import {config} from './fixtures/fullrev.mjs';
 test('PR6 第 5 批沿用現行 11/19 關名及 ID，關閉模式不改頁面與素材',async()=>{
-  for(const a of BATCH5){const html=await readFile(new URL('../'+a.file,import.meta.url),'utf8');assert.match(html,new RegExp(`week:${a.activity}`));for(const name of a.rounds)assert.ok(html.includes(name));if([7,9].includes(a.activity)){assert.ok(html.includes('本組委託附件'));assert.doesNotMatch(html,/備用素材|未實際操作/);}else assert.ok(html.includes('未實際操作'));}
+  for(const a of BATCH5){const html=await readFile(new URL('../'+a.file,import.meta.url),'utf8');assert.match(html,new RegExp(`week:${a.activity}`));for(const name of a.rounds)assert.ok(html.includes(name));assert.ok(html.includes('本組委託附件'));assert.doesNotMatch(html,/備用素材|未實際操作/);}
 });
 test('PR6 第 5 批私有題面、答案、素材、判題與版本不在公開產物',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
   const load=file=>import(pathToFileURL(resolve(process.env.YBS_WORKER_SOURCE,'src/formal/banks',file)).href);

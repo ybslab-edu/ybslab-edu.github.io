@@ -1,0 +1,18 @@
+/* 沿用任務日誌的面板、表格與輸入欄；色彩只引用共用變數。 */
+.quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
+.quest-note p{margin:var(--u) 0}
+.quest-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.quest-table th,.quest-table td{padding:var(--u);border:1px solid var(--edge);text-align:left;overflow-wrap:anywhere}
+.quest-table caption{text-align:left;font-weight:700;margin-block:var(--u)}
+.quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
+.quest-answers label{display:grid;gap:var(--u);min-width:0}
+.quest-answers input,.quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
+.quest-attach{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
+
+@media(max-width:559px){
+.quest-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.quest-table tr{display:block;margin-bottom:var(--u);border:1px solid var(--edge)}
+.quest-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--u);border:0;border-bottom:1px solid var(--edge)}
+.quest-table td::before{content:attr(data-label);font-weight:700}
+}
+body :focus-visible{outline:3px solid var(--text);outline-offset:3px}

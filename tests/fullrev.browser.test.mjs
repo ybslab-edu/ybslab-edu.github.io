@@ -110,10 +110,13 @@ test('新活動：錯答同題、下一組才換題、回條不先給分、重�
   // 成長頁從同一有效集合重算，取消的過關與徽章可減少。
   const growth=await pageFor(t,'?growth');await login(growth);
   await growth.evaluate(()=>app.state.snapshot=snapshot([0,1,2,3].map(i=>record(i))));
-  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.locator('#total').getByText('80 XP',{exact:true}).waitFor();
+  // 手機版隱藏等級面板的累積經驗，XP 明細摘要仍可見。
+  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.locator('#xp-total').getByText('80 XP',{exact:true}).waitFor();
+  assert.equal(await growth.locator('#total').textContent(),'80 XP');
   assert.equal(await growth.locator('#badge-count').textContent(),'1');
   await growth.evaluate(()=>app.state.snapshot=snapshot([0,1,2].map(i=>record(i))));
-  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.locator('#total').getByText('45 XP',{exact:true}).waitFor();
+  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.locator('#xp-total').getByText('45 XP',{exact:true}).waitFor();
+  assert.equal(await growth.locator('#total').textContent(),'45 XP');
   assert.equal(await growth.locator('#badge-count').textContent(),'0');
   assert.equal(await growth.getByText(/已獲得徽章/).count(),0);
 });

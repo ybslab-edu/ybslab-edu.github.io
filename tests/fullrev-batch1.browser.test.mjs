@@ -114,7 +114,12 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       const type=q.type,answer=modules.privateAnswer(current.db);
       const outcome=['form-','sheet-','media-'].some(prefix=>q.questions[0].data.mode?.startsWith(prefix));
       if(outcome&&a.activity!==7){
-        assert.match(await page.locator('body').innerText(),/抽查|抽看/);
+        // u2-06／u2-07 已全改為站內作答；逐段核對現行頁的公開說明。
+        const source=await readFile(new URL('../'+a.file,import.meta.url),'utf8');
+        const note=source.match(/const qCommon='<div class="quest-note">(.*?)<\/div>';/);
+        assert.ok(note,'活動頁須保留公開說明');
+        assert.equal(await page.locator('#stage .quest-note').evaluate(el=>el.innerHTML),note[1]);
+        assert.doesNotMatch(await page.locator('#stage').innerText(),/抽查|抽看/);
         const requests=current.requests.length,session=structuredClone(q);
         assert.equal(await page.locator('[data-fallback]').count(),0);
         assert.doesNotMatch(await page.locator('#stage').innerText(),/備用素材|未實際操作|本機備用紀錄/);

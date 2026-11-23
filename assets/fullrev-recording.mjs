@@ -20,12 +20,12 @@ function soundMetrics(i,rate,levels){
 }
 function drawWave(c,i,rate,levels){
   const x=c.getContext('2d'),y=v=>110-v*90;x.clearRect(0,0,640,220);
-  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--edge').trim()||'currentColor');x.beginPath();x.moveTo(0,110);x.lineTo(640,110);x.stroke();
-  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-wave').trim()||'currentColor');x.lineWidth=2;x.beginPath();for(let k=0;k<=640;k++){const v=y(wave(i,k/640));k?x.lineTo(k,v):x.moveTo(k,v)}x.stroke();
+  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--edge').trim()||'#3B455C');x.beginPath();x.moveTo(0,110);x.lineTo(640,110);x.stroke();
+  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-wave').trim()||'#98A2B8');x.lineWidth=2;x.beginPath();for(let k=0;k<=640;k++){const v=y(wave(i,k/640));k?x.lineTo(k,v):x.moveTo(k,v)}x.stroke();
   if(!rate||!levels)return;
-  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-sample').trim()||'currentColor');x.lineWidth=2;x.beginPath();
+  x.strokeStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-sample').trim()||'#F4B26A');x.lineWidth=2;x.beginPath();
   for(let k=0;k<rate;k++){const v=y(quant(wave(i,k/rate),levels));if(!k)x.moveTo(0,v);else x.lineTo(k/rate*640,v);x.lineTo((k+1)/rate*640,v)}x.stroke();
-  x.fillStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-sample').trim()||'currentColor');for(let k=0;k<rate;k++){x.beginPath();x.arc(k/rate*640,y(quant(wave(i,k/rate),levels)),3,0,Math.PI*2);x.fill()}
+  x.fillStyle=(globalThis.getComputedStyle?.(c).getPropertyValue('--teach-sample').trim()||'#F4B26A');for(let k=0;k<rate;k++){x.beginPath();x.arc(k/rate*640,y(quant(wave(i,k/rate),levels)),3,0,Math.PI*2);x.fill()}
 }
 function drawScene(c,n=128,colors=64){
   // 直接計算每格的顏色：舞台、聚光燈、表演者與應援色，無外部圖片。
@@ -47,10 +47,10 @@ export function renderRecording(question,host,api){
   const d=question.data,seen=new Set(),numbers=[];let controls=[],get,update=()=>{},dispose=()=>{};
   const select=(id,label,values,format)=>{const el=selectControl(host,id,label,values,format);controls.push(el);return el;};
   const num=(id,label)=>{const el=numberControl(host,id,label);controls.push(el);numbers.push(el);return el;};
-  const stat=document.createElement('p');stat.setAttribute('aria-live','polite');
+  const stat=document.createElement('p');stat.className='lab-stat';stat.setAttribute('aria-live','polite');stat.textContent=d.mode==='recording-movie'?'選擇 fps 開始看。':'先選兩個設定。';
   if(d.mode==='recording-sound'){
-    const c=canvas(host,'原始波形與取樣、量化後的還原波形');c.style.maxWidth='100%';
-    const r=select('sample-rate','取樣頻率',SR,v=>'每秒 '+v+' 次'),q=select('sample-level','量化階數',QL,v=>v+' 階');
+    const c=canvas(host,'灰色原始連續波形與橘色取樣點、階梯還原波形');c.style.maxWidth='100%';
+    const r=select('sample-rate','取樣頻率',SR,v=>'每秒 '+v+' 次'),q=select('sample-level','量化階數',QL,v=>'分成 '+v+' 階');
     get=()=>({rate:+r.value,levels:+q.value});
     update=()=>{drawWave(c,d,+r.value,+q.value);if(r.value&&q.value){seen.add(r.value+':'+q.value);const m=soundMetrics(d,+r.value,+q.value);stat.textContent='接近度 '+m.score.toFixed(1)+'%｜資料量 '+bytesText(m.bytes)+'｜已比較 '+seen.size+' 種';}};update();
   }else if(d.mode==='recording-image'){
@@ -67,7 +67,7 @@ export function renderRecording(question,host,api){
     const tick=t=>{if(!alive||!c.isConnected)return;if(start===null)start=t;const fps=+f.value,frame=Math.floor((t-start)/1000*fps);if(fps&&frame!==last){last=frame;movieFrame(c,frame/fps/2);}frameId=requestAnimationFrame(tick);};movieFrame(c,0);frameId=requestAnimationFrame(tick);dispose=()=>{alive=false;cancelAnimationFrame(frameId);};
     update=()=>{if(f.value)seen.add(f.value);stat.textContent=(f.value||'—')+' fps｜已比較 '+seen.size+' 種';};
   }
-  host.append(stat);const notice=document.createElement('p');notice.textContent='請實際比較至少兩種設定。數值答對後，等待老師確認。';host.append(notice);
+  host.append(stat);const notice=document.createElement('p');notice.textContent='請實際比較至少兩種設定。';host.append(notice);
   const format=document.createElement('p');format.setAttribute('aria-live','polite');host.append(format);
   for(const e of controls)e.onchange=e.oninput=()=>{update();
     format.textContent=numbers.some(e=>e.value!==''&&integer(e.value)===null)?'請輸入 0～100000 的整數，不含小數點；已填內容會保留，可直接修改。':'';

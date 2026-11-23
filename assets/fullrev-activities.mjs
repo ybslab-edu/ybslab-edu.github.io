@@ -51,26 +51,34 @@ const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
 }
-function picks(host,rows,choices,changed) {
+function picks(host,rows,choices,changed,{describe=false}={}) {
   const values=rows.map(()=>null);
+  const list=node('div');list.className='rows';host.append(list);
   rows.forEach((text,r)=>{
-    const row=node('section');row.className='row';row.append(node('p',text));
+    const row=node('section'),question=node('div'),options=node('div');row.className='row';question.className='q';options.className='picks';
+    const split=describe?text.indexOf('：'):-1;
+    if(split>0)question.append(node('b',text.slice(0,split)),node('small',text.slice(split+1)));else question.textContent=text;
+    row.append(question,options);
     choices(r).forEach((label,j)=>{
       const b=node('button',label);b.type='button';b.className='pk';b.dataset.row=r;b.dataset.choice=j;b.setAttribute('aria-pressed','false');
-      b.onclick=()=>{values[r]=values[r]===j?null:j;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[r])));changed();};row.append(b);
-    });host.append(row);
+      b.onclick=()=>{values[r]=values[r]===j?null:j;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[r])));changed();};options.append(b);
+    });list.append(row);
   });
   return {get:()=>[...values],ready:()=>values.every(v=>v!==null)};
 }
-function ordered(host,cards,changed) {
-  const pool=node('section'),slots=node('section'),values=cards.map(()=>null);pool.append(node('h3','卡片'));slots.append(node('h3','順序'));
-  host.append(pool,slots);
+function ordered(host,cards,changed,{ai=false}={}) {
+  const layout=node('div'),pool=node('div'),slots=node('div'),values=cards.map(()=>null);layout.className='two';pool.className='picks ob-pool';slots.className='slots ob-slots';
+  for(const [content,title,hint] of [[pool,ai?'步驟卡':'卡片','點一下放進右邊下一格'],[slots,ai?'做 AI 的順序':'順序','點格子裡的卡片拿回去']]){
+    const box=node('section'),heading=node('div'),tip=node('span',hint);box.className='panel';heading.className='ptitle';tip.className='small';heading.append(node('h3',title),tip);box.append(heading,content);layout.append(box);
+  }host.append(layout);
   function draw(){
-    pool.replaceChildren(node('h3','卡片'));slots.replaceChildren(node('h3','順序'));
+    pool.replaceChildren();slots.replaceChildren();
     cards.forEach((text,k)=>{if(values.includes(k))return;const b=node('button',text);b.type='button';b.className='pk';b.dataset.poolIndex=k;
-      b.onclick=()=>{values[values.indexOf(null)]=k;draw();changed();};pool.append(b);});
-    values.forEach((k,j)=>{const b=node('button',`${j+1}．${k===null?'待放入':cards[k]}`);b.type='button';b.className='slot';b.dataset.slotIndex=j;
-      b.onclick=()=>{values[j]=null;draw();changed();};slots.append(b);});
+      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;values[next]=k;draw();changed();};pool.append(b);});
+    if(values.every(v=>v!==null)){const done=node('p','都排好了，按「送出」。');done.className='small';pool.append(done);}
+    values.forEach((k,j)=>{const row=node('div'),number=node('span',String(j+1));row.className='slot';number.className='n';row.append(number);
+      if(k===null){const empty=node('span',ai&&j===0?'最先':ai&&j===cards.length-1?'最後':'　');empty.className='empty';row.append(empty);}
+      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{values[j]=null;draw();changed();};row.append(b);}slots.append(row);});
   }draw();return {get:()=>[...values],ready:()=>values.every(v=>v!==null)};
 }
 function numberFields(host,fields,changed) {
@@ -304,9 +312,9 @@ export function renderQuestion(q,host,api={changed(){}}) {
         const g=signals(d.walls,i);section(simulation,'模擬',`位置 ${'ABCD'[choice]}：收得到 ${g.filter(v=>v>=-70).length}／48 格`);floor(simulation,d.walls,g,{ap:i});api.changed();}});host.append(simulation);
       return {get:()=>choice,ready:()=>choice!==null};
     }
-    if(d.mode==='classify')return picks(host,d.rows,()=>d.options,api.changed);
+    if(d.mode==='classify')return picks(host,d.rows,()=>d.options,api.changed,{describe:true});
     if(d.mode==='select'){const h=picks(host,['請選一個'],()=>d.options,api.changed);return {...h,get:()=>h.get()[0]};}
-    if(d.mode==='order')return ordered(host,d.cards,api.changed);
+    if(d.mode==='order')return ordered(host,d.cards,api.changed,{ai:d.heading==='一個 AI 怎麼做出來'});
     if(d.mode==='tokens'){
       const sentence=node('p');sentence.setAttribute('aria-live','polite');host.append(sentence);
       const h=picks(host,['第 1 步','第 2 步','第 3 步'],r=>d.words.slice(r*4,r*4+4).map((w,j)=>`${w}（${d.weights[r*4+j]}%）`),()=>{sentence.textContent='國中的第一天，我'+h.get().map((v,r)=>v===null?'＿＿':d.words[r*4+v]).join('');api.changed();});return h;

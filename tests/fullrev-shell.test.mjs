@@ -53,7 +53,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  let client=createClient(clientOptions);
  const xpContext=vm.createContext({});vm.runInContext(await readFile(new URL('../assets/xp.js',import.meta.url),'utf8'),xpContext);const xp=vm.runInContext('YBSXP',xpContext);
  const sessionStore=store();if(restoredRound!==undefined)sessionStore.setItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:${activityId}:fake-uid-a`,String(restoredRound));
- const body=new Element('body'),head=new Element('head'),document={body,head,createElement:tag=>new Element(tag),addEventListener(){}},storage=store();
+ const body=new Element('body'),head=new Element('head'),document={body,head,visibilityState:'visible',createElement:tag=>new Element(tag),addEventListener(name,fn){events[name]=fn;}},storage=store();
  const events={};
  for(const [key,value] of Object.entries({document,window:{addEventListener(name,fn){events[name]=fn;}},matchMedia:()=>({matches:true}),ACTIVITIES:catalog,YBSXP:xp,localStorage:storage,sessionStorage:sessionStore})){
   const original=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,value});t.after(()=>{if(original)Object.defineProperty(globalThis,key,original);else delete globalThis[key];});
@@ -237,26 +237,45 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
   const page=await readFile(new URL(`../115-g9/u2-0${activityId-2}/index.html`,import.meta.url),'utf8');
   const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1];
   assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄摺疊及課堂安排');
-  assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
+  if(activityId===7)assert.doesNotMatch(note.textContent,/虛構|示意資料|後援會|2-13|前測|半成品|巡堂|待確認/);
+  else assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
   assert.equal(h.$('warmup').hidden,false,'預設不得跳過暖身');
   assert.equal(h.$('activity-tools').hidden,true,'一般學生不顯示空的教師工具選單');
   assert.equal(h.$('sync').textContent,'✓ 雲端紀錄已確認');assert.equal(h.$('sync').className,'sync ok');
   assert.equal(h.$('who').textContent,'已登入','目前學生 Worker 回應無班座，不可從 subject 或 classKey 猜測');
   const session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[0].data;
   const task=d.guide.match(/任務\s+(\d+-\d+)/)[1],work=h.$('stage').querySelector('.quest-work');
-  assert.equal(work.firstChild.textContent,'示意任務 '+task);
+  assert.equal(work.firstChild.textContent,(activityId===7?'委託任務 ':'示意任務 ')+task);
   const answers=work.querySelector('.quest-answers');assert.equal(answers.querySelectorAll('label').length,d.questions.length);
   const children=work.childNodes.filter(n=>n.nodeType===1),fallback=work.querySelector('.quest-fallback');
-  assert.ok(fallback);assert.equal(fallback.hidden,activityId===7,'舊問卷第 1 關只讀表，無備用素材；實作關保留');assert.equal(children.at(-1),answers);assert.equal(answers.previousElementSibling,fallback);
+  assert.equal(children.at(-1),answers);
+  if(activityId===7)assert.equal(fallback,null,'志工第 1 關只讀表，不顯示備用素材');
+  else{assert.ok(fallback);assert.equal(fallback.hidden,false);assert.equal(answers.previousElementSibling,fallback);}
   if(activityId===7){
-   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','P','UL','DETAILS','DIV']);
-   assert.equal(children[1].querySelector('caption').textContent,'原始回覆（示意）');
-   assert.equal(children[2].textContent,'統計圖（由同一份回覆計算；單位：人）');
-   assert.equal(children[3].className,'quest-chart');
-   assert.equal(children[3].querySelectorAll('li').length,d.chartNames.length);
+   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','SECTION','DIV']);
+   assert.equal(d.mode,'form-volunteer-summary');
+   assert.equal(children[2].getAttribute('aria-label'),'職務第一志願比較（人）');
+   assert.equal(children[2].childNodes.length-1,d.chartRows.length);
    assert.ok(!work.textContent.includes(d.passages.join('')),'不再重述任務目標');
   }
  }
+});
+test('待送且零筆過關時，focus 與切回頁面重讀仍保留待送提示',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t);
+ h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();
+ h.interruptSecond('resume-first');h.fill(h.answer());await h.button('送出').onclick();
+ assert.equal(h.client.state().pending,true);
+ for(const event of ['focus','visibilitychange']){
+  const count=h.calls.filter(c=>c.op==='progress').length;
+  h.events[event]();await until(()=>h.calls.filter(c=>c.op==='progress').length>count&&h.client.state().snapshot!==null);await tick();
+  assert.equal(h.client.state().snapshot.records.length,0);
+  assert.equal(h.client.state().pending,true);
+  assert.match(h.$('sync').textContent,/上傳中.*答案已保留/);
+  assert.doesNotMatch(h.$('sync').textContent,/已確認|已上傳/);
+  assert.equal(h.$('b-retry').hidden,false);
+ }
+ h.interruptSecond(null);await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
+ assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');
 });
 test('確認過關才顯示舊版上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{holdProgress:true});

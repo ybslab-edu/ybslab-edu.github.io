@@ -5,7 +5,7 @@ const text=value=>Array.isArray(value)?value.join(''):value||'';
 const para=(host,value)=>{if(value){const p=node('p',text(value));host.append(p);return p;}};
 // 舊活動公開說明的版面副本；不含題庫、答案或判題。
 const outcomeNotes={
- "7": "<div class=\"quest-note\"><p>你要替虛構音樂活動團隊做一份可以填寫的問卷。這裡全部是示意資料；不要填入你或別人的真實個資。</p><p>先完成前測，再於課外看 2-13／2-14；課內依老師安排看 2-15。前測完成前，請先停在這裡。</p><p>你只需複製老師提供的半成品表單一次。把兩組成果分別保留並標上任務版本，不必重新建檔。每關答對兩組不同資料才完成；答錯可以修正，不扣分。</p><p>成果答案符合任務，仍需由老師巡堂抽看表單、預覽與試算表。設備或 Google 權限受阻時，展開下方「備用素材」，告訴老師你未實際操作。</p><details><summary>查看既有紀錄與待確認項目</summary><p>你原有的過關紀錄會保留：原第 1～4 關依序對應現在第 1～4 關，表示舊版完成紀錄，不代表做過這次 Google 實作。</p><p>前測第 2 題完整題意待老師核對；第 6 題主題設定題面待確認，本頁先讓你觀察，不預設該題答案。</p></details></div>",
+ "7": "<div class=\"quest-note\"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；展開「備用素材」即可查看本組委託附件。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
  "8": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原第 1～4 關依索引對應目前第 1～4 關；舊紀錄保留，但不代表已完成新版備份、條件式格式、去重與圖表實作。</p></details> <p><strong>你先依老師安排觀看 2-16、2-17、2-18，再完成四關。</strong></p></div>",
  "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；新版第 1 關是轉換，第 2 關合併燈牌，第 3、4 關加入素材實作，舊紀錄不代表做過新增操作。</p></details> <p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助；未完成操作請如實告知老師，不為趕進度勾成完成。文字轉語音由影片與配對涵蓋，不另做酷英實作。</strong></p></div>"
 };
@@ -69,7 +69,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   chooser.value=round;
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
- const say=value=>{const label=value||(result?'✓ 雲端紀錄已確認':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
+ const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result?'✓ 雲端紀錄已確認':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
  const restart=tool('重新開始',()=>start(round,true)),claims=tool('老師已核發，重新確認',async()=>{try{await client.refreshClaims();await start(round,true);}catch(e){problem(e);}}),practice=tool('本機練習／示範',()=>{
   revision++;handle?.dispose?.();handle=null;last=null;stage.replaceChildren();mode='practice';verdict.hidden=true;send.disabled=true;say('本機練習／教師示範，不送出成績。');
@@ -149,17 +149,18 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   }
   const children=[...stage.childNodes].filter(e=>e.nodeType===1&&e!==intro&&e.tagName!=='STYLE');
   const chart=stage.querySelector('.quest-chart');
+  const summary=['form-summary','form-volunteer-summary'].includes(d.mode),volunteer=d.mode.startsWith('form-volunteer-');
   const task=text(d.guide).match(/任務\s+(\d+-\d+)/)?.[1];
-  work.append(node('h3',task?'示意任務 '+task:d.heading||info().name));
+  work.append(node('h3',task?(volunteer?'委託任務 ':'示意任務 ')+task:d.heading||info().name));
   const answers=node('div');answers.className='quest-answers';
   if(tables.length&&d.indexRows){const caption=node('caption','原始回覆（示意）');tables[0].querySelector('table').append(caption);}
   for(const el of children){
    if(el===chartLabel&&chart)continue;
    // 舊第 1 關表格後直接接統計圖，不再重述任務說明中的目標。
-   if(d.mode==='form-summary'&&el.tagName==='P'&&el.textContent===text(d.passages))continue;
+   if(summary&&el.tagName==='P'&&el.textContent===text(d.passages))continue;
    if(el.tagName==='LABEL'){answers.append(el);continue;}
    if(el===chart&&chartLabel)work.append(chartLabel);
-   if(el.tagName==='DETAILS'&&el.querySelector('[data-fallback]')){el.className='quest-fallback';el.hidden=d.mode==='form-summary';}
+   if(el.tagName==='DETAILS'&&el.querySelector('[data-fallback]')){el.className='quest-fallback';el.hidden=summary;}
    work.append(el);
   }
   work.append(answers);stage.append(work);
@@ -195,7 +196,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   }else{showQuestion(value);say('');}controls();
  }
  function passed(){
-  if(!last?.completed||!result?.records.some(r=>r.activity===cfg.week&&r.round===round))return;
+  if(client.state().pending||!last?.completed||!result?.records.some(r=>r.activity===cfg.week&&r.round===round))return;
   mode='passed';count(2);verdict.className='verdict ok';verdict.replaceChildren(node('h3','過關！'));para(verdict,info().learn||lastLearning||'你已完成這一關的兩組挑戰。');
   const item=result.activities.find(a=>a.activity===cfg.week),detail=item.rounds[round],old=before?.activities.find(a=>a.activity===cfg.week);
   if(old?.rounds[round]?.passed)para(verdict,'這關已領過 XP。');else{

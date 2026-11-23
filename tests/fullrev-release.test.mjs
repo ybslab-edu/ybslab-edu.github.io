@@ -50,7 +50,9 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
    if(!key.startsWith('115-df:')&&typeof c.answer==='string')shortAnswers.push(c.answer);
   }
  }
+ // 指定 Worker 的 src/formal/banks/pr6-batch1～8：逐 case 計算 Array 答案（含 DF），不計純字串答案。
  assert.equal(privateArrays.length,1361);
+ t.diagnostic(`private array answers: ${privateArrays.length} (Worker pr6-batch1–8)`);
  const victim=join(output,'assets/fullrev-read-model.mjs'),clean=await readFile(victim);
  const stringifyLeaves=value=>Array.isArray(value)?value.map(stringifyLeaves):String(value);
  for(const payload of [JSON.stringify(privateArrays),JSON.stringify(privateArrays.map(stringifyLeaves)),JSON.stringify(JSON.stringify(privateArrays)),JSON.stringify(privateArrays,null,2)]){

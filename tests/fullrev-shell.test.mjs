@@ -217,7 +217,7 @@ test('照片與排卡重整：待送第二槽仍須續傳同關、恢復題面�
 test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const method of ['focus','button']){
   const h=await setup(t,{failInitialRead:true});assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.calls.filter(c=>c.op==='controls').length,4);
-  assert.equal(h.$('g-isme').hidden,true);assert.equal(h.$('main').hidden,true);assert.equal(h.$('g-reread').closest('#g-who').hidden,false);
+  assert.equal(h.$('g-isme').hidden,true);assert.equal(h.$('main').hidden,true);assert.doesNotMatch(h.$('sync').textContent,/已上傳/);assert.equal(h.$('g-reread').closest('#g-who').hidden,false);
   h.recover();if(method==='focus')h.events.focus();else await h.$('g-reread').onclick();await until(()=>!h.$('g-isme').hidden);
   assert.equal(h.$('g-reread').hidden,true);await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('gate').hidden,true);assert.ok(h.$('stage').querySelector('[data-answer-field]'));
  }
@@ -225,7 +225,7 @@ test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',
 test('暖身與成果題面保留舊版表格、圖表排列，不使用手機卡片表格',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
  assert.ok(h.$('stage').querySelector('.quest-note'));assert.ok(h.$('stage').querySelector('.quest-work'));
- const chart=h.$('stage').querySelector('section[aria-label="職務第一志願比較（人）"]');assert.ok(chart);assert.equal(chart.childNodes.length,7);assert.ok(h.$('stage').querySelector('.quest-table'));
+ const chart=h.$('stage').querySelector('ul[aria-label="職務第一志願比較（人）"]');assert.ok(chart);assert.equal(chart.childNodes.length,6);assert.ok(h.$('stage').querySelector('.quest-table'));
  const calls=h.calls.length;h.button('開始暖身').onclick();assert.match(h.$('warmup').textContent,/暖身 1／3/);h.button('還記得').onclick();assert.match(h.$('warmup').textContent,/暖身 2／3/);h.button('跳過暖身').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
  await h.client.logout();assert.equal(h.$('warmup').hidden,false);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
 });
@@ -241,7 +241,7 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
   else assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
   assert.equal(h.$('warmup').hidden,false,'預設不得跳過暖身');
   assert.equal(h.$('activity-tools').hidden,true,'一般學生不顯示空的教師工具選單');
-  assert.equal(h.$('sync').textContent,'✓ 雲端紀錄已確認');assert.equal(h.$('sync').className,'sync ok');
+  assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('sync').className,'sync ok');
   assert.equal(h.$('who').textContent,'已登入','目前學生 Worker 回應無班座，不可從 subject 或 classKey 猜測');
   const session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[0].data;
   const task=d.guide.match(/任務\s+(\d+-\d+)/)[1],work=h.$('stage').querySelector('.quest-work');
@@ -255,10 +255,20 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
    const stageNodes=h.$('stage').childNodes;
    assert.deepEqual(stageNodes.slice(stageNodes.indexOf(note)+1,stageNodes.indexOf(work)).filter(n=>n.tagName!=='STYLE').map(n=>n.textContent),[],'說明卡與任務卡之間不得留下段落或遊離文字');
    assert.ok(!h.$('stage').textContent.includes(d.passages.join('')),'重複任務目標須移除原節點');
-   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','SECTION','DIV']);
+   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','P','UL','DIV']);
    assert.equal(d.mode,'form-volunteer-summary');
-   assert.equal(children[2].getAttribute('aria-label'),'職務第一志願比較（人）');
-   assert.equal(children[2].childNodes.length-1,d.chartRows.length);
+   const chart=children[3];
+   assert.equal(chart.getAttribute('aria-label'),'職務第一志願比較（人）');
+   assert.equal(chart.className,'quest-chart');assert.equal(chart.childNodes.length,d.chartRows.length);
+   assert.equal(children[2].textContent,'職務第一志願比較（人）；實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
+   d.chartRows.forEach(([job,group,count],k)=>{
+    const row=chart.childNodes[k],[label,track,number]=row.childNodes;
+    assert.equal(row.tagName,'LI');assert.equal(row.childNodes.length,3);
+    assert.equal(label.firstChild.textContent,job);assert.equal(label.childNodes[1].tagName,'BR');assert.equal(label.lastElementChild.textContent,group);
+    assert.equal(track.className,'track');assert.equal(number.textContent,count+' 人');
+    assert.equal(track.firstChild.className,'bar'+(group==='高中組'?' bar-high':''));
+    assert.equal(track.firstChild.style.width,count/6*100+'%');
+   });
    assert.ok(!work.textContent.includes(d.passages.join('')),'不再重述任務目標');
   }
  }
@@ -280,7 +290,7 @@ test('待送且零筆過關時，focus 與切回頁面重讀仍保留待送提�
  h.interruptSecond(null);await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
  assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');
 });
-test('確認過關才顯示舊版上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('完成回條仍須確認進度才恢復上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{holdProgress:true});
  assert.match(h.$('xp-level').textContent,/^Lv 1 /);assert.equal(h.$('xp-progress').hidden,false);
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
@@ -307,4 +317,13 @@ test('截圖腳本新舊均保留暖身並等待成長紀錄完成載入',async(
  const result=await db.collection('ybsCourses/115-g9/attempts').where('uid','==','synthetic-a').get();
  assert.equal(result.metadata.fromCache,false);assert.equal(result.docs.length,1);assert.equal(result.docs[0].data().uid,'synthetic-a');
  assert.match(source,/xp-total.*endsWith\(' XP'\)/);
+});
+
+test('長條圖 CSS 沿用舊站三欄、軌道高度與高中組斜線，窄螢幕亦不改排列',async()=>{
+ const css=await readFile(new URL('../assets/fullrev-shell.css',import.meta.url),'utf8');
+ const old=await readFile(new URL('../115-g9/u2-05/index.html',import.meta.url),'utf8');
+ for(const selector of ['.quest-chart','.quest-chart li','.quest-chart .track','.quest-chart .bar','.quest-chart .bar-high']){
+  const rule=old.slice(old.indexOf(selector+'{')).split('}')[0]+'}';
+  assert.ok(css.includes('.fullrev-activity '+rule),selector+' 必須與舊站相同');
+ }
 });

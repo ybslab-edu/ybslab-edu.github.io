@@ -69,7 +69,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   chooser.value=round;
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
- const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result?'✓ 雲端紀錄已確認':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
+ const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
  const restart=tool('重新開始',()=>start(round,true)),claims=tool('老師已核發，重新確認',async()=>{try{await client.refreshClaims();await start(round,true);}catch(e){problem(e);}}),practice=tool('本機練習／示範',()=>{
   revision++;handle?.dispose?.();handle=null;last=null;stage.replaceChildren();mode='practice';verdict.hidden=true;send.disabled=true;say('本機練習／教師示範，不送出成績。');
@@ -141,6 +141,16 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const tables=stage.querySelectorAll('.fullrev-outcome-table');
   tables.forEach(wrap=>{const t=wrap.querySelector('table');t.className='quest-table';});
   let chartLabel=null;
+  if(d.chartRows){
+   const originalChart=stage.querySelector('[aria-label="職務第一志願比較（人）"]'),chart=node('ul');chart.className='quest-chart';chart.setAttribute('aria-label','職務第一志願比較（人）');
+   const caption=node('p','職務第一志願比較（人）；實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
+   for(const [job,group,count] of d.chartRows){
+    const row=node('li'),label=node('span',job),track=node('span'),bar=node('span');
+    label.append(node('br'),node('span',group));track.className='track';bar.className='bar'+(group==='高中組'?' bar-high':'');bar.style.width=count/6*100+'%';
+    track.append(bar);row.append(label,track,node('span',count+' 人'));chart.append(row);
+   }
+   stage.replaceChildren(...[...stage.childNodes].flatMap(el=>el===originalChart?[caption,chart]:[el]));
+  }
   if(d.chartNames){
    const originalChart=stage.querySelector('[aria-label="人數長條圖"]'),chart=node('ul');chart.className='quest-chart';chart.setAttribute('aria-label','人數長條圖');
    stage.replaceChildren(...[...stage.childNodes].map(el=>el===originalChart?chart:el));

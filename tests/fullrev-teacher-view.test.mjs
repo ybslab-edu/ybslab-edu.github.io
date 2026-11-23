@@ -37,9 +37,10 @@ test('教師附件離開後撤銷 Blob URL；晚到附件不會在登出後建�
 test('兩種登入介面預設無學生 Google，明確開關才顯示，教師登入保留',async t=>{
  dom(t);
  for(const mount of [mountLogin,mountStudentLogin])for(const enabled of [undefined,false,true]){
-  const host=new Element('div');await mount({host,client:{studentGoogleLogin:enabled,login(){}},onLogin(){},explain:String});
+  const host=new Element('div');await mount({host,client:{course:'115-g9',studentGoogleLogin:enabled,login(){}},onLogin(){},explain:String});
   const labels=host.querySelectorAll('button').map(b=>b.textContent);
   assert.equal(labels.includes('學生 Google 登入'),enabled===true);assert.ok(labels.includes('教師 Google 登入'));
+  assert.equal(host.querySelectorAll('button').find(b=>b.textContent==='教師 Google 登入').closest('details'),null,'教師入口不應藏在收合區');
  }
  const h=await harness();assert.equal(h.client.studentGoogleLogin,false);
 });

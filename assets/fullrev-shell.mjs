@@ -172,7 +172,7 @@ export async function mountStudentLogin({client,host,onLogin,explain}){
  const account=form.querySelector('[name="account"]'),password=form.querySelector('[name="password"]'),submit=form.querySelector('button'),toggle=form.querySelector('.ybs-password-toggle');
  toggle.onclick=()=>{const show=password.type==='password';password.type=show?'text':'password';toggle.value=show?'隱藏':'顯示';toggle.setAttribute('aria-label',show?'隱藏密碼':'顯示密碼');toggle.setAttribute('aria-pressed',String(show));};
  const error=node('div');error.className='gerr';error.setAttribute('role','alert');
- const secondary=node('details');secondary.className='tlogin';secondary.append(node('summary','教師登入'));const actions=[submit];
+ const secondary=node('div');secondary.className='tlogin';secondary.setAttribute('role','group');secondary.setAttribute('aria-label','其他登入方式');const actions=[submit];
  async function run(kind,guest){
   if(submit.disabled)return;actions.forEach(b=>b.disabled=true);submit.textContent='登入中…';error.textContent='';
   try{const p=await client.login(kind,guest||account.value,password.value);password.value='';await onLogin(p);}
@@ -180,10 +180,9 @@ export async function mountStudentLogin({client,host,onLogin,explain}){
   finally{actions.forEach(b=>b.disabled=false);submit.textContent='登入';}
  }
  form.onsubmit=e=>{e.preventDefault();return run('password');};
- for(const [label,kind] of [...(client.studentGoogleLogin===true?[['學生 Google 登入','google']]:[]),['教師 Google 登入','owner']]){const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=()=>run(kind);actions.push(b);secondary.append(b);}
- host.append(form,error);
+ for(const [label,kind] of [...(client.studentGoogleLogin===true?[['學生 Google 登入','google']]:[]),['教師 Google 登入','owner']]){const b=node('button',label);b.type='button';b.className='linkbtn';if(kind==='owner')b.dataset.teacherLogin='';b.onclick=()=>run(kind);actions.push(b);secondary.append(b);}
+ host.append(form,error,secondary);
  if(client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
- host.append(secondary);
 }
 export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain}){
  const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261123lock';document.head.append(css);
@@ -434,7 +433,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('b-swap').onclick=()=>client.logout().catch(problem);
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(Number(chooser.value)).then(refresh);};
- lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('details').open=true;};
+ lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  function clear(){hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();return;}

@@ -36,10 +36,10 @@ before(async()=>{
     if(coursePages.includes(path))return res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'}).end(await readFile(new URL('..'+path,import.meta.url)));
     if(/^\/115-g9\/me\/(?:me|me-teacher)\.js$/.test(path))return res.writeHead(200,{'Content-Type':'text/javascript'}).end(await readFile(new URL('..'+path,import.meta.url)));
     if(path==='/assets/vendor/xlsx-0.20.3.full.min.js')return res.writeHead(200,{'Content-Type':'text/javascript'}).end(await readFile(new URL('../assets/vendor/xlsx-0.20.3.full.min.js',import.meta.url)));
-    if(/^\/assets\/[\w.-]+\.(?:js|css|svg)$/.test(path)) {
+    if(/^\/assets\/[\w.-]+\.(?:m?js|css|svg)$/.test(path)) {
       try{return res.writeHead(200,{'Content-Type':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{return res.writeHead(404).end();}
     }
-    if(!/^\/(assets\/(fullrev-(?:client|ui|progress|df|shell|teacher-view)\.mjs|xp\.js)|tests\/fixtures\/fullrev(?:-teacher)?\.mjs)$/.test(path))return res.writeHead(404).end();
+    if(!/^\/tests\/fixtures\/fullrev(?:-teacher)?\.mjs$/.test(path))return res.writeHead(404).end();
     try{res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{res.writeHead(404).end();}
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;
@@ -149,7 +149,7 @@ test('Google 學生的教師文件被拒仍可登入作答；實際重新整理�
   // 預設入口維持隱藏；只有此情境明確模擬老師開放 Google 學生登入。
   const page=await pageFor(t,'?student-google');
   await page.evaluate(()=>app.state.readErrors['ybsTeachers/synthetic-student']=Object.assign(Error('synthetic-denied'),{code:'permission-denied'}));
-  await page.locator('#g-gbtn summary').click();await page.getByRole('button',{name:'學生 Google 登入',exact:true}).click();
+  await page.getByRole('button',{name:'學生 Google 登入',exact:true}).click();
   await confirmActivity(page);await page.getByLabel('合成答案').waitFor();
   assert.equal(await page.evaluate(()=>app.client.state().profile.owner),false);
   await page.addInitScript(()=>{window.syntheticProvider='google.com';window.syntheticTeacherError='permission-denied';});
@@ -222,7 +222,7 @@ test('owner 示範僅授權取題、不送成績或保存解答；非owner不能
     app.state.owner=true;
     app.state.fetcher=async(url,init)=>Response.json(teacherPayload(JSON.parse(init.body)),{headers:{'cache-control':'no-store'}});
   });
-  await page.locator('#g-gbtn summary').click();await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.locator('#tbar').waitFor({state:'visible'});
+  await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.locator('#tbar').waitFor({state:'visible'});
   await page.getByRole('button',{name:'顯示解答',exact:true}).click();
   await page.getByText('合成教師解說',{exact:true}).waitFor();
   assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/teacher-question']);

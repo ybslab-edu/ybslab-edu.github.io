@@ -19,9 +19,13 @@ test('手機長表格可捲動，換組高亮與第三層示範不改原題',asy
   document.querySelector('#stage button').click();window.before=h.get();
   mountHintExample({host:document.querySelector('#demo'),example:{question:{type:'binary-encode-5-v1',data:{width:5,target:0}},answer:[0,0,0,0,0]},renderQuestion,onClose(){document.querySelector('#demo').replaceChildren();}});
  });
- assert.equal(await page.locator('.principle-view').isVisible(),true);assert.equal(await page.locator('.table-position-tip').isVisible(),true);
+ // 原題與另一題示範各有自己的原理觀察，不可用全頁選取器混為重複掛載。
+ assert.equal(await page.locator('#stage .principle-view').count(),1);assert.equal(await page.locator('#demo .principle-view').count(),1);
+ assert.equal(await page.locator('#stage .principle-view').isVisible(),true);assert.equal(await page.locator('#demo .principle-view').isVisible(),true);
+ assert.equal(await page.locator('.table-position-tip').isVisible(),true);
  assert.equal(await page.locator('th').first().evaluate(e=>getComputedStyle(e).position),'sticky');
  await page.getByRole('button',{name:'回原題繼續做'}).click();assert.equal(await page.evaluate(()=>h.get()===before),true);
+ assert.equal(await page.locator('#demo .principle-view').count(),0);assert.equal(await page.locator('#stage .principle-view').count(),1);
  await page.evaluate(async()=>{const {mountHintExample}=await import('/assets/fullrev-student-support.mjs');mountHintExample({host:document.querySelector('#demo'),example:null,renderQuestion(){throw Error('不得建立未隔離示範');},onClose(){document.querySelector('#demo').replaceChildren();}});});
  assert.equal(await page.getByText('本關不提供示範',{exact:true}).isVisible(),true);
  assert.equal(await page.locator('#demo [data-bit]').count(),0);assert.equal(await page.evaluate(()=>h.get()===before),true);

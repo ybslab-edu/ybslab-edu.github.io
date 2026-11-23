@@ -35,6 +35,8 @@ test('教師授權題面與解答只在教師出現；學生不取題、登出�
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(`${base}/115-g9/${dir}/?activity=${activity}`);await page.waitForFunction(()=>window.ready);
   await page.waitForFunction(()=>[...document.styleSheets].some(s=>s.href?.includes('/fullrev-shell.css')));
+  assert.equal(await page.getByRole('button',{name:'教師 Google 登入',exact:true}).isVisible(),true);
+  assert.equal(await page.locator('#g-gbtn details').count(),1,'只保留班座登入收合區');
   assert.equal(await page.locator('#activity-lock').evaluate(el=>getComputedStyle(el).display),'none');
   assert.equal(await page.getByRole('button',{name:'學生 Google 登入',exact:true}).count(),0);
   assert.equal(await page.locator('#tbar').count(),0);
@@ -70,6 +72,7 @@ test('學生登入不被隱藏遮罩攔截；未開放遮罩保留攔截，教�
  await page.getByRole('button',{name:'教師解鎖',exact:true}).click();
  assert.equal(await lock.isVisible(),false);
  assert.equal(await lock.evaluate(el=>getComputedStyle(el).display),'none');
+ assert.equal(await page.locator('[data-teacher-login]').evaluate(el=>el===document.activeElement),true);
  await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();
  await page.locator('#tb-ans').click();
  assert.equal(await page.locator('#teacher-solution').isVisible(),true);

@@ -250,21 +250,22 @@ test('志工第 1 關三欄長條圖保留具名 region，換組與重整後作�
 });
 
 
-test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排列與題面版本一致',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('公開說明逐段與上線頁 qCommon 相同，成果排列與題面版本一致',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const activityId of [7,8,9]){
   const h=await setup(t,{activityId}),note=h.$('stage').querySelector('.quest-note');
   const page=await readFile(new URL(`../115-g9/u2-0${activityId-2}/index.html`,import.meta.url),'utf8');
-  const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1].replace('設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。','本組委託附件就在任務下方。');
-  assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄摺疊及課堂安排');
+  const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1];
+  assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄及課堂安排');
   if(activityId===7||activityId===8)assert.doesNotMatch(note.textContent,/虛構|示意資料|後援會|2-13|前測|半成品|巡堂|待確認/);
-  else assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
+  else assert.doesNotMatch(note.textContent,/保留檔案|巡堂抽查|每次重建|未完成操作/);
   assert.equal(h.$('warmup').hidden,false,'預設不得跳過暖身');
   assert.equal(h.$('activity-tools').hidden,true,'一般學生不顯示空的教師工具選單');
   assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('sync').className,'sync ok');
   assert.equal(h.$('who').textContent,'已登入','目前學生 Worker 回應無班座，不可從 subject 或 classKey 猜測');
   const session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[0].data;
-  const task=d.guide.match(/任務\s+(\d+-\d+)/)?.[1],work=h.$('stage').querySelector('.quest-work');
-  assert.equal(work.firstChild.textContent,task?(activityId===7||activityId===8?'委託任務 ':'示意任務 ')+task:d.heading);
+  const task=d.guide.match(/(?:任務|讀取委託)\s+(\d+-\d+)/)?.[1],work=h.$('stage').querySelector('.quest-work');
+  assert.ok(task,'題面須包含任務編號，不得以 heading 替代');
+  assert.equal(work.firstChild.textContent,(activityId===7||activityId===8?'委託任務 ':'示意任務 ')+task);
   const answers=work.querySelector('.quest-answers');assert.equal(answers.querySelectorAll('label').length,h.calls.find(c=>c.op==='start').response.question.data.questions.length);
   const children=work.childNodes.filter(n=>n.nodeType===1),attachment=work.querySelector('.quest-attach');
   assert.equal(children.at(-1),answers);
@@ -290,6 +291,20 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
    });
    assert.ok(!work.textContent.includes(d.passages.join('')),'不再重述任務目標');
   }
+ }
+});
+test('志工回覆四關首組與下一組皆顯示上線頁的委託任務編號',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ for(let round=0;round<4;round++){
+  const h=await setup(t,{activityId:8,initialRound:round}),tasks=[];
+  for(let slot=0;slot<2;slot++){
+   const session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[slot].data;
+   const task=d.guide.match(/讀取委託 (\d+-\d+) 的規格與附件/)[1];
+   assert.match(task,new RegExp('^'+(round+1)+'-[1-8]$'));
+   assert.equal(h.$('stage').querySelector('.quest-work').firstChild.textContent,'委託任務 '+task);
+   tasks.push(task);
+   if(slot===0){h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();}
+  }
+  assert.notEqual(tasks[0],tasks[1],'下一組須顯示不同資料的編號');
  }
 });
 test('待送且零筆過關時，focus 與切回頁面重讀仍保留待送提示',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{

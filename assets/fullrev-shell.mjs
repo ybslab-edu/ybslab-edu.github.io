@@ -7,7 +7,7 @@ const para=(host,value)=>{if(value){const p=node('p',text(value));host.append(p)
 const outcomeNotes={
  "7": "<div class=\"quest-note\"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；本組委託附件就在任務下方。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
  "8": "<div class=\"quest-note\"><p>小洛委託你整理星港策展團隊「次元交會動漫／遊戲展」的志工回覆，找出可供排班參考的資訊。你在本頁讀取附件並作答。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
- "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。本組委託附件就在任務下方。</p><details><summary>既有紀錄如何對應</summary><p>原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；新版第 1 關是轉換，第 2 關合併燈牌，第 3、4 關加入素材實作，舊紀錄不代表做過新增操作。</p></details> <p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助；未完成操作請如實告知老師，不為趕進度勾成完成。文字轉語音由影片與配對涵蓋，不另做酷英實作。</strong></p></div>"
+ "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。本組委託附件就在任務下方，所有作答都在 YBS 網站完成。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p><p>既有紀錄如何對應：原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；舊紀錄不代表做過新版題目。</p><p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助。文字轉語音由影片與配對涵蓋。</strong></p></div>"
 };
 export async function mountStudentLogin({client,host,onLogin,explain}){
  const form=node('form');form.className='ybs-login';form.autocomplete='off';
@@ -161,7 +161,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const children=[...stage.childNodes].filter(e=>e.nodeType===1&&e!==intro&&e.tagName!=='STYLE');
   const chart=stage.querySelector('.quest-chart');
   const summary=['form-summary','form-volunteer-summary'].includes(d.mode),volunteer=d.mode.startsWith('form-volunteer-');
-  const task=text(d.guide).match(/任務\s+(\d+-\d+)/)?.[1];
+  const task=text(d.guide).match(/(?:任務|讀取委託)\s+(\d+-\d+)/)?.[1];
   work.append(node('h3',task?(volunteer?'委託任務 ':'示意任務 ')+task:d.heading||info().name));
   const answers=node('div');answers.className='quest-answers';
   if(tables.length&&d.indexRows){const caption=node('caption','原始回覆（示意）');tables[0].querySelector('table').append(caption);}

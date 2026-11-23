@@ -91,7 +91,7 @@ test('u2-05 八版本：兩組最高者不同，expected 可由委託資料獨�
       answer=[...winners,counts[i.group][i.query],Math.abs(counts[0][i.query]-counts[1][i.query]),'資料','資訊','資訊'];
     }else if(round===1){
       const keep=i.fields.map(f=>['可到場時段','職務意願','緊急聯絡人及聯絡方式'].includes(f.name)||(f.name==='職務操作熟悉度'&&i.dataType.startsWith('職務')));
-      answer=[i.audience,i.dataType,keep.filter(Boolean).length,...keep.map(x=>x?'該收':'不該收'),'告知','同意','限制蒐集'];
+      answer=[i.audience,i.dataType,...keep.map(x=>x?'該收':'不該收'),keep.filter(Boolean).length,'告知','同意','限制蒐集'];
     }else if(round===2){
       answer=['告知與同意','提交表單',i.parent,'志工安排','簡答','選擇題','核取方塊','線性刻度','單選方格',3+Number(i.questions[3].required)+Number(i.questions[4].required)];
     }else{

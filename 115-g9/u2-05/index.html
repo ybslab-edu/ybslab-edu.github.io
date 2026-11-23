@@ -23,8 +23,8 @@
 .quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
 .quest-answers label{display:grid;gap:var(--u);min-width:0}
 .quest-answers input,.quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
-.quest-fallback{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
-.quest-fallback summary{cursor:pointer;padding:var(--u);text-decoration:underline}
+.quest-attach{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
+
 .quest-log{white-space:pre-line;overflow-wrap:anywhere}
 body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 </style>
@@ -41,26 +41,13 @@ body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 const qEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qTable=(caption,heads,rows)=>'<table class="quest-table"><caption>'+qEsc(caption)+'</caption><thead><tr>'+heads.map(h=>'<th scope="col">'+qEsc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+qEsc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
 const qVersion=rnd=>Math.floor(rnd()*8);
-const qCommon='<div class="quest-note"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；展開「備用素材」即可查看本組委託附件。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>';
-// 僅記本機使用備用素材的版本與時間；不加入既有成績／雲端格式，不含學生身分。
-const qFallbackKey='ybs:u2-05:fallback:v1';
-function qReadLog(){try{const a=JSON.parse(localStorage.getItem(qFallbackKey)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string').slice(-64):[]}catch{return []}}
+const qCommon='<div class="quest-note"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；本組委託附件就在任務下方。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>';
 function qView(inst,el,api,content,questions,expected,fallback){
   el.innerHTML=qCommon+'<div class="panel"><h3>委託任務 '+qEsc(inst.t)+'</h3>'+content+
-    (fallback?'<details class="quest-fallback"><summary>備用素材：本組委託附件</summary><p>你可以直接讀取附件作答，無須另外建立表單。開啟素材只記錄使用狀況，仍須回答下方問題。</p><button class="btn" type="button" data-fallback="use">開啟本組素材</button><div data-fallback="material" hidden>'+fallback+'</div><p class="small quest-log" data-fallback="log" role="status"></p></details>':'')+
+    (fallback?'<div class="quest-attach"><h4>本組委託附件</h4>'+fallback+'</div>':'')+
     '<div class="quest-answers">'+questions.map((q,k)=>'<label>'+qEsc(q.label)+(q.options?'<select data-answer="'+k+'" aria-label="'+qEsc(q.label)+'"><option value="">請選擇</option>'+q.options.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('')+'</select>':'<input data-answer="'+k+'" type="number" min="0" step="1" inputmode="numeric" aria-label="'+qEsc(q.label)+'">')+'</label>').join('')+'</div></div>';
   const fields=questions.map((_,k)=>el.querySelector('[data-answer="'+k+'"]'));
   fields.forEach(f=>{f.oninput=()=>api.changed();f.onchange=()=>api.changed()});
-  if(fallback){
-    const log=el.querySelector('[data-fallback="log"]');
-    log.textContent='本機備用紀錄（此瀏覽器，非個人成績）：\n'+(qReadLog().join('\n')||'尚未使用');
-    el.querySelector('[data-fallback="use"]').onclick=()=>{
-      el.querySelector('[data-fallback="material"]').hidden=false;
-      const entry=inst.t+'：未實際操作';let records=qReadLog();
-      if(!records.some(x=>x.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
-      try{localStorage.setItem(qFallbackKey,JSON.stringify(records.slice(-64)));log.textContent='本機備用紀錄：\n'+records.slice(-64).join('\n')}catch{log.textContent=entry+'；瀏覽器無法保存，本次仍可繼續作答。'}
-    };
-  }
   return {get:()=>fields.map(f=>f.value),ready:()=>fields.every(f=>f.value!==''),fill:()=>{expected.forEach((x,k)=>fields[k].value=String(x))}};
 }
 function qCheck(answer,expected,hints){

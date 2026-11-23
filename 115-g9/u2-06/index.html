@@ -4,37 +4,11 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; frame-src https://class-score-86020.firebaseapp.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>問卷回來一團亂｜第 14 週</title>
+<title>志工回覆整理所｜第 14 週</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <link rel="stylesheet" href="../../assets/shell.css?v=20261116fb">
-<style>
-/* 沿用任務日誌的面板、表格與輸入欄；色彩只引用共用變數。 */
-.quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
-.quest-note p{margin:var(--u) 0}
-.quest-table{width:100%;border-collapse:collapse;table-layout:fixed}
-.quest-table th,.quest-table td{padding:var(--u);border:1px solid var(--edge);text-align:left;overflow-wrap:anywhere}
-.quest-table caption{text-align:left;font-weight:700;margin-block:var(--u)}
-.quest-chart{list-style:none;padding:0;display:grid;gap:var(--u)}
-.quest-chart li{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
-.quest-chart .track{height:1em;background:var(--panel-hi)}
-.quest-chart .bar{display:block;height:100%;background:var(--dim)}
-.quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
-.quest-answers label{display:grid;gap:var(--u);min-width:0}
-.quest-answers input,.quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
-.quest-fallback{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
-.quest-fallback summary{cursor:pointer;padding:var(--u);text-decoration:underline}
-.quest-log{white-space:pre-line;overflow-wrap:anywhere}
-.quest-media{max-width:100%;height:auto;border:1px solid var(--edge)}
-.quest-source{white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:559px){
-.quest-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-.quest-table tr{display:block;margin-bottom:var(--u);border:1px solid var(--edge)}
-.quest-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--u);border:0;border-bottom:1px solid var(--edge)}
-.quest-table td::before{content:attr(data-label);font-weight:700}
-}
-body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
-</style>
+<link rel="stylesheet" href="activity.css?v=20261123u206">
 </head>
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
@@ -42,90 +16,120 @@ body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 <script src="../../assets/fullrev-config.js?v=20261120a"></script>
 <script src="../../assets/login.js?v=20261121pr8"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
-<script src="../../assets/activities.js?v=20261122u205"></script>
+<script src="../../assets/activities.js?v=20261122u205&amp;u206=20261123"></script>
 <script src="../../assets/shell.js?v=20261120a"></script>
 <script>
 const qEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qTable=(caption,heads,rows)=>'<table class="quest-table"><caption>'+qEsc(caption)+'</caption><thead><tr>'+heads.map(h=>'<th scope="col">'+qEsc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((x,k)=>'<td data-label="'+qEsc(heads[k])+'">'+qEsc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
 const qVersion=rnd=>Math.floor(rnd()*8);
-const qCommon='<div class="quest-note"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原第 1～4 關依索引對應目前第 1～4 關；舊紀錄保留，但不代表已完成新版備份、條件式格式、去重與圖表實作。</p></details> <p><strong>你先依老師安排觀看 2-16、2-17、2-18，再完成四關。</strong></p></div>';
-// 僅記本機使用備用素材的版本與時間；不加入既有成績／雲端格式，不含學生身分。
-const qFallbackKey='ybs:u2-06:fallback:v1';
-function qReadLog(){try{const a=JSON.parse(localStorage.getItem(qFallbackKey)||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string').slice(-64):[]}catch{return []}}
-function qView(inst,el,api,content,questions,expected,fallback){
-  el.innerHTML=qCommon+'<div class="panel"><h3>示意任務 '+qEsc(inst.t)+'</h3>'+content+
-    (fallback?'<details class="quest-fallback"><summary>備用素材：設備或 Google 權限受阻時使用</summary><p>你可以讀模擬成果當場作答。按下按鈕會在此瀏覽器記錄「未實際操作」，不會因此完成關卡；請讓老師另行記錄操作狀況。</p><button class="btn" type="button" data-fallback="use">使用備用素材並記錄</button><div data-fallback="material" hidden>'+fallback+'</div><p class="small quest-log" data-fallback="log" role="status"></p></details>':'')+
-    '<div class="quest-answers">'+questions.map((q,k)=>'<label>'+qEsc(q.label)+(q.options?'<select data-answer="'+k+'" aria-label="'+qEsc(q.label)+'"><option value="">請選擇</option>'+q.options.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('')+'</select>':'<input data-answer="'+k+'" type="'+(q.text?'text':'number')+'" '+(q.text?'':'min="0" step="1" inputmode="numeric"')+' aria-label="'+qEsc(q.label)+'">')+'</label>').join('')+'</div></div>';
+const qCommon='<div class="quest-note"><p>小洛委託你整理星港策展團隊「次元交會動漫／遊戲展」的志工回覆，找出可供排班參考的資訊。你在本頁讀取附件並作答。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>';
+function qView(inst,el,api,content,questions,expected,attachment){
+  el.innerHTML=qCommon+'<div class="panel"><h3>委託任務 '+qEsc(inst.t)+'</h3>'+content+
+    (attachment?'<div class="quest-attach"><h4>本組委託附件</h4>'+attachment+'</div>':'')+
+    '<div class="quest-answers">'+questions.map((q,k)=>'<label>'+qEsc(q.label)+(q.options?'<select data-answer="'+k+'" aria-label="'+qEsc(q.label)+'"><option value="">請選擇</option>'+q.options.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('')+'</select>':'<input data-answer="'+k+'" type="number" min="0" step="1" inputmode="numeric" aria-label="'+qEsc(q.label)+'">')+'</label>').join('')+'</div></div>';
   const fields=questions.map((_,k)=>el.querySelector('[data-answer="'+k+'"]'));
   fields.forEach(f=>{f.oninput=()=>api.changed();f.onchange=()=>api.changed()});
-  if(fallback){
-    const log=el.querySelector('[data-fallback="log"]');
-    log.textContent='本機備用紀錄（此瀏覽器，非個人成績）：\n'+(qReadLog().join('\n')||'尚未使用');
-    el.querySelector('[data-fallback="use"]').onclick=()=>{
-      el.querySelector('[data-fallback="material"]').hidden=false;
-      const entry=inst.t+'：未實際操作';let records=qReadLog();
-      if(!records.some(x=>x.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
-      try{localStorage.setItem(qFallbackKey,JSON.stringify(records.slice(-64)));log.textContent='本機備用紀錄：\n'+records.slice(-64).join('\n')}catch{log.textContent=entry+'；瀏覽器無法保存，請讓老師記錄。'}
-    };
-  }
   return {get:()=>fields.map(f=>f.value),ready:()=>fields.every(f=>f.value!==''),fill:()=>{expected.forEach((x,k)=>fields[k].value=String(x))}};
 }
 function qCheck(answer,expected,hints){
   if(!Array.isArray(answer))return '請先填入成果答案，再送出。';
-  answer=answer.map(x=>typeof x==='string'?x.trim():x);
   const wrong=expected.findIndex((x,k)=>answer[k]==null||String(answer[k]).trim()===''||(typeof x==='number'?(!/^\d+$/.test(String(answer[k]))||Number(answer[k])!==x):answer[k]!==x));
   return wrong<0?true:hints[wrong];
 }
-const qPrefs=['安可曲','燈牌','周邊'];
-const qHeads=['送出時間','回覆代碼','同意狀態','參與方式','偏好項目','每日聆聽分鐘','選填備註'];
+const qJobs=['入口引導','遊戲體驗','舞台支援'];
+const qHeads=['送出時間','報名代號','組別','招募同意','年齡分流','家長同意','第一志願','可到場時段','期待程度','選填熟悉度'];
+// 八個有限版本；前兩版對應教師人工驗算 A、B 基準。
 function qDataset(n){
- const mode=n%2?'線上':'現場',counts=[4+n%2,2,1],rows=[];
- counts.forEach((c,k)=>{for(let j=0;j<c;j++)rows.push(['示意時間 '+(rows.length+1),'R'+(n+1)+'-'+(rows.length+1),'同意',mode,qPrefs[k],20+n*3+j,''])});
- rows.push(['示意時間 '+(rows.length+1),'R'+(n+1)+'-X','同意',mode==='現場'?'線上':'現場','燈牌',45,'示意備註']);
- const duplicate=[...rows[n%3]];duplicate[0]='示意時間 '+(rows.length+1);rows.push(duplicate);
- const invalid=[['不同意','安可曲',30],['同意','',40],['同意','燈牌',1500+n]];
- invalid.forEach((r,k)=>rows.splice((n+k*3)%(rows.length+1),0,['示意問題時間 '+k,'E'+(n+1)+'-'+(k+1),r[0],mode,r[1],r[2],'']));
- return {rows,mode};
+ const b=n%2,shift=Math.floor(n/2)%3,group=n<4?'國中組':'高中組',slot=n<4?'上午':'下午',other=slot==='上午'?'下午':'上午',max=[5,7,4,6,3,5,2,4][n];
+ const jobs=qJobs.map((_,k)=>qJobs[(k+shift)%3]),rows=[];
+ const add=(id,job,slots,g=group,f='初學')=>rows.push(['09:'+String(rows.length+1).padStart(2,'0'),id,g,'同意','已滿18歲','不適用',job,slots,max,f]);
+ const counts=b?[1,2,2]:[2,1,1];
+ counts.forEach((c,k)=>{for(let j=0;j<c;j++)add('V'+(rows.length+1),jobs[k],rows.length===0?'上午、下午':slot,group,rows.length===0?'':'初學')});
+ add('V1',jobs[0],other); // 同代號、不同內容，保留並交窗口核對。
+ add('V'+(rows.length+1),jobs[1],slot,group==='國中組'?'高中組':'國中組');
+ if(b){add('V8',jobs[2],other);rows[rows.length-1][8]=''}
+ rows[1][4]='未滿18歲';rows[1][5]='已取得';
+ const dup=r=>{const x=[...r];x[0]='10:'+String(rows.length).padStart(2,'0');rows.push(x)};
+ dup(rows[0]);dup(rows[b?1:0]);
+ const bad=(id)=>['11:'+id,id,group,'同意','已滿18歲','不適用',jobs[0],slot,max,''];
+ let r=bad('X1');r[3]='不同意';rows.push(r);
+ r=bad('X2');r[6]='';rows.push(r);
+ r=bad('X3');r[8]=max+1;if(b)r[7]='';rows.push(r);
+ r=bad('X4');r[4]='未滿18歲';r[5]='未取得';rows.push(r);
+ const offset=Math.floor(n/2)*2,tail=rows.splice(2);rows.push(...tail.slice(offset),...tail.slice(0,offset));
+ const demand=qJobs.map(j=>(b?[4,3,2]:[3,1,3])[jobs.indexOf(j)]);
+ if(n>=6)demand[qJobs.indexOf(b?jobs[0]:jobs[2])]++;
+ return {rows,group,slot,max,expectRequired:!b,demand,query:n===6?jobs[1]:b?jobs[2]:jobs[0],backup:(n%3)};
 }
-const qValid=r=>r[2]==='同意'&&r[4]!==''&&Number.isFinite(r[5])&&r[5]>=0&&r[5]<=1440;
-const qClean=rows=>rows.filter(qValid);
+function qReasons(r,i){const a=[];if(r[3]!=='同意'||r[4]==='未滿18歲'&&r[5]!=='已取得')a.push('未取得所需同意');if(!r[6]||!r[7]||i.expectRequired&&r[8]==='')a.push('必填缺失');if(r[8]!==''&&(!Number.isFinite(r[8])||r[8]<1||r[8]>i.max))a.push('刻度超界');return a}
+const qClean=(rows,i)=>rows.filter(r=>!qReasons(r,i).length);
 const qUnique=rows=>rows.filter((r,k,a)=>a.findIndex(x=>JSON.stringify(x.slice(1))===JSON.stringify(r.slice(1)))===k);
-const qRules='<p>你使用已停止收件的靜態示意副本；處理自己的表單時要先停止回應。清理前保留原始資料並複製工作副本。</p><p>規則：僅納入同意回覆；偏好項目必填，空白排除；每日聆聽分鐘須為 0～1440，超界排除；選填備註空白保留。移除重複時比較回覆代碼至選填備註全部業務欄位，排除送出時間，不採保留最新版規則。</p>';
-const qRows=(caption,rows)=>qTable(caption,qHeads,rows.map(r=>r.map(x=>x===''?'（空白）':x)));
-const qRawTSV=rows=>[qHeads,...rows].map(r=>r.join('\t')).join('\n');
-function qSheet(i,rows,caption){return qRules+qRows(caption,rows)+'<details><summary>複製到試算表的素材與操作提示</summary><p>你在同一份個人試算表建立「'+i.t+' 原始資料」「'+i.t+' 工作副本」。複製下方以 Tab 分隔的文字貼到 A1，空白保持原樣。各關提供獨立練習資料，不必等前關完成。</p><pre class="quest-source">'+qEsc(qRawTSV(rows))+'</pre><p>備份：工作表選單複製。條件式格式：選偏好項目欄，格式 → 條件式格式 → 儲存格空白。移除重複：資料 → 資料清理 → 移除重複內容，取消送出時間欄。篩選：資料 → 建立篩選器。清理後另建偏好／人數彙整區，再插入圖表。</p></details>'}
-function qExpected(i){
- if(i.round===0)return [i.rows.length,i.rows.filter(r=>!r[4]).length,['缺失','異常','重複','可保留的選填空白'][i.kind]];
- if(i.round===1)return [qClean(i.rows).length,i.rows.filter(r=>!qValid(r)).map(r=>r[1]).sort().join('、')];
- if(i.round===2){const a=qUnique(i.rows);return [i.rows.length-a.length,a.length,a.filter(r=>r[4]===i.target).length]}
- const a=i.rows.filter(r=>r[3]===i.mode),c=qPrefs.map(p=>a.filter(r=>r[4]===p).length);
- return [a.length,c[i.query],Math.max(...c)-Math.min(...c),'由清理後資料製圖','只代表這份同意的有效回覆'];
+const qRows=(caption,rows)=>qTable(caption,['列號',...qHeads],rows.map((r,k)=>[k+2,...r.map(x=>x===''?'（空白）':x)]));
+function qRules(i){return '<p>規格：第一志願與可到場時段必填；時段可複選。期待程度為 1～'+i.max+'，'+(i.expectRequired?'必填':'選填，空白保留')+'；熟悉度選填。招募須同意；未滿 18 歲另須已取得家長同意。</p><p>僅移除除送出時間外全部業務內容相同的列，保留原順序第一筆。同代號內容有變動先保留交窗口核對。統計單位為有效回覆筆數。</p>'}
+const qField=(label,options)=>({label,options});
+const qNum=label=>({label});
+function qTask(i){
+ const qs=[],a=[],h=[];
+ const ask=(q,v,hint)=>{qs.push(q);a.push(v);h.push(hint)};
+ let attachment=qRules(i)+qRows(i.round<2?'截止時原始回覆':i.round===2?'已清理、尚未去重的工作副本':'已清理並去重的有效回覆',i.rows);
+ if(i.round===0){
+  ask(qField('哪個處理順序能保留完整原始內容？',['停止接受回應 → 複製原始回覆到新試算表備份 → 在工作副本清理','先清理原始回覆 → 停止接受回應 → 備份剩餘列']), '停止接受回應 → 複製原始回覆到新試算表備份 → 在工作副本清理','請先保留可回查的原始內容。');
+  // 同筆數但被改動的副本也必須排除；顯示完整候選內容供獨立核對。
+  const copies=[i.rows.map(r=>[...r]),i.rows.map(r=>[...r]),i.rows.map(r=>[...r])];
+  copies[(i.backup+1)%3][0][6]=qJobs[(qJobs.indexOf(i.rows[0][6])+1)%3];copies[(i.backup+2)%3].pop();
+  attachment+='<p>收件狀態：已到截止時間，尚接受回應。三份候選副本的其他欄位均已核對一致；你要再核對總筆數、第 2 列第一志願及末列報名代號。</p>'+qTable('候選副本核對表',['副本','資料筆數','第 2 列第一志願','末列報名代號'],copies.map((rows,k)=>[['甲','乙','丙'][k],rows.length,rows[0][6],rows[rows.length-1][1]]));
+  ask(qField('哪份副本完整保留截止時的原始內容？',['甲','乙','丙']),['甲','乙','丙'][i.backup],'請同時核對筆數與每列內容。');
+  ask(qNum('本組期待程度的刻度上限是多少？'),i.max,'請以本組規格核對數值上限，不能套用另一組。');
+  const missing=i.rows.findIndex(r=>r[6]==='')+2,abnormal=i.rows.findIndex(r=>r[8]>i.max)+2;
+  const checks=[['第 '+missing+' 列第一志願空白','必填缺失'],['第 '+abnormal+' 列期待程度數字','數值異常'],['第 2 列與第 '+(i.rows.findIndex((r,k)=>k>0&&JSON.stringify(r.slice(1))===JSON.stringify(i.rows[0].slice(1)))+2)+' 列除時間外的業務內容','完全重複'],['第 2 列熟悉度空白','可保留的選填空白']];
+  checks.forEach(([label,v])=>ask(qField(label+'，應如何分類？',['必填缺失','數值異常','完全重複','可保留的選填空白']),v,'請依欄位規格及兩列實際內容判斷。'));
+  ask(qNum('原始回覆幾筆（不含欄名）？'),i.rows.length,'請數資料列，不含欄名。');
+ }else if(i.round===1){
+  ask(qField('要標記 A1:J'+(i.rows.length+1)+' 中的空白，應用哪個設定？',['格式 → 條件式格式設定；範圍 A2:J'+(i.rows.length+1),'資料 → 移除重複；只選送出時間']), '格式 → 條件式格式設定；範圍 A2:J'+(i.rows.length+1),'請選標記空白的工具，範圍須涵蓋資料列並排除欄名。');
+  i.rows.forEach((r,k)=>ask(qField('第 '+(k+2)+' 列應保留或排除（先不去重）？',['保留','排除']),qReasons(r,i).length?'排除':'保留','請核對該列同意、必填與刻度；選填空白不等於排除。'));
+  const k=i.rows.findIndex(r=>r[8]>i.max),reasons=qReasons(i.rows[k],i);
+  // 各原因分別判斷，允許同列同時有多種問題。
+  ['未取得所需同意','必填缺失','刻度超界'].forEach(reason=>ask(qField('第 '+(k+2)+' 列是否有「'+reason+'」？',['有','沒有']),reasons.includes(reason)?'有':'沒有','請逐項核對該列，不把同列問題限制為一種。'));
+  ask(qNum('以上逐列處理後剩幾筆（尚未去重）？'),qClean(i.rows,i).length,'請只扣除被排除的列，每列扣一次。');
+ }else if(i.round===2){
+  attachment+='<p>操作範圍：A1:J'+(i.rows.length+1)+'，包含欄名。A 為送出時間，B～J 為全部業務欄位。</p>';
+  ask(qField('選取完整範圍並勾選包含欄名後，去重應比對哪些欄？',['B～J 全部業務欄位，不比對 A 送出時間','只比對 B 報名代號','A～J 全部欄位']), 'B～J 全部業務欄位，不比對 A 送出時間','時間不同仍可能是同份回覆，業務欄位須全部比對。');
+  i.rows.forEach((r,k)=>ask(qField('第 '+(k+2)+' 列應如何處理？',['保留','移除完全重複列']),i.rows.findIndex(x=>JSON.stringify(x.slice(1))===JSON.stringify(r.slice(1)))===k?'保留':'移除完全重複列','請與前面的全部業務內容比對，只留下每群第一筆。'));
+  ask(qField('同代號但時段不同的兩列，應如何處理？',['兩列保留並交窗口核對','只留送出時間較晚的一列']), '兩列保留並交窗口核對','本組只移除業務內容完全相同的列。');
+  const unique=qUnique(i.rows);
+  ask(qNum('總共移除幾筆？'),i.rows.length-unique.length,'三列同內容只移除兩列。');
+  ask(qNum('留下幾筆有效回覆？'),unique.length,'請用原筆數扣除移除列數。');
+  ask(qNum('留下的「'+i.query+'」共幾筆（所有組別、場次）？'),unique.filter(r=>r[6]===i.query).length,'請在保留列中統計指定第一志願。');
+ }else{
+  const selected=i.rows.filter(r=>r[2]===i.group&&r[7].split('、').includes(i.slot)),counts=qJobs.map(job=>selected.filter(r=>r[6]===job).length),gaps=counts.map((c,k)=>Math.max(i.demand[k]-c,0)),title=i.group+'・'+i.slot+'場第一志願分布';
+  attachment+='<p>你要篩選「'+i.group+'」且可到「'+i.slot+'場」（'+(i.slot==='上午'?'09:00–12:00':'13:00–17:00')+'）。雙時段列在本場只計一次；需求僅供補招參考，尚未排班。</p>'+qTable('本組需求',['職務','需求筆數'],qJobs.map((j,k)=>[j,i.demand[k]]));
+  ask(qField('你要只顯示符合組別及場次的列，應用哪項功能？',['篩選器，同時設定組別與包含指定時段','移除重複，只比對組別']), '篩選器，同時設定組別與包含指定時段','請選只顯示符合條件資料的功能。');
+  qJobs.forEach((j,k)=>ask(qNum(j+'：符合條件的回覆幾筆？'),counts[k],'請同時檢查組別、時段與第一志願。'));
+  ask(qNum('篩選後總共幾筆？'),selected.length,'雙時段在本場只計一次。');
+  ask(qNum('其中「'+i.query+'」占百分之幾？填整數'),counts[qJobs.indexOf(i.query)]/selected.length*100,'以指定職務筆數除以篩選總筆數，再乘 100。');
+  qJobs.forEach((j,k)=>ask(qNum(j+'：補招缺口幾筆？'),gaps[k],'缺口為需求減回覆，若小於零則記零。'));
+  ask(qField('應優先補招哪個職務（缺口最大）？',qJobs),qJobs[gaps.indexOf(Math.max(...gaps))],'請比較需求缺口，不只比較回覆多寡。');
+  const good=i.backup,candidates=[0,1,2].map(k=>({name:['甲','乙','丙'][k],title:k===(good+1)%3?title.replace(i.slot,i.slot==='上午'?'下午':'上午'):title,source:k===(good+2)%3?'原始表單摘要':'本組清理去重後篩選結果',counts:k===(good+2)%3?counts.map(c=>c+1):counts}));
+  attachment+=qTable('候選圓餅圖規格（依各職務筆數畫出比例）',['版本','標題','資料來源',...qJobs],candidates.map(c=>[c.name,c.title,c.source,...c.counts]));
+  // 以 CSS 圓餅呈現候選數據，同時保留文字數值供閱讀。
+  attachment+=candidates.map(c=>{const sum=c.counts.reduce((a,b)=>a+b),x=c.counts[0]/sum*100,y=(c.counts[0]+c.counts[1])/sum*100;return '<figure><figcaption>'+c.name+'：'+qEsc(c.title)+'（'+qEsc(c.source)+'）</figcaption><div role="img" aria-label="'+qEsc(qJobs.map((j,k)=>j+' '+c.counts[k]+' 筆').join('、'))+'" style="width:120px;height:120px;border-radius:50%;background:conic-gradient(#cc6034 0 '+x+'%,#398989 '+x+'% '+y+'%,#a98bd4 '+y+'% 100%)"></div></figure>'}).join('')+'<p>圓餅色塊依序：橘色入口引導、青色遊戲體驗、紫色舞台支援。</p>';
+  ask(qField('哪張圓餅圖的來源、數值與標題都符合本組？',['甲','乙','丙']),['甲','乙','丙'][good],'逐一核對資料來源、三項筆數、組別與場次標題。');
+  ask(qField('清理後應在哪裡分析有效回覆？',['使用清理後試算表的篩選及圖表工具','沿用尚未更新的原表單摘要']), '使用清理後試算表的篩選及圖表工具','試算表清理不會回寫原表單摘要。');
+ }
+ return {questions:qs,expected:a,hints:h,attachment};
 }
-function qMark(i){
- if(i.kind===0)return '代碼 '+i.rows.find(r=>!r[4])[1]+' 的偏好項目';
- if(i.kind===1)return '代碼 '+i.rows.find(r=>r[5]>1440)[1]+' 的每日聆聽分鐘';
- if(i.kind===2)return '代碼 '+i.rows.find((r,k,a)=>a.some((x,j)=>j!==k&&x[1]===r[1]))[1]+' 的兩筆業務內容';
- return '代碼 '+i.rows.find(qValid)[1]+' 的選填備註';
-}
-const qRoundNames=['先留下原始資料','找出不能直接分析的列','時間不同，內容還是重複','用乾淨資料回答問題'];
-const qGoals=['複製備份，再核對原始筆數、必要欄位空白與指定問題類型。','用條件式格式標空白，依規則排除無效列，同時核對筆數與代碼。','排除送出時間比對重複，核對移除、留下及指定偏好筆數。','篩選指定參與方式，填彙整區並製圖，再核對人數與結論。'];
-const ROUNDS=qRoundNames.map((name,round)=>({lv:round<2?1:2,name,now:'你要替音樂活動團隊整理可供分析的回覆。',goal:qGoals[round],tip:'先對照規則與欄名，再逐列核對；選填空白與必要空白要分開處理。',
- steps:i=>'<ol><li>使用任務 '+i.t+' 的獨立練習區，保留原始資料與兩組成果。</li><li>'+qGoals[round]+'</li><li>填入成果，答對後按下一組換不同資料。</li></ol>',learn:'你依分析目的清理資料，保留可回復的副本；結論只適用於這份有效回覆。',
- questionKey:i=>({rows:i.rows,kind:i.kind,query:i.query,target:i.target,mode:i.mode}),
- gen(rnd){const n=qVersion(rnd),d=qDataset(n);return {t:(round+1)+'-'+(n+1),round,kind:n%4,query:n%3,target:qPrefs[n%3],mode:d.mode,rows:round===2?qClean(d.rows):round===3?qUnique(qClean(d.rows)):d.rows}},
- view(i,el,api){
- let questions,content=qSheet(i,i.rows,round===3?'獨立乾淨資料（示意）':'獨立練習資料（示意）'),fallback;
- if(round===0){content+='<p>你要辨識：'+qMark(i)+'。</p>';questions=[{label:'原始資料共有幾筆（不含欄名）？'},{label:'必要的偏好項目空白有幾筆？'},{label:'指定位置屬於哪一類？',options:['缺失','異常','重複','可保留的選填空白']}];fallback=qRows('備用：唯讀原始副本（示意）',i.rows)}
- if(round===1){questions=[{label:'排除無效列後剩幾筆（尚未去重）？'},{label:'被排除的代碼有哪些？依字典序以「、」隔開',text:true}];fallback=qRows('備用：按規則處理後副本（示意）',qClean(i.rows))+'<p>你仍要回查原始資料找出排除代碼，不能只核對剩餘筆數。</p>'}
- if(round===2){questions=[{label:'移除幾筆重複？'},{label:'移除後留下幾筆？'},{label:'留下的「'+i.target+'」有幾筆？'}];fallback=qRows('備用：排除時間比對後副本（示意）',qUnique(i.rows))}
- if(round===3){content+='<p>你只篩選「'+i.mode+'」。將安可曲、燈牌、周邊各自計數填入空白彙整區，再用彙整區插入圓餅圖或長條圖，標題寫出篩選條件；不要只依賴圖表忽略隱藏列。</p>'+qTable('你要在試算表填寫的彙整區',['偏好','人數'],qPrefs.map(p=>[p,'待你計數']));questions=[{label:'符合篩選條件共有幾筆？'},{label:'其中「'+qPrefs[i.query]+'」有幾筆？'},{label:'最多與最少偏好相差幾人？'},{label:'試算表刪列後，下一步怎麼查看有效結果？',options:['回原表單摘要抄數字','由清理後資料製圖']},{label:'這份結果能代表誰？',options:['所有音樂活動觀眾','只代表這份同意的有效回覆']}];fallback=qRows('備用：可供篩選、製圖的乾淨副本（示意）',i.rows)+'<p>你使用這份備援不會補過第 2、3 關；仍要自行篩選、計數及回答。</p>'}
- return qView(i,el,api,content,questions,qExpected(i),fallback);
- },
- check(i,a){return qCheck(a,qExpected(i),round===0?['請查原始列數，不含欄名。','請只查看偏好項目空白列。','請對照指定代碼、欄位與資料規則。']:round===1?['請回工作副本逐列核對三條排除規則，暫不去重。','請對照原始副本與保留列，按指定順序列出完整代碼集合。']:round===2?['請查比對欄位是否排除了送出時間。','請用原筆數扣除重複列，勿再刪除選填空白。','請在去重結果中只計指定偏好。']:['請查參與方式篩選條件。','請在篩選後資料核對指定偏好。','請比較篩選後彙整區各偏好人數。','請查表單摘要與試算表是否會互相回寫清理結果。','請查資料來源與同意、有效規則，勿推論未回覆的人。'])}
+const qRoundNames=['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據'];
+const qGoals=['你要安排停止收件與備份順序，核對完整備份並辨識四種資料狀況。','你要選擇標記空白的設定，再依規格逐列決定是否留下；先不移除重複。','你要比較全部業務內容，保留每群第一筆；相似但不同的回覆要留下。','你要依指定組別及場次統計第一志願，選對圓餅圖並找出補招缺口。'];
+const ROUNDS=qRoundNames.map((name,round)=>({lv:round<2?1:2,name,now:'你要把小洛收到的志工回覆整理成排班依據。',goal:qGoals[round],tip:'先核對附件規格，再逐列檢查；最後才填彙總數字。',
+ steps:i=>'<ol><li>讀取委託 '+i.t+' 的規格與附件。</li><li>'+qGoals[round]+'</li><li>逐項填答，再核對彙總；答對後按「下一組」。</li></ol>',learn:'你保留原始回覆，依用途清理、去重與篩選，讓招募判斷有資料依據。',
+ questionKey:i=>({rows:i.rows,max:i.max,expectRequired:i.expectRequired,group:i.group,slot:i.slot,demand:i.demand,query:i.query,backup:i.backup}),
+ gen(rnd){const n=qVersion(rnd),d=qDataset(n);return {...d,t:(round+1)+'-'+(n+1),round,rows:round===2?qClean(d.rows,d):round===3?qUnique(qClean(d.rows,d)):d.rows}},
+ view(i,el,api){const t=qTask(i);return qView(i,el,api,'<p>'+qGoals[round]+'</p>',t.questions,t.expected,t.attachment)},
+ check(i,a){const t=qTask(i);return qCheck(a,t.expected,t.hints)}
 }));
-
-// 保留活動 ID、四個 round 索引及既有 mask 格式，不將舊紀錄重算為新實作。
-const APP=SHELL({week:8,termWeek:14,title:'問卷回來一團亂',course:'115-g9',unit:2,rounds:ROUNDS,finale:'你已完成四關成果確認。請保留兩組檔案讓老師抽查；使用備用素材時，請告知老師未實際操作。'});
+const qExpected=i=>qTask(i).expected;
+// 保留 week 8、round 0～3 與 mask，相容原完成紀錄。
+const APP=SHELL({week:8,termWeek:14,title:'志工回覆整理所',course:'115-g9',unit:2,rounds:ROUNDS,finale:'你已核對兩組回覆的備份、清理、去重與分析成果，可以把有依據的補招建議交給小洛。'});
 </script>
 </body>
 </html>

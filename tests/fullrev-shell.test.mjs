@@ -152,7 +152,7 @@ test('活動 7、8、9 附件直接顯示，不建立備用 UI 或本機紀錄',
   const h=await setup(t,{activityId,...(activityId===7?{initialRound:1}:{})});
   const d=h.calls.find(c=>c.op==='start').response.question.data;
   const attachment=h.$('stage').querySelector('.quest-attach');
-  assert.equal(!!attachment,!!d.backup);
+  assert.equal(!!attachment,!!(d.backup||d.attachment));
   if(d.backup){assert.equal(attachment.firstChild.textContent,'本組委託附件');for(const row of d.backup)for(const value of row)assert.ok(attachment.textContent.includes(String(value)));}
   assert.equal(h.$('stage').querySelector('[data-fallback]'),null);
   assert.doesNotMatch(h.$('stage').textContent,/備用素材|未實際操作|本機備用紀錄/);
@@ -256,19 +256,19 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
   const page=await readFile(new URL(`../115-g9/u2-0${activityId-2}/index.html`,import.meta.url),'utf8');
   const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1].replace('設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。','本組委託附件就在任務下方。');
   assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄摺疊及課堂安排');
-  if(activityId===7)assert.doesNotMatch(note.textContent,/虛構|示意資料|後援會|2-13|前測|半成品|巡堂|待確認/);
+  if(activityId===7||activityId===8)assert.doesNotMatch(note.textContent,/虛構|示意資料|後援會|2-13|前測|半成品|巡堂|待確認/);
   else assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
   assert.equal(h.$('warmup').hidden,false,'預設不得跳過暖身');
   assert.equal(h.$('activity-tools').hidden,true,'一般學生不顯示空的教師工具選單');
   assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('sync').className,'sync ok');
   assert.equal(h.$('who').textContent,'已登入','目前學生 Worker 回應無班座，不可從 subject 或 classKey 猜測');
   const session=h.db.docs.get(h.paths.head('synthetic-a')).activeSession,d=session.questions[0].data;
-  const task=d.guide.match(/任務\s+(\d+-\d+)/)[1],work=h.$('stage').querySelector('.quest-work');
-  assert.equal(work.firstChild.textContent,(activityId===7?'委託任務 ':'示意任務 ')+task);
-  const answers=work.querySelector('.quest-answers');assert.equal(answers.querySelectorAll('label').length,d.questions.length);
+  const task=d.guide.match(/任務\s+(\d+-\d+)/)?.[1],work=h.$('stage').querySelector('.quest-work');
+  assert.equal(work.firstChild.textContent,task?(activityId===7||activityId===8?'委託任務 ':'示意任務 ')+task:d.heading);
+  const answers=work.querySelector('.quest-answers');assert.equal(answers.querySelectorAll('label').length,h.calls.find(c=>c.op==='start').response.question.data.questions.length);
   const children=work.childNodes.filter(n=>n.nodeType===1),attachment=work.querySelector('.quest-attach');
   assert.equal(children.at(-1),answers);
-  assert.equal(!!attachment,!!h.calls.find(c=>c.op==='start').response.question.data.backup);
+  assert.equal(!!attachment,!!(h.calls.find(c=>c.op==='start').response.question.data.backup||h.calls.find(c=>c.op==='start').response.question.data.attachment));
   if(attachment){assert.equal(attachment.firstChild.textContent,'本組委託附件');assert.equal(answers.previousElementSibling,attachment);}
   if(activityId===7){
    const stageNodes=h.$('stage').childNodes;

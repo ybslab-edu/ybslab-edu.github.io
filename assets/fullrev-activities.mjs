@@ -37,7 +37,7 @@ export const BATCH4=Object.freeze([
 ]);
 export const BATCH5=Object.freeze([
   {activity:7,file:'115-g9/u2-05/index.html',title:'動漫／遊戲展志工招募',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查'],managed:[0,1,2,3]},
-  {activity:8,file:'115-g9/u2-06/index.html',title:'問卷回來一團亂',unit:2,rounds:['先留下原始資料','找出不能直接分析的列','時間不同，內容還是重複','用乾淨資料回答問題'],managed:[0,1,2,3]},
+  {activity:8,file:'115-g9/u2-06/index.html',title:'把報名回覆變成排班依據',unit:2,rounds:['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據'],managed:[0,1,2,3]},
   {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
 ]);
 export const BATCH6=Object.freeze([

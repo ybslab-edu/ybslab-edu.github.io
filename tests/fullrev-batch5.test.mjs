@@ -10,7 +10,7 @@ import {config} from './fixtures/fullrev.mjs';
 import {renderOutcome} from '../assets/fullrev-outcomes.mjs';
 import {Element} from './fixtures/activity-dom.mjs';
 test('PR6 第 5 批沿用現行 11/19 關名及 ID，關閉模式不改頁面與素材',async()=>{
-  for(const a of BATCH5){const html=await readFile(new URL('../'+a.file,import.meta.url),'utf8');assert.match(html,new RegExp(`week:${a.activity}`));for(const name of a.rounds)assert.ok(html.includes(name));if(a.activity!==7)assert.ok(html.includes('未實際操作'));}
+  for(const a of BATCH5){const html=await readFile(new URL('../'+a.file,import.meta.url),'utf8');assert.match(html,new RegExp(`week:${a.activity}`));for(const name of a.rounds)assert.ok(html.includes(name));if(a.activity===9)assert.ok(html.includes('未實際操作'));}
 });
 test('PR6 第 5 批私有題面、答案、素材、判題與版本不在公開產物',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
   const load=file=>import(pathToFileURL(resolve(process.env.YBS_WORKER_SOURCE,'src/formal/banks',file)).href);
@@ -30,14 +30,15 @@ test('PR6 第 5 批私有題面、答案、素材、判題與版本不在公開�
   const login=await readFile(join(output,'assets/login.js'),'utf8');assert.match(login,/fullrev-activities\.mjs\?v=20261120b8/);
 });
 
-test('志工四關 32 組授權題面只渲染觀察、附件與作答欄，保留數字原文',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('兩活動志工四關 64 組授權題面只渲染觀察、附件與作答欄，保留數字原文',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
   const load=file=>import(pathToFileURL(resolve(process.env.YBS_WORKER_SOURCE,file)).href);
   const [{default:banks},{projectQuestion}]=await Promise.all([load('src/formal/banks/pr6-batch5.mjs'),load('src/formal/questions.mjs')]);
   class DOMElement extends Element{append(...children){for(const child of children)super.append(child);}}
   const saved=Object.getOwnPropertyDescriptor(globalThis,'document');
   Object.defineProperty(globalThis,'document',{configurable:true,value:{createElement:tag=>new DOMElement(tag)}});
   t.after(()=>{if(saved)Object.defineProperty(globalThis,'document',saved);else delete globalThis.document;});
-  const bundle=Object.entries(banks).find(([key])=>key.startsWith('7:'))[1];let count=0;
+  const bundles=Object.entries(banks).filter(([key])=>/^[78]:/.test(key));let count=0;
+  for(const [key,bundle] of bundles)
   for(const [round,bank] of Object.entries(bundle.rounds))for(const c of bank.cases){
     const data=projectQuestion({data:c.facts,answer:c.answer},0,bank.type,'志工招募','').data;
     assert.ok(!('model' in data));assert.ok(!('feedback' in data));
@@ -48,14 +49,21 @@ test('志工四關 32 組授權題面只渲染觀察、附件與作答欄，保�
     assert.equal(handle.ready(),true);assert.deepEqual(handle.get(),c.answer.map(String));
     const numeric=data.kinds.indexOf('n');fields[numeric].value='01';assert.equal(handle.get()[numeric],'01');
     fields[numeric].value='1e0';assert.equal(handle.ready(),false);
-    if(round==='0'){
+    if(round==='0'&&key.startsWith('7:')){
       const chart=host.querySelector('section[aria-label="職務第一志願比較（人）"]');assert.ok(chart);
       assert.equal(chart.childNodes.length,7);assert.equal(host.querySelectorAll('button').length,0);
     }else assert.ok(host.textContent.includes('本組委託附件'));
     assert.equal(host.querySelectorAll('button').length,0);
     assert.equal(host.querySelector('[data-fallback]'),null);
     assert.doesNotMatch(host.textContent,/備用素材|未實際操作/);
+    if(key.startsWith('8:')){
+      for(const block of data.attachment){
+        if(block.text)assert.ok(host.textContent.includes(block.text));
+        if(block.rows)for(const row of block.rows)for(const value of row)assert.ok(host.textContent.includes(value));
+      }
+      assert.equal(host.querySelectorAll('figure').length,round==='3'?3:0);
+    }
     count++;
   }
-  assert.equal(count,32);
+  assert.equal(count,64);
 });

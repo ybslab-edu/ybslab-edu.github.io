@@ -56,6 +56,19 @@ export function renderOutcome(host,d,changed){
   }
   if(d.summaryRows)table(host,d.summaryHeaders,d.summaryRows);
   materials(host,d);
+  if(d.attachment){
+    const attachment=node('section');attachment.className='quest-attach';attachment.append(node('h4','本組委託附件'));
+    for(const block of d.attachment){
+      if(block.text)paragraph(attachment,block.text);
+      else if(block.headers){attachment.append(node('h5',block.caption));table(attachment,block.headers,block.rows);}
+      else if(block.stops){
+        const chart=node('figure'),pie=node('div');chart.append(node('figcaption',block.chart));
+        const [a,b]=block.stops;pie.setAttribute('role','img');pie.setAttribute('aria-label',block.chart+'；色塊依序為入口引導、遊戲體驗、舞台支援');
+        pie.style.cssText=`width:160px;max-width:100%;aspect-ratio:1;border-radius:50%;background:conic-gradient(#cc6034 0 ${a}%,#398989 ${a}% ${b}%,#a98bd4 ${b}% 100%)`;
+        chart.append(pie);attachment.append(chart);
+      }
+    }host.append(attachment);
+  }
   if(d.backup){
     const attachment=node('div');attachment.className='quest-attach';
     attachment.append(node('h4','本組委託附件'));

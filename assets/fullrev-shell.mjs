@@ -157,7 +157,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   for(const el of children){
    if(el===chartLabel&&chart)continue;
    // 舊第 1 關表格後直接接統計圖，不再重述任務說明中的目標。
-   if(summary&&el.tagName==='P'&&el.textContent===text(d.passages))continue;
+   if(summary&&el.tagName==='P'&&el.textContent===text(d.passages)){
+    stage.replaceChildren(...[...stage.childNodes].filter(child=>child!==el));
+    continue;
+   }
    if(el.tagName==='LABEL'){answers.append(el);continue;}
    if(el===chart&&chartLabel)work.append(chartLabel);
    if(el.tagName==='DETAILS'&&el.querySelector('[data-fallback]')){el.className='quest-fallback';el.hidden=summary;}

@@ -252,6 +252,9 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
   if(activityId===7)assert.equal(fallback,null,'志工第 1 關只讀表，不顯示備用素材');
   else{assert.ok(fallback);assert.equal(fallback.hidden,false);assert.equal(answers.previousElementSibling,fallback);}
   if(activityId===7){
+   const stageNodes=h.$('stage').childNodes;
+   assert.deepEqual(stageNodes.slice(stageNodes.indexOf(note)+1,stageNodes.indexOf(work)).filter(n=>n.tagName!=='STYLE').map(n=>n.textContent),[],'說明卡與任務卡之間不得留下段落或遊離文字');
+   assert.ok(!h.$('stage').textContent.includes(d.passages.join('')),'重複任務目標須移除原節點');
    assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','SECTION','DIV']);
    assert.equal(d.mode,'form-volunteer-summary');
    assert.equal(children[2].getAttribute('aria-label'),'職務第一志願比較（人）');

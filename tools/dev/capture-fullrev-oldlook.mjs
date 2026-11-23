@@ -1,5 +1,4 @@
-// 全程本機 mock；外部請求一律阻擋。以 main 舊頁與本分支 build 產生 24 張對照截圖。
-import {execFileSync} from 'node:child_process';
+// 全程本機 mock；外部請求一律阻擋。以本工作樹志工舊頁與 build 產生 24 張對照截圖。
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdtemp,rm,mkdir} from 'node:fs/promises';
@@ -39,6 +38,15 @@ async function setup(){
             requestId:()=>crypto.randomUUID(),fetcher:(url,init)=>fetch('/worker'+new URL(url).pathname,init)});
           app.state.uid='fake-uid-a';app.state.owner=false;app.state.hints={'115-g9':'synthetic-class'};
           if(restoredProvider)app.auth.currentUser.uid='fake-uid-a';
+          const withEmail=user=>{
+            const claims=user.getIdTokenResult;
+            user.getIdTokenResult=async()=>{const result=await claims();result.claims.email='cgjh9990001@ybslab-edu.github.io';return result;};
+          };
+          if(restoredProvider)withEmail(app.auth.currentUser);
+          const signIn=app.auth.signInWithEmailAndPassword;
+          app.auth.signInWithEmailAndPassword=async(...args)=>{const credential=await signIn(...args);withEmail(credential.user);return credential;};
+          const doc=app.session.db.doc;
+          app.session.db.doc=path=>path==='ybsCourses/115-g9/roster/cgjh9990001@cgjh.hcc.edu.tw'?{get:async()=>({exists:true,metadata:{fromCache:false},data:()=>({schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true})})}:doc(path);
           let clock=${modules.EPOCH};const advance=app.advance;app.advance=(ms=60001)=>{advance(ms);clock+=ms;};
           const session=async()=>app.session,fetcher=(url,init)=>fetch('/worker'+new URL(url).pathname,init);
           const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher});
@@ -94,11 +102,11 @@ async function fill(page,type,answer) {
     const input=page.locator(`[data-answer-field="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(String(value));else await input.fill(String(value));
   }
 }
-const out=process.env.YBS_LOOK_OUTPUT||'/home/teacher/projects/console/tasks/ybs-anticheat-20261117/look2';
+const out=process.env.YBS_LOOK_OUTPUT||join(tmpdir(),'ybs-look4');
 let oldServer,oldBase,closed=false;
 async function oldSetup(){
- const old=join(dir,'main');await mkdir(old);
- execFileSync('git',['archive','main','-o',join(dir,'main.tar')]);execFileSync('tar',['-xf',join(dir,'main.tar'),'-C',old]);
+ const old=resolve(new URL('../..',import.meta.url).pathname);
+ assert.match(await readFile(join(old,'115-g9/u2-05/index.html'),'utf8'),/動漫／遊戲展志工招募/);
  oldServer=createServer(async(req,res)=>{try{
   const path=new URL(req.url,'http://localhost').pathname;
   const file=resolve(old,'.'+path+(path.endsWith('/')?'index.html':''));if(!file.startsWith(old+'/'))return res.writeHead(403).end();
@@ -163,6 +171,7 @@ async function newRun(width,height){
  // 登入只讀取身分／進度；選關並確認後才檢查開放狀態、建立作答 session。
  const confirm=async()=>{
   await page.locator('#g-isme').waitFor();
+  assert.equal(await page.locator('#g-whotext').innerText(),'你是 917 班 5 號，對嗎？');
   await page.getByLabel('開始關卡',{exact:true}).selectOption('0');
   assert.equal(current.requests.some(r=>r.op==='context'||r.op==='start'),false,'確認身分前不應開始活動');
   await page.locator('#g-isme').click();
@@ -178,9 +187,15 @@ async function newRun(width,height){
   await page.reload();await page.getByRole('button',{name:'登入',exact:true}).waitFor();await capture(page,'signed-out',width,'new');await login();await confirm();
   await page.locator('#stage[data-round="0"] [data-answer-field]').first().waitFor();await page.waitForFunction(()=>app.client.state().snapshot);
   await page.locator('#warmup').waitFor();
+  assert.equal(await page.locator('#who').innerText(),'917 班 5 號');
   assert.equal(await page.locator('#warmup').isVisible(),true,'新舊 working 均保留預設暖身卡');
   assert.equal(current.throttle,false,'須經過 context 429 自動重試');await capture(page,'working',width,'new');
-  const type='finite-bank-v1',answer=modules.privateAnswer(current.db),wrong=structuredClone(answer);wrong[0]++;
+  const session=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;
+  assert.equal(session.questions[session.slot].data.mode,'form-volunteer-summary');
+  const type=session.type,answer=modules.privateAnswer(current.db),wrong=structuredClone(answer);
+  // 錯答仍須是可選的志工版選項，避免 selectOption 等待不存在的文字。
+  wrong[0]=session.questions[session.slot].data.questions[0].slice(1).find(value=>value!==answer[0]);
+  assert.notEqual(wrong[0],undefined);
   await fill(page,type,wrong);await page.locator('#b-send').click();await page.locator('#verdict.no').waitFor();await capture(page,'wrong',width,'new');
   await fill(page,type,answer);await page.locator('#b-send').click();await page.locator('#b-next-group').waitFor();await capture(page,'first-correct',width,'new');
   for(let r=0;r<4;r++){

@@ -50,3 +50,13 @@
 .fullrev-activity .quest-chart-row{display:grid;grid-template-columns:6em minmax(0,1fr) 3em;gap:var(--u);align-items:center}
 .fullrev-activity #stage.quest-outcome .quest-answers>label{display:grid!important;gap:var(--u);margin:0!important}
 .fullrev-activity #stage.quest-outcome .quest-work>details{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
+
+/* 手機逐筆讀欄名與值；桌面維持原表格。 */
+@media(max-width:559px){
+ .fullrev-activity #stage.quest-outcome .fullrev-outcome-table table,
+ .fullrev-activity #stage.quest-outcome .fullrev-outcome-table tbody{display:block;width:100%}
+ .fullrev-activity #stage.quest-outcome .fullrev-outcome-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .fullrev-activity #stage.quest-outcome .fullrev-outcome-table tr{display:block;margin-bottom:var(--u);border:1px solid var(--edge)}
+ .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--u);border:0!important;border-bottom:1px solid var(--edge)!important}
+ .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td::before{content:attr(data-label);font-weight:700}
+}

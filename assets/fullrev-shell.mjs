@@ -1,5 +1,148 @@
-// 共用活動外框：只呈現授權題面，不含題庫、答案或判題。
+// 共用活動外框：正式題庫與判分由 Worker 管理；公開暖身只供不上傳的複習。
 import {growth} from './fullrev-progress.mjs';
+// 短版題與原活動關卡分離；不引用過關、成績或上傳介面。
+const pick = (rnd, values) => values[Math.floor(rnd() * values.length)];
+// 公開暖身以第一個選項為解答；抽題後再重排，與正式判分題庫分離。
+const firstOption = 0;
+const choice = (prompt, options, review) => ({prompt, options, answer: firstOption, review});
+const entry = (activity, id, gen) => ({course: '115-g9', activity, id: `${activity}:${id}`, gen});
+const WARMUP_BANK = [
+  entry('u2-01', 'pixels', rnd => choice(
+    `${pick(rnd, ['背號', '照片中的字'])}模糊時，增加哪個設定通常更清楚？`,
+    ['像素格子數', '檔案名稱長度', '螢幕音量'], '像素格子越多，通常能保留越多影像細節。')),
+  entry('u2-01', 'colors', rnd => {const bits = pick(rnd, [1, 2, 3]); return choice(
+    `每格用 ${bits} 位元，最多能表示幾種顏色？`,
+    [String(2 ** bits), String(2 ** bits + 1), String(2 ** bits - 1)], '每多一個位元，可以表示的顏色數就加倍。');}),
+  entry('u2-01', 'size', rnd => {const side = pick(rnd, [2, 4, 8]); return choice(
+    `${side} × ${side} 的影像共有幾格像素？`,
+    [String(side * side), String(side * side + 1), String(side * side - 1)], '影像的像素總數＝寬的格子數 × 高的格子數。');}),
+  entry('u2-02', 'sample', rnd => choice(
+    `每秒量 ${pick(rnd, [8, 16, 32])} 次聲音，描述的是哪個設定？`,
+    ['取樣頻率', '影像解析度', '影片長度'], '取樣頻率就是每秒測量聲音的次數。')),
+  entry('u2-02', 'frames', rnd => {const fps = pick(rnd, [2, 3, 4]), seconds = pick(rnd, [2, 3]); return choice(
+    `${fps} fps 的影片，${seconds} 秒共有幾張畫面？`,
+    [String(fps * seconds), String(fps * seconds + 1), String(fps * seconds - 1)], '畫面總張數＝每秒張數（fps）× 秒數。');}),
+  entry('u2-02', 'storage', rnd => {const minutes = pick(rnd, [2, 3, 4]); return choice(
+    `每分鐘用 10 MB，錄 ${minutes} 分鐘需要幾 MB？`,
+    [String(minutes * 10), String(minutes * 10 + 10), String(minutes * 10 - 10)], '所需容量＝每分鐘的資料量 × 錄影分鐘數。');}),
+  entry('u2-03', 'binary', rnd => {const high = pick(rnd, [2, 4, 8]); return choice(
+    `只有代表 ${high} 和 1 的燈亮著，數字是多少？`,
+    [String(high + 1), String(high), String(high + 2)], '二進位燈牌只要把亮著的燈所代表的數字加起來。');}),
+  entry('u2-03', 'byte', rnd => {const bytes = pick(rnd, [1, 2, 3]); return choice(
+    `${bytes * 8} 位元等於幾位元組？`,
+    [String(bytes), String(bytes + 1), String(bytes * 8)], '8 位元＝1 位元組。');}),
+  entry('u2-03', 'range', rnd => {const bits = pick(rnd, [1, 2, 3]); return choice(
+    `${bits} 顆亮暗燈，最大能表示多少？`,
+    [String(2 ** bits - 1), String(2 ** bits), String(2 ** bits + 1)], '從 0 開始計算，n 顆燈的最大數字是 2 的 n 次方減 1。');}),
+  entry('u2-04', 'decode', rnd => {const code = pick(rnd, [65, 66, 67]); return choice(
+    `編碼表：65→A、66→B、67→C；${code} 是哪個字？`,
+    [String.fromCharCode(code), 'D', 'E'], '解碼時，要用相同編碼表把數字對回文字。');}),
+  entry('u2-04', 'encode', rnd => {const code = pick(rnd, [65, 66, 67]); return choice(
+    `編碼表：A→65、B→66、C→67；${String.fromCharCode(code)} 的編碼是？`,
+    [String(code), '68', '69'], '文字可以依編碼表轉成數字儲存。');}),
+  entry('u2-04', 'display', rnd => pick(rnd, [
+    choice('存檔用 Big5，打開卻用 UTF-8，容易出現什麼？', ['亂碼', '音量變大', '容量自動加倍'], '存檔和讀取使用不同編碼，可能把文字解成亂碼。'),
+    choice('編碼正確，卻顯示缺字方塊，應先檢查什麼？', ['字型是否有這個字', '滑鼠速度', '音量'], '字型提供文字的外觀，缺少字形時可能顯示方塊。')
+  ])),
+  entry('u2-05', 'information', rnd => choice(
+    `整理${pick(rnd, ['飲料票數', '點餐紀錄'])}後，得出「最多人選紅茶，先訂紅茶」，屬於什麼？`,
+    ['資訊', '尚未整理的原始資料', '電腦硬體'], '資料經整理並能幫助決定，就成為有用的資訊。')),
+  entry('u2-05', 'type', rnd => pick(rnd, [
+    choice('想讓同學勾選多種喜歡的飲料，用哪種題型？', ['核取方塊', '單選', '線性刻度'], '允許選多個答案時，適合用核取方塊。'),
+    choice('想請同學自由寫下選擇的理由，用哪種題型？', ['簡答', '單選', '線性刻度'], '要蒐集自由表達的理由，適合用簡答。')
+  ])),
+  entry('u2-05', 'survey', rnd => choice(
+    `問「你喜歡${pick(rnd, ['紅茶和綠茶', '唱歌和跳舞'])}嗎？」有什麼問題？`,
+    ['一次問兩件事', '字數一定太少', '不能用問號'], '一題只問一件事，才能清楚知道回答的意思。'))
+];
+
+
+// 依日期辨認先前活動；week 是雲端活動 ID，不能拿來排序。
+export function drawWarmup({current, activities, isOpen, bank = WARMUP_BANK, rnd = Math.random}) {
+  if (!current?.date || typeof isOpen !== 'function') return [];
+  const previous = activities.filter(a => a.course === current.course && a.date < current.date && isOpen(a))
+    .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+  const sources = new Map(previous.map(a => [a.href.split('/')[1], a]));
+  const seen = new Set();
+  const pool = bank.filter(q => {
+    if (q.course !== current.course || !sources.has(q.activity) || seen.has(q.id)) return false;
+    seen.add(q.id); return true;
+  });
+  // 有界洗牌，不以重抽迴圈處理重複或題庫不足。
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, 3).map(q => {
+    const question = q.gen(rnd), order = question.options.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return {...question, id: q.id, source: sources.get(q.activity).title,
+      options: order.map(i => question.options[i]), answer: order.indexOf(question.answer)};
+  });
+}
+
+const checkWarmup = (question, answer) => Number.isInteger(answer) && answer === question.answer;
+
+// 僅接收活動設定與容器，不取得 shell 狀態、身分、儲存或上傳介面。
+function mountWarmup({cfg, main}) {
+  if (typeof ACTIVITIES === 'undefined' || typeof isActivityOpen !== 'function') return;
+  const current = ACTIVITIES.find(a => a.course === cfg.course && a.week === cfg.week);
+  const draw = () => drawWarmup({current, activities: ACTIVITIES, isOpen: isActivityOpen});
+  let questions = draw();
+  if (!questions.length) return;
+  const section = document.createElement('section');
+  section.className = 'warmup'; section.id = 'warmup';
+  section.setAttribute('aria-labelledby', 'warmup-title');
+  main.querySelector('header').insertAdjacentHTML('afterend','<div id="warmup-slot"></div>');
+  main.querySelector('#warmup-slot').append(section);
+  const node = (tag, text, parent = section) => {
+    const el = document.createElement(tag); el.textContent = text; parent.append(el); return el;
+  };
+  const button = (text, action, parent = section) => {
+    const el = node('button', text, parent); el.type = 'button'; el.className = 'btn'; el.onclick = action; return el;
+  };
+  function render() {
+    section.replaceChildren();
+    node('h2', `開場暖身 ${questions.length} 題`).id = 'warmup-title';
+    node('p', '快速複習前幾週，可隨時跳過；不影響過關、成績或 XP，答案不上傳。');
+    button('跳過暖身', () => {section.hidden = true; main.querySelector('#b-send').focus();});
+    button('開始暖身', () => showQuestion(0, []));
+  }
+  function showQuestion(index, results) {
+    section.replaceChildren();
+    const q = questions[index];
+    node('h2', `暖身 ${index + 1}／${questions.length}`).id = 'warmup-title';
+    node('p', `複習：${q.source}`).className = 'small';
+    node('p', q.prompt);
+    const options = node('div', ''); options.className = 'warmup-options';
+    q.options.forEach((text, answer) => button(text, () => {
+      const next = [...results, {q, answer}];
+      if (index + 1 < questions.length) showQuestion(index + 1, next);
+      else showResults(next);
+    }, options));
+    button('跳過暖身', () => {section.hidden = true; main.querySelector('#b-send').focus();});
+    section.querySelector('h2').tabIndex = -1; section.querySelector('h2').focus();
+  }
+  function showResults(results) {
+    section.replaceChildren();
+    const title = node('h2', '暖身完成，回顧一下'); title.id = 'warmup-title'; title.tabIndex = -1;
+    const list = node('ol', '');
+    results.forEach(({q, answer}) => {
+      const item = node('li', '', list);
+      node('p', `${checkWarmup(q, answer) ? '✓ 答對' : '✗ 答錯'}｜${q.prompt}`, item);
+      node('p', `你的答案：${q.options[answer]}；正確答案：${q.options[q.answer]}。`, item);
+      node('p', q.review, item);
+    });
+    button('進入活動', () => {section.hidden = true; main.querySelector('#b-send').focus();});
+    title.focus();
+  }
+  render();
+  return () => {questions = draw(); section.hidden = !questions.length; render();};
+}
+
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const text=value=>Array.isArray(value)?value.join(''):value||'';
 const para=(host,value)=>{if(value){const p=node('p',text(value));host.append(p);return p;}};
@@ -37,19 +180,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const identityBox=node('div');identityBox.id='g-who';identityBox.hidden=true;identityBox.innerHTML='<p id="g-whotext" aria-live="polite"></p><div class="btns" style="justify-content:center"><button type="button" class="btn" id="g-notme">不是我</button><button type="button" class="btn primary" id="g-isme" hidden>對，開始</button></div>';gate.append(identityBox);
  const main=node('div');main.className='wrap fullrev-activity';main.id='main';main.hidden=true;
  main.innerHTML=`<header class="top"><div class="activity-heading"><div class="title-rounds"><h1 id="activity-title"></h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div><div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">教師／登入不了</summary></details></div></div><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-mono" id="xp-total">載入中…</span><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next">等待雲端紀錄</span></a></aside></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><div id="stage"></div><div class="btns"><button class="btn primary" id="b-send" type="button" disabled>送出</button><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint"></span></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>`;
- let clientWarmupReset=()=>{};
- // 暖身只用公開活動導覽做回想，不載入舊站答案題庫，也不上傳。
- const previous=typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course&&a.date&&activity?.date&&a.date<activity.date&&(typeof isActivityOpen!=='function'||isActivityOpen(a))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
- if(previous.length){
-  const warm=node('section');warm.id='warmup';warm.className='warmup';
-  const resetWarmup=()=>{warm.replaceChildren(node('h2','開場暖身 '+previous.length+' 題'));para(warm,'快速複習前幾週，可隨時跳過；不影響過關、成績或 XP，答案不上傳。');
-   const skip=node('button','跳過暖身'),begin=node('button','開始暖身');skip.type=begin.type='button';skip.className=begin.className='btn';skip.onclick=()=>{warm.hidden=true;};
-   const show=i=>{warm.replaceChildren(node('h2','暖身 '+(i+1)+'／'+previous.length));para(warm,'回想「'+previous[i].title+'」：你用了什麼方法完成任務？');
-    for(const label of ['還記得','想再複習','跳過暖身']){const b=node('button',label);b.type='button';b.className='btn';b.onclick=()=>{if(label==='跳過暖身'||i+1===previous.length)warm.hidden=true;else show(i+1);};warm.append(b);}};
-   begin.onclick=()=>show(0);warm.append(skip,begin);};resetWarmup();
-  main.querySelector('header').insertAdjacentHTML('afterend','<div id="warmup-slot"></div>');main.querySelector('#warmup-slot').append(warm);
-  clientWarmupReset=()=>{warm.hidden=false;resetWarmup();};
- }
+ // 與 origin/main 的公開暖身題庫、抽題及選擇題回顧相同；不上傳、不參與過關。
+ const clientWarmupReset=mountWarmup({cfg,main})||(()=>{});
  const lock=node('div');lock.id='activity-lock';lock.hidden=true;
  lock.innerHTML=`<div><h1>這個活動還沒開放</h1><p>請回到 YBS Lab 首頁，做老師這週指定的活動。</p><p><a href="/">← 回 YBS Lab 首頁</a></p><p class="activity-unlock"><button type="button" class="linkbtn">教師解鎖</button></p></div>`;
  document.body.replaceChildren(gate,main,lock);

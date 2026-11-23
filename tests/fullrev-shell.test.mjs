@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {mountActivity} from '../assets/fullrev-ui.mjs';
+import {drawWarmup} from '../assets/fullrev-shell.mjs';
 import {createClient} from '../assets/fullrev-client.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
 import {activityConfig,MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
@@ -12,8 +13,8 @@ import {Element} from './fixtures/activity-dom.mjs';
 import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function until(check){for(let i=0;i<100;i++){if(check())return;await tick();}assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password'}={}){
- const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,date:'2026-10-0'+(i+1)}))];
+async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
+ const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,href:'115-g9/'+(i===2?warmupSource:'no-bank-'+i)+'/',date:'2026-10-0'+(i+1)}))];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
  const [{createFormalWorker},{MemoryFirestore},{readPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
@@ -55,7 +56,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  const sessionStore=store();if(restoredRound!==undefined)sessionStore.setItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:${activityId}:fake-uid-a`,String(restoredRound));
  const body=new Element('body'),head=new Element('head'),document={body,head,visibilityState:'visible',createElement:tag=>new Element(tag),addEventListener(name,fn){events[name]=fn;}},storage=store();
  const events={};
- for(const [key,value] of Object.entries({document,window:{addEventListener(name,fn){events[name]=fn;}},matchMedia:()=>({matches:true}),ACTIVITIES:catalog,YBSXP:xp,localStorage:storage,sessionStorage:sessionStore})){
+ for(const [key,value] of Object.entries({document,window:{addEventListener(name,fn){events[name]=fn;}},matchMedia:()=>({matches:true}),isActivityOpen:()=>true,ACTIVITIES:catalog,YBSXP:xp,localStorage:storage,sessionStorage:sessionStore})){
   const original=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,value});t.after(()=>{if(original)Object.defineProperty(globalThis,key,original);else delete globalThis[key];});
  }
  await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title})});
@@ -224,12 +225,29 @@ test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',
   assert.equal(h.$('g-reread').hidden,true);await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('gate').hidden,true);assert.ok(h.$('stage').querySelector('[data-answer-field]'));
  }
 });
-test('暖身與成果題面保留舊版表格、圖表排列，不使用手機卡片表格',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('暖身使用公開選擇題與回顧，不影響成果題面或 Worker',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
  assert.ok(h.$('stage').querySelector('.quest-note'));assert.ok(h.$('stage').querySelector('.quest-work'));
  const region=h.$('stage').querySelector('section[aria-label="職務第一志願比較（人）"]'),chart=region.querySelector('.quest-chart');assert.equal(chart.tagName,'UL');assert.equal(chart.childNodes.length,6);assert.ok(h.$('stage').querySelector('.quest-table'));
- const calls=h.calls.length;h.button('開始暖身').onclick();assert.match(h.$('warmup').textContent,/暖身 1／3/);h.button('還記得').onclick();assert.match(h.$('warmup').textContent,/暖身 2／3/);h.button('跳過暖身').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
+ const calls=h.calls.length;h.button('開始暖身').onclick();assert.match(h.$('warmup').textContent,/暖身 1／3/);h.$('warmup').querySelector('.warmup-options').querySelector('button').onclick();assert.match(h.$('warmup').textContent,/暖身 2／3/);h.button('跳過暖身').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
  await h.client.logout();assert.equal(h.$('warmup').hidden,false);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
+});
+
+test('暖身完成顯示每題答案與回顧，無題庫活動不顯示暖身',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ t.mock.method(Math,'random',()=>0.3);
+ const h=await setup(t),calls=h.calls.length;
+ const questions=drawWarmup({current:ACTIVITIES.find(a=>a.week===7),activities:ACTIVITIES,isOpen:isActivityOpen});
+ h.button('開始暖身').onclick();
+ for(let i=0;i<3;i++){
+  const answer=i===1?(questions[i].answer+1)%questions[i].options.length:questions[i].answer;
+  h.$('warmup').querySelector('.warmup-options').querySelectorAll('button')[answer].onclick();
+ }
+ assert.match(h.$('warmup').textContent,/暖身完成，回顧一下/);
+ assert.equal(h.$('warmup').querySelectorAll('li').length,3);
+ for(const row of h.$('warmup').querySelectorAll('li')){assert.match(row.textContent,/✓ 答對|✗ 答錯/);assert.match(row.textContent,/你的答案：.*正確答案：/);assert.equal(row.querySelectorAll('p').length,3);}
+ assert.deepEqual(h.$('warmup').querySelectorAll('li').map(row=>row.textContent.startsWith('✓ 答對')),[true,false,true]);
+ h.button('進入活動').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
+ const none=await setup(t,{warmupSource:'u1-01'});assert.equal(none.$('warmup'),null);
 });
 
 test('志工第 1 關三欄長條圖保留具名 region，換組與重整後作答欄仍完整',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{

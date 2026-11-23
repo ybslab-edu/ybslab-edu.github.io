@@ -9,7 +9,7 @@ const coursePages=[...new Set([...MANAGED_ACTIVITIES,...BATCH8].map(a=>'/'+a.fil
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let server,browser,base;
 const html=`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/assets/shell.css"><body>
-<script src="/assets/xp.js"></script><script src="/assets/vendor/xlsx-0.20.3.full.min.js"></script><script>const ACTIVITIES=[{course:'115-g9',week:5,unit:2,title:'合成活動',rounds:['甲','乙','丙','丁'],codes:[]}];</script>
+<script src="/assets/xp.js"></script><script src="/assets/vendor/xlsx-0.20.3.full.min.js"></script><script>const TERMS=[{name:'合成學期',begin:'2026-01-01',end:'2026-12-31'}],termWeekOf=()=>1,termWeekLabel=()=>'第 1 週',isActivityOpen=()=>true;const ACTIVITIES=[{course:'115-g9',week:5,unit:2,title:'合成活動',href:'115-g9/synthetic/',date:'2026-09-15',topic:'合成主題',rounds:['甲','乙','丙','丁'],codes:[]}];</script>
 <script type="module">
 import {harness,snapshot,record,response} from '/tests/fixtures/fullrev.mjs';
 import {mountActivity,mountGrowth,mountTeacher} from '/assets/fullrev-ui.mjs';
@@ -52,7 +52,7 @@ async function pageFor(t,suffix='',context) {
   await page.goto(base+'/115-g9/synthetic/'+suffix);await page.waitForFunction(()=>window.ready);return page;
 }
 async function confirmActivity(page) {await page.locator('#g-isme').click();await page.getByLabel('合成答案').waitFor();}
-async function login(page) {await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:await page.locator('#gate').count()?'登入':'帳號登入',exact:true}).click();}
+async function login(page) {await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:await page.locator('.ybs-login').count()?'登入':'帳號登入',exact:true}).click();}
 test('全部 35 個現行課程頁：預設 false 保留舊登入／教師入口，零新版模組或 Worker 流量',async t=>{
   assert.equal(coursePages.length,35);
   for(const path of coursePages)await t.test(path,async()=>{
@@ -110,9 +110,11 @@ test('新活動：錯答同題、下一組才換題、回條不先給分、重�
   // 成長頁從同一有效集合重算，取消的過關與徽章可減少。
   const growth=await pageFor(t,'?growth');await login(growth);
   await growth.evaluate(()=>app.state.snapshot=snapshot([0,1,2,3].map(i=>record(i))));
-  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.getByText('Lv 1 位元見習生 · 80 XP',{exact:true}).waitFor();
+  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.locator('#total').getByText('80 XP',{exact:true}).waitFor();
+  assert.equal(await growth.locator('#badge-count').textContent(),'1');
   await growth.evaluate(()=>app.state.snapshot=snapshot([0,1,2].map(i=>record(i))));
-  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.getByText('Lv 1 位元見習生 · 45 XP',{exact:true}).waitFor();
+  await growth.getByRole('button',{name:'重新讀取',exact:true}).click();await growth.locator('#total').getByText('45 XP',{exact:true}).waitFor();
+  assert.equal(await growth.locator('#badge-count').textContent(),'0');
   assert.equal(await growth.getByText(/已獲得徽章/).count(),0);
 });
 test('傳送中與斷線待送時修改答案不會啟用送出或覆寫原請求',async t=>{

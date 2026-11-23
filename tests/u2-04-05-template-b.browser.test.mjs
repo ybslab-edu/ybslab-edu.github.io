@@ -59,7 +59,7 @@ for(const width of [360,390,559,560,1440])test(`u2-04／05 各關版面、即時
 });
 
 
-test('u2-05 備用素材本機紀錄、同題修正、重送不加計及鍵盤焦點',async()=>{
+test('u2-05 委託附件直接顯示、同題修正、重送不加計及鍵盤焦點',async()=>{
  const page=await browser.newPage({viewport:{width:360,height:900}}),outside=[];
  try{
   await page.route('**/*',r=>{
@@ -75,14 +75,9 @@ test('u2-05 備用素材本機紀錄、同題修正、重送不加計及鍵盤�
   await page.addScriptTag({content:[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')});
   for(let round=1;round<4;round++){
    await page.evaluate(i=>APP.load(i),round);
-   await page.locator('.quest-fallback summary').click();
-   await page.locator('[data-fallback="use"]').click();
-   assert.equal(await page.locator('[data-fallback="material"]').isVisible(),true);
-   assert.match(await page.locator('[data-fallback="log"]').textContent(),/未實際操作/);
+   assert.equal(await page.locator('.quest-attach').isVisible(),true);
+   assert.equal(await page.locator('[data-fallback]').count(),0);
    assert.equal(await page.locator('#b-send').isDisabled(),true);
-   assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem(qFallbackKey)).some(x=>x.startsWith(APP.inst.t+'：未實際操作'))));
-   await page.locator('[data-fallback="use"]').click();
-   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(qFallbackKey)).filter(x=>x.startsWith(APP.inst.t+'：')).length),1);
    await page.locator('#tb-ans').click();
    await page.locator('.quest-answers input[type="number"]').first().fill('999');
    await page.locator('#b-send').click();

@@ -225,15 +225,20 @@ test('owner 示範僅授權取題、不送成績或保存解答；非owner不能
   await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.locator('#tbar').waitFor({state:'visible'});
   await page.getByRole('button',{name:'顯示解答',exact:true}).click();
   await page.getByText('合成教師解說',{exact:true}).waitFor();
-  assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/teacher-question']);
-  assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isVisible(),false);
-  assert.equal(await page.evaluate(()=>app.client.state().pending),false);
-  assert.deepEqual(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('ybs:fullrev:synthetic-ybs-pr5:115-g9')).drafts),{});
-  assert.equal(await page.evaluate(()=>[...Object.values(sessionStorage),...Object.values(localStorage)].some(v=>v.includes('合成教師解說')||v.includes('合成示範答案'))),false);
+  async function assertTeacherReadOnly(){
+    // 教師以解答工具示範；送出鈕仍在 DOM，但隱藏後不在角色查詢範圍。
+    assert.equal(await page.locator('#b-send').isVisible(),false);
+    assert.equal(await page.locator('#b-send').isDisabled(),true);
+    assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/teacher-question']);
+    assert.equal(await page.evaluate(()=>app.client.state().pending),false);
+    assert.deepEqual(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('ybs:fullrev:synthetic-ybs-pr5:115-g9')).drafts),{});
+    assert.equal(await page.evaluate(()=>[...Object.values(sessionStorage),...Object.values(localStorage)].some(v=>v.includes('合成教師解說')||v.includes('合成示範答案'))),false);
+  }
+  await assertTeacherReadOnly();
   await page.locator('#activity-tools summary').click();
   await page.getByRole('button',{name:'本機練習／示範',exact:true}).click();assert.equal(await page.evaluate(()=>app.requests.length),1);
   await page.getByText('合成示範',{exact:true}).waitFor();
-  assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isEnabled(),false);
+  await assertTeacherReadOnly();
   const teacher=await pageFor(t,'?teacher');await teacher.evaluate(()=>app.state.owner=false);
   await teacher.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await teacher.getByText('只有此課程擁有者可以使用。',{exact:true}).waitFor();
   await teacher.evaluate(()=>app.state.owner=true);await teacher.getByRole('button',{name:'教師 Google 登入',exact:true}).click();

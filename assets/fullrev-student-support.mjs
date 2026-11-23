@@ -17,7 +17,7 @@ export function highlightChangedNumbers(host,q){
 }
 export function mountHintExample({host,example,renderQuestion,onClose=()=>{}}){
  host.replaceChildren();
- if(!example?.question?.data||!Object.hasOwn(example,'answer')){const back=node('button','回原題繼續做');back.type='button';back.className='btn';back.onclick=onClose;host.append(node('p','這一關的另一題示範尚未取得，請先依步驟練習。'),back);return {dispose(){host.replaceChildren();}};}
+ if(!example?.question?.data||!Object.hasOwn(example,'answer')){const back=node('button','回原題繼續做');back.type='button';back.className='btn';back.onclick=onClose;host.append(node('p','本關不提供示範'),back);return {dispose(){host.replaceChildren();}};}
  host.append(node('h3','第 3 層：另一題示範'),node('p','用另一組資料練習，再回原題自己做。'));
  const stage=node('section'),answer=node('p'),back=node('button','回原題繼續做');back.type='button';back.className='btn';back.onclick=onClose;
  host.append(stage,answer,back);

@@ -17,11 +17,15 @@ test('手機長表格可捲動，換組高亮與第三層示範不改原題',asy
   const host=document.querySelector('#stage'),data={mode:'knn',k:3,points:Array.from({length:12},(_,i)=>[i,i,0]),query:[0,1],options:['甲','乙']};
   const q={type:'finite-bank-v1',data};window.h=renderQuestion(q,host,{changed(){},shell:true});
   document.querySelector('#stage button').click();window.before=h.get();
-  mountHintExample({host:document.querySelector('#demo'),example:{question:{type:'binary-encode-5-v1',data:{width:5,target:7}},answer:[0,0,1,1,1]},renderQuestion,onClose(){document.querySelector('#demo').replaceChildren();}});
+  mountHintExample({host:document.querySelector('#demo'),example:{question:{type:'binary-encode-5-v1',data:{width:5,target:0}},answer:[0,0,0,0,0]},renderQuestion,onClose(){document.querySelector('#demo').replaceChildren();}});
  });
  assert.equal(await page.locator('.principle-view').isVisible(),true);assert.equal(await page.locator('.table-position-tip').isVisible(),true);
  assert.equal(await page.locator('th').first().evaluate(e=>getComputedStyle(e).position),'sticky');
  await page.getByRole('button',{name:'回原題繼續做'}).click();assert.equal(await page.evaluate(()=>h.get()===before),true);
+ await page.evaluate(async()=>{const {mountHintExample}=await import('/assets/fullrev-student-support.mjs');mountHintExample({host:document.querySelector('#demo'),example:null,renderQuestion(){throw Error('不得建立未隔離示範');},onClose(){document.querySelector('#demo').replaceChildren();}});});
+ assert.equal(await page.getByText('本關不提供示範',{exact:true}).isVisible(),true);
+ assert.equal(await page.locator('#demo [data-bit]').count(),0);assert.equal(await page.evaluate(()=>h.get()===before),true);
+ await page.getByRole('button',{name:'回原題繼續做'}).click();assert.equal(await page.locator('#demo').textContent(),'');
  await page.evaluate(async()=>{const {renderQuestion}=await import('/assets/fullrev-activities.mjs');const host=document.querySelector('#stage');host.replaceChildren();renderQuestion({type:'finite-bank-v1',data:{mode:'knn',k:3,points:Array.from({length:12},(_,i)=>[i+20,i,0]),query:[0,1],options:['甲','乙']}},host,{changed(){},shell:true});});
  assert.ok(await page.locator('mark.changed-number').count()>0);
 });

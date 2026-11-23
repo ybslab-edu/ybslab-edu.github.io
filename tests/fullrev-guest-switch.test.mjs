@@ -66,3 +66,19 @@ test('guest switch abandons an offline answer; retries cannot restore old work o
     assert.equal(h.requests.filter(r => r.body.requestId === pending.requestId).length, 1);
     assert.equal(h.head().activeSession.sid, next.sid); assert.deepEqual(h.pending(), []); assert.deepEqual(h.backend.results(), []);
   });
+
+test('guest visiting a completed pending round abandons another round; old SID is rejected and return starts at group one',
+  { skip: !process.env.YBS_WORKER_SOURCE }, async () => {
+    const h=await fixture();let b=await h.client.start(5,2);
+    for(let i=0;i<2;i++)b=await h.client.answer(5,2,h.solve(b));
+    assert.equal(b.status,'pending');assert.equal(h.pending().length,1);h.advance();
+    const first=await h.client.start(5,1),half=await h.client.answer(5,1,h.solve(first));
+    assert.equal(half.question.slot,1);
+    const completed=await h.client.start(5,2);assert.equal(completed.status,'pending');assert.equal(h.head().activeSession,null);h.advance();
+    const old={course:'115-g9',classKey:'c901_1',cls:'901',seat:1,activity:5,round:1,sid:first.sid,requestId:'completed-obsolete-0001'};
+    assert.equal((await h.raw('answer',{...old,seq:half.nextSeq,slot:half.question.slot,answer:h.solve(half)})).status,403);
+    assert.equal((await h.raw('resume',old)).status,403);h.advance();
+    const back=await h.client.start(5,1);assert.notEqual(back.sid,first.sid);assert.equal(back.question.slot,0);assert.equal(back.nextSeq,1);
+    assert.equal(h.pending().length,1);assert.deepEqual(h.backend.results(),[]);
+    assert.equal(Object.values(h.head().guestWindows)[0].starts,3);
+  });

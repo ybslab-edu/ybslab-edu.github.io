@@ -28,9 +28,9 @@ test('換組只標示有變數字；長表格固定欄頭與第一欄並保留�
 test('示範只顯示另一題與授權解答，原題作答獨立且離開會清除',t=>{
  const host=dom(t),stage=document.createElement('section');let closed=0;
  const original=renderQuestion({type:'binary-encode-5-v1',data:{width:5,target:23}},stage,{changed(){}});stage.querySelector('button').click();
- const h=mountHintExample({host,example:{question:{type:'binary-encode-5-v1',data:{width:5,target:7}},answer:[0,0,1,1,1],notes:['合成說明']},renderQuestion,onClose(){closed++;}});
- assert.match(host.textContent,/另一題示範/);assert.match(host.textContent,/拼出 7/);assert.doesNotMatch(host.textContent,/拼出 23/);
- assert.deepEqual(host.querySelectorAll('[data-bit]').map(b=>b.getAttribute('aria-pressed')),['false','false','true','true','true']);
+ const h=mountHintExample({host,example:{question:{type:'binary-encode-5-v1',data:{width:5,target:0}},answer:[0,0,0,0,0],notes:['合成說明']},renderQuestion,onClose(){closed++;}});
+ assert.match(host.textContent,/另一題示範/);assert.match(host.textContent,/拼出 0/);assert.doesNotMatch(host.textContent,/拼出 23/);
+ assert.deepEqual(host.querySelectorAll('[data-bit]').map(b=>b.getAttribute('aria-pressed')),['false','false','false','false','false']);
  assert.ok(host.querySelectorAll('[data-bit]').every(b=>b.disabled));
  assert.deepEqual(original.get(),[1,0,0,0,0]);host.querySelectorAll('button').find(b=>b.textContent==='回原題繼續做').click();assert.equal(closed,1);
  h.dispose();assert.equal(host.textContent,'');
@@ -45,7 +45,7 @@ test('只有教師示範可開原圖，預設收起；學生 renderer 即使收�
  const student=document.createElement('div'),s=renderQuestion(photo,student,{changed(){},shell:true,originals:value.originals});assert.equal(student.querySelector('img'),null);s.dispose();
  await new Promise(resolve=>setImmediate(resolve));
 });
-test('沒有第三題時仍可回原題，不留下無法退出的示範畫面',t=>{
+test('沒有隔離示範時明示本關不提供示範，仍可回原題',t=>{
  const host=dom(t);let closed=false;const h=mountHintExample({host,example:null,renderQuestion,onClose(){closed=true;}});
- assert.match(host.textContent,/尚未取得/);host.querySelector('button').click();assert.equal(closed,true);h.dispose();
+ assert.match(host.textContent,/本關不提供示範/);assert.doesNotMatch(host.textContent,/示範解答|尚未取得/);host.querySelector('button').click();assert.equal(closed,true);h.dispose();
 });

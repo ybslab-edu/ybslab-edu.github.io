@@ -278,6 +278,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   if(hint>=1){box.append(node('h3','第 1 層：方向'));para(box,d.direction);}if(hint>=2){box.append(node('h3','第 2 層：拆步驟'));para(box,d.steps);}
   if(hint>=3){
    box.append(node('h3','第 3 層：另一題示範'));
+   if(!last?.hintExample){para(box,['本關不提供示範']);return;}
    const b=node('button','看另一題示範');b.id='b-hint-example';b.type='button';b.className='btn';
    b.onclick=()=>{const demo=node('section');box.append(demo);b.hidden=true;$('original-work').hidden=true;
     hintDemo=mountHintExample({host:demo,example:last?.hintExample,renderQuestion:cfg.renderQuestion,onClose:()=>{hints();$('b-hint-example')?.focus();}});};box.append(b);

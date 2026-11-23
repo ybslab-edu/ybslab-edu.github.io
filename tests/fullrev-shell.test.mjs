@@ -429,7 +429,19 @@ test('原生燈牌錯答後兩層提示皆可讀且保留原題作答',{skip:!pr
  assert.equal(h.$('stage').querySelector('.board'),board);assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
 });
 
-test('第三層示範獨立於原題，返回保留輸入，切關及登出清除示範',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('有限題庫第三層明示不提供示範，保留原題輸入且 Worker 不回傳答案',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t),inputs=h.$('stage').querySelectorAll('[data-answer-field]'),wrong=h.answer();
+ wrong[0]=typeof wrong[0]==='number'?wrong[0]+1:'合成錯答';h.fill(wrong);
+ await h.button('送出').onclick();await h.retry();
+ assert.equal(h.calls.findLast(c=>c.op==='answer'&&c.status===200).response.hintExample,null);
+ h.$('b-hint').onclick();h.$('b-hint').onclick();
+ assert.match(h.$('hint-content').textContent,/本關不提供示範/);assert.equal(h.$('b-hint-example'),null);
+ assert.equal(h.$('original-work').hidden,false);assert.equal(h.$('stage').querySelectorAll('[data-answer-field]')[0],inputs[0]);
+ assert.equal(String(inputs[0].value),String(wrong[0]));assert.equal(h.$('hint-content').querySelector('[data-answer-field]'),null);
+ assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);h.events.pagehide();
+});
+
+test('第三層隔離示範獨立於原題，返回保留輸入，切關及登出清除示範',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{activityId:5}),board=h.$('stage').querySelector('.board');
  await h.button('送出').onclick();await h.retry();
  assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');

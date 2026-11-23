@@ -79,11 +79,11 @@ function qTask(i){
   copies[(i.backup+1)%3][0][6]=qJobs[(qJobs.indexOf(i.rows[0][6])+1)%3];copies[(i.backup+2)%3].pop();
   attachment+='<p>收件狀態：已到截止時間，尚接受回應。三份候選副本的其他欄位均已核對一致；你要再核對總筆數、第 2 列第一志願及末列報名代號。</p>'+qTable('候選副本核對表',['副本','資料筆數','第 2 列第一志願','末列報名代號'],copies.map((rows,k)=>[['甲','乙','丙'][k],rows.length,rows[0][6],rows[rows.length-1][1]]));
   ask(qField('哪份副本完整保留截止時的原始內容？',['甲','乙','丙']),['甲','乙','丙'][i.backup],'請同時核對筆數與每列內容。');
-  ask(qNum('原始回覆幾筆（不含欄名）？'),i.rows.length,'請數資料列，不含欄名。');
   ask(qNum('本組期待程度的刻度上限是多少？'),i.max,'請以本組規格核對數值上限，不能套用另一組。');
   const missing=i.rows.findIndex(r=>r[6]==='')+2,abnormal=i.rows.findIndex(r=>r[8]>i.max)+2;
   const checks=[['第 '+missing+' 列第一志願空白','必填缺失'],['第 '+abnormal+' 列期待程度數字','數值異常'],['第 2 列與第 '+(i.rows.findIndex((r,k)=>k>0&&JSON.stringify(r.slice(1))===JSON.stringify(i.rows[0].slice(1)))+2)+' 列除時間外的業務內容','完全重複'],['第 2 列熟悉度空白','可保留的選填空白']];
   checks.forEach(([label,v])=>ask(qField(label+'，應如何分類？',['必填缺失','數值異常','完全重複','可保留的選填空白']),v,'請依欄位規格及兩列實際內容判斷。'));
+  ask(qNum('原始回覆幾筆（不含欄名）？'),i.rows.length,'請數資料列，不含欄名。');
  }else if(i.round===1){
   ask(qField('要標記 A1:J'+(i.rows.length+1)+' 中的空白，應用哪個設定？',['格式 → 條件式格式設定；範圍 A2:J'+(i.rows.length+1),'資料 → 移除重複；只選送出時間']), '格式 → 條件式格式設定；範圍 A2:J'+(i.rows.length+1),'請選標記空白的工具，範圍須涵蓋資料列並排除欄名。');
   i.rows.forEach((r,k)=>ask(qField('第 '+(k+2)+' 列應保留或排除（先不去重）？',['保留','排除']),qReasons(r,i).length?'排除':'保留','請核對該列同意、必填與刻度；選填空白不等於排除。'));

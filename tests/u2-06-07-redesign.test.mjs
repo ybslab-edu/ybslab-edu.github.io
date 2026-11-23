@@ -18,7 +18,7 @@ function expected(dir,i){
  if(dir==='u2-06'){
   const reasons=r=>[...(r[3]!=='同意'||r[4]==='未滿18歲'&&r[5]!=='已取得'?['未取得所需同意']:[]),...(!r[6]||!r[7]||i.expectRequired&&r[8]===''?['必填缺失']:[]),...(r[8]!==''&&(r[8]<1||r[8]>i.max)?['刻度超界']:[])];
   const kept=i.rows.filter(r=>!reasons(r).length),seen=new Set(),unique=kept.filter(r=>{const k=JSON.stringify(r.slice(1));if(seen.has(k))return false;seen.add(k);return true});
-  if(i.round===0)return ['停止接受回應 → 複製原始回覆到新試算表備份 → 在工作副本清理',['甲','乙','丙'][i.backup],i.rows.length,i.max,'必填缺失','數值異常','完全重複','可保留的選填空白'];
+  if(i.round===0)return ['停止接受回應 → 複製原始回覆到新試算表備份 → 在工作副本清理',['甲','乙','丙'][i.backup],i.max,'必填缺失','數值異常','完全重複','可保留的選填空白',i.rows.length];
   if(i.round===1){const r=i.rows.find(r=>r[8]>i.max);return ['格式 → 條件式格式設定；範圍 A2:J'+(i.rows.length+1),...i.rows.map(r=>reasons(r).length?'排除':'保留'),...['未取得所需同意','必填缺失','刻度超界'].map(x=>reasons(r).includes(x)?'有':'沒有'),kept.length]}
   if(i.round===2){const seen=new Set();return ['B～J 全部業務欄位，不比對 A 送出時間',...i.rows.map(r=>{const k=JSON.stringify(r.slice(1));if(seen.has(k))return '移除完全重複列';seen.add(k);return '保留'}),'兩列保留並交窗口核對',i.rows.length-unique.length,unique.length,unique.filter(r=>r[6]===i.query).length]}
   const jobs=['入口引導','遊戲體驗','舞台支援'],filtered=i.rows.filter(r=>r[2]===i.group&&r[7].split('、').includes(i.slot)),counts=jobs.map(j=>filtered.filter(r=>r[6]===j).length),gaps=counts.map((c,k)=>Math.max(i.demand[k]-c,0));

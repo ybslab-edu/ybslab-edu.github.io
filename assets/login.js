@@ -3,7 +3,7 @@ const YBS=ybsFullrevFacade(typeof YBS_FULLREV_CONFIG==='undefined'?null:YBS_FULL
 function ybsFullrevFacade(config) {
   const ready = Promise.resolve().then(() => {
     if (!config || config.enabled !== true) throw Object.assign(new Error('configuration-pending'), {code:'configuration-pending'});
-    return import('./fullrev-client.mjs?v=20261122legacy');
+    return import('./fullrev-client.mjs?v=20261122shell');
   }).then(m => m.createBrowserClient(config));
   // 先掛失敗處理；設定未就緒不啟動舊專案。
   ready.catch(() => {});
@@ -13,12 +13,12 @@ function ybsFullrevFacade(config) {
     if(previousUid!==current?.uid)window.dispatchEvent(new CustomEvent('ybs-report-auth',{detail:{uid:current?.uid||null}}));
   })).catch(() => {});
   const call = name => (...args) => ready.then(client => client[name](...args));
-  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261122legacy')
+  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261122shell')
     .then(m => m[name]({client:ready, ...args}));
   return Object.freeze({fullrev:true, enabled:()=>true, profile:()=>current,
     firebaseSession:call('session'), logout:call('logout'), retry:call('retry'),
     hasPending:()=>pending, status:f=>{notify=f;},
-    mountActivity:cfg=>import('./fullrev-activities.mjs?v=20261122legacy').then(m=>mount('mountActivity', {cfg:m.activityConfig(cfg)})),
+    mountActivity:cfg=>import('./fullrev-activities.mjs?v=20261122shell').then(m=>mount('mountActivity', {cfg:m.activityConfig(cfg)})),
     mountGrowth:()=>mount('mountGrowth', {}), mountTeacher:()=>mount('mountTeacher', {}),
     // 舊頁尚未轉換時拒絕自報／匿名補寫，正式答案只能經 Worker。
     submit:()=>false, submitGuest:()=>false, flush:()=>false, flushGuest:()=>false,
@@ -28,13 +28,13 @@ function ybsFullrevFacade(config) {
       const client=await ready;
       if(!client.state().profile){
         const host=document.createElement('section');document.body.append(host);
-        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261122legacy')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
+        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261122shell')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
       }
       const scripts=await client.dfContent();
       for(const key of ['pub','enc-b2','enc-rv'])document.getElementById(key).textContent=scripts[key];
     },
     button:async(el,ok,bad)=>{
-      try { await (await import('./fullrev-ui.mjs?v=20261122legacy')).mountLogin({client:await ready,host:el,onLogin:ok}); }
+      try { await (await import('./fullrev-ui.mjs?v=20261122shell')).mountLogin({client:await ready,host:el,onLogin:ok}); }
       catch { bad?.('登入服務尚未就緒，請找老師。'); }
     },
     submitReport:call('submitReport')

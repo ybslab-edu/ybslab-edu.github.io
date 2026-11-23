@@ -1,8 +1,8 @@
-import {renderRecording} from './fullrev-recording.mjs?v=20261122legacy';
+import {renderRecording} from './fullrev-recording.mjs?v=20261122shell';
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
-import {renderPhotos} from './fullrev-photos.mjs?v=20261122legacy';
-import {renderPerformance} from './fullrev-performance.mjs?v=20261122legacy';
-import {renderOutcome} from './fullrev-outcomes.mjs?v=20261122legacy';
+import {renderPhotos} from './fullrev-photos.mjs?v=20261122shell';
+import {renderPerformance} from './fullrev-performance.mjs?v=20261122shell';
+import {renderOutcome} from './fullrev-outcomes.mjs?v=20261122shell';
 export const BATCH1=Object.freeze([
   {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場'],managed:[3]},
   {activity:5,file:'115-g9/u2-03/index.html',title:'燈牌只有亮和暗',unit:2,rounds:['點亮生日','看燈猜數字','沒有標數字的燈牌','要幾顆燈才夠','燈牌要幾個位元組'],managed:[0,1,2,3,4]},
@@ -36,8 +36,8 @@ export const BATCH4=Object.freeze([
   {activity:29,file:'115-g9/u1-04/index.html',title:'演唱會倒數直播',unit:1,rounds:['收進來還是送出去','輸入、處理、輸出','幫小裝置挑零件','直播的一秒鐘'],managed:[0,1,2,3]}
 ]);
 export const BATCH5=Object.freeze([
-  {activity:7,file:'115-g9/u2-05/index.html',title:'後援會問卷',unit:2,rounds:['這份回覆能告訴你什麼','只問這次需要知道的事','讓不同回答走到對的地方','外觀改好了，資料有接上嗎'],managed:[0,1,2,3]},
-  {activity:8,file:'115-g9/u2-06/index.html',title:'問卷回來一團亂',unit:2,rounds:['先留下原始資料','找出不能直接分析的列','時間不同，內容還是重複','用乾淨資料回答問題'],managed:[0,1,2,3]},
+  {activity:7,file:'115-g9/u2-05/index.html',title:'動漫／遊戲展志工招募',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查'],managed:[0,1,2,3]},
+  {activity:8,file:'115-g9/u2-06/index.html',title:'志工回覆整理所',unit:2,rounds:['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據'],managed:[0,1,2,3]},
   {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
 ]);
 export const BATCH6=Object.freeze([
@@ -51,26 +51,34 @@ const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
 }
-function picks(host,rows,choices,changed) {
+function picks(host,rows,choices,changed,{describe=false}={}) {
   const values=rows.map(()=>null);
+  const list=node('div');list.className='rows';host.append(list);
   rows.forEach((text,r)=>{
-    const row=node('section');row.className='row';row.append(node('p',text));
+    const row=node('section'),question=node('div'),options=node('div');row.className='row';question.className='q';options.className='picks';
+    const split=describe?text.indexOf('：'):-1;
+    if(split>0)question.append(node('b',text.slice(0,split)),node('small',text.slice(split+1)));else question.textContent=text;
+    row.append(question,options);
     choices(r).forEach((label,j)=>{
       const b=node('button',label);b.type='button';b.className='pk';b.dataset.row=r;b.dataset.choice=j;b.setAttribute('aria-pressed','false');
-      b.onclick=()=>{values[r]=values[r]===j?null:j;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[r])));changed();};row.append(b);
-    });host.append(row);
+      b.onclick=()=>{values[r]=values[r]===j?null:j;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[r])));changed();};options.append(b);
+    });list.append(row);
   });
   return {get:()=>[...values],ready:()=>values.every(v=>v!==null)};
 }
-function ordered(host,cards,changed) {
-  const pool=node('section'),slots=node('section'),values=cards.map(()=>null);pool.append(node('h3','卡片'));slots.append(node('h3','順序'));
-  host.append(pool,slots);
+function ordered(host,cards,changed,{ai=false}={}) {
+  const layout=node('div'),pool=node('div'),slots=node('div'),values=cards.map(()=>null);layout.className='two';pool.className='picks ob-pool';slots.className='slots ob-slots';
+  for(const [content,title,hint] of [[pool,ai?'步驟卡':'卡片','點一下放進右邊下一格'],[slots,ai?'做 AI 的順序':'順序','點格子裡的卡片拿回去']]){
+    const box=node('section'),heading=node('div'),tip=node('span',hint);box.className='panel';heading.className='ptitle';tip.className='small';heading.append(node('h3',title),tip);box.append(heading,content);layout.append(box);
+  }host.append(layout);
   function draw(){
-    pool.replaceChildren(node('h3','卡片'));slots.replaceChildren(node('h3','順序'));
+    pool.replaceChildren();slots.replaceChildren();
     cards.forEach((text,k)=>{if(values.includes(k))return;const b=node('button',text);b.type='button';b.className='pk';b.dataset.poolIndex=k;
-      b.onclick=()=>{values[values.indexOf(null)]=k;draw();changed();};pool.append(b);});
-    values.forEach((k,j)=>{const b=node('button',`${j+1}．${k===null?'待放入':cards[k]}`);b.type='button';b.className='slot';b.dataset.slotIndex=j;
-      b.onclick=()=>{values[j]=null;draw();changed();};slots.append(b);});
+      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;values[next]=k;draw();changed();};pool.append(b);});
+    if(values.every(v=>v!==null)){const done=node('p','都排好了，按「送出」。');done.className='small';pool.append(done);}
+    values.forEach((k,j)=>{const row=node('div'),number=node('span',String(j+1));row.className='slot';number.className='n';row.append(number);
+      if(k===null){const empty=node('span',ai&&j===0?'最先':ai&&j===cards.length-1?'最後':'　');empty.className='empty';row.append(empty);}
+      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{values[j]=null;draw();changed();};row.append(b);}slots.append(row);});
   }draw();return {get:()=>[...values],ready:()=>values.every(v=>v!==null)};
 }
 function numberFields(host,fields,changed) {
@@ -275,8 +283,8 @@ export function renderQuestion(q,host,api={changed(){}}) {
   const d=q.data;host.dataset.questionType=q.type;host.dataset.slot=q.slot;
   section(host,d.heading||q.title,d.story||q.instruction);
   if(q.type==='finite-bank-v1') {
-    section(host,'任務',d.task);section(host,'提示',d.hint);
-    if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
+    if(!api.shell){section(host,'任務',d.task);section(host,'提示',d.hint);}
+    if(d.guide&&!api.shell){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
     if(d.mode?.startsWith('recording-'))return renderRecording(q,host,api);
@@ -304,9 +312,9 @@ export function renderQuestion(q,host,api={changed(){}}) {
         const g=signals(d.walls,i);section(simulation,'模擬',`位置 ${'ABCD'[choice]}：收得到 ${g.filter(v=>v>=-70).length}／48 格`);floor(simulation,d.walls,g,{ap:i});api.changed();}});host.append(simulation);
       return {get:()=>choice,ready:()=>choice!==null};
     }
-    if(d.mode==='classify')return picks(host,d.rows,()=>d.options,api.changed);
+    if(d.mode==='classify')return picks(host,d.rows,()=>d.options,api.changed,{describe:true});
     if(d.mode==='select'){const h=picks(host,['請選一個'],()=>d.options,api.changed);return {...h,get:()=>h.get()[0]};}
-    if(d.mode==='order')return ordered(host,d.cards,api.changed);
+    if(d.mode==='order')return ordered(host,d.cards,api.changed,{ai:d.heading==='一個 AI 怎麼做出來'});
     if(d.mode==='tokens'){
       const sentence=node('p');sentence.setAttribute('aria-live','polite');host.append(sentence);
       const h=picks(host,['第 1 步','第 2 步','第 3 步'],r=>d.words.slice(r*4,r*4+4).map((w,j)=>`${w}（${d.weights[r*4+j]}%）`),()=>{sentence.textContent='國中的第一天，我'+h.get().map((v,r)=>v===null?'＿＿':d.words[r*4+v]).join('');api.changed();});return h;
@@ -344,5 +352,5 @@ export function renderQuestion(q,host,api={changed(){}}) {
 export function activityConfig(cfg) {
   let entry=MANAGED_ACTIVITIES.find(a=>a.activity===cfg.week&&cfg.course==='115-g9');
   if(cfg.course==='115-g9'&&cfg.week===4)entry={...entry,managed:[0,1,2,3]};
-  return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
+  return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({...cfg.rounds?.[r],name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
 }

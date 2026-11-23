@@ -91,7 +91,7 @@ test('u2-05 八版本：兩組最高者不同，expected 可由委託資料獨�
       answer=[...winners,counts[i.group][i.query],Math.abs(counts[0][i.query]-counts[1][i.query]),'資料','資訊','資訊'];
     }else if(round===1){
       const keep=i.fields.map(f=>['可到場時段','職務意願','緊急聯絡人及聯絡方式'].includes(f.name)||(f.name==='職務操作熟悉度'&&i.dataType.startsWith('職務')));
-      answer=[i.audience,i.dataType,keep.filter(Boolean).length,...keep.map(x=>x?'該收':'不該收'),'告知','同意','限制蒐集'];
+      answer=[i.audience,i.dataType,...keep.map(x=>x?'該收':'不該收'),keep.filter(Boolean).length,'告知','同意','限制蒐集'];
     }else if(round===2){
       answer=['告知與同意','提交表單',i.parent,'志工安排','簡答','選擇題','核取方塊','線性刻度','單選方格',3+Number(i.questions[3].required)+Number(i.questions[4].required)];
     }else{
@@ -132,14 +132,14 @@ test('u2-05 ID 與索引不變，說明移除內部備註並保留素材機制',
   const h=setup('u2-05'),html=read('115-g9/u2-05/index.html');
   assert.match(html,/week:7,termWeek:13/);
   assert.equal(h.run('ROUNDS.length'),4);
-  assert.doesNotMatch(html,/虛構|示意|後援會|2-13|前測|半成品|巡堂|待確認/);
+  assert.doesNotMatch(html,/虛構|示意|後援會|2-13|前測|半成品|巡堂|待確認|備用素材/);
   assert.match(html,/每關答對兩組不同資料才完成；答錯可修正，不扣分/);
   for(let round=1;round<4;round++){
     h.run(`APP.load(${round})`);
-    const b=h.body.querySelector('[data-fallback="use"]');b.click();
-    assert.equal(h.body.querySelector('[data-fallback="material"]').hidden,false);
-    assert.match(h.body.querySelector('[data-fallback="log"]').textContent,/未實際操作/);
-    assert.equal(h.get('b-send').disabled,true,'使用素材不等於答對');
+    const attach=h.body.querySelector('.quest-attach');
+    assert.ok(attach,'委託附件直接顯示');assert.match(attach.textContent,/本組委託附件/);
+    assert.equal(h.body.querySelector('[data-fallback]'),null,'不再有備用素材按鈕或紀錄');
+    assert.equal(h.get('b-send').disabled,true,'看附件不等於答對');
   }
 });
 

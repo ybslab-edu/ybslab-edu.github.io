@@ -1,9 +1,10 @@
+import {guestScope,isGuestContext,guestFields,guestCompletion,readGuestContext} from './fullrev-guest.mjs';
 import {createDFReports} from './fullrev-df.mjs';
 import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261120a';
 
 const scopeKey = (activity,round) => activity+':'+round;
 const epochKeys = ['configVersion','bindingVersion','unitEpoch','roundEpoch','classUnitEpoch'];
-const validContext = c => c && id(c.subject) && /^[\w-]{1,40}$/.test(c.classKey)
+const validContext = c => isGuestContext(c) || c && id(c.subject) && /^[\w-]{1,40}$/.test(c.classKey)
   && versions(c.controlVersions) && epochKeys.every((k,i) => int(c[k],i<2?1:0));
 const clone = value => JSON.parse(JSON.stringify(value));
 const inProgress = d => d && !d.blocked && (d.pending || /^[\w-]{22}$/.test(d.sid)
@@ -28,14 +29,15 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
   let profile=null, generation=0, firebaseSession, sessionOpening, drafts={}, readVersion=0, signal='', timer;
   let status='signed-out', snapshot=null, view=null, readingRetry=null;
+  let gradingWork=Promise.resolve();
   const listeners = new Set(), running = new Map();
   const emit = next => { status=next; for (const f of listeners) f({profile:profile&&{...profile},status,
     pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),snapshot,view,readingRetry}); };
   readModel?.subscribeRetry?.(value=>{readingRetry=profile?value:null;emit(status);});
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
-  function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts}));}catch{emit('storage-pending');}}
-  function clear() {cancel(timer);timer=null;generation++;readVersion++;running.clear();drafts={};snapshot=null;view=null;readingRetry=null;profile=null;
+  function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest}));}catch{emit('storage-pending');}}
+  function clear() {cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};snapshot=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
   function broadcast() {signal=requestId();try{shared?.setItem(signalKey,signal);}catch{}}
   function active(mark) {
@@ -45,7 +47,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   const mark = () => {if(!profile)throw fail('login-required');const m={uid:profile.uid,generation};active(m);return m;};
   events?.addEventListener('storage',event=>{if(event.key===signalKey && savedSignal()!==signal){signal=savedSignal();clear();}});
-  events?.addEventListener('pagehide',()=>{generation++;readVersion++;running.clear();snapshot=null;view=null;emit('stale');});
+  events?.addEventListener('pagehide',()=>{generation++;readVersion++;running.clear();gradingWork=Promise.resolve();snapshot=null;view=null;emit('stale');});
   events?.addEventListener('online',()=>{if(profile)retry().catch(()=>{});});
   async function getSession() {
     if (firebaseSession) return firebaseSession;
@@ -76,10 +78,27 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     if(meta.metadata?.fromCache || !meta.exists || meta.data().schemaVersion!==1 || meta.data().ownerUid!==m.uid)throw fail('owner-required');
     return true;
   }
+  async function teacherQuestion(activity,round){
+    const m=mark();if(!profile.owner)throw fail('owner-required');
+    if(course!=='115-g9'||!int(activity,1)||activity>30||!int(round)||round>4)throw fail('invalid-scope');
+    const bearer=await token(m);
+    const response=await fetcher(config.workerOrigin+'/teacher-question',{method:'POST',credentials:'omit',cache:'no-store',
+      redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body:JSON.stringify({course,activity,round})});
+    active(m);
+    const value=await response.json();active(m);
+    if(!response.ok)throw fail(value?.error==='reauth_required'?'reauth-required':response.status===401?'login-required':response.status===403?'owner-required':'teacher-content-unavailable');
+    if(response.headers.get('cache-control')!=='no-store'||value.sourceProject!==project||value.uid!==m.uid
+      ||value.course!==course||value.activity!==activity||value.round!==round||!value.question?.data
+      ||!value.solution||!Object.hasOwn(value.solution,'answer')||!Array.isArray(value.solution.notes))throw fail('response-invalid');
+    // Private teaching responses stay in this caller's memory, never drafts, view or storage.
+    return value;
+  }
   // 登入動作序列化；換人立即作廢舊工作，慢回應不得覆蓋下一個人。
   let authWork=Promise.resolve();
   const serialAuth = fn => {const work=authWork.then(fn);authWork=work.catch(()=>{});return work;};
   async function login(kind,account,password) {
+    const guest=kind==='guest'?guestScope(account):null;
+    if(guest&&course!=='115-g9')throw fail('grading-not-supported');
     clear();broadcast();const g=generation;
     return serialAuth(async()=>{
       const {auth,googleProvider,persistence}=await getSession();
@@ -100,7 +119,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         credential=await auth.signInWithEmailAndPassword(normalized+'@ybslab-edu.github.io',match?'cgjh'+match[1].toUpperCase():text);
       }
       if(g!==generation||savedSignal()!==signal){await auth.signOut();throw fail('identity-changed');}
-      profile={uid:credential.user.uid,kind};
+      profile={uid:credential.user.uid,kind,...(guest?{guest}:{})};
       const m=mark(), c=await claims(m,true);
       const provider=c.firebase?.sign_in_provider;
       if(!['google.com','password','anonymous'].includes(provider))throw fail('provider-invalid');
@@ -123,6 +142,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const m=mark(), c=await claims(m);
     if(g!==generation)throw fail('identity-changed');
     profile.provider=c.firebase?.sign_in_provider;
+    if(profile.provider==='anonymous'){try{profile.guest=guestScope(saved.guest);}catch{clear();await auth.signOut();return null;}}
     if(!['google.com','password','anonymous'].includes(profile.provider)){clear();throw fail('provider-invalid');}
     if(profile.provider==='google.com')try{profile.owner=await assertOwner(m);}catch(e){if(e.code!=='owner-required'){clear();throw e;}}
     try {
@@ -142,6 +162,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   async function context(activity,round) {
     const m=mark();if(profile.owner)throw fail('demonstration-only');
+    if(profile.provider==='anonymous')return readGuestContext({profile,course,project,activity,round,active:()=>active(m),request:async body=>{
+      let response;for(let refresh=0;refresh<2;refresh++){
+        const bearer=await token(m,refresh===1);
+        response=await fetcher(config.workerOrigin+'/guest/context',{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
+          headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body:JSON.stringify(body)});active(m);if(response.status!==401)break;
+      }return response;
+    }});
     if(typeof readModel?.context!=='function')throw fail('read-model-pending');
     const classKey=await classHint(m);
     const value=await readModel.context({course,classKey,activity,round});active(m);
@@ -167,7 +194,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       let response;
       for(let refresh=0;refresh<2;refresh++) {
         const bearer=await token(m,refresh===1);
-        response=await fetcher(config.workerOrigin+'/'+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
+        response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
           redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body});active(m);
         if(response.status!==401)break;
       }
@@ -188,13 +215,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');throw fail('restart-required');
       }
       const value=await response.json();active(m);
-      if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? !id(value.resultId)
+      if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? (isGuestContext(d.context)?!guestCompletion(value):!id(value.resultId))
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
       d.pending=null;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
       if(value.completed||value.awaitingTeacher)delete drafts[scopeKey(d.activity,d.round)];
       view={activity:d.activity,round:d.round,...clone(value)};
-      save();snapshot=null;emit(value.awaitingTeacher?'teacher-pending':value.completed?'confirmation-pending':'ready');
+      save();snapshot=null;emit(guestCompletion(value)?'guest-pending':value.awaitingTeacher?'teacher-pending':value.completed?'confirmation-pending':'ready');
       // 題面只回傳到記憶體；completed 回條不直接新增進度／XP。
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
@@ -208,8 +235,11 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   async function exclusive(key,fn) {
     if(running.has(key))throw fail('request-in-flight');
+    const m=mark(),previous=gradingWork;
+    let release;gradingWork=new Promise(resolve=>{release=resolve;});
     const lock=Symbol();running.set(key,lock);
-    try{return await fn();}finally{if(running.get(key)===lock)running.delete(key);}
+    // A switch must reach the Worker after the previous answer, never race its commit.
+    try{await previous;active(m);return await fn();}finally{release();if(running.get(key)===lock)running.delete(key);}
   }
   async function start(activity,round,{restart=false}={}) {
     const key=scopeKey(activity,round);
@@ -219,12 +249,17 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(!int(activity,1)||activity>30||!int(round)||round>4)throw fail('invalid-scope');
       if(drafts[key]&&!restart){
         const d=drafts[key];
+        // Older versions could restore several drafts; selecting one abandons the others too.
+        drafts={[key]:d};save();
         return d.pending?send(d,m):resume(activity,round,true);
       }
       const c=await context(activity,round);active(m);
-      if(Object.keys(drafts).length>=8&&!drafts[key])throw fail('draft-capacity');
-      const body={course,classKey:c.classKey,activity,round,requestId:requestId()};
-      for(const name of epochKeys)body[name]=c[name];
+      // One Worker session per course: choosing another scope abandons old work, as on the old site.
+      // Cancel retries before dropping it so an offline start cannot later replace the chosen round.
+      cancel(timer);timer=null;
+      drafts={};
+      const body={course,classKey:c.classKey,...guestFields(c),activity,round,requestId:requestId()};
+      for(const name of epochKeys)if(name!=='bindingVersion'||!isGuestContext(c))body[name]=c[name];
       const d={project,course,uid:m.uid,activity,round,context:c,startRequestId:body.requestId,pending:{op:'start',body},failures:0,retryAt:0};
       drafts[key]=d;save();return send(d,m);
     });
@@ -236,7 +271,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(profile.owner)throw fail('demonstration-only');
       if(!d||!d.sid||d.blocked)throw fail('restart-required');
       if(d.pending)throw fail('answer-pending');
-      const body={course,classKey:d.context.classKey,activity,round,requestId:requestId(),sid:d.sid,seq:d.nextSeq,slot:d.slot,answer:clone(answer)};
+      const body={course,classKey:d.context.classKey,...guestFields(d.context),activity,round,requestId:requestId(),sid:d.sid,seq:d.nextSeq,slot:d.slot,answer:clone(answer)};
       if(new TextEncoder().encode(JSON.stringify(body)).length>8192)throw fail('answer-too-large');
       d.pending={op:'answer',body};save();return send(d,m);
     });
@@ -245,7 +280,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const work=async()=>{
       const m=mark(),d=drafts[scopeKey(activity,round)];
       if(!d||d.blocked)throw fail('restart-required');
-      if(!d.pending)d.pending={op:'resume',body:{course,classKey:d.context.classKey,activity,round,sid:d.sid,requestId:requestId()}};
+      if(!d.pending)d.pending={op:'resume',body:{course,classKey:d.context.classKey,...guestFields(d.context),activity,round,sid:d.sid,requestId:requestId()}};
       save();return send(d,m);
     };
     return locked?work():exclusive(scopeKey(activity,round),work);
@@ -253,12 +288,14 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   async function retry() {
     const m=mark(), output=[];
     for(const [key,d] of Object.entries(drafts))if(d.pending&&!d.blocked&&d.retryAt<=now()) {
-      output.push(await exclusive(key,()=>send(d,m)));active(m);
+      const value=await exclusive(key,()=>drafts[key]===d?send(d,m):null);active(m);
+      if(value)output.push(value);
     }
     return output;
   }
   // 分頁前後重查控制版；完整空頁也是確認後的空集合，查詢失敗絕不回傳 []。
   async function progress({activities,classKey,activity,teacher=false}={}) {
+    if(profile?.provider==='anonymous')throw fail('guest-pending');
     const m=mark(), request=++readVersion;snapshot=null;emit('confirmation-pending');
     try {
       if(!readModel?.page||!readModel?.controls)throw fail('read-model-pending');
@@ -312,7 +349,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       ||!['pub','enc-b2','enc-rv'].every(k=>typeof value.scripts[k]==='string'))throw fail('context-unconfirmed');
     return clone(value.scripts);
   }
-  return Object.freeze({project,course,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,
+  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,teacherQuestion,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
     state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});

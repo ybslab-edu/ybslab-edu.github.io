@@ -19,7 +19,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
  const [{createFormalWorker},{MemoryFirestore},{readPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
   load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal/read-model.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
- let readFailure=failInitialRead,secondFailure=null;let clock=EPOCH,calls=[],throttle=true,waits=[],readsReleased=!holdProgress,release;
+ let readFailure=failInitialRead,secondFailure=null,startHeld=null,releaseStart;let clock=EPOCH,calls=[],throttle=true,waits=[],readsReleased=!holdProgress,release;
  const held=new Promise(resolve=>{release=()=>{readsReleased=true;resolve();};});
  const data=await batchData(clock);if(closed)data[paths.global].activities[7].opensAt=clock+86400000;
  const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:readPath});
@@ -41,6 +41,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  }
  const session=async()=>firebase.session,fetcher=async(url,init)=>{
   const op=new URL(url).pathname.slice(1);const call={op,body:JSON.parse(init.body),at:clock};calls.push(call);
+  if(op==='start'&&startHeld){const held=startHeld;startHeld=null;await held;}
   if(readFailure&&op==='controls')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
   if(op==='context'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
   if(op==='progress'&&!readsReleased&&db.docs.get(paths.head('synthetic-a'))?.completions&&Object.keys(db.docs.get(paths.head('synthetic-a')).completions).length)await held;
@@ -66,7 +67,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  const retry=async()=>{for(let i=0;i<8&&client.state().pending;i++){const call=calls.at(-1);clock+=Number(call.retryAfter||60)*1000;await client.retry();await tick();}};
  const probeStart=async()=>{const body={...calls.find(c=>c.op==='start').body,round:1,requestId:crypto.randomUUID()};return worker.fetch(new Request('https://synthetic.invalid/start',{method:'POST',headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'},body:JSON.stringify(body)}));};
  const result={probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},
-  interruptSecond:mode=>{secondFailure=mode;},advance:ms=>{clock+=ms;},
+  interruptSecond:mode=>{secondFailure=mode;},holdNextStart:()=>{startHeld=new Promise(resolve=>{releaseStart=resolve;});},releaseStart:()=>releaseStart(),advance:ms=>{clock+=ms;},
   reload:async()=>{events.pagehide();secondFailure=null;client=createClient(clientOptions);await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title})});await until(()=>!$('g-isme').hidden);}};
  if(holdRoster){await until(()=>rosterReads.length===1);return result;}
  if(failInitialRead){await until(()=>!$('g-reread').hidden);return result;}
@@ -175,17 +176,43 @@ test('名冊確認不依賴第 0 關開放，活動 4 可直接開始第 4 關',
  assert.ok(h.calls.filter(c=>c.op==='context'||c.op==='start').every(c=>c.body.round===3));
 });
 
-test('未完成切關續作原關，錯答與第一組答對均不觸發 another_round_active',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('未完成、錯答與第一組答對均可切關，返回重新累積兩組；同關重整仍續作',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t),nav=()=>h.$('rounds').querySelectorAll('button');
- const conflict=await h.probeStart();assert.equal(conflict.status,409);assert.deepEqual(await conflict.json(),{error:'another_round_active'});
- const original=h.$('stage').querySelector('[data-answer-field]');h.fill(h.answer());const filled=original.value;
- const starts=h.calls.filter(c=>c.op==='start').length;
- await nav()[2].onclick();assert.equal(original.value,filled);assert.equal(h.$('stage').dataset.round,0);assert.match(h.$('sync').textContent,/請先完成第 1 關/);
- assert.equal(h.calls.filter(c=>c.op==='start').length,starts);assert.notEqual(h.client.state().status,'restart-required');
- const wrong=structuredClone(h.answer());wrong[0]++;h.fill(wrong);await h.button('送出').onclick();await h.retry();await nav()[1].onclick();assert.equal(h.$('verdict').className,'verdict no');assert.equal(h.$('stage').querySelector('[data-answer-field]'),original);
- h.fill(h.answer());await h.button('送出').onclick();await h.retry();await nav()[1].onclick();assert.equal(h.$('stage').dataset.slot,0);assert.match(h.$('streak').textContent,/1\/2/);
+ const first=h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid;
+ h.fill(h.answer());await nav()[2].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,2);assert.match(h.$('streak').textContent,/0\/2/);
+ const wrong=structuredClone(h.answer());wrong[0]++;h.fill(wrong);await h.button('送出').onclick();await h.retry();assert.equal(h.$('verdict').className,'verdict no');
+ await nav()[1].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,1);
+ h.fill(h.answer());await h.button('送出').onclick();await h.retry();assert.match(h.$('streak').textContent,/1\/2/);
+ const half=h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid;
+ await h.reload();await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('stage').dataset.round,1);assert.equal(h.$('stage').dataset.slot,1);
+ assert.equal(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid,half);
+ await nav()[0].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,0);assert.match(h.$('streak').textContent,/0\/2/);
+ assert.notEqual(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid,first);
+ h.fill(h.answer());await h.button('送出').onclick();await h.retry();
  h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
- await nav()[2].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,2);assert.ok(!h.calls.some(c=>c.response?.error==='another_round_active'));console.log('unfinished switch: raw /start 409 another_round_active reproduced; UI keeps answers and 1/2, then switches after completion without restart-required');
+ assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
+ assert.ok(!h.calls.some(c=>c.response?.error==='another_round_active'));
+ h.events.pagehide();
+});
+test('載入中快速連點以最後選擇為準，不讓舊 start 覆蓋目前關卡',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t),nav=()=>h.$('rounds').querySelectorAll('button');h.holdNextStart();
+ const first=nav()[1].onclick();await until(()=>h.calls.filter(c=>c.op==='start').length===2);
+ const middle=nav()[2].onclick(),latest=nav()[0].onclick();h.releaseStart();await Promise.all([first,middle,latest]);await h.retry();
+ assert.equal(h.$('stage').dataset.round,0);assert.equal(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.round,0);
+ assert.ok(!h.calls.some(c=>c.op==='start'&&c.body.round===2),'已被取代的中間選擇不應送到 Worker');
+ assert.ok(!h.calls.some(c=>c.response?.error==='another_round_active'));h.events.pagehide();
+});
+test('待送的照片／排卡第二組可放棄切關，舊重試不會把畫面切回去',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ for(const activityId of [1,3])for(const interruption of ['resume-first','lost-second']){
+  const h=await setup(t,{activityId});h.interruptSecond(interruption);
+  await h.client.answer(activityId,0,h.answer());await until(()=>h.client.state().status==='pending');
+  const old=h.calls.filter(c=>c.op==='answer'&&c.body.slot===1).at(-1).body;
+  await h.$('rounds').querySelectorAll('button')[1].onclick();await h.retry();
+  assert.equal(h.$('stage').dataset.round,1);assert.match(h.$('streak').textContent,/0\/2/);
+  assert.equal(h.client.state().pending,false);const count=h.calls.length;h.advance(61000);await h.client.retry();
+  assert.equal(h.calls.length,count);assert.equal(h.calls.filter(c=>c.body.requestId===old.requestId).length,1);
+  assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,interruption==='lost-second'?1:0,'已判分但遺失回應的紀錄不能因切關消失');h.events.pagehide();
+ }
 });
 test('照片與排卡重整：待送第二槽仍須續傳同關、恢復題面與唯一可信過關',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const activityId of [1,3])for(const interruption of ['resume-first','lost-second'])await t.test(`${activityId}:${interruption}`,async t=>{
@@ -196,9 +223,9 @@ test('照片與排卡重整：待送第二槽仍須續傳同關、恢復題面�
    await until(()=>h.client.state().status==='pending');assert.equal(h.client.state().pending,true);
    const validated=()=>[...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length;
    assert.equal(validated(),interruption==='lost-second'?1:0);assert.equal(h.$('xp-total').textContent,'0 XP');
-   // 作答頁待送時切關、重開或重按同關，都須保留原題面與原請求。
+   // 重開或重按同關保留原題面與原請求；切到其他關可放棄另作。
    const question=h.$('stage').firstChild,requests=h.calls.length;
-   for(const i of [0,1])await h.$('rounds').querySelectorAll('button')[i].onclick();
+   await h.$('rounds').querySelectorAll('button')[0].onclick();
    await h.button('重新開始').onclick();assert.equal(h.$('stage').firstChild,question);assert.equal(h.calls.length,requests);
    const pending=h.calls.filter(c=>c.op==='answer'&&c.body.slot===1).at(-1).body;
    await h.reload();assert.equal(h.client.state().pending,true);assert.equal(h.$('stage').textContent,'');
@@ -378,4 +405,45 @@ test('長條圖 CSS 沿用舊站三欄、軌道高度與高中組斜線，窄螢
   const rule=old.slice(old.indexOf(selector+'{')).split('}')[0]+'}';
   assert.ok(css.includes('.fullrev-activity '+rule),selector+' 必須與舊站相同');
  }
+});
+
+test('瀏覽器返回快取頁重新確認身分，續作同關，不沿用離頁前的過關畫面',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{activityId:5,initialRound:2});
+ const originalSid=h.calls.findLast(c=>c.op==='start'&&c.status===200).response.sid;
+ h.events.pagehide();assert.equal(h.$('main').hidden,true);assert.equal(h.$('xp-header').hidden,true);
+ h.events.pageshow({persisted:true});
+ await until(()=>!h.$('g-isme').hidden);
+ assert.equal(h.$('main').hidden,true,'重新確認前不得顯示原題或 XP');
+ await h.$('g-isme').onclick();await h.retry();
+ await until(()=>h.$('stage').dataset.questionType==='binary-encode-8-v1');
+ const resumed=h.calls.findLast(c=>c.op==='resume'&&c.status===200);
+ assert.equal(resumed.response.sid,originalSid);assert.equal(resumed.body.round,2);
+ assert.equal(h.$('verdict').hidden,true);
+});
+test('原生燈牌錯答後兩層提示皆可讀且保留原題作答',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{activityId:5});
+ const board=h.$('stage').querySelector('.board');
+ await h.button('送出').onclick();await h.retry();
+ assert.match(h.$('hint-content').textContent,/最右邊代表 1/);
+ h.$('b-hint').onclick();assert.match(h.$('hint-content').textContent,/從最大的燈開始想/);
+ assert.equal(h.$('stage').querySelector('.board'),board);assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
+});
+
+test('第三層示範獨立於原題，返回保留輸入，切關及登出清除示範',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{activityId:5}),board=h.$('stage').querySelector('.board');
+ await h.button('送出').onclick();await h.retry();
+ assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
+ const original=board.querySelectorAll('[data-bit]').map(b=>b.getAttribute('aria-pressed'));
+ h.$('b-hint').onclick();h.$('b-hint').onclick();h.$('b-hint-example').onclick();
+ assert.equal(h.$('original-work').hidden,true);assert.match(h.$('hint-content').textContent,/示範解答/);
+ assert.equal(h.$('stage').querySelector('.board'),board);
+ assert.deepEqual(board.querySelectorAll('[data-bit]').map(b=>b.getAttribute('aria-pressed')),original);
+ assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+ h.button('回原題繼續做').onclick();assert.equal(h.$('original-work').hidden,false);
+ assert.equal(h.$('hint-content').querySelector('.board'),null);assert.equal(h.$('stage').querySelector('.board'),board);
+ h.$('b-hint-example').onclick();await h.$('rounds').querySelectorAll('button')[1].onclick();await h.retry();
+ assert.equal(h.$('original-work').hidden,false);assert.equal(h.$('hint-content').textContent,'');
+ assert.equal(h.$('stage').dataset.round,1);await h.client.logout();
+ assert.equal(h.$('hint-content').textContent,'');assert.equal(h.$('stage').textContent,'');
+ h.events.pagehide();
 });

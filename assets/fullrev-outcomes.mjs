@@ -81,5 +81,6 @@ export function renderOutcome(host,d,changed){
     else{input.type='text';input.autocomplete='off';input.maxLength=256;if(d.kinds[k]==='n')input.inputMode='numeric';}
     input.oninput=input.onchange=changed;label.append(input);host.append(label);return input;
   });
-  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12))};
+  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12)),
+    dispose(){for(const url of urls.get(host)||[])URL.revokeObjectURL(url);urls.delete(host);host.replaceChildren();}};
 }

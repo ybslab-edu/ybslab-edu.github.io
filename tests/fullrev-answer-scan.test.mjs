@@ -22,6 +22,14 @@ test('static template literals decode escapes and serialized arrays without eval
  }
  assert.doesNotThrow(()=>scanPrivateAnswers('const label=`合成短答案${suffix}`;',answers));
 });
+test('private object answers are blocked in literals and serialized JSON, including reordered numeric strings',()=>{
+ const answers=[{rate:173,levels:29},{fps:37,one:37,total:111,parts:1}];
+ for(const source of ['const leaked={rate:173,levels:29};','const leaked={"levels":"29","rate":"173"};',
+  'const leaked="{\\"rate\\":173,\\"levels\\":29}";','const leaked=`{"parts":1,"total":111,"one":37,"fps":37}`;']){
+  assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_object/);
+ }
+ assert.doesNotThrow(()=>scanPrivateAnswers('const labels={rate:"取樣",levels:"量化"}; const input={rate:null,levels:null};',answers));
+});
 test('HTML text and quoted/unquoted attributes decode entities and compare complete values',()=>{
  const answers=['合成短答案','含<&"字'];
  for(const source of ['<p> 合成短答案 </p>','<p title="合成短答案">提示</p>',"<p title='合成短答案'>提示</p>",'<input value=合成短答案>','<p>&#x5408;&#25104;短答案</p>','<input title="含&lt;&amp;&quot;字">']){

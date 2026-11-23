@@ -37,7 +37,7 @@ export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5
   let parent=dirname(output);while(!await stat(parent).catch(()=>null))parent=dirname(parent);
   if(!outside(await realpath(source),await realpath(parent)))throw Error('output_must_be_outside_source');
   if(await stat(output).catch(()=>null))throw Error('output_must_not_exist');
-  const assets=['fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
+  const assets=['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
     'login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js'];
   await mkdir(join(output,'assets'),{recursive:true});
   for(const asset of assets){await mkdir(dirname(join(output,'assets',asset)),{recursive:true});await copyFile(join(source,'assets',asset),join(output,'assets',asset));}

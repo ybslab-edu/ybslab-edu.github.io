@@ -27,8 +27,8 @@ test('batch8 full artifact has 124 rounds, 31 distinct activities; DF protected 
  }
  assert.match(df,/await YBS.loadDFContent\(\)/);for(const id of ['pub','enc-b2','enc-rv','ans'])assert.ok(df.includes(`id="${id}" type="application/json">null</script>`));
  assert.doesNotMatch(df,/teacher\.js|lock\.js|"ct"\s*:|"s2"\s*:|"b64"\s*:/);
- const scan=async dir=>{let all='';for(const e of await readdir(dir,{withFileTypes:true})){const p=join(dir,e.name);all+=e.isDirectory()?await scan(p):await readFile(p,'utf8');}return all;};
- const text=await scan(out);assert.doesNotMatch(text,/soundBest|minimumBytes|"budget"\s*:|checkRecordingAnswer|pr6-batch8|sourceMappingURL/);
+ const scanPublic=async dir=>{let all='';for(const e of await readdir(dir,{withFileTypes:true})){const p=join(dir,e.name);if(e.isDirectory())all+=await scanPublic(p);else all+=await readFile(p,'utf8');}return all;};
+ const text=await scanPublic(out);assert.doesNotMatch(text,/soundBest|minimumBytes|"budget"\s*:|checkRecordingAnswer|pr6-batch8|sourceMappingURL/);
  assert.match(await readFile(new URL('../assets/fullrev-config.js',import.meta.url),'utf8'),/enabled: false/);
 });
 test('DF envelope remains three UID slots; upload receipt has no grade side effect, strict identity and stale auth checks',async()=>{

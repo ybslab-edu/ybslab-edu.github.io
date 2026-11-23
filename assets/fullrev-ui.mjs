@@ -1,3 +1,4 @@
+import {mountGuestLogin} from './fullrev-guest.mjs';
 import {growth,exportRows} from './fullrev-progress.mjs?v=20261120a';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
@@ -7,7 +8,7 @@ const messages={'report/rate-limited':'報告已保留，請在上一份交件�
   'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
   'binding-pending':'尚待老師核發身分；目前只能本機練習。','read-model-pending':'雲端紀錄尚未確認，請稍後重新讀取。',
   'owner-required':'只有此課程擁有者可以使用。','configuration-pending':'新登入服務尚未就緒，請找老師。',
-  'guest-xp-policy-pending':'已核發訪客的帳號 XP 政策尚待確認。','xp-snapshot-missing':'準時 XP 尚待確認。'};
+  'guest-xp-policy-pending':'班座紀錄尚待老師確認。','guest-pending':'已存待審，尚未採計。','guest-seat-required':'請填三位數班級及 1–60 號座號。','guest-seat-unavailable':'查無這個班座，請確認或找老師。','not-open':'這個活動還沒開放。','xp-snapshot-missing':'準時 XP 尚待確認。'};
 const explain=e=>messages[e?.code||e?.reason]||'尚未完成，請重新讀取或找老師。';
 function layout(title) {
   const root=node('main');root.className='wrap paper fullrev';
@@ -27,16 +28,17 @@ export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false,old
   const label=(text,input)=>{const l=node('label',text);l.append(input);return l;};
   const submit=button('帳號登入');submit.type='submit';
   const actions=[];
-  async function run(kind) {
+  async function run(kind,guest) {
     actions.forEach(b=>b.disabled=true);alert.textContent='登入中…';
-    try{const value=await client.login(kind,account.value,password.value);password.value='';alert.textContent='已登入。';await onLogin(value);}
+    try{const value=await client.login(kind,guest||account.value,password.value);password.value='';alert.textContent='已登入。';await onLogin(value);}
     catch(e){password.value='';alert.textContent=explain(e);}
     finally{actions.forEach(b=>b.disabled=false);}
   }
   if(!ownerOnly){form.append(label('帳號',account),label('密碼',password),submit);form.onsubmit=e=>{e.preventDefault();run('password');};actions.push(submit);host.append(form);}
-  for(const [text,kind] of ownerOnly?[['教師 Google 登入','owner']]:[['學生 Google 登入','google'],['老師核發訪客／本機練習','guest'],['教師 Google 登入','owner']]) {
+  for(const [text,kind] of ownerOnly?[['教師 Google 登入','owner']]:[...(client.studentGoogleLogin===true?[['學生 Google 登入','google']]:[]),['教師 Google 登入','owner']]) {
     const b=button(text,()=>run(kind));actions.push(b);host.append(b);
   }
+  if(!ownerOnly&&client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
   alert.setAttribute('role','alert');host.append(alert);
 }
 async function setup(promise,title,{ownerOnly=false}={}) {

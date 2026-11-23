@@ -37,6 +37,12 @@ export function renderPhotos(host,d,api){
   formulaBox.append(formula,explanation);storeGrid.append(pixelBox,formulaBox);store.append(heading,storeGrid);
   host.append(settings,sizeBox,photos,note,store);
   const restoreShell=photoShell(host,store,api.shell);
+  // 教師原圖經 teacher-question 獨立欄位傳入，學生題面 photos 不含原圖。
+  const originals=[];
+  if(api.demonstration&&Array.isArray(api.originals)&&api.originals.length===d.photos.length){
+    for(const src of api.originals){if(!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(src))break;
+      const image=node('img');image.src=src;image.alt='教師對照原圖';image.hidden=true;image.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain';originals.push(image);}
+  }
   function slider(title,list,value,change){
     const box=node('section'),label=node('label',title),text=node('div'),row=node('div'),input=node('input'),tip=node('p');
     const sampling=title==='格子數';box.className='panel photo-knob '+(sampling?'photo-samp':'photo-quant');text.className='photo-kval';tip.className='small';
@@ -51,7 +57,7 @@ export function renderPhotos(host,d,api){
   slider('格子數',d.resolutions,n,v=>n=v);slider('顏色數',d.depths,bits,v=>bits=v);
   d.photos.forEach((photo,i)=>{
     const box=node('section'),frame=node('div'),label=node('span',`照片 ${i+1}`),canvas=node('canvas');box.className='photo-card';frame.className='photo-frame';label.className='photo-label';canvas.dataset.photo=String(i);canvas.setAttribute('aria-label',`照片 ${i+1}（數位化後）`);canvases.push(canvas);
-    frame.append(canvas,label);box.append(frame);
+    frame.append(canvas);if(originals[i])frame.append(originals[i]);frame.append(label);box.append(frame);
     d.ask.forEach((kind,j)=>{
       const row=node('div'),ask=node('p',kind==='digit'?'背號是幾號？':kind==='count'?'有幾台遊覽車？':kind==='member'?'這是哪一位成員？':'應援色是哪一個？');row.className='picks';ask.className='photo-ask';box.append(ask,row);
       const choices=kind==='digit'||kind==='count'?Array.from({length:10},(_,k)=>String(k)):d.palette.map(p=>kind==='color'?p[2]:p[0]);
@@ -88,5 +94,5 @@ export function renderPhotos(host,d,api){
     }}loaded=true;note.textContent='兩張照片的問題都回答後，再拍下來傳出去。';paint();api.changed();
   })().catch(()=>{if(!disposed)note.textContent='照片尚未取得，請重新讀取這一關。';});
   paint();
-  return {get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),dispose(){disposed=true;pixels.length=0;restoreShell();},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
+  return {setOriginal(on){if(!api.demonstration||originals.length!==d.photos.length)return;originals.forEach(image=>image.hidden=!on);},get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),dispose(){disposed=true;pixels.length=0;restoreShell();},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
 }

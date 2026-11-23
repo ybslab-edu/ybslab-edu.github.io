@@ -129,8 +129,8 @@ for(const [path,code] of [['ybsTeachers/synthetic-student','unavailable'],['ybsT
   const restored=h.reopen();await assert.rejects(restored.restore(),e=>e===error);
   assert.equal(restored.state().profile,null);assert.equal(h.storage.map.size,0);assert.equal(h.requests.length,0);
 });
-test('缺 PR4 投影、未核發 guest、跨課 claim 與錯型別皆不送正式作答',async()=>{
-  const h=await harness({noModel:true});await h.client.login('guest');await assert.rejects(h.client.start(5,0),{code:'read-model-pending'});assert.equal(h.requests.length,0);
+test('缺 PR4 投影、未填班座、跨課 claim 與錯型別皆不送正式作答',async()=>{
+  const h=await harness({noModel:true});await assert.rejects(h.client.login('guest'),{code:'guest-seat-required'});assert.equal(h.requests.length,0);
   const k=await harness();await k.login();for(const hints of [null,'c901',{'115-df':'c901'},{'115-g9':[]}] ){
     k.state.hints=hints;await assert.rejects(k.client.start(5,0),{code:'binding-pending'});
   }assert.equal(k.requests.length,0);
@@ -191,30 +191,57 @@ for(const status of [403,409,410,422])test(`${status} 作廢草稿立即清除�
     if(activity===8){client=h.reopen();await client.restore();}
   }
 });
-test('八份上限仍限制進行中／斷線草稿，重新整理保留原請求，完成一份才釋出名額',async()=>{
+test('跨關／活動切換放棄舊草稿，超過八關仍可開始；重整保留當關離線原請求',async()=>{
   const h=await harness();await h.login();
-  for(let activity=1;activity<=4;activity++)await h.client.start(activity,0);
+  for(let activity=1;activity<=12;activity++){
+    await h.client.start(activity,0);assert.deepEqual(Object.keys(savedDrafts(h)),[activity+':0']);
+  }
   h.state.fetcher=async()=>{throw Error('synthetic-offline');};
-  for(let activity=5;activity<=8;activity++)await assert.rejects(h.client.start(activity,0),{code:'pending'});
-  const original=h.requests.slice(4).map(r=>r.body);
-  await assert.rejects(h.client.start(9,0),{code:'draft-capacity'});assert.equal(h.requests.length,8);
-  const restored=h.reopen();await restored.restore();await assert.rejects(restored.start(9,0),{code:'draft-capacity'});
-  assert.equal(Object.keys(savedDrafts(h)).length,8);
-  h.state.fetcher=async()=>Response.json({completed:true,resultId:'c_first'});await restored.answer(1,0,7);
-  h.state.fetcher=async()=>Response.json(response());await restored.start(9,0);assert.equal(Object.keys(savedDrafts(h)).length,8);
-  h.advance();const before=h.requests.length;await restored.retry();assert.deepEqual(h.requests.slice(before).map(r=>r.body),original);
+  await assert.rejects(h.client.answer(12,0,7),{code:'pending'});const original=h.requests.at(-1).body;
+  const restored=h.reopen();await restored.restore();h.advance();h.state.fetcher=async()=>Response.json(response());
+  await restored.start(12,0);assert.deepEqual(h.requests.at(-1).body,original);
+  await restored.start(12,1);assert.deepEqual(Object.keys(savedDrafts(h)),['12:1']);
+  await assert.rejects(restored.resume(12,0),{code:'restart-required'});
+  await restored.start(13,0);const count=h.requests.length;await restored.retry();assert.equal(h.requests.length,count);
 });
 test('還原舊儲存區先剔除完成／作廢草稿再計八份，保留進行中題與原離線答案',async()=>{
-  const h=await harness();await h.login();await h.client.start(1,0);await h.client.start(2,0);
+  const h=await harness();await h.login();await h.client.start(1,0);const template=savedDrafts(h)['1:0'];await h.client.start(2,0);
   h.state.fetcher=async()=>{throw Error('synthetic-offline');};await assert.rejects(h.client.answer(2,0,7),{code:'pending'});
-  const original=h.requests.at(-1).body,saved=JSON.parse(h.storage.getItem(storageKey)),template=saved.drafts['1:0'];
+  const original=h.requests.at(-1).body,saved=JSON.parse(h.storage.getItem(storageKey));saved.drafts['1:0']=template;
   for(let activity=3;activity<=22;activity++)saved.drafts[activity+':0']={...template,activity,context:{...template.context,activity},
     pending:activity<=12?null:{op:'answer',body:{...original,activity}},slot:undefined,...(activity<=12?{}:{blocked:true})};
   h.storage.setItem(storageKey,JSON.stringify(saved));const restored=h.reopen();await restored.restore();
-  assert.deepEqual(Object.keys(savedDrafts(h)),['1:0','2:0']);
+  assert.deepEqual(Object.keys(savedDrafts(h)).sort(),['1:0','2:0']);
   h.state.fetcher=async()=>Response.json(response());await restored.resume(1,0);
   h.advance();const before=h.requests.length;await restored.retry();assert.deepEqual(h.requests.slice(before).map(r=>r.body),[original]);
   await restored.start(23,0);await assert.rejects(restored.resume(3,0),{code:'restart-required'});
+});
+test('放棄離線答案或 start 後的計時器及手動重試不會重開舊關',async()=>{
+  for(const op of ['answer','start']){
+    const h=await harness();await h.login();if(op==='answer')await h.client.start(5,0);
+    h.state.fetcher=async()=>{throw Error('synthetic-offline');};
+    await assert.rejects(op==='answer'?h.client.answer(5,0,7):h.client.start(5,0),{code:'pending'});
+    const timer=h.timers.at(-1);h.state.fetcher=async()=>Response.json(response());
+    await h.client.start(6,0);assert.equal(h.client.state().pending,false);assert.deepEqual(Object.keys(savedDrafts(h)),['6:0']);
+    h.advance();timer.fn();await new Promise(resolve=>setImmediate(resolve));const count=h.requests.length;
+    await h.client.retry();assert.equal(h.requests.length,count);assert.equal(h.requests.at(-1).body.activity,6);
+  }
+});
+test('切換等前一筆送出結束；排隊舊重試不得在新關開始後補送',async()=>{
+  const h=await harness();await h.login();await h.client.start(5,0);
+  let release;h.state.fetcher=()=>new Promise(resolve=>{release=resolve;});
+  const answer=h.client.answer(5,0,7);while(!release)await new Promise(resolve=>setImmediate(resolve));
+  const next=h.client.start(6,0);
+  assert.equal(h.requests.length,2,'新關不可與舊答案同時送出');
+  h.state.fetcher=async()=>Response.json(response());release(Response.json(response(1,{correct:true})));
+  await answer;await next;
+  assert.deepEqual(h.requests.map(r=>new URL(r.url).pathname),['/start','/answer','/start']);
+  assert.deepEqual(Object.keys(savedDrafts(h)),['6:0']);
+  h.state.fetcher=async()=>{throw Error('synthetic-offline');};await assert.rejects(h.client.answer(6,0,7),{code:'pending'});
+  h.advance();h.state.fetcher=async()=>Response.json(response());
+  const switched=h.client.start(7,0),retry=h.client.retry();await switched;await retry;
+  assert.equal(h.requests.at(-1).body.activity,7);assert.equal(h.requests.at(-1).url.endsWith('/start'),true);
+  assert.deepEqual(Object.keys(savedDrafts(h)),['7:0']);
 });
 test('離頁即作廢未完成回應；題面與舊進度不在隱藏分頁回填',async()=>{
   let done;const h=await harness({fetcher:()=>new Promise(resolve=>done=resolve)});await h.login();

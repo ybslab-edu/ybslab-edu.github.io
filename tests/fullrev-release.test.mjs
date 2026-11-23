@@ -9,7 +9,7 @@ import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
 const workerSource=process.env.YBS_WORKER_SOURCE;
 const config={...fixtureConfig,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
-test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',async t=>{
+test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups remain unchanged',async t=>{
  if(!workerSource&&process.env.CI){t.skip('略過：需私有來源，由 Console 發布前在本機執行');return;}
  assert.ok(workerSource,'本機發布驗收需設定 YBS_WORKER_SOURCE');
  const dir=await mkdtemp(join(tmpdir(),'ybs-pr8-release-'));t.after(()=>rm(dir,{recursive:true,force:true}));const output=join(dir,'site');
@@ -42,6 +42,13 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
  assert.match(df,/assets\/legacy-df\/login.js/);assert.match(df,/assets\/legacy-df\/config.js/);assert.doesNotMatch(df,/await YBS.loadDFContent/);
  const legacyLogin=await readFile(join(output,'assets/legacy-df/login.js'),'utf8');assert.match(legacyLogin,/project: 'class-score-86020'/);
  const dfCloud=await readFile(join(output,'assets/df-teacher-cloud.js'),'utf8');assert.match(dfCloud,/LEGACY_DF_INIT_START/);
+ // An exemption is a pinned file or block, never a whole modified shell.
+ const shellFile=join(output,'assets/fullrev-shell.mjs'),shellOriginal=await readFile(shellFile,'utf8');
+ assert.match(shellOriginal,/function mountWarmup/);assert.match(shellOriginal,/openTeacherQuestion/);
+ for(const [path,original,changed] of [
+  [join(output,'115-df/a/index.html'),df,df+'\n'],
+  [shellFile,shellOriginal,shellOriginal.replace('const checkWarmup =','const checkWarmup  =')]
+ ]){await writeFile(path,changed);await assert.rejects(scanRelease({output,workerSource}),/public_answer_allowlist_changed|legacy_df_changed/);await writeFile(path,original);}
  const privateArrays=[],shortAnswers=[];
  for(let n=1;n<=8;n++){
   const {default:banks}=await import(new URL('file://'+resolve(workerSource,`src/formal/banks/pr6-batch${n}.mjs`)));
@@ -49,6 +56,13 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
    if(Array.isArray(c.answer))privateArrays.push(c.answer);
    if(!key.startsWith('115-df:')&&typeof c.answer==='string')shortAnswers.push(c.answer);
   }
+ }
+ // Teacher code and content outside the pinned warmup block remain subject to scanning.
+ for(const path of [shellFile,join(output,'assets/fullrev-teacher-view.mjs')]){
+  const original=await readFile(path);
+  await writeFile(path,Buffer.concat([original,Buffer.from('\nconst leaked='+JSON.stringify(shortAnswers[0])+';')]));
+  await assert.rejects(scanRelease({output,workerSource}),/private_text_answer/);
+  await writeFile(path,original);
  }
  // 指定 Worker 的 src/formal/banks/pr6-batch1～8：逐 case 計算 Array 答案（含 DF），不計純字串答案。
  assert.equal(privateArrays.length,1361);

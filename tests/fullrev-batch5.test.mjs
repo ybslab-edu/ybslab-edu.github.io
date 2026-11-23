@@ -43,7 +43,7 @@ test('兩活動志工四關 64 組授權題面只渲染觀察、附件與作答�
     const data=projectQuestion({data:c.facts,answer:c.answer},0,bank.type,'志工招募','').data;
     assert.ok(!('model' in data));assert.ok(!('feedback' in data));
     const host=new DOMElement('section'),handle=renderOutcome(host,data,()=>{});
-    assert.deepEqual(Object.keys(handle).sort(),['get','ready']);assert.equal(handle.ready(),false);
+    assert.deepEqual(Object.keys(handle).sort(),['dispose','get','ready']);assert.equal(handle.ready(),false);
     const fields=host.querySelectorAll('label').map(label=>label.childNodes.at(-1));assert.equal(fields.length,c.answer.length);
     fields.forEach((field,k)=>{field.value=String(c.answer[k]);});
     assert.equal(handle.ready(),true);assert.deepEqual(handle.get(),c.answer.map(String));
@@ -63,6 +63,7 @@ test('兩活動志工四關 64 組授權題面只渲染觀察、附件與作答�
       }
       assert.equal(host.querySelectorAll('figure').length,round==='3'?3:0);
     }
+    handle.dispose();assert.equal(host.childNodes.length,0);
     count++;
   }
   assert.equal(count,64);

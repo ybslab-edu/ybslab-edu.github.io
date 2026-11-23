@@ -12,9 +12,10 @@ const html=`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name
 <script src="/assets/xp.js"></script><script src="/assets/vendor/xlsx-0.20.3.full.min.js"></script><script>const TERMS=[{name:'合成學期',begin:'2026-01-01',end:'2026-12-31'}],termWeekOf=()=>1,termWeekLabel=()=>'第 1 週',isActivityOpen=()=>true;const ACTIVITIES=[{course:'115-g9',week:5,unit:2,title:'合成活動',href:'115-g9/synthetic/',date:'2026-09-15',topic:'合成主題',rounds:['甲','乙','丙','丁'],codes:[]}];</script>
 <script type="module">
 import {harness,snapshot,record,response} from '/tests/fixtures/fullrev.mjs';
+import {teacherPayload} from '/tests/fixtures/fullrev-teacher.mjs';
 import {mountActivity,mountGrowth,mountTeacher} from '/assets/fullrev-ui.mjs';
-const app=await harness({shared:localStorage,storage:sessionStorage,events:window,restoredProvider:window.syntheticProvider,requestId:()=>crypto.randomUUID()});
-window.app=app;window.snapshot=snapshot;window.record=record;window.response=response;
+const app=await harness({shared:localStorage,storage:sessionStorage,events:window,restoredProvider:window.syntheticProvider,studentGoogleLogin:location.search.includes('student-google'),requestId:()=>crypto.randomUUID()});
+window.app=app;window.snapshot=snapshot;window.record=record;window.response=response;window.teacherPayload=teacherPayload;
 app.state.snapshot=snapshot([]);app.state.owner=false;
 if(window.syntheticTeacherError)app.state.readErrors['ybsTeachers/synthetic-student']=Object.assign(Error('synthetic-teacher-read'),{code:window.syntheticTeacherError});
 window.seenQuestions=[];
@@ -38,7 +39,7 @@ before(async()=>{
     if(/^\/assets\/[\w.-]+\.(?:js|css|svg)$/.test(path)) {
       try{return res.writeHead(200,{'Content-Type':path.endsWith('.css')?'text/css':path.endsWith('.svg')?'image/svg+xml':'text/javascript'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{return res.writeHead(404).end();}
     }
-    if(!/^\/(assets\/(fullrev-(?:client|ui|progress|df|shell)\.mjs|xp\.js)|tests\/fixtures\/fullrev\.mjs)$/.test(path))return res.writeHead(404).end();
+    if(!/^\/(assets\/(fullrev-(?:client|ui|progress|df|shell|teacher-view)\.mjs|xp\.js)|tests\/fixtures\/fullrev(?:-teacher)?\.mjs)$/.test(path))return res.writeHead(404).end();
     try{res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'}).end(await readFile(new URL('..'+path,import.meta.url)));}catch{res.writeHead(404).end();}
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;
@@ -145,7 +146,8 @@ test('傳送中與斷線待送時修改答案不會啟用送出或覆寫原請�
   await input.fill('10');assert.equal(await send.isEnabled(),true);
 });
 test('Google 學生的教師文件被拒仍可登入作答；實際重新整理後還原同一草稿',async t=>{
-  const page=await pageFor(t);
+  // 預設入口維持隱藏；只有此情境明確模擬老師開放 Google 學生登入。
+  const page=await pageFor(t,'?student-google');
   await page.evaluate(()=>app.state.readErrors['ybsTeachers/synthetic-student']=Object.assign(Error('synthetic-denied'),{code:'permission-denied'}));
   await page.locator('#g-gbtn summary').click();await page.getByRole('button',{name:'學生 Google 登入',exact:true}).click();
   await confirmActivity(page);await page.getByLabel('合成答案').waitFor();
@@ -171,22 +173,39 @@ test('累積十二個完成關卡不占八份草稿額度，第八關後實際�
   assert.equal(await page.evaluate(()=>app.client.state().profile.provider),'password');
   assert.deepEqual(await complete(9,12),[]);assert.equal(await page.evaluate(()=>app.client.state().snapshot),null);
 });
-test('實際重新整理保留八份進行中草稿及離線原答案，完成一份才可開始第九關',async t=>{
+test('跨活動超過八關仍可切換；實際重整保留當關離線原答案，切關後不再補送',async t=>{
   const page=await pageFor(t);await login(page);
   const original=await page.evaluate(async()=>{
-    for(let activity=1;activity<=8;activity++)await app.client.start(activity,0);
+    for(let activity=1;activity<=12;activity++)await app.client.start(activity,0);
     app.state.fetcher=async()=>{throw Error('synthetic-offline');};
-    try{await app.client.answer(8,0,7);}catch(e){if(e.code!=='pending')throw e;}
+    try{await app.client.answer(12,0,7);}catch(e){if(e.code!=='pending')throw e;}
     return app.requests.at(-1).body;
   });
   await page.addInitScript(()=>{window.syntheticProvider='password';});await page.reload();await page.waitForFunction(()=>window.ready);
-  assert.equal(await page.evaluate(async()=>{try{await app.client.start(9,0);}catch(e){return e.code;}}),'draft-capacity');
   const retried=await page.evaluate(async()=>{
-    app.state.fetcher=async()=>Response.json({completed:true,resultId:'c_first'});await app.client.answer(1,0,7);
-    app.state.fetcher=async()=>Response.json(response());await app.client.start(9,0);
-    app.advance();await app.client.retry();return app.requests.at(-1).body;
+    app.state.fetcher=async()=>Response.json(response());app.advance();await app.client.start(12,0);return app.requests.at(-1).body;
   });
   assert.deepEqual(retried,original);
+  assert.deepEqual(await page.evaluate(async()=>{
+    app.state.fetcher=async()=>{throw Error('synthetic-offline');};
+    try{await app.client.answer(12,0,8);}catch(e){if(e.code!=='pending')throw e;}
+    app.state.fetcher=async()=>Response.json(response());await app.client.start(13,0);
+    app.advance();const count=app.requests.length;await app.client.retry();
+    return {count:app.requests.length-count,keys:Object.keys(JSON.parse(sessionStorage.getItem('ybs:fullrev:synthetic-ybs-pr5:115-g9')).drafts)};
+  }),{count:0,keys:['13:0']});
+});
+test('學生未完成與上傳待送均可點關卡切換，切回從第一組開始',async t=>{
+  const page=await pageFor(t);await login(page);await confirmActivity(page);
+  await page.getByLabel('合成答案').fill('7');await page.locator('#rounds button').nth(2).click();
+  await page.waitForFunction(()=>app.requests.at(-1).body.round===2&&document.querySelector('#stage').childElementCount>0);
+  assert.match(await page.locator('#streak').textContent(),/0\/2/);
+  await page.getByLabel('合成答案').fill('7');await page.evaluate(()=>app.state.fetcher=async()=>{throw Error('synthetic-offline');});
+  await page.getByRole('button',{name:'送出',exact:true}).click();await page.waitForFunction(()=>app.client.state().status==='pending');
+  await page.evaluate(()=>app.state.fetcher=async()=>Response.json(response()));await page.locator('#rounds button').nth(1).click();
+  await page.waitForFunction(()=>app.requests.at(-1).body.round===1&&!app.client.state().pending);
+  await page.locator('#rounds button').nth(2).click();await page.waitForFunction(()=>app.requests.at(-1).body.round===2&&!app.client.state().pending);
+  assert.match(await page.locator('#streak').textContent(),/0\/2/);
+  assert.equal(await page.evaluate(()=>app.requests.at(-1).url.endsWith('/start')),true);
 });
 test('斷線答案待確認；換人及其他分頁登出清空題面與待送',async t=>{
   const context=await browser.newContext();t.after(()=>context.close());const first=await pageFor(t,'',context);await login(first);
@@ -198,11 +217,21 @@ test('斷線答案待確認；換人及其他分頁登出清空題面與待送',
   assert.equal(await first.getByLabel('合成答案').count(),0);assert.equal(await first.evaluate(()=>app.client.state().pending),false);
   assert.equal(await first.evaluate(()=>app.client.state().snapshot),null);
 });
-test('owner 示範無請求、非owner不能匯出；未知投影不下載',async t=>{
-  const page=await pageFor(t);await page.evaluate(()=>app.state.owner=true);
-  await page.locator('#g-gbtn summary').click();await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByText('本機練習／教師示範，不送出成績。',{exact:true}).waitFor();
+test('owner 示範僅授權取題、不送成績或保存解答；非owner不能匯出、未知投影不下載',async t=>{
+  const page=await pageFor(t);await page.evaluate(()=>{
+    app.state.owner=true;
+    app.state.fetcher=async(url,init)=>Response.json(teacherPayload(JSON.parse(init.body)),{headers:{'cache-control':'no-store'}});
+  });
+  await page.locator('#g-gbtn summary').click();await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.locator('#tbar').waitFor({state:'visible'});
+  await page.getByRole('button',{name:'顯示解答',exact:true}).click();
+  await page.getByText('合成教師解說',{exact:true}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/teacher-question']);
+  assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isVisible(),false);
+  assert.equal(await page.evaluate(()=>app.client.state().pending),false);
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('ybs:fullrev:synthetic-ybs-pr5:115-g9')).drafts),{});
+  assert.equal(await page.evaluate(()=>[...Object.values(sessionStorage),...Object.values(localStorage)].some(v=>v.includes('合成教師解說')||v.includes('合成示範答案'))),false);
   await page.locator('#activity-tools summary').click();
-  await page.getByRole('button',{name:'本機練習／示範',exact:true}).click();assert.equal(await page.evaluate(()=>app.requests.length),0);
+  await page.getByRole('button',{name:'本機練習／示範',exact:true}).click();assert.equal(await page.evaluate(()=>app.requests.length),1);
   await page.getByText('合成示範',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'送出',exact:true}).isEnabled(),false);
   const teacher=await pageFor(t,'?teacher');await teacher.evaluate(()=>app.state.owner=false);

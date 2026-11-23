@@ -1,3 +1,4 @@
+import {highlightChangedNumbers} from './fullrev-student-support.mjs';
 import {renderRecording} from './fullrev-recording.mjs';
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
 import {renderPhotos} from './fullrev-photos.mjs';
@@ -142,6 +143,12 @@ function table(host,headers,rows) {
   const wrap=node('div'),t=node('table');wrap.style.cssText='max-width:100%;overflow-x:auto';t.style.cssText='border-collapse:collapse;width:100%';
   const head=node('tr');headers.forEach(text=>{const th=node('th',text);th.scope='col';head.append(th);});t.append(head);
   rows.forEach(row=>{const tr=node('tr');row.forEach(text=>{const td=node('td',text);td.style.cssText='padding:5px;border-bottom:1px solid #aaa';tr.append(td);});t.append(tr);});wrap.append(t);host.append(wrap);
+  if(rows.length>8||headers.length>4){
+    wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label','資料表，可左右捲動');wrap.style.maxHeight='65vh';
+    const tip=node('p','表格可左右、上下滑動；頂端欄名與左側第一欄會固定，方便對照。');tip.className='small table-position-tip';host.append(tip);
+    [...t.querySelectorAll('th')].forEach(th=>{th.style.position='sticky';th.style.top='0';th.style.background='var(--panel, #fff)';th.style.zIndex='2';});
+    [...t.querySelectorAll('tr')].forEach(tr=>{const cell=tr.children?.[0]||tr.firstChild;if(cell){cell.style.position='sticky';cell.style.left='0';cell.style.background='var(--panel, #fff)';}});
+  }
 }
 const colors=['#2171b5','#a64b00','#167f50'];
 // 所有圖形只使用授權題面中的觀察值；不繪製私有最近鄰、最佳線或收斂結果。
@@ -279,7 +286,7 @@ function aiQuestion(host,d,changed) {
   }
   if(d.mode==='elbow'){table(host,['服務台數量','總距離','比上一個少了'],d.values.map((v,k)=>[k+1,v,k?d.values[k-1]-v:'—']));return single();}
 }
-export function renderQuestion(q,host,api={changed(){}}) {
+function renderQuestionControls(q,host,api) {
   const d=q.data;host.dataset.questionType=q.type;host.dataset.slot=q.slot;
   section(host,d.heading||q.title,d.story||q.instruction);
   if(q.type==='finite-bank-v1') {
@@ -322,9 +329,9 @@ export function renderQuestion(q,host,api={changed(){}}) {
   }
   if(/^binary-encode-(5|8)-v1$/.test(q.type)) {
     section(host,'任務',`把燈點亮，拼出 ${d.target}。亮＝1、暗＝0；最右邊代表 1，往左每顆是右邊的兩倍。`);
-    const values=Array(d.width).fill(0),board=node('div');board.className='board';board.setAttribute('aria-label','燈牌');
-    values.forEach((_,k)=>{const b=node('button',d.width===5?String(2**(d.width-k-1)):'○');b.type='button';b.className='pk';b.dataset.bit=k;b.setAttribute('aria-label',`第 ${k+1} 顆燈`);b.setAttribute('aria-pressed','false');
-      b.onclick=()=>{values[k]^=1;b.setAttribute('aria-pressed',String(!!values[k]));b.textContent=values[k]?'●':'○';api.changed();};board.append(b);});host.append(board);
+    const values=Array(d.width).fill(0),board=node('div');board.className='board';board.setAttribute('role','group');board.setAttribute('aria-label','燈牌');
+    values.forEach((_,k)=>{const weight=d.width===5?' '+2**(d.width-k-1):'',b=node('button','○'+weight);b.type='button';b.className='pk';b.dataset.bit=k;b.setAttribute('aria-label',`第 ${k+1} 顆燈${weight?'，代表'+weight:''}`);b.setAttribute('aria-pressed','false');
+      b.onclick=()=>{values[k]^=1;b.setAttribute('aria-pressed',String(!!values[k]));b.textContent=(values[k]?'●':'○')+weight;api.changed();};board.append(b);});host.append(board);
     return {get:()=>[...values],ready:()=>true};
   }
   if(q.type==='binary-decode-6-v1') {
@@ -348,6 +355,46 @@ export function renderQuestion(q,host,api={changed(){}}) {
       ['duration','預計錄影時間',[d.minutes-15,d.minutes,d.minutes+15].map(n=>[n,`${n} 分鐘`])],['need','整場需要幾 MB'],['max','此畫質最多可錄幾分鐘']],api.changed);
   }
   throw Object.assign(Error('unsupported-question'),{code:'renderer-pending'});
+}
+// 原理觀察只呈現公開題面或學生正在操作的值，不保存、判分或推導正式解答。
+function principleView(q,host,get) {
+  const d=q.data,box=node('section');box.className='panel principle-view';
+  const title=node('h3','電腦裡發生的'),detail=node('p');box.append(title,detail);
+  let update;
+  if(/^binary-(?:encode|decode)-/.test(q.type)) {
+    update=()=>{const values=q.type.startsWith('binary-encode')?get():d.bits;
+      detail.textContent='亮＝1、暗＝0：'+values.join('')+'。一顆燈就是一個位元。';
+      if(q.type==='binary-encode-5-v1')detail.textContent+=' 目前亮燈代表：'+(values.map((v,k)=>v?String(2**(values.length-k-1)):null).filter(Boolean).join(' + ')||'0');
+      detail.textContent+='；最右邊代表 1，往左每顆是右邊的 2 倍。';};
+  } else if(q.type==='minimum-bits-v1') {
+    update=()=>{detail.textContent='1 顆 → 0～1；2 顆 → 0～3；3 顆 → 0～7。每多一顆，能表示的數量加倍。';};
+  } else if(q.type==='capacity-conversion-v1') {
+    update=()=>{detail.textContent='8 位元＝1 位元組；1 KiB＝1024 位元組。記憶卡標示：1 KB＝1000 位元組；1 MB＝1000 KB；1 GB＝1000 MB。';};
+  } else if(d.mode?.startsWith('ascii-')) {
+    update=()=>{const values=d.mode==='ascii-decode'?d.codes:get();
+      detail.textContent=(values.length?values.map(n=>n+' → '+(n<=255?n.toString(2).padStart(8,'0'):'超過 1 個位元組')).join('；'):'尚未填入編碼')+'。8 個位元可以存一個 ASCII 英文字。';};
+  } else if(d.mode==='knn'&&d.k===3) {
+    title.textContent='最近的 3 個';box.hidden=true;
+    update=()=>{box.hidden=get()===null;if(box.hidden){detail.textContent='';return;}
+      const distance=p=>(p[0]-d.query[0])**2+(p[1]-d.query[1])**2;
+      detail.textContent=[...d.points].sort((a,b)=>distance(a)-distance(b)).slice(0,3).map(p=>`${d.options[p[2]]}（${p[0]}, ${p[1]}）`).join('、');};
+  } else if(d.mode==='route') {
+    update=()=>{const path=get(),types={sea:'海纜',land:'陸上光纖',mw:'微波',sat:'衛星'};
+      detail.textContent=path.slice(1).map((b,k)=>{const a=path[k],edge=d.edges.find(e=>e[0]===a&&e[1]===b||e[0]===b&&e[1]===a);
+        return a+' → '+b+'：'+(edge?types[edge[2]]:'沒有直接線路');}).join('；')||'先選一段路線，觀察訊息經過的傳輸媒介。';};
+  } else if(['網址的真名','名字換門牌'].includes(d.heading)) {
+    update=()=>{const urls=[d.prompt,...(d.rows||[])].filter(v=>typeof v==='string').flatMap(v=>v.match(/https?:\/\/[^\s「」]+/g)||[]);
+      detail.textContent=urls.map(value=>{try{const url=new URL(value);return value+' → 主機名稱：'+url.hostname+'；路徑：'+url.pathname;}catch{return value;}}).join('；')||'主機名稱在通訊協定之後、第一個斜線之前；DNS 要查完全相同的主機名稱。';};
+  } else if(d.mode==='order'&&d.heading==='把封包組回來') {
+    update=()=>{detail.textContent=get().map(k=>k===null?'□':d.cards[k]).join('');};
+  }
+  if(!update)return ()=>{};
+  host.append(box);update();return update;
+}
+export function renderQuestion(q,host,api={changed(){}}) {
+  let update=()=>{};
+  const handle=renderQuestionControls(q,host,{...api,changed(){update();api.changed();}});
+  update=principleView(q,host,handle.get);highlightChangedNumbers(host,q);return handle;
 }
 export function activityConfig(cfg) {
   let entry=MANAGED_ACTIVITIES.find(a=>a.activity===cfg.week&&cfg.course==='115-g9');

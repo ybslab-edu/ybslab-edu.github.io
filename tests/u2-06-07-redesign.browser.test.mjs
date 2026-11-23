@@ -27,7 +27,7 @@ async function pageFor(width,dir){
  });
  await page.goto(base+'/115-g9/'+dir+'/');await page.waitForSelector('#stage .quest-answers');return page;
 }
-for(const width of [360,560,1280])test(`兩單元四關 ${width}px：成果、空答、錯答修正、兩組、備用與鍵盤焦點`,async()=>{
+for(const width of [360,560,1280])test(`兩單元四關 ${width}px：成果、空答、錯答修正、兩組、素材與鍵盤焦點`,async()=>{
  for(const dir of ['u2-06','u2-07']){
   const page=await pageFor(width,dir),errors=[];page.on('pageerror',e=>errors.push(e.message));
   try{
@@ -35,9 +35,17 @@ for(const width of [360,560,1280])test(`兩單元四關 ${width}px：成果、�
     await page.evaluate(i=>APP.load(i),r);
     assert.equal(await page.locator('#b-send').isDisabled(),true);
     if(dir==='u2-07'){assert.match(await page.locator('.quest-note').textContent(),/今天必做第 1、2 關/);assert.match(await page.locator('#says').textContent(),/你/)}
-    await page.locator('.quest-fallback summary').click();await page.locator('[data-fallback="use"]').click();
-    assert.equal(await page.locator('[data-fallback="material"]').isVisible(),true);
-    assert.match(await page.locator('[data-fallback="log"]').textContent(),/未實際操作/);
+    if(dir==='u2-06'){
+     await page.locator('.quest-fallback summary').click();await page.locator('[data-fallback="use"]').click();
+     assert.equal(await page.locator('[data-fallback="material"]').isVisible(),true);
+     assert.match(await page.locator('[data-fallback="log"]').textContent(),/未實際操作/);
+    }else{
+     assert.equal(await page.locator('.quest-attach').isVisible(),true);
+     assert.match(await page.locator('.quest-attach').textContent(),/本組委託附件/);
+     assert.equal(await page.locator('[data-fallback],details').count(),0);
+     assert.doesNotMatch(await page.locator('#stage').textContent(),/備用素材|未實際操作/);
+     assert.equal(await page.evaluate(()=>localStorage.getItem('ybs:u2-07:fallback:v1')),null);
+    }
     assert.equal(await page.locator('#b-send').isDisabled(),true);
     await page.locator('#tb-ans').click();await page.locator('[data-answer="0"]').fill('999');await page.locator('#b-send').click();
     assert.match(await page.locator('#verdict').textContent(),/還不對/);

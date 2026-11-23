@@ -51,7 +51,10 @@ test('志工四關 32 組授權題面只渲染觀察、附件與作答欄，保�
     if(round==='0'){
       const chart=host.querySelector('section[aria-label="職務第一志願比較（人）"]');assert.ok(chart);
       assert.equal(chart.childNodes.length,7);assert.equal(host.querySelectorAll('button').length,0);
-    }else assert.ok(host.textContent.includes('備用素材：本組委託附件'));
+    }else assert.ok(host.textContent.includes('本組委託附件'));
+    assert.equal(host.querySelectorAll('button').length,0);
+    assert.equal(host.querySelector('[data-fallback]'),null);
+    assert.doesNotMatch(host.textContent,/備用素材|未實際操作/);
     count++;
   }
   assert.equal(count,32);

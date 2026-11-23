@@ -13,9 +13,7 @@
 .fullrev-activity .quest-answers{display:grid;gap:calc(var(--u)*2);margin-top:calc(var(--u)*2)}
 .fullrev-activity .quest-answers label{display:grid;gap:var(--u);min-width:0}
 .fullrev-activity .quest-answers input,.fullrev-activity .quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
-.fullrev-activity .quest-fallback{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
-.fullrev-activity .quest-fallback summary{cursor:pointer;padding:var(--u);text-decoration:underline}
-.fullrev-activity .quest-log{white-space:pre-line;overflow-wrap:anywhere}
+.fullrev-activity .quest-attach{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
 .fullrev-activity .ybs-login{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left}
 .fullrev-activity .ybs-login label{font-size:15px;font-weight:700}
 .fullrev-activity .ybs-login input:not([type="button"]){display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:calc(var(--u)*1.25) calc(var(--u)*1.5);border-radius:0;border:2px solid var(--edge);background:var(--panel-hi);color:var(--text);box-shadow:none}

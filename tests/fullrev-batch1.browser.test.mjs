@@ -116,12 +116,13 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       if(outcome&&a.activity!==7){
         assert.match(await page.locator('body').innerText(),/抽查|抽看/);
         const requests=current.requests.length,session=structuredClone(q);
-        // 開始後的背景進度查詢可能尚未結束；只允許原有唯讀請求，備用操作不得送出答案或變更 session。
-        await page.getByText('備用素材：設備或 Google 權限受阻時使用',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
-        assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[],'備用紀錄不可上傳或採計');
-        assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session,'備用紀錄不可變更作答或累計答對');
+        assert.equal(await page.locator('[data-fallback]').count(),0);
+        assert.doesNotMatch(await page.locator('#stage').innerText(),/備用素材|未實際操作|本機備用紀錄/);
+        if(q.questions[0].data.backup){await page.getByRole('heading',{name:'本組委託附件',exact:true}).waitFor();assert.equal(await page.locator('.quest-attach').evaluate(el=>el.closest('details')),null);}
+        assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[]);
+        assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session);
         assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
-        assert.ok(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.endsWith(':fallback:v1')&&localStorage.getItem(k).includes('未實際操作'))));
+        assert.equal(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.endsWith(':fallback:v1'))),false);
         for(const file of q.questions[0].data.assets||[]){
           const link=page.locator(`[data-material="${file[0]}"]`);await link.waitFor();
           const event=page.waitForEvent('download');await link.click();const download=await event,stream=await download.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);
@@ -142,11 +143,14 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
           assert.equal(await page.getByRole('region',{name:'職務第一志願比較（人）'}).count(),1);
           assert.equal(await page.locator('[data-fallback="use"]').count(),0);
         }else{
-          const requests=current.requests.length,session=structuredClone(q);await page.getByText('備用素材：本組委託附件',{exact:true}).click();await page.locator('[data-fallback="use"]').click();
-          assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[],'委託附件紀錄不可上傳或採計');
-          assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session,'委託附件紀錄不可變更作答或累計答對');
+          const requests=current.requests.length,session=structuredClone(q);
+          await page.getByRole('heading',{name:'本組委託附件',exact:true}).waitFor();
+          assert.equal(await page.locator('[data-fallback]').count(),0);
+          assert.equal(await page.locator('.quest-attach').evaluate(el=>el.closest('details')),null);
+          assert.deepEqual(current.requests.slice(requests).filter(r=>!['controls','progress'].includes(r.op)),[]);
+          assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session);
           assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
-          assert.ok(await page.evaluate(()=>localStorage.getItem('ybs:u2-05:fallback:v1')?.includes('未實際操作')));
+          assert.equal(await page.evaluate(()=>localStorage.getItem('ybs:u2-05:fallback:v1')),null);
         }
       }
       let wrong=structuredClone(answer);

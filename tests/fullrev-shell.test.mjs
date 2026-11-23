@@ -147,15 +147,17 @@ test('試算表活動使用同一外框與原 renderer，不帶問卷專用文�
  assert.equal(h.$('xp-total').textContent,'15 XP');
 });
 
-test('問卷、試算表與媒體的備用紀錄只存本機，不送出或採計',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('活動 7、8、9 附件直接顯示，不建立備用 UI 或本機紀錄',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const activityId of [7,8,9]){
-  const h=await setup(t,{activityId,...(activityId===7?{initialRound:1}:{})}),calls=h.calls.length;
-  const session=structuredClone(h.db.docs.get(h.paths.head('synthetic-a')).activeSession);
-  h.button('使用備用素材並記錄').onclick();await tick();
-  assert.equal(h.calls.length,calls,'備用操作不得呼叫 Worker');
-  assert.deepEqual(h.db.docs.get(h.paths.head('synthetic-a')).activeSession,session);
+  const h=await setup(t,{activityId,...(activityId===7?{initialRound:1}:{})});
+  const d=h.calls.find(c=>c.op==='start').response.question.data;
+  const attachment=h.$('stage').querySelector('.quest-attach');
+  assert.equal(!!attachment,!!d.backup);
+  if(d.backup){assert.equal(attachment.firstChild.textContent,'本組委託附件');for(const row of d.backup)for(const value of row)assert.ok(attachment.textContent.includes(String(value)));}
+  assert.equal(h.$('stage').querySelector('[data-fallback]'),null);
+  assert.doesNotMatch(h.$('stage').textContent,/備用素材|未實際操作|本機備用紀錄/);
+  assert.equal(localStorage.getItem(`ybs:u2-0${activityId-2}:fallback:v1`),null);
   assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
-  assert.match(localStorage.getItem(`ybs:u2-0${activityId-2}:fallback:v1`),/未實際操作/);
  }
 });
 
@@ -252,7 +254,7 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
  for(const activityId of [7,8,9]){
   const h=await setup(t,{activityId}),note=h.$('stage').querySelector('.quest-note');
   const page=await readFile(new URL(`../115-g9/u2-0${activityId-2}/index.html`,import.meta.url),'utf8');
-  const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1];
+  const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1].replace('設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。','本組委託附件就在任務下方。');
   assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄摺疊及課堂安排');
   if(activityId===7)assert.doesNotMatch(note.textContent,/虛構|示意資料|後援會|2-13|前測|半成品|巡堂|待確認/);
   else assert.ok(!note.querySelector('details').open,'既有紀錄預設摺疊');
@@ -264,10 +266,10 @@ test('公開說明逐段與舊 qCommon 相同，摺疊預設關閉，成果排�
   const task=d.guide.match(/任務\s+(\d+-\d+)/)[1],work=h.$('stage').querySelector('.quest-work');
   assert.equal(work.firstChild.textContent,(activityId===7?'委託任務 ':'示意任務 ')+task);
   const answers=work.querySelector('.quest-answers');assert.equal(answers.querySelectorAll('label').length,d.questions.length);
-  const children=work.childNodes.filter(n=>n.nodeType===1),fallback=work.querySelector('.quest-fallback');
+  const children=work.childNodes.filter(n=>n.nodeType===1),attachment=work.querySelector('.quest-attach');
   assert.equal(children.at(-1),answers);
-  if(activityId===7)assert.equal(fallback,null,'志工第 1 關只讀表，不顯示備用素材');
-  else{assert.ok(fallback);assert.equal(fallback.hidden,false);assert.equal(answers.previousElementSibling,fallback);}
+  assert.equal(!!attachment,!!h.calls.find(c=>c.op==='start').response.question.data.backup);
+  if(attachment){assert.equal(attachment.firstChild.textContent,'本組委託附件');assert.equal(answers.previousElementSibling,attachment);}
   if(activityId===7){
    const stageNodes=h.$('stage').childNodes;
    assert.deepEqual(stageNodes.slice(stageNodes.indexOf(note)+1,stageNodes.indexOf(work)).filter(n=>n.tagName!=='STYLE').map(n=>n.textContent),[],'說明卡與任務卡之間不得留下段落或遊離文字');

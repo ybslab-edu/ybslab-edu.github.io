@@ -5,9 +5,9 @@ const text=value=>Array.isArray(value)?value.join(''):value||'';
 const para=(host,value)=>{if(value){const p=node('p',text(value));host.append(p);return p;}};
 // 舊活動公開說明的版面副本；不含題庫、答案或判題。
 const outcomeNotes={
- "7": "<div class=\"quest-note\"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；展開「備用素材」即可查看本組委託附件。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
- "8": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原第 1～4 關依索引對應目前第 1～4 關；舊紀錄保留，但不代表已完成新版備份、條件式格式、去重與圖表實作。</p></details> <p><strong>你先依老師安排觀看 2-16、2-17、2-18，再完成四關。</strong></p></div>",
- "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。設備或權限受阻時，展開「備用素材」當場作答並記錄「未實際操作」。紀錄只存在此瀏覽器，不會上傳，也不會自動完成其他關卡。</p><details><summary>既有紀錄如何對應</summary><p>原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；新版第 1 關是轉換，第 2 關合併燈牌，第 3、4 關加入素材實作，舊紀錄不代表做過新增操作。</p></details> <p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助；未完成操作請如實告知老師，不為趕進度勾成完成。文字轉語音由影片與配對涵蓋，不另做酷英實作。</strong></p></div>"
+ "7": "<div class=\"quest-note\"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；本組委託附件就在任務下方。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
+ "8": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。本組委託附件就在任務下方。</p><details><summary>既有紀錄如何對應</summary><p>原第 1～4 關依索引對應目前第 1～4 關；舊紀錄保留，但不代表已完成新版備份、條件式格式、去重與圖表實作。</p></details> <p><strong>你先依老師安排觀看 2-16、2-17、2-18，再完成四關。</strong></p></div>",
+ "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。同一份個人檔案分開保留第一組、第二組及任務版本，不必每次重建。</p><p>成果作答無法證明實際操作，請保留檔案讓老師巡堂抽查。本組委託附件就在任務下方。</p><details><summary>既有紀錄如何對應</summary><p>原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；新版第 1 關是轉換，第 2 關合併燈牌，第 3、4 關加入素材實作，舊紀錄不代表做過新增操作。</p></details> <p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助；未完成操作請如實告知老師，不為趕進度勾成完成。文字轉語音由影片與配對涵蓋，不另做酷英實作。</strong></p></div>"
 };
 export async function mountStudentLogin({client,host,onLogin,explain}){
  const form=node('form');form.className='ybs-login';form.autocomplete='off';
@@ -174,7 +174,6 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    }
    if(el.tagName==='LABEL'){answers.append(el);continue;}
    if(el===chart&&chartLabel)work.append(chartLabel);
-   if(el.tagName==='DETAILS'&&el.querySelector('[data-fallback]')){el.className='quest-fallback';el.hidden=summary;}
    work.append(el);
   }
   work.append(answers);stage.append(work);

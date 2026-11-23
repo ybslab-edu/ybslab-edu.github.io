@@ -21,7 +21,7 @@ function materials(host,d){
       if(!host.contains(box))return;const url=URL.createObjectURL(blob);active.push(url);status.remove();
       const a=node('a',file.name.endsWith('.pdf')?'下載本組公告 PDF（示意）':file.name.endsWith('.zip')?'下載本組種子素材包（示意）':file.name.endsWith('.png')?'原圖（查看完整指定區域）':'有損壓縮圖（同一指定區域）');a.href=url;a.download=file.name;a.dataset.material=file.name;box.append(a);
       if(/\.(png|jpg)$/.test(file.name)){const img=node('img');img.src=url;img.alt=a.textContent;img.style.cssText='display:block;max-width:100%;height:auto';img.dataset.materialImage=file.name;box.append(img);}
-    }).catch(()=>{status.textContent='素材尚未取得，請重新整理或使用備用素材，並告知老師未實際操作。';});
+    }).catch(()=>{status.textContent='素材尚未取得，請重新整理；仍無法取得時請告知老師。';});
   }
 }
 export function renderOutcome(host,d,changed){
@@ -56,21 +56,10 @@ export function renderOutcome(host,d,changed){
   }
   if(d.summaryRows)table(host,d.summaryHeaders,d.summaryRows);
   materials(host,d);
-  if(!volunteer||d.backup){
-  const fallback=node('details'),use=node('button','使用備用素材並記錄'),log=node('p');use.type='button';use.dataset.fallback='use';log.setAttribute('role','status');
-  fallback.append(node('summary',volunteer?'備用素材：本組委託附件':'備用素材：設備或 Google 權限受阻時使用'));
-  paragraph(fallback,'可讀本題示意素材當場作答；請告知老師未實際操作。紀錄只存此瀏覽器，屬於本機備用紀錄，不是個人成績，不會上傳，也不會自動過關或補過其他關卡。');fallback.append(use,log);host.append(fallback);
-  const key='ybs:u2-'+(d.mode.startsWith('form-')?'05':d.mode.startsWith('sheet-')?'06':'07')+':fallback:v1';
-  const read=()=>{try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a.filter(v=>typeof v==='string').slice(-64):[];}catch{return [];}};
-  const show=()=>{log.textContent='本機備用紀錄（非個人成績）：\n'+(read().join('\n')||'尚未使用');};show();
-  use.onclick=()=>{
-    const label=(Array.isArray(d.guide)?d.guide.join(''):d.guide)?.match(/任務\s+(\d+-\d+)/)?.[1]||d.heading,entry=label+'：未實際操作',records=read();
-    if(!records.some(s=>s.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
-    try{localStorage.setItem(key,JSON.stringify(records.slice(-64)));show();}catch{log.textContent=entry+'；無法保存，請讓老師記錄。';}
-    if(d.backup)table(fallback,d.backupHeaders||['備用素材（示意）','觀察'],d.backup);
-    else paragraph(fallback,'請使用上方示意表格、任務結構或燈牌，在紙上或本機編輯器保留兩組成果，依規則逐項核對。');
-    use.disabled=true;
-  };
+  if(d.backup){
+    const attachment=node('div');attachment.className='quest-attach';
+    attachment.append(node('h4','本組委託附件'));
+    table(attachment,d.backupHeaders||['附件（示意）','觀察'],d.backup);host.append(attachment);
   }
   const inputs=d.questions.map(([text,...options],k)=>{
     const label=node('label',text),input=node(options.length?'select':'input');label.style.cssText='display:block;margin:12px 0;min-width:0';input.style.cssText='display:block;width:100%;max-width:100%;box-sizing:border-box;min-height:44px';

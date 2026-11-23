@@ -13,10 +13,10 @@ before(async()=>{
  if(path==='/assets/shell.css')data=Buffer.from(data.toString().replace(/^@import.*$/gm,''));
  res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.pdf':'application/pdf','.zip':'application/zip'})[ext]||'application/octet-stream');res.end(data);
  }catch{res.statusCode=404;res.end()}});
- await new Promise(r=>server.listen(0,'127.0.0.1',r));base='http://127.0.0.1:'+server.address().port;
+ await new Promise((done,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',done)});base='http://127.0.0.1:'+server.address().port;
  browser=await chromium.launch({headless:true});
 });
-after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));assert.deepEqual(outside,[],'無對外請求')});
+after(async()=>{await browser?.close();if(server?.listening)await new Promise(r=>server.close(r));assert.deepEqual(outside,[],'無對外請求')});
 async function pageFor(width,dir){
  const page=await browser.newPage({viewport:{width,height:950},serviceWorkers:'block'});
  await page.route('**/*',r=>{
@@ -35,11 +35,15 @@ for(const width of [360,560,1280])test(`兩單元四關 ${width}px：成果、�
     await page.evaluate(i=>APP.load(i),r);
     assert.equal(await page.locator('#b-send').isDisabled(),true);
     if(dir==='u2-07'){assert.match(await page.locator('.quest-note').textContent(),/今天必做第 1、2 關/);assert.match(await page.locator('#says').textContent(),/你/)}
+    if(dir==='u2-07'){
     await page.locator('.quest-fallback summary').click();await page.locator('[data-fallback="use"]').click();
     assert.equal(await page.locator('[data-fallback="material"]').isVisible(),true);
     assert.match(await page.locator('[data-fallback="log"]').textContent(),/未實際操作/);
     assert.equal(await page.locator('#b-send').isDisabled(),true);
-    await page.locator('#tb-ans').click();await page.locator('[data-answer="0"]').fill('999');await page.locator('#b-send').click();
+    }else{assert.equal(await page.locator('.quest-attach').isVisible(),true);assert.equal(await page.locator('[data-fallback]').count(),0)}
+    await page.locator('#tb-ans').click();
+    if(dir==='u2-06'){const wrong=await page.locator('[data-answer="0"] option').last().getAttribute('value');await page.locator('[data-answer="0"]').selectOption(wrong)}else await page.locator('[data-answer="0"]').fill('999');
+    await page.locator('#b-send').click();
     assert.match(await page.locator('#verdict').textContent(),/還不對/);
     await page.locator('#tb-ans').click();await page.locator('#b-send').click();
     await page.evaluate(()=>document.getElementById('b-send').onclick());assert.match(await page.locator('#streak').textContent(),/1\/2/);

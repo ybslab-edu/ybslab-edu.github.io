@@ -61,12 +61,9 @@ for(const dir of ['u2-06','u2-07']){
    const key=h.run('JSON.stringify(APP.inst)');h.run('document.getElementById("b-send").onclick()');assert.match(h.get('streak').textContent,/0\/2/);
    h.run('APP.handle.fill();APP.handle.get=()=>["明顯錯答"];document.getElementById("b-send").onclick()');assert.equal(h.run('JSON.stringify(APP.inst)'),key);
    h.run(`APP.load(${r})`);
-   if(dir==='u2-07'){
-   h.body.querySelector('[data-fallback="use"]').click();h.body.querySelector('[data-fallback="use"]').click();
-   assert.equal(h.run('qReadLog().filter(x=>x.startsWith(APP.inst.t+"：")).length'),1);
-   assert.match(h.body.querySelector('[data-fallback="log"]').textContent,/未實際操作/);
+   assert.match(h.body.querySelector('.quest-attach').textContent,/本組委託附件/);
+   assert.equal(h.body.querySelector('[data-fallback="use"]'),null);
    assert.equal(h.get('b-send').disabled,true);
-   }else{assert.match(h.body.querySelector('.quest-attach').textContent,/本組委託附件/);assert.equal(h.body.querySelector('[data-fallback="use"]'),null)}
    h.run('APP.handle.fill();document.getElementById("b-send").onclick();document.getElementById("b-send").onclick()');assert.match(h.get('streak').textContent,/1\/2/);
    h.run('globalThis.originalGen=ROUNDS[APP.ri].gen;globalThis.same=APP.inst;ROUNDS[APP.ri].gen=()=>({...same,t:same.t+"-另一標籤"})');
    h.get('b-next-group').click();h.run('APP.handle.fill();document.getElementById("b-send").onclick()');assert.match(h.get('streak').textContent,/1\/2/);
@@ -74,6 +71,23 @@ for(const dir of ['u2-06','u2-07']){
   }
  });
 }
+test('u2-07 四關附件直接顯示，公告與解壓清單完整，無工具操作或本機紀錄',()=>{
+ const html=read('115-g9/u2-07/index.html'),h=setup('u2-07');
+ assert.doesNotMatch(html,/備用素材|未實際操作|localStorage|qReadLog|data-fallback|<details|download|Google 雲端硬碟|工具 → 語音輸入/);
+ for(let r=0;r<4;r++)for(let n=0;n<(r===2?4:8);n++){
+  const count=r===2?4:8;
+  h.run(`globalThis.inst=ROUNDS[${r}].gen(()=>${n}/${count});globalThis.el=new (document.body.constructor)('div');ROUNDS[${r}].view(inst,el,{changed(){}})`);
+  const attachment=h.run('el').querySelector('.quest-attach'),i=plain(h.run('inst'));
+  assert.ok(attachment);assert.equal(attachment.hidden,false);assert.match(attachment.textContent,/本組委託附件/);
+  if(r===0)for(const line of [`第一場名額 ${i.a}`,`第二場名額 ${i.b}`,`指定語音：第二場增設體驗區 ${i.voice} 個名額`,`模擬辨識：第二場增設體驗區 ${i.voice} 個明額`])assert.ok(attachment.textContent.includes(line));
+  if(r===1)assert.match(attachment.textContent,/24/);
+  if(r===2)assert.ok(attachment.textContent.includes(i.kept+' 組，每組兩條細線'));
+  if(r===3){
+   assert.equal(attachment.querySelectorAll('tbody tr').length,i.files);
+   for(const line of ['notice.txt','公告名額 '+i.capacity,'mark.txt',i.code,'badge.png','透明背景圖像',...(i.n%2?['readme.txt','示意使用說明']:[])])assert.ok(attachment.textContent.includes(line));
+  }
+ }
+});
 test('u2-07 第 3 關：相同圖像換用途不加計，必須換圖像才能完成兩組',()=>{
  for(const n of [0,1,2,3]){
   const h=setup('u2-07');

@@ -84,9 +84,11 @@ const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:tru
 test('送出停用時具體顯示缺格、格式與下一組，點擊及鍵盤也提示，漏 input 可恢復',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t),send=h.$('b-send'),wrapper=h.$('send-control'),hint=h.$('send-hint');
  assert.equal(send.disabled,true);assert.match(hint.textContent,/還有 7 格/);
+ let preventedBlur=false;wrapper.onpointerdown({preventDefault(){preventedBlur=true;}});assert.equal(preventedBlur,true);
  wrapper.onclick({target:wrapper});assert.match(hint.textContent,/還不能送出.*7 格/);
  let prevented=false;wrapper.onkeydown({target:wrapper,key:'Enter',preventDefault(){prevented=true;}});assert.equal(prevented,true);
  const values=h.answer();h.fill(values);assert.equal(send.disabled,false);assert.equal(hint.textContent,'');
+ preventedBlur=false;wrapper.onpointerdown({preventDefault(){preventedBlur=true;}});assert.equal(preventedBlur,false);
  const input=h.$('stage').querySelectorAll('input')[0];input.value='1人';input.oninput();
  assert.equal(send.disabled,true);assert.match(hint.textContent,/第 3 格.*整數/);
  input.value='　０１　';h.$('stage').listeners.compositionend[0]();assert.equal(send.disabled,true);assert.match(hint.textContent,/整數/);
@@ -494,4 +496,27 @@ test('第三層隔離示範獨立於原題，返回保留輸入，切關及登�
  assert.equal(h.$('stage').dataset.round,1);await h.client.logout();
  assert.equal(h.$('hint-content').textContent,'');assert.equal(h.$('stage').textContent,'');
  h.events.pagehide();
+});
+
+test('未送出部分作答跨重整同題回填並提示，換人後清空輸入',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{initialRound:2});const input=h.$('stage').querySelectorAll('input')[0],select=h.$('stage').querySelectorAll('select')[0];
+ input.value='未完成的合成作答';input.oninput();select.value=[...select.querySelectorAll('option')].find(o=>o.value)?.value||'';select.onchange();
+ const sid=h.calls.find(c=>c.op==='start').response.sid;
+ await h.reload();await h.$('g-isme').onclick();await h.retry();await until(()=>!!h.$('stage').querySelector('input'));
+ assert.equal(h.calls.filter(c=>c.op==='start').length,1);assert.equal(h.calls.filter(c=>c.op==='resume').at(-1).response.sid,sid);
+ assert.equal(h.$('stage').querySelectorAll('input')[0].value,'未完成的合成作答');assert.equal(h.$('stage').querySelectorAll('select')[0].value,select.value);assert.equal(h.$('draft-notice').textContent,'已恢復上次未送出的作答');
+ await h.$('b-swap').onclick();assert.equal(h.$('stage').textContent,'');assert.equal(h.$('draft-notice').textContent,'');
+});
+test('停用送出鈕標紅所有缺格，鍵盤按送出聚焦 DOM 第一格且修正即清除',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t),stage=h.$('stage'),wrapper=h.$('send-control');const first=stage.querySelector('select');let focused=0,scrolled=0;first.focus=()=>focused++;first.scrollIntoView=()=>scrolled++;
+ wrapper.onclick({target:wrapper});assert.equal(stage.querySelectorAll('.answer-error').length,7);assert.equal(focused,1);assert.equal(scrolled,1);assert.equal(first.getAttribute('aria-invalid'),'true');
+ first.value=h.answer()[Number(first.dataset.answerField)];first.onchange();assert.equal(first.getAttribute('aria-invalid'),'false');assert.equal(stage.querySelectorAll('.answer-error').length,6);
+ const next=stage.querySelectorAll('select')[1];next.focus=()=>focused+=10;wrapper.onkeydown({target:wrapper,key:'Enter',preventDefault(){}});assert.equal(focused,11);h.events.pagehide();
+});
+
+test('真實 Worker 重置後拒絕舊 session，未送出草稿不回填',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t);const input=h.$('stage').querySelector('input');input.value='重置前合成草稿';input.oninput();
+ const gate=h.db.docs.get(h.paths.roster);gate.members['synthetic-a'].roundEpochs['7:0']++;gate.classGateVersion++;
+ await h.reload();await h.$('g-isme').onclick();await h.retry();assert.ok(h.calls.some(c=>c.op==='resume'&&c.status===409),'Worker 應拒絕重置前 session');
+ assert.equal(h.$('stage').textContent,'');assert.equal(h.$('draft-notice').textContent,'');assert.equal(h.client.loadInput(7,0),undefined);assert.equal(h.calls.some(c=>c.op==='answer'),false);h.events.pagehide();
 });

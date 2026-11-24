@@ -269,7 +269,7 @@ test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回�
 
 test('送出停用回饋：觸控、鍵盤、漏 input、格式與額度失敗恢復', {timeout:30000},async t=>{
   if(!workerSource){t.skip('須指定本機 YBS_WORKER_SOURCE');return;}
-  await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+  await reset();const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true}),page=await context.newPage();
   t.after(()=>context.close());await page.clock.setFixedTime(allActivitiesOpenAt);page.setDefaultTimeout(6000);
   await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
   await page.goto(base+'/115-g9/u2-05/index.html');await page.getByLabel('帳號',{exact:true}).fill('9990001');
@@ -277,7 +277,7 @@ test('送出停用回饋：觸控、鍵盤、漏 input、格式與額度失敗�
   await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
   const send=page.locator('#b-send'),control=page.locator('#send-control'),hint=page.locator('#send-hint');
   assert.equal(await send.isDisabled(),true);assert.match(await hint.innerText(),/還有 7 格/);
-  await control.click();assert.match(await hint.innerText(),/還不能送出.*7 格/);
+  await control.tap();assert.match(await hint.innerText(),/還不能送出.*7 格/);
   await control.focus();await page.keyboard.press('Enter');assert.match(await hint.innerText(),/還不能送出/);
   assert.equal(current.requests.filter(r=>r.op==='answer').length,0);
   const answer=modules.privateAnswer(current.db);await fill(page,'finite-bank-v1',answer);
@@ -289,7 +289,11 @@ test('送出停用回饋：觸控、鍵盤、漏 input、格式與額度失敗�
   await input.fill('');const index=Number(await input.getAttribute('data-answer-field'));
   await input.evaluate((el,value)=>{el.value=value;},String(answer[index]));
   await page.route('**/worker/answer',route=>route.fulfill({status:503,contentType:'application/json',headers:{'retry-after':'60'},body:JSON.stringify({error:'storage_quota'})}));
-  await control.click();await page.waitForFunction(()=>document.getElementById('send-hint').textContent.includes('儲存額度不足'));
+  await control.scrollIntoViewIfNeeded();const box=await control.boundingBox();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+  assert.equal(await input.evaluate(el=>el===document.activeElement),true,'停用送出按下時保留焦點，避免失焦移除紅框提示造成按鈕位移');
+  assert.equal(await page.locator('.answer-error').count(),1);
+  await page.mouse.up();await page.waitForFunction(()=>document.getElementById('send-hint').textContent.includes('儲存額度不足'));
   assert.equal(await send.isDisabled(),true);assert.equal(await page.locator('#quota-old').isVisible(),true);
   await page.unroute('**/worker/answer');await page.evaluate(async()=>{app.advance(60001);await app.client.retry();});
   await page.locator('#b-next-group').waitFor();assert.match(await hint.innerText(),/下一組/);

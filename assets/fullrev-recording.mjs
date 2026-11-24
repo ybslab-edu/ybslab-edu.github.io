@@ -1,3 +1,4 @@
+import {inputState} from './fullrev-answer-ui.mjs';
 // 通用取樣／量化示意；只顯示目前選擇的觀察，不判題、不產生完成。
 const SR=[8,16,32,64], QL=[4,8,16,32], RES=[16,32,64,128], COLORS=[4,16,64], FPS=[4,8,12,24,30];
 const QUALITY=[{name:'基本',rate:100},{name:'清晰',rate:250},{name:'精細',rate:400}];
@@ -72,7 +73,9 @@ export function renderRecording(question,host,api){
   for(const e of controls)e.onchange=e.oninput=()=>{update();
     format.textContent=numbers.some(e=>e.value!==''&&integer(e.value)===null)?'請輸入 0～100000 的整數，不含小數點；已填內容會保留，可直接修改。':'';
     api.changed();};
-  return {get,ready:()=>controls.every(e=>e.value!=='')&&numbers.every(e=>integer(e.value)!==null)&&seen.size>=2,dispose,
+  const state=inputState(controls,(e)=>!e.value.trim()?e.tagName==='SELECT'?'請選一項':'請填數字':numbers.includes(e)&&integer(e.value)===null?'請填 0～100000 的整數':'');
+  return {...state,fields:()=>[...state.fields(),{target:notice,reason:seen.size<2?'請比較至少兩種不同設定':''}],
+    draft:()=>({values:state.draft(),seen:[...seen]}),restoreDraft(v){if(!v||!Array.isArray(v.seen)||v.seen.length>100||v.seen.some(s=>typeof s!=='string'||!/^\d+(?::\d+)?$/.test(s)))return false;if(!state.restoreDraft(v.values))return false;seen.clear();v.seen.forEach(s=>seen.add(s));update();return true;},get,ready:()=>controls.every(e=>e.value!=='')&&numbers.every(e=>integer(e.value)!==null)&&seen.size>=2,dispose,
     readyReason:()=>{const missing=controls.filter(e=>!e.value.trim()).length;
       return missing?`還有 ${missing} 格沒填或沒選。`:numbers.some(e=>integer(e.value)===null)?'請填 0～100000 的整數，不含小數點。':seen.size<2?'請先比較至少兩種不同設定。':'';}};
 }

@@ -8,7 +8,7 @@ import {checkConfig} from '../assets/fullrev-client.mjs';
 import {fullrevCsp} from './fullrev-csp.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 // 批次驗收與正式產物共用同一份公開模組清單。
-export const PUBLIC_ACTIVITY_ASSETS=Object.freeze(['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
+export const PUBLIC_ACTIVITY_ASSETS=Object.freeze(['fullrev-answer-ui.mjs','fullrev-work-store.mjs','fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
  'login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js']);
 // 僅解碼靜態字串，避免為每個欄位啟動 VM watchdog，在整套驗收並行時耗盡排程。
 function presentationText(literal){

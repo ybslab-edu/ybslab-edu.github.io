@@ -1,3 +1,4 @@
+import {indices} from './fullrev-answer-ui.mjs';
 // 通用取樣／量化介面：只處理授權後的像素，不含照片產生器、身分或過關門檻。
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 export function quantize(px,bits){
@@ -23,7 +24,7 @@ function photoShell(host,store,enabled){
 export function renderPhotos(host,d,api){
   if(d.mode!=='photo')return;
   let disposed=false,loaded=false,n=api.carry?.n||d.start[0],bits=api.carry?.d||d.start[1];
-  const values=api.carry?.answers?.map(a=>[...a])||d.photos.map(()=>d.ask.map(()=>null)),pixels=[],canvases=[];
+  const values=api.carry?.answers?.map(a=>[...a])||d.photos.map(()=>d.ask.map(()=>null)),pixels=[],canvases=[],answerRows=[];
   const settings=node('div'),sizeBox=node('section'),sizeLine=node('div'),size=node('strong'),cap=node('span'),photos=node('div'),store=node('section'),note=node('p','照片準備中…');
   settings.className='photo-knobs';sizeBox.className='panel photo-size';sizeLine.className='photo-size-line';size.className='photo-size-value';cap.className='small';photos.className='photo-grid';store.className='sec photo-store';note.className='small';
   sizeLine.append(node('span','每張照片的大小'),size,cap);sizeBox.append(sizeLine);
@@ -59,7 +60,7 @@ export function renderPhotos(host,d,api){
     const box=node('section'),frame=node('div'),label=node('span',`照片 ${i+1}`),canvas=node('canvas');box.className='photo-card';frame.className='photo-frame';label.className='photo-label';canvas.dataset.photo=String(i);canvas.setAttribute('aria-label',`照片 ${i+1}（數位化後）`);canvases.push(canvas);
     frame.append(canvas);if(originals[i])frame.append(originals[i]);frame.append(label);box.append(frame);
     d.ask.forEach((kind,j)=>{
-      const row=node('div'),ask=node('p',kind==='digit'?'背號是幾號？':kind==='count'?'有幾台遊覽車？':kind==='member'?'這是哪一位成員？':'應援色是哪一個？');row.className='picks';ask.className='photo-ask';box.append(ask,row);
+      const row=node('div'),ask=node('p',kind==='digit'?'背號是幾號？':kind==='count'?'有幾台遊覽車？':kind==='member'?'這是哪一位成員？':'應援色是哪一個？');row.className='picks';answerRows.push([row,i,j]);ask.className='photo-ask';box.append(ask,row);
       const choices=kind==='digit'||kind==='count'?Array.from({length:10},(_,k)=>String(k)):d.palette.map(p=>kind==='color'?p[2]:p[0]);
       choices.forEach((label,k)=>{
         const b=node('button',label);b.type='button';b.className='pk';b.dataset.photoIndex=i;b.dataset.photoField=j;b.dataset.choice=k;b.setAttribute('aria-pressed',String(values[i][j]===k));
@@ -94,7 +95,10 @@ export function renderPhotos(host,d,api){
     }}loaded=true;note.textContent='兩張照片的問題都回答後，再拍下來傳出去。';paint();api.changed();
   })().catch(()=>{if(!disposed)note.textContent='照片尚未取得，請重新讀取這一關。';});
   paint();
-  return {setOriginal(on){if(!api.demonstration||originals.length!==d.photos.length)return;originals.forEach(image=>image.hidden=!on);},get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),
+  return {draft:()=>({n,d:bits,answers:values.map(a=>[...a])}),restoreDraft(v){if(!v||!d.resolutions.includes(v.n)||!d.depths.includes(v.d)||!Array.isArray(v.answers)||v.answers.length!==values.length||v.answers.some(a=>!indices(a,d.ask.length,Math.max(10,d.palette?.length||0)))||v.answers.some(a=>a.some((k,j)=>k!==null&&k>=(['digit','count'].includes(d.ask[j])?10:d.palette.length))))return false;
+    n=v.n;bits=v.d;v.answers.forEach((a,i)=>values[i]=[...a]);answerRows.forEach(([row,i,j])=>row.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.choice)===values[i][j]))));
+    for(const [id,list,value] of [['photo-resolution',d.resolutions,n],['photo-depth',d.depths,bits]]){const input=settings.querySelector('#'+id);input.value=list.indexOf(value);input.oninput();}paint();return true;},
+    fields:()=>[{target:note,reason:loaded?'':'圖片尚未準備好，請稍候'},...answerRows.map(([target,i,j])=>({target,reason:values[i][j]===null?'請選一項':''}))],setOriginal(on){if(!api.demonstration||originals.length!==d.photos.length)return;originals.forEach(image=>image.hidden=!on);},get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),
     readyReason:()=>!loaded?'圖片尚未準備好，請稍候；太久請告訴老師。':values.flat().includes(null)?`還有 ${values.flat().filter(v=>v===null).length} 題沒選。`:'',
     dispose(){disposed=true;pixels.length=0;restoreShell();},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
 }

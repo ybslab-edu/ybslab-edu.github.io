@@ -1,3 +1,4 @@
+import {inputState} from './fullrev-answer-ui.mjs';
 // 通用成果介面；題目、素材與教學內容均來自授權回應，不含答案或判題。
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const urls=new WeakMap();
@@ -89,6 +90,6 @@ export function renderOutcome(host,d,changed){
     const invalid=inputs.findIndex((e,k)=>d.kinds[k]==='n'&&!validNumber(e));
     return invalid<0?'':`第 ${invalid+1} 格請填 0～1000000000000 的整數，不含單位或小數點。`;
   };
-  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>!readyReason(),readyReason,
+  return {...inputState(inputs,(e,k)=>!e.value.trim()?e.tagName==='SELECT'?'請選一項':d.kinds[k]==='n'?'請填數字':'請填答案':d.kinds[k]==='n'&&!validNumber(e)?'請填 0～1000000000000 的整數':''),get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>!readyReason(),readyReason,
     dispose(){for(const url of urls.get(host)||[])URL.revokeObjectURL(url);urls.delete(host);host.replaceChildren();}};
 }

@@ -1,3 +1,4 @@
+import {createWorkStore,questionStamp,WORK_TTL} from './fullrev-work-store.mjs';
 import {guestScope,isGuestContext,guestFields,guestCompletion,readGuestContext} from './fullrev-guest.mjs';
 import {createDFReports} from './fullrev-df.mjs';
 import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261120a';
@@ -27,6 +28,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   const project = checkConfig(config);
   if(!['115-g9','115-df'].includes(course))throw fail('invalid-course');
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
+  const workStore=createWorkStore({shared,project,course,now});
   let profile=null, generation=0, firebaseSession, sessionOpening, drafts={}, readVersion=0, signal='', timer;
   let status='signed-out', snapshot=null, view=null, readingRetry=null;
   let gradingWork=Promise.resolve();
@@ -38,8 +40,10 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   readModel?.subscribeRetry?.(value=>{readingRetry=profile?value:null;emit(status);});
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
-  function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest}));}catch{emit('storage-pending');}}
-  function clear() {cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};snapshot=null;view=null;readingRetry=null;profile=null;
+  function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest}));}catch{emit('storage-pending');}return workStore.write(profile?.uid,drafts);}
+  function clear() {if(profile?.uid){workStore.purge(profile.uid);
+    try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===profile.uid)storage.removeItem(k);}catch{}}}catch{}
+    }cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};snapshot=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
   function broadcast() {signal=requestId();try{shared?.setItem(signalKey,signal);}catch{}}
   function active(mark) {
@@ -129,14 +133,23 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(owner)await assertOwner(m);
       else if(provider==='google.com')try{owner=await assertOwner(m);}catch(e){if(e.code!=='owner-required')throw e;}
       profile={...profile,provider,owner};
+      workStore.retain(profile.uid);if(!owner)drafts=restorable(workStore.read(profile.uid));
       save();emit('signed-in');return {...profile};
     }).catch(error=>{if(g===generation)clear();throw error;});
+  }
+  function restorable(value){
+    const entries=Object.entries(value).filter(([key,d])=>inProgress(d)&&validContext(d.context)&&d.uid===profile.uid
+          &&d.project===project&&d.course===course&&key===scopeKey(d.activity,d.round)&&int(d.activity,1)&&d.activity<=30
+          &&int(d.round)&&d.round<=4&&(!d.pending||['start','answer','resume'].includes(d.pending.op)));
+    for(const [,d] of entries)if(d.input&&(!Number.isFinite(d.input.savedAt)||now()-d.input.savedAt>=WORK_TTL||d.input.savedAt>now()))delete d.input;
+    return entries.length<=8?Object.fromEntries(entries):{};
   }
   async function restore() {
     const {auth}=await getSession();
     if (!auth.currentUser) return null;
     let saved;
     try{saved=JSON.parse(storage?.getItem(storageKey)||'null');}catch{}
+    if(!saved){const local=workStore.read(auth.currentUser.uid);if(Object.keys(local).length)saved={uid:auth.currentUser.uid,signal,drafts:local};}
     if(saved?.uid!==auth.currentUser.uid||saved.signal!==signal){clear();await auth.signOut();return null;}
     // SESSION 只還原此分頁。持久草稿不含題面／token，仍須重新確認投影與 Worker。
     const g=generation;
@@ -149,12 +162,9 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     if(profile.provider==='google.com')try{profile.owner=await assertOwner(m);}catch(e){if(e.code!=='owner-required'){clear();throw e;}}
     try {
       if(saved?.uid===profile.uid&&saved.signal===signal&&saved.drafts) {
-        const entries=Object.entries(saved.drafts).filter(([key,d])=>inProgress(d)&&validContext(d.context)&&d.uid===profile.uid
-          &&d.project===project&&d.course===course&&key===scopeKey(d.activity,d.round)&&int(d.activity,1)&&d.activity<=30
-          &&int(d.round)&&d.round<=4&&(!d.pending||['start','answer','resume'].includes(d.pending.op)));
-        if(entries.length<=8)drafts=Object.fromEntries(entries);
+        drafts=restorable(saved.drafts);
       }
-    }catch{} save();emit('signed-in');return {...profile};
+    }catch{} workStore.retain(profile.uid);save();emit('signed-in');return {...profile};
   }
   function logout() {clear();broadcast();return serialAuth(async()=>{const {auth}=await getSession();await auth.signOut();});}
   async function classHint(m,force=false) {
@@ -227,6 +237,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       const value=await response.json();active(m);
       if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? (isGuestContext(d.context)?!guestCompletion(value):!id(value.resultId))
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
+      if(!value.question||d.input?.stamp!==questionStamp(value)||now()-d.input.savedAt>=WORK_TTL)delete d.input;
+      d.expiresAt=value.expiresAt;d.stamp=value.question?questionStamp(value):null;
       d.pending=null;delete d.issue;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
       if(value.completed||value.awaitingTeacher)delete drafts[scopeKey(d.activity,d.round)];
@@ -284,7 +296,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(d.pending)throw fail('answer-pending');
       const body={course,classKey:d.context.classKey,...guestFields(d.context),activity,round,requestId:requestId(),sid:d.sid,seq:d.nextSeq,slot:d.slot,answer:clone(answer)};
       if(new TextEncoder().encode(JSON.stringify(body)).length>8192)throw fail('answer-too-large');
-      d.pending={op:'answer',body};save();return send(d,m);
+      delete d.input;d.pending={op:'answer',body};save();return send(d,m);
     });
   }
   async function resume(activity,round,locked=false) {
@@ -339,6 +351,17 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       snapshot=result;emit('confirmed');return clone(result);
     }catch(error){active(m);if(request===readVersion){snapshot=null;emit('confirmation-pending');}throw error;}
   }
+  function saveInput(activity,round,value){
+    mark();const d=drafts[scopeKey(activity,round)];
+    if(!d||d.pending||d.blocked||!d.stamp||profile.owner||!view?.question||view.activity!==activity||view.round!==round||questionStamp(view)!==d.stamp||!(Date.parse(d.expiresAt)>now()))return false;
+    const text=JSON.stringify(value);if(text===undefined||text.length>16384)return false;
+    d.input={stamp:d.stamp,savedAt:now(),value:JSON.parse(text)};return save();
+  }
+  function loadInput(activity,round){
+    mark();const d=drafts[scopeKey(activity,round)];
+    return d&&!d.pending&&d.input?.stamp===d.stamp&&view?.question&&view.activity===activity&&view.round===round&&questionStamp(view)===d.stamp&&now()-d.input.savedAt<WORK_TTL&&Date.parse(d.expiresAt)>now()?clone(d.input.value):undefined;
+  }
+  function savedRound(activity){return Object.values(drafts).find(d=>d.activity===activity)?.round;}
   const reports=createDFReports({course,getSession,mark,active,claims,context,fail});
   async function submitManual(round){
     if(course!=='115-df'||!int(round)||round>2)throw fail('invalid-scope');
@@ -360,7 +383,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       ||!['pub','enc-b2','enc-rv'].every(k=>typeof value.scripts[k]==='string'))throw fail('context-unconfirmed');
     return clone(value.scripts);
   }
-  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,teacherQuestion,
+  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,teacherQuestion,saveInput,loadInput,savedRound,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
     state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,uploadIssue:uploadIssue(),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});

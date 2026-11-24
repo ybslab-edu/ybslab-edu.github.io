@@ -1,3 +1,4 @@
+import {answerValidation} from './fullrev-answer-ui.mjs';
 import {mountGuestLogin,showGuestPending,guestCompletion,GUEST_PENDING} from './fullrev-guest.mjs';
 import {mountHintExample} from './fullrev-student-support.mjs';
 // 共用活動外框：正式題庫與判分由 Worker 管理；公開暖身只供不上傳的複習。
@@ -197,7 +198,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const login=node('div');login.id='g-gbtn';gate.append(login);
  const identityBox=node('div');identityBox.id='g-who';identityBox.hidden=true;identityBox.innerHTML='<p id="g-whotext" aria-live="polite"></p><div class="btns" style="justify-content:center"><button type="button" class="btn" id="g-notme">不是我</button><button type="button" class="btn primary" id="g-isme" hidden>對，開始</button></div>';gate.append(identityBox);
  const main=node('div');main.className='wrap fullrev-activity';main.id='main';main.hidden=true;
- main.innerHTML=`<header class="top"><div class="activity-heading"><div class="title-rounds"><h1 id="activity-title"></h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div><div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">活動工具</summary></details></div></div><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-mono" id="xp-total">載入中…</span><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next">等待雲端紀錄</span></a></aside></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><div id="stage"></div><div class="btns"><span id="send-control" class="send-control" role="group" aria-label="送出"><button class="btn primary" id="b-send" type="button" aria-describedby="send-hint" disabled>送出</button></span><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint" role="status" aria-live="polite" aria-atomic="true"></span><a id="quota-old" class="linkbtn" href="/ybs-old/" hidden>改用舊站</a></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>`;
+ main.innerHTML=`<header class="top"><div class="activity-heading"><div class="title-rounds"><h1 id="activity-title"></h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div><div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">活動工具</summary></details></div></div><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-mono" id="xp-total">載入中…</span><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next">等待雲端紀錄</span></a></aside></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><p id="draft-notice" class="small" role="status" aria-live="polite"></p><div id="stage"></div><div class="btns"><span id="send-control" class="send-control" role="group" aria-label="送出"><button class="btn primary" id="b-send" type="button" aria-describedby="send-hint" disabled>送出</button></span><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint" role="status" aria-live="polite" aria-atomic="true"></span><a id="quota-old" class="linkbtn" href="/ybs-old/" hidden>改用舊站</a></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>`;
  // 與 origin/main 的公開暖身題庫、抽題及選擇題回顧相同；不上傳、不參與過關。
  const clientWarmupReset=mountWarmup({cfg,main})||(()=>{});
  const lock=node('div');lock.id='activity-lock';lock.hidden=true;
@@ -210,7 +211,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  para($('task-instructions'),'切換關卡或活動會放棄未完成作答，回來從第一組開始。').className='small';
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
  let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshAgain=false,roundWork=Promise.resolve();
- let teacherLogin=false,scheduleBlocked=false,loadProblem='';
+ let teacherLogin=false,scheduleBlocked=false,loadProblem='',validation=null,restoringInput=false;
+ function changed(){validation?.update();controls();if(!restoringInput&&mode==='working'&&!client.state().pending&&client.state().status!=='sending'&&handle?.draft){try{if(client.saveInput?.(cfg.week,round,handle.draft())===false)$('draft-notice').textContent='本機暫存目前無法使用，請保持此頁開啟。';}catch{}}}
  function checkSchedule(){
   if(client.state().profile?.owner||!scheduleLocked())return false;
   lock.querySelector('h1').textContent=courseClosed()?'本學年未開設這門課':'這個活動還沒開放';
@@ -223,6 +225,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const roundKey=()=>`ybs:fullrev:round:${client.project}:${cfg.course}:${cfg.week}:${client.state().profile?.uid}`;
  function restoreRound(){
   round=firstRound;
+  const local=client.savedRound?.(cfg.week);if(Number.isInteger(local)&&cfg.rounds[local]?.managed!==false&&cfg.rounds[local]){round=local;return;}
   try{const saved=sessionStorage.getItem(roundKey());const n=Number(saved);if(saved!==null&&Number.isInteger(n)&&cfg.rounds[n]&&cfg.rounds[n].managed!==false)round=n;}catch{}
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
@@ -287,12 +290,16 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  // 原生 disabled 不會收到 click；外層承接滑鼠／觸控及鍵盤提示。
  const sendControl=$('send-control');
+ // 停用時保留輸入焦點，避免按下到放開之間因失焦驗證移除錯誤文字，讓按鈕位移而漏接 click。
+ // click／鍵盤處理仍讀取現值並完整驗證；可送出時沿用原生按鈕的焦點行為。
+ sendControl.onpointerdown=event=>{if(send.disabled)event.preventDefault();};
  const explainDisabled=()=>{controls();if(!send.disabled){send.click();return;}
+  if(mode==='working'&&!starting&&!client.state().pending&&client.state().status!=='restart-required')validation?.show();
   const message=$('send-hint').textContent;$('send-hint').replaceChildren(node('span','還不能送出：'+message));};
  sendControl.onclick=event=>{if(event.target!==send)explainDisabled();};
  sendControl.onkeydown=event=>{if(event.target===sendControl&&['Enter',' '].includes(event.key)){event.preventDefault();explainDisabled();}};
  // 補接選單 change、輸入法組字結束與失焦；重算時讀取現值，不靠事件累計。
- for(const event of ['input','change','compositionend','focusout'])stage.addEventListener(event,controls);
+ for(const event of ['input','change','compositionend','focusout'])stage.addEventListener(event,changed);
  function rounds(){
   nav.replaceChildren();cfg.rounds.forEach((r,i)=>{const passed=result?.records.some(r=>r.activity===cfg.week&&r.round===i);const b=node('button',r.name+(passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);nav.append(b);});
  }
@@ -370,7 +377,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   stage.classList.remove('quest-outcome');stage.dataset.round=round;
   const carry=handle?.carry?.();handle?.dispose?.();stage.replaceChildren();handle=null;
   if(typeof cfg.renderQuestion!=='function')throw Error('renderer-pending');
-  handle=cfg.renderQuestion(value.question,stage,{changed:controls,carry:value.photoAnswer||value.performanceOrder||carry,demonstration:false,shell:true});layoutOutcome(value.question.data);mode='working';loadProblem='';sentValue='';submitted=false;verdict.hidden=true;count(value.question.slot);instructions();hints();controls();
+  validation=null;$('draft-notice').textContent='';
+  handle=cfg.renderQuestion(value.question,stage,{changed,carry:value.photoAnswer||value.performanceOrder||carry,demonstration:false,shell:true});layoutOutcome(value.question.data);validation=answerValidation(handle,stage);mode='working';loadProblem='';sentValue='';submitted=false;verdict.hidden=true;count(value.question.slot);instructions();hints();controls();
+  const draft=client.loadInput?.(cfg.week,round);
+  if(draft!==undefined&&handle.restoreDraft){restoringInput=true;try{if(handle.restoreDraft(draft))$('draft-notice').textContent='已恢復上次未送出的作答';}finally{restoringInput=false;}controls();}
  }
  function problem(e){
   if(e.code==='identity-changed'||!client.state().profile)return;
@@ -435,7 +445,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   // 切關沿用舊站行為：放棄未完成作答，重新進入時從第一組開始。
   round=i;
   try{sessionStorage.setItem(roundKey(),String(i));}catch{}
-  const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;last=null;key='';mode='loading';loadProblem='';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
+  const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;validation=null;$('draft-notice').textContent='';last=null;key='';mode='loading';loadProblem='';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
   if(client.state().profile?.owner){
    send.hidden=true;$('answer-status').hidden=true;$('streak').hidden=true;$('b-hint').hidden=true;
    $('round-status').textContent=`教師示範：第 ${round+1} 關／共 ${cfg.rounds.length} 關`;
@@ -461,7 +471,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   catch(e){if(g===revision)problem(e);}finally{if(g===revision){starting=false;controls();}}
  }
  send.onclick=async()=>{
-  if(send.disabled||!handle)return;sentValue=JSON.stringify(handle.get());submitted=true;const g=revision;send.disabled=true;controls();
+  controls();if(send.disabled||!handle){explainDisabled();return;}if(validation?.show())return;sentValue=JSON.stringify(handle.get());submitted=true;const g=revision;send.disabled=true;controls();
   try{const value=await client.answer(cfg.week,round,handle.get());if(g===revision)await receive(value);}
   catch(e){if(g===revision){if(!client.state().pending&&!['invalid-answer','answer-too-large'].includes(e.code))submitted=false;problem(e);}}finally{if(g===revision)controls();}
  };
@@ -470,7 +480,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round).then(refresh);};
  lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
- function clear(){hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ function clear(){hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();checkSchedule();return;}
   if(checkSchedule())return;

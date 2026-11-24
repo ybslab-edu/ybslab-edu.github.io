@@ -100,3 +100,9 @@
 .fullrev-activity .send-control #b-send:disabled{pointer-events:none}
 .fullrev-activity .send-control:focus-visible{outline:3px solid var(--text);outline-offset:3px}
 .fullrev-activity #send-hint{max-width:100%;overflow-wrap:anywhere}
+
+/* 必填提示沿用主題警示色，深淺色皆由 shell.css 的色票提供。 */
+.fullrev-activity #stage .answer-invalid{outline:2px solid var(--warn);outline-offset:2px;scroll-margin-block:5rem}
+.fullrev-activity #stage input.answer-invalid,.fullrev-activity #stage select.answer-invalid{border-color:var(--warn)}
+.fullrev-activity .answer-error{display:block;color:var(--warn);font-size:14px;font-weight:700;margin-block:6px;line-height:1.5}
+.fullrev-activity #draft-notice:empty{display:none}

@@ -29,13 +29,18 @@ const legacyDFHashes={
 const legacyDFConfig="const YBS_FULLREV_CONFIG=Object.freeze({enabled:false});\n";
 const legacyDFPage=(s)=>s.replace(/((?:\.\.\/)*assets\/)fullrev-config\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/config.js').replace(/((?:\.\.\/)*assets\/)login\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/login.js');
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
+async function earlyOpenSource(source=root){
+ const value=(await readFile(join(source,'assets/lock.js'),'utf8')).match(/^const OPEN = \{[\s\S]*?^\};/m)?.[0];
+ if(!value)throw Error('release_early_open_missing');
+ return value+'\n';
+}
 const copiedPages=['index.html','404.html','map/index.html','about/index.html','115-g9/index.html'];
 const mountedPages={'115-g9/me/index.html':'mountGrowth','115-g9/teacher/index.html':'mountTeacher','115-g9/teacher/report/index.html':'mountTeacher'};
 const extraPages=Object.keys(legacyDFSources).concat('assets/legacy-df/config.js');
 export const releasePaths=()=>[...assets.map(a=>'assets/'+a),...copiedPages,...Object.keys(mountedPages),...extraPages,...new Set([...MANAGED_ACTIVITIES,...BATCH8].filter(a=>a.course!=='115-df').map(a=>a.file)),...Array.from({length:30},(_,i)=>`115-g9/w${String(i+1).padStart(2,'0')}/index.html`),'.nojekyll'].sort();
 const csp=(html,config)=>html.replace(/(http-equiv="Content-Security-Policy" content=")([^"]+)(")/,(_,a,value,z)=>a+fullrevCsp(value,config)+z);
 const shell=(policy,title,body)=>`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${policy}"><title>${title}｜YBS Lab</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/shell.css"></head><body>${body}</body></html>`;
-const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261124loginui"></script>`).join('');
+const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261124activitylock"></script>`).join('');
 function releaseConfig(config){
  checkConfig(config);
  if(config.studentGoogleLogin!==undefined&&typeof config.studentGoogleLogin!=='boolean')throw Error('release_student_google_config_invalid');
@@ -55,7 +60,8 @@ export async function scanRelease({output,workerSource}){
   if(s.isDirectory()){if(!releasePaths().some(path=>path.startsWith(relative(output,p).split('\\').join('/')+'/')))throw Error('release_allowlist_mismatch');await walk(p);}else{const path=relative(output,p).split('\\').join('/');found.push(path);text.push({path,bytes:await readFile(p)});}
  }}await walk(output);
  const expected=releasePaths();if(JSON.stringify(found.sort())!==JSON.stringify(expected))throw Error('release_allowlist_mismatch');
- const cfg=text.find(t=>t.path==='assets/fullrev-config.js')?.bytes.toString('utf8').match(/^const YBS_FULLREV_CONFIG=Object\.freeze\(([^\n]+)\);\n$/);
+ const configText=text.find(t=>t.path==='assets/fullrev-config.js')?.bytes.toString('utf8'),earlyOpen=await earlyOpenSource();
+ const cfg=configText?.startsWith(earlyOpen)&&configText.slice(earlyOpen.length).match(/^const YBS_FULLREV_CONFIG=Object\.freeze\(([^\n]+)\);\n$/);
  if(!cfg)throw Error('release_config_missing');const config=JSON.parse(cfg[1]);releaseConfig(config);
  for(const file of text){
   if(file.path.endsWith('.html')&&!Object.hasOwn(legacyDFSources,file.path))assertFullrevCsp(file.bytes.toString('utf8'),config);
@@ -71,6 +77,8 @@ export async function scanRelease({output,workerSource}){
  const all=scanned.map(t=>t.bytes.toString('utf8')).join('\n');
  for(const {path,bytes} of scanned){
   const legacy=Object.hasOwn(legacyDFSources,path);
+  // 瀏覽器固定時鐘只能存在 tests；拒絕測試控制碼混入正式腳本或 HTML。
+  if(/\b(?:setFixedTime|__YBS_TEST_CLOCK__|clock\.(?:install|setSystemTime))\b|\bDate\.now\s*=(?!=)|\b(?:window|globalThis)\.Date\s*=(?!=)/.test(bytes.toString('utf8')))throw Error('release_test_clock:'+path);
   if(/WARMUP_BANK|firstOption|checkWarmup|teacher-reference\//.test(bytes.toString('utf8')))throw Error('release_public_answer_code:'+path);
   if(!legacy&&/(?:legacy-df\/|sourceMappingURL|sourceURL=|class-score-86020|ybs-pilot|TEACHER_HASH|TEACHER\.remember|teacher\.js|lock\.js|pr6-batch\d|BEGIN PRIVATE KEY|soundBest|minimumBytes|checkRecordingAnswer|volunteer-questions|volunteerAnswer|volunteerCheck|q(?:One|Two|Three|Four)Expected|qCheck|"budget"\s*:)/.test(bytes.toString('utf8')))throw Error('release_forbidden_content:'+path);
   if(!legacy&&/(?:^|\/)(?:tools|tests|fixtures|workers|backups?|\.git)(?:\/|$)|\.(?:map|bak|zip|pdf)$|(?:teacher|lock)\.js$/.test(path))throw Error('release_forbidden_path');
@@ -112,6 +120,9 @@ export async function buildSite({output,config,workerSource,source=root}){
  config={...config,courses:['115-g9']};
  const result=await buildBatches({output,config,source,courses:['115-g9']});
  if(result.rounds!==121||result.activities!==30)throw Error('release_coverage_incomplete');
+ // 新外框不載入舊遮罩與通行碼；僅帶入同一份公開 OPEN 清單。
+ const configPath=join(output,'assets/fullrev-config.js');
+ await writeFile(configPath,await earlyOpenSource(source)+await readFile(configPath,'utf8'));
  const login=await readFile(join(source,'assets/login.js'),'utf8');
  await writeFile(join(output,'assets/login.js'),`// Fullrev only. Missing configuration stops; there is no legacy client.\nconst YBS=ybsFullrevFacade(typeof YBS_FULLREV_CONFIG==='undefined'?null:YBS_FULLREV_CONFIG);\n`+login.slice(login.indexOf('function ybsFullrevFacade(config)')));
  await copyFile(join(source,'assets/fullrev-read-model.mjs'),join(output,'assets/fullrev-read-model.mjs'));
@@ -128,8 +139,8 @@ export async function buildSite({output,config,workerSource,source=root}){
  // One release tag prevents mixing cached legacy scripts/config with the release tree.
  for(const path of releasePaths().filter(p=>!Object.hasOwn(legacyDFSources,p)&&p!=='assets/legacy-df/config.js'&&/\.(?:html|m?js|css)$/.test(p))){
   let value=await readFile(join(output,path),'utf8');
-    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261124loginui');
-  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261124loginui$3');
+    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261124activitylock');
+  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261124activitylock$3');
   await write(path,value);
  }
  await write('.nojekyll','');

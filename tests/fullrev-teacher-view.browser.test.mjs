@@ -15,10 +15,14 @@ async function activityContext(t,browser){
     import {teacherPayload} from '/tests/fixtures/fullrev-teacher.mjs';
     import {mountActivity} from '/assets/fullrev-ui.mjs';
     import {activityConfig} from '/assets/fullrev-activities.mjs';
-    window.ACTIVITIES=activities;
+    window.ACTIVITIES=[{...activities[0],week:${activity},date:'2026-01-01',href:'115-g9/${activity}/'}];
+    window.isActivityOpen=()=>true;
     window.h=await harness({fetcher:async(url,init)=>Response.json(teacherPayload(JSON.parse(init.body)),{headers:{'cache-control':'no-store'}})});
+    // 本頁測活動 7～9；fixture 預設的活動 5 紀錄不屬於本頁活動目錄。
+    h.state.snapshot.records=[];
+    window.contextReads=0;
     // 正式 read model 在活動未開放時，於建立作答 context 前拒絕。
-    h.model.context=async()=>{throw Object.assign(new Error('not-open'),{code:'not-open'});};
+    h.model.context=async()=>{contextReads++;throw Object.assign(new Error('not-open'),{code:'not-open'});};
     await mountActivity({client:Promise.resolve(h.client),cfg:activityConfig({course:'115-g9',week:${activity},title:'合成教師測試'})});
     window.ready=true;
    </script></html>`});
@@ -63,8 +67,12 @@ test('學生登入不被隱藏遮罩攔截；未開放遮罩保留攔截，教�
  await page.locator('[name="account"]').fill('9990001');
  await page.locator('[name="password"]').fill('synthetic-password');
  await page.getByRole('button',{name:'登入',exact:true}).click();
+ await page.locator('#g-isme').waitFor({state:'visible'});
+ assert.equal(await page.evaluate(()=>contextReads),0,'確認身分只讀進度，不建立作答 context');
+ assert.equal(await page.locator('#activity-lock').isVisible(),false);
  await page.locator('#g-isme').click();
  const lock=page.locator('#activity-lock');await lock.waitFor({state:'visible'});
+ assert.equal(await page.evaluate(()=>contextReads),1);
  assert.equal(await lock.evaluate(el=>getComputedStyle(el).display),'flex');
  assert.equal(await page.locator('#main').isVisible(),false);
  assert.equal(await page.locator('#gate').isVisible(),false);

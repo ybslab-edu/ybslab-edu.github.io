@@ -11,6 +11,8 @@ import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base,dir,output,current,modules;
 const workerSource=process.env.YBS_WORKER_SOURCE;
+// 全關卡驗收固定在最後一堂課之後；只改瀏覽器 Date，保留真實計時器與正式週次鎖。
+const allActivitiesOpenAt=new Date('2027-07-01T00:00:00+08:00');
 before(async()=>{
   if(!workerSource)return;
   const load=p=>import(pathToFileURL(resolve(workerSource,p)).href);
@@ -101,6 +103,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
     if(process.env.YBS_PR6_SCOPE&&!process.env.YBS_PR6_SCOPE.split(',').includes(`${a.activity}:${round}`))continue;
     await t.test(`${a.activity}:${round}`,async()=>{
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+    await page.clock.setFixedTime(allActivitiesOpenAt);
     page.setDefaultTimeout(6000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
     try {
@@ -228,6 +231,7 @@ test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回�
   for(const activity of [1,3])for(const mode of ['resume-first','lost-second'])await t.test(`${activity}:${mode}`,async()=>{
     const photo=activity===3,title=photo?'看清背號':'第 1 單';
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+    await page.clock.setFixedTime(allActivitiesOpenAt);
     page.setDefaultTimeout(6000);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
     try{
       await page.goto(base+(photo?'/115-g9/u2-01/':'/115-g9/u1-05/'));await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'登入',exact:true}).click();await page.locator('#g-isme').click();

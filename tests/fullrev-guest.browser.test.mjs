@@ -37,6 +37,7 @@ test('班座登入手機完成與重整續作：真實 Worker guest API，待審
         const input=document.createElement('input');input.setAttribute('aria-label','合成答案');input.type='text';input.oninput=changed;host.append(input);
         return {get:()=>input.value?JSON.parse(input.value):null,ready:()=>input.value!==''};
       }};
+      window.ACTIVITIES=[{course:'115-g9',week:cfg.week,date:'2026-01-01',href:'115-g9/synthetic/',rounds:['第一關']}];window.isActivityOpen=()=>true;
       window.mount=client=>mountActivity({client:Promise.resolve(client),cfg});await mount(h.client);
     });
     assert.equal(await page.getByRole('button',{name:'學生 Google 登入',exact:true}).count(),0);

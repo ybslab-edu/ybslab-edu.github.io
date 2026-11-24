@@ -31,7 +31,7 @@ test('離線 DOM ＋真實 Worker：班座登入、重新整理 resume、兩組�
   const h=await harness({noModel:true});h.state.hints={};
   h.state.fetcher=(url,init)=>worker.fetch(new Request(url,{...init,headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer synthetic-token'}}));
   const document=documentOf(),events={};
-  for(const [key,value] of Object.entries({document,window:{addEventListener:(name,fn)=>events[name]=fn},localStorage:store(),sessionStorage:store(),matchMedia:()=>({matches:true})})){
+  for(const [key,value] of Object.entries({document,window:{addEventListener:(name,fn)=>events[name]=fn},ACTIVITIES:[{course:'115-g9',week:5,date:'2026-01-01',href:'115-g9/synthetic/',rounds:['第一關']}],isActivityOpen:()=>true,localStorage:store(),sessionStorage:store(),matchMedia:()=>({matches:true})})){
     const old=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,value});
     t.after(()=>{if(old)Object.defineProperty(globalThis,key,old);else delete globalThis[key];});
   }

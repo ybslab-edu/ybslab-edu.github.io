@@ -4,6 +4,7 @@ import {mkdtemp,readFile,rm,mkdir,writeFile,readdir} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {gzipSync} from 'node:zlib';
+import vm from 'node:vm';
 import {tmpdir} from 'node:os';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {mountLogin,mountActivity} from '../assets/fullrev-ui.mjs';
@@ -109,9 +110,28 @@ test('完整建置僅豁免既有 DF／暖身固定內容；新增答案或教�
  const result=await buildSite({output,workerSource,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'}});
  assert.equal(await readFile(join(output,'assets/activities.json'),'utf8'),await readFile(new URL('../assets/activities.json',import.meta.url),'utf8'));
  assert.equal(result.rounds,121);assert.equal(result.activities,30);assert.equal(result.scan.hits,0);assert.ok(!releasePaths().some(p=>p.includes('teacher-reference')));
+ const earlyOpen=vm.runInNewContext((await readFile(join(output,'assets/fullrev-config.js'),'utf8'))+'; JSON.stringify(OPEN)');
+ const oldOpen=vm.runInNewContext((await readFile(new URL('../assets/lock.js',import.meta.url),'utf8')).split('(() =>')[0]+'; JSON.stringify(OPEN)');
+ assert.equal(earlyOpen,oldOpen,'發布產物沿用舊 OPEN 清單');
+ const configFile=join(output,'assets/fullrev-config.js'),configSource=await readFile(configFile,'utf8');
+ const released=vm.createContext({});
+ vm.runInContext(configSource+'\n'+await readFile(join(output,'assets/activities.js'),'utf8'),released);
+ assert.equal(vm.runInContext("ACTIVITIES.filter(a=>a.course==='115-g9').length",released),30);
+ assert.equal(vm.runInContext("ACTIVITIES.filter(a=>a.course==='115-g9').every(a=>isActivityOpen(a,Date.parse('2027-07-01T00:00:00+08:00')))",released),true,'全關卡瀏覽器驗收日期涵蓋實際發布目錄');
+ await writeFile(configFile,configSource.replace('u2-02','synthetic-early-open'));
+ await assert.rejects(scanRelease({output,workerSource}),/release_config_missing/);
+ await writeFile(configFile,configSource);
  const shell=await readFile(join(output,'assets/fullrev-shell.mjs'),'utf8');assert.match(shell,/WARMUP_BANK/);assert.match(shell,/function mountWarmup/);
  const {publicAnswerRemainder}=await import('../tools/public-answer-allowlist.mjs');assert.doesNotMatch(publicAnswerRemainder('assets/fullrev-shell.mjs',Buffer.from(shell)).toString(),/WARMUP_BANK|firstOption|checkWarmup/);
  const file=join(output,'assets/fullrev-teacher-view.mjs'),clean=await readFile(file);
+ for(const target of [file,join(output,'115-g9/u2-06/index.html')]){
+  const original=await readFile(target);
+  for(const injected of ['page.clock.setFixedTime(new Date(0));','page.clock.install({time:new Date(0)});','page.clock.setSystemTime(new Date(0));','Date.now=()=>1800000000000;','window.Date=class extends Date {};','globalThis.Date=class extends Date {};','globalThis.__YBS_TEST_CLOCK__=true;']){
+   await writeFile(target,Buffer.concat([original,Buffer.from('\n'+injected)]));
+   await assert.rejects(scanRelease({output,workerSource}),/release_test_clock/);
+  }
+  await writeFile(target,original);
+ }
  await writeFile(file,Buffer.concat([clean,Buffer.from('\nconst leaked="synthetic-private-answer-unique-1";')]));
  await assert.rejects(scanRelease({output,workerSource}),/release_private_text_answer/);await writeFile(file,clean);
  const dfFile=join(output,'115-df/a/index.html'),df=await readFile(dfFile,'utf8');assert.match(df,/assets\/legacy-df\/login.js/);assert.match(df,/id="ans"/);

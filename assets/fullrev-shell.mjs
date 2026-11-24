@@ -187,6 +187,9 @@ export async function mountStudentLogin({client,host,onLogin,explain}){
 export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain}){
  const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261124loginui';document.head.append(css);
  const activity=typeof ACTIVITIES==='undefined'?null:ACTIVITIES.find(a=>a.course===cfg.course&&a.week===cfg.week);
+ const courseClosed=()=>typeof COURSES!=='undefined'&&COURSES.some(c=>c.id===cfg.course&&!c.open);
+ // OPEN 由舊站共用清單提供；日期與台灣週日邊界沿用 activities.js。
+ const scheduleLocked=()=>courseClosed()||!activity||typeof isActivityOpen!=='function'||!isActivityOpen(activity);
  const week=cfg.termWeek??(activity&&typeof termWeekOf==='function'?termWeekOf(activity):null);
  const title=week?`第 ${week} 週｜${cfg.title}`:cfg.title;
  const info=()=>cfg.rounds[round];
@@ -199,12 +202,22 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const clientWarmupReset=mountWarmup({cfg,main})||(()=>{});
  const lock=node('div');lock.id='activity-lock';lock.hidden=true;
  lock.innerHTML=`<div><h1>這個活動還沒開放</h1><p>請回到 YBS Lab 首頁，做老師這週指定的活動。</p><p><a href="/">← 回 YBS Lab 首頁</a></p><p class="activity-unlock"><button type="button" class="linkbtn">教師解鎖</button></p></div>`;
+ lock.querySelector('h1').textContent=courseClosed()?'本學年未開設這門課':'這個活動還沒開放';
+ lock.hidden=!scheduleLocked();gate.hidden=!lock.hidden;
  document.body.replaceChildren(gate,main,lock);
  const $=id=>main.querySelector('#'+id),status=$('sync'),send=$('b-send'),verdict=$('verdict'),stage=$('stage'),nav=$('rounds');
  $('activity-title').textContent=title;
  para($('task-instructions'),'切換關卡或活動會放棄未完成作答，回來從第一組開始。').className='small';
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
  let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshAgain=false,roundWork=Promise.resolve();
+ let teacherLogin=false,scheduleBlocked=false;
+ function checkSchedule(){
+  if(client.state().profile?.owner||!scheduleLocked())return false;
+  lock.querySelector('h1').textContent=courseClosed()?'本學年未開設這門課':'這個活動還沒開放';
+  scheduleBlocked=true;
+  lock.hidden=teacherLogin;gate.hidden=!teacherLogin;main.hidden=true;send.disabled=true;mode='closed';
+  return true;
+ }
  // 從預設關卡開始；重整沿用本人最後一關，不先建立其他關卡的 Worker session。
  const firstRound=Math.max(0,cfg.rounds.findIndex(r=>r.managed!==false));
  const roundKey=()=>`ybs:fullrev:round:${client.project}:${cfg.course}:${cfg.week}:${client.state().profile?.uid}`;
@@ -345,6 +358,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   controls();
  }
  async function receive(value){
+  if(checkSchedule())return;
   if(value.activity!==undefined&&(value.activity!==cfg.week||value.round!==round))return;
   const k=JSON.stringify([value.sid,value.nextSeq,value.completed,value.correct]);if(k===key)return;key=k;
   const old=last;last=value;starting=false;lastLearning=old?.question?.data?.learning||lastLearning;
@@ -374,6 +388,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const btns=node('div');btns.className='btns';if(round+1<cfg.rounds.length){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}else para(btns,item.passed===cfg.rounds.length?'全部過關！':`這一關完成了！這個活動目前完成 ${item.passed}／${cfg.rounds.length} 關。`);verdict.append(btns);verdict.hidden=false;hint=0;submitted=false;hints();say('✓ 紀錄已上傳給老師');controls();
  }
  async function refresh(){
+  if(checkSchedule())return;
   if(!client.state().profile||client.state().profile.owner||client.state().profile.provider==='anonymous')return;if(reading){refreshAgain=true;return;}
   reading=true;const n=++read,g=revision;
   try{
@@ -390,6 +405,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   finally{if(n===read){controls();reading=false;if(refreshAgain){refreshAgain=false;refresh();}}}
  }
  async function start(i=round,reopen=false){
+  if(checkSchedule())return;
+  lock.hidden=true;teacherLogin=false;scheduleBlocked=false;
   // 待送時保留目前題面；重整後尚無題面，須讓 client.start 續傳同關草稿。
   if(i===round&&(starting||client.state().pending&&(handle||reopen)))return;
   // 切關沿用舊站行為：放棄未完成作答，重新進入時從第一組開始。
@@ -429,10 +446,11 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('b-swap').onclick=()=>client.logout().catch(problem);
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round).then(refresh);};
- lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
+ lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  function clear(){hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
-  if(!state.profile){identity='';clear();return;}
+  if(!state.profile){identity='';clear();checkSchedule();return;}
+  if(checkSchedule())return;
   const id=state.profile.uid+':'+state.profile.owner;
   if(id!==identity){identity=id;restoreRound();
    $('who').textContent=state.profile.owner?'教師模式':state.profile.guest?state.profile.guest.cls+' 班 '+state.profile.guest.seat+' 號（待審）':'已登入';
@@ -451,7 +469,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  });
  await mountLogin({client,host:login,oldlook:true});
  try{await client.restore();}catch(e){para(login,explain(e));}
- const focus=()=>{if(client.state().profile){if(client.state().profile.owner){if(!starting)start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;start(round,true).then(refresh);}else if(!starting)refresh();}};
+ const focus=()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;client.restore().catch(problem);return;}if(client.state().profile){if(client.state().profile.owner){if(!starting)start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;start(round,true).then(refresh);}else if(!starting)refresh();}else{lock.hidden=true;gate.hidden=false;}};
  window.addEventListener('pageshow',event=>{if(event.persisted)client.restore().catch(problem);});
  window.addEventListener('focus',focus);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')focus();});window.addEventListener('pagehide',()=>{identity='';clear();});
 }

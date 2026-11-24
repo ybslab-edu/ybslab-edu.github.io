@@ -4,6 +4,7 @@ import {mkdtemp,readFile,writeFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import vm from 'node:vm';
+import {activitiesJSON} from '../tools/activities-json.mjs';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
@@ -18,6 +19,12 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
  await assert.rejects(buildSite({output,config:{...config,privateKey:'synthetic-forbidden'},workerSource}),/public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ const catalogPath=join(output,'assets/activities.json'),catalog=await readFile(catalogPath,'utf8');
+ assert.equal(catalog,activitiesJSON(await readFile(new URL('../assets/activities.js',import.meta.url),'utf8')));
+ assert.deepEqual(JSON.parse(catalog),JSON.parse(await readFile(new URL('../assets/activities.json',import.meta.url),'utf8')));
+ await rm(catalogPath);await assert.rejects(scanRelease({output,workerSource}),/release_allowlist_mismatch/);await writeFile(catalogPath,catalog);
+ await writeFile(catalogPath,catalog+'\n'+JSON.stringify({answer:'synthetic',qThreeExpected:[]}));
+ await assert.rejects(scanRelease({output,workerSource}),/release_forbidden_content/);await writeFile(catalogPath,catalog);
  t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}`);
  // Every new release page, including all w01–w30 redirects, shares popup CSP.
  // The three pinned legacy DF pages retain their separate, byte-checked policy.

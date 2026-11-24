@@ -107,7 +107,14 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       await page.goto(base+'/'+a.file);await page.getByRole('button',{name:'登入',exact:true}).waitFor();
       assert.equal(current.requests.length,0);assert.equal(await page.locator('#ybs-lock,#t-open').count(),0);
       await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');
-      await page.getByRole('button',{name:'登入',exact:true}).click();await page.getByLabel('開始關卡',{exact:true}).selectOption(String(round));await page.locator('#g-isme').click();
+      await page.evaluate(({activity,round})=>sessionStorage.setItem(`ybs:fullrev:round:synthetic-ybs-pr5:115-g9:${activity}:fake-uid-a`,String(round)),{activity:a.activity,round});
+      await page.getByRole('button',{name:'登入',exact:true}).click();await page.locator('#g-isme').waitFor();assert.equal(await page.getByLabel('開始關卡',{exact:true}).count(),0);
+      await page.setViewportSize({width:1280,height:800});
+      const title=await page.locator('#gate h1').textContent();
+      const sizes=await page.evaluate(()=>['g-whotext','g-notme'].map(id=>getComputedStyle(document.getElementById(id)).fontSize));
+      assert.equal(sizes[0],sizes[1],'桌機確認身分文字須與不是我按鈕同大小');assert.ok(parseFloat(sizes[0])>=20);
+      await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#gate h1').textContent(),title);
+      await page.locator('#g-isme').click();
       await page.locator('[data-question-type]').waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'手機版不得橫向溢出');
       let q=current.db.docs.get(modules.paths.head('synthetic-a')).activeSession;
@@ -187,7 +194,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         assert.ok(Number(await page.locator('[data-performance-frame]').getAttribute('data-performance-frame'))>=0);
       }
       assert.equal(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession.slot,0);
-      await page.reload();await page.locator('#g-isme').waitFor();assert.equal(await page.getByLabel('開始關卡',{exact:true}).inputValue(),String(round),'重整須保留本人關卡，不可先開始第 0 關');await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
+      await page.reload();await page.locator('#g-isme').waitFor();assert.equal(await page.getByLabel('開始關卡',{exact:true}).count(),0);await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
       assert.ok(current.requests.some(r=>r.op==='resume'));assert.ok(current.requests.filter(r=>r.op==='start').every(r=>r.body.round===round),'不得先建立其他關卡的 session');
       await fill(page,type,answer);await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
       if(!q.questions[0].data.mode?.endsWith('-performance')&&q.questions[0].data.mode!=='photo'){

@@ -3,6 +3,7 @@ import {readFile,writeFile,mkdir,copyFile,readdir,lstat} from 'node:fs/promises'
 import {resolve,join,dirname,relative} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
+import {activitiesJSON} from './activities-json.mjs';
 import {buildBatches} from './build-fullrev-batch1.mjs';
 import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
 import {scanPrivateAnswers} from './scan-private-answers.mjs';
@@ -10,7 +11,7 @@ import {publicAnswerRemainder} from './public-answer-allowlist.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 import {fullrevCsp,assertFullrevCsp} from './fullrev-csp.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
-const assets=['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs','login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js','activities.js','curriculum.js','fullrev-config.js'];
+const assets=['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs','login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js','activities.js','activities.json','curriculum.js','fullrev-config.js'];
 // Preserve the existing DF flow; only byte-identical public content is exempt from answer scanning.
 const legacyDFSources={
  '115-df/index.html':'115-df/index.html','115-df/a/index.html':'115-df/a/index.html','115-df/teacher/index.html':'115-df/teacher/index.html',
@@ -34,7 +35,7 @@ const extraPages=Object.keys(legacyDFSources).concat('assets/legacy-df/config.js
 export const releasePaths=()=>[...assets.map(a=>'assets/'+a),...copiedPages,...Object.keys(mountedPages),...extraPages,...new Set([...MANAGED_ACTIVITIES,...BATCH8].filter(a=>a.course!=='115-df').map(a=>a.file)),...Array.from({length:30},(_,i)=>`115-g9/w${String(i+1).padStart(2,'0')}/index.html`),'.nojekyll'].sort();
 const csp=(html,config)=>html.replace(/(http-equiv="Content-Security-Policy" content=")([^"]+)(")/,(_,a,value,z)=>a+fullrevCsp(value,config)+z);
 const shell=(policy,title,body)=>`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${policy}"><title>${title}｜YBS Lab</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/shell.css"></head><body>${body}</body></html>`;
-const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261123answers"></script>`).join('');
+const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261124loginui"></script>`).join('');
 function releaseConfig(config){
  checkConfig(config);
  if(config.studentGoogleLogin!==undefined&&typeof config.studentGoogleLogin!=='boolean')throw Error('release_student_google_config_invalid');
@@ -123,11 +124,12 @@ export async function buildSite({output,config,workerSource,source=root}){
   await write(dest,dest.endsWith('.html')?legacyDFPage(bytes.toString('utf8')):bytes);
  }
  await write('assets/legacy-df/config.js',legacyDFConfig);
+ await write('assets/activities.json',activitiesJSON(await readFile(join(source,'assets/activities.js'),'utf8')));
  // One release tag prevents mixing cached legacy scripts/config with the release tree.
  for(const path of releasePaths().filter(p=>!Object.hasOwn(legacyDFSources,p)&&p!=='assets/legacy-df/config.js'&&/\.(?:html|m?js|css)$/.test(p))){
   let value=await readFile(join(output,path),'utf8');
-    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261123answers');
-  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261123answers$3');
+    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261124loginui');
+  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261124loginui$3');
   await write(path,value);
  }
  await write('.nojekyll','');

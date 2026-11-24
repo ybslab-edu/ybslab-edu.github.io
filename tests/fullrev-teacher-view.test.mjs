@@ -107,6 +107,7 @@ test('完整建置僅豁免既有 DF／暖身固定內容；新增答案或教�
  for(let n=1;n<=8;n++)await writeFile(join(banks,`pr6-batch${n}.mjs`),'export default '+JSON.stringify({['1:synthetic-private-version-'+n]:{rounds:{0:{cases:[{facts:{},answer:'synthetic-private-answer-unique-'+n}]}}}}));
  for(const name of ['pr6-batch5-materials.mjs','pr6-batch7-materials.mjs'])await writeFile(join(banks,name),'export default {};');
  const result=await buildSite({output,workerSource,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'}});
+ assert.equal(await readFile(join(output,'assets/activities.json'),'utf8'),await readFile(new URL('../assets/activities.json',import.meta.url),'utf8'));
  assert.equal(result.rounds,121);assert.equal(result.activities,30);assert.equal(result.scan.hits,0);assert.ok(!releasePaths().some(p=>p.includes('teacher-reference')));
  const shell=await readFile(join(output,'assets/fullrev-shell.mjs'),'utf8');assert.match(shell,/WARMUP_BANK/);assert.match(shell,/function mountWarmup/);
  const {publicAnswerRemainder}=await import('../tools/public-answer-allowlist.mjs');assert.doesNotMatch(publicAnswerRemainder('assets/fullrev-shell.mjs',Buffer.from(shell)).toString(),/WARMUP_BANK|firstOption|checkWarmup/);

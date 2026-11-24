@@ -185,7 +185,7 @@ export async function mountStudentLogin({client,host,onLogin,explain}){
  if(client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
 }
 export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain}){
- const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261123lock';document.head.append(css);
+ const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261124loginui';document.head.append(css);
  const activity=typeof ACTIVITIES==='undefined'?null:ACTIVITIES.find(a=>a.course===cfg.course&&a.week===cfg.week);
  const week=cfg.termWeek??(activity&&typeof termWeekOf==='function'?termWeekOf(activity):null);
  const title=week?`第 ${week} 週｜${cfg.title}`:cfg.title;
@@ -205,16 +205,12 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  para($('task-instructions'),'切換關卡或活動會放棄未完成作答，回來從第一組開始。').className='small';
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
  let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshAgain=false,roundWork=Promise.resolve();
- // 開始前先選關，避免先建立第 0 關的 Worker session；重整沿用本人最後一關。
+ // 從預設關卡開始；重整沿用本人最後一關，不先建立其他關卡的 Worker session。
  const firstRound=Math.max(0,cfg.rounds.findIndex(r=>r.managed!==false));
  const roundKey=()=>`ybs:fullrev:round:${client.project}:${cfg.course}:${cfg.week}:${client.state().profile?.uid}`;
- const chooser=node('select');chooser.id='g-round';chooser.setAttribute('aria-label','開始關卡');
- cfg.rounds.forEach((r,i)=>{if(r.managed===false)return;const option=node('option',r.name);option.value=i;chooser.append(option);});
- const chooseLabel=node('label','開始關卡：');chooseLabel.append(chooser);identityBox.append(chooseLabel);
  function restoreRound(){
   round=firstRound;
   try{const saved=sessionStorage.getItem(roundKey());const n=Number(saved);if(saved!==null&&Number.isInteger(n)&&cfg.rounds[n]&&cfg.rounds[n].managed!==false)round=n;}catch{}
-  chooser.value=round;
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
  const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
@@ -397,7 +393,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   // 待送時保留目前題面；重整後尚無題面，須讓 client.start 續傳同關草稿。
   if(i===round&&(starting||client.state().pending&&(handle||reopen)))return;
   // 切關沿用舊站行為：放棄未完成作答，重新進入時從第一組開始。
-  round=i;chooser.value=i;
+  round=i;
   try{sessionStorage.setItem(roundKey(),String(i));}catch{}
   const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;last=null;key='';mode='loading';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
   if(client.state().profile?.owner){
@@ -432,7 +428,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('b-retry').onclick=async()=>{try{const values=await client.retry();if(values.length)await receive(values.at(-1));}catch(e){problem(e);}};
  $('b-swap').onclick=()=>client.logout().catch(problem);
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
- identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(Number(chooser.value)).then(refresh);};
+ identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round).then(refresh);};
  lock.querySelector('button').onclick=()=>{lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  function clear(){hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{

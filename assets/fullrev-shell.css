@@ -1,4 +1,5 @@
 /* 新版活動共用外框，沿用 shell.css 的尺寸與色彩。 */
+.fullrev-activity #g-whotext,.fullrev-activity #g-notme{font-size:20px}
 .fullrev-activity #stage{overflow-wrap:anywhere}
 .fullrev-activity .quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
 .fullrev-activity .quest-note p{margin:var(--u) 0}

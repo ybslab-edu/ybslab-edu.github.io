@@ -21,6 +21,18 @@ test('讀取無回應會逾時並中止請求，可交回重新讀取',async()=>
   fetcher:async(_url,init)=>{signal=init.signal;return new Promise(()=>{});}});
  await assert.rejects(model.context(input),{code:'read-model-pending'});assert.equal(signal.aborted,true);
 });
+for(const status of [200,429,503])test(`讀取 ${status} 標頭後本文停住仍逾時，清理後可重新讀取`,{timeout:2000},async()=>{
+ let signal,body,stalled=true,calls=0;
+ const model=createReadModel({session:async()=>({app:{options:{projectId:config.firebase.projectId}},auth:{currentUser:{getIdToken:async()=> 'synthetic'}}}),
+  project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,requestTimeoutMs:10,
+  fetcher:async(_url,init)=>{
+   calls++;signal=init.signal;
+   return stalled?new Response(new ReadableStream({start(controller){body=controller;controller.enqueue(new TextEncoder().encode('{'));}}),{status}):Response.json({synthetic:true});
+  }});
+ await assert.rejects(model.context(input),{code:'read-model-pending'});assert.equal(signal.aborted,true);assert.equal(calls,1);
+ body.enqueue(new TextEncoder().encode('"synthetic":true}'));body.close();stalled=false;
+ assert.deepEqual(await model.context(input),{synthetic:true});assert.equal(calls,2);
+});
 test('context、controls、progress 依 Retry-After 秒數／HTTP 日期重送相同讀取，成功清除等待',async()=>{
  for(const operation of ['context','controls','page']){
   const calls=[];let n=0;const h=setup(async(url,init)=>{

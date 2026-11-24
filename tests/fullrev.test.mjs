@@ -28,6 +28,30 @@ test('Worker 請求無回應會逾時，保留答案並能原封重試，不永�
   const original=h.requests.at(-1).body;h.advance();h.state.fetcher=async()=>Response.json(response(1,{correct:true}));await h.client.retry();
   assert.deepEqual(h.requests.at(-1).body,original);assert.equal(h.client.state().pending,false);
 });
+for(const status of [200,400,429,503])test(`Worker ${status} 標頭後本文停住仍逾時，原 requestId 重送且可換關`,{timeout:2000},async()=>{
+  const h=await harness({requestTimeoutMs:10});await h.login();await h.client.start(5,0);
+  let signal,body;
+  h.state.fetcher=async(_url,init)=>{
+    signal=init.signal;
+    return new Response(new ReadableStream({start(controller){body=controller;controller.enqueue(new TextEncoder().encode('{'));}}),{status});
+  };
+  await assert.rejects(h.client.answer(5,0,7),{code:'pending'});
+  assert.equal(signal.aborted,true);assert.equal(h.client.state().status,'pending');
+  assert.equal(h.client.state().uploadIssue,'connection-failed');assert.equal(h.client.state().pending,true);
+  const original=h.requests.at(-1).body;
+  assert.deepEqual(savedDrafts(h)['5:0'].pending.body,original);
+  // 不依賴測試 fetcher 配合 abort；晚到的本文也不能清除待送或改寫畫面。
+  body.enqueue(new TextEncoder().encode(JSON.stringify(response(1,{correct:true})).slice(1)));body.close();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.client.state().status,'pending');assert.deepEqual(savedDrafts(h)['5:0'].pending.body,original);
+  h.advance();h.state.fetcher=async()=>Response.json(response(1,{correct:true}));await h.client.retry();
+  assert.deepEqual(h.requests.at(-1).body,original);assert.equal(h.client.state().pending,false);
+  // 再次卡住本文後選別關，不能被上一筆 gradingWork／running 鎖住。
+  h.state.fetcher=async()=>({ok:true,status:200,json:()=>new Promise(()=>{})});
+  await assert.rejects(h.client.answer(5,0,8),{code:'pending'});
+  h.state.fetcher=async()=>Response.json(response());const next=await h.client.start(5,1);
+  assert.equal(next.round,1);assert.equal(h.client.state().pending,false);
+});
 
 test('預設關閉、空正式設定與舊／試點專案拒絕，不由 URL／儲存區切換',()=>{
   const c=vm.createContext({});vm.runInContext(readFileSync(new URL('../assets/fullrev-config.js',import.meta.url),'utf8')+';globalThis.config=YBS_FULLREV_CONFIG;',c);

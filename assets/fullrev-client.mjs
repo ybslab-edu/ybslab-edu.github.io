@@ -217,30 +217,36 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     try {
       const body=JSON.stringify(pending.body);
       if(new TextEncoder().encode(body).length>8192)throw fail('answer-too-large');
-      let response;
+      let response,data;
       for(let refresh=0;refresh<2;refresh++) {
         const bearer=await token(m,refresh===1);
         const controller=new AbortController();aborters.add(controller);let timeout;
         try{
-          response=await Promise.race([
-            fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
-              redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal}),
+          // 標頭到達後本文仍可能停住；同一個期限須涵蓋 fetch 與 JSON 讀取。
+          ({response,data}=await Promise.race([
+            (async()=>{
+              const response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
+                redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal});
+              active(m);
+              const data=response.status===401?null:await response.json().catch(error=>{if(response.ok)throw error;return null;});
+              return {response,data};
+            })(),
             new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(fail('identity-changed')),{once:true})),
             new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(fail('request-timeout'));},requestTimeoutMs);})
-          ]);
+          ]));
         }finally{clearTimeout(timeout);aborters.delete(controller);}active(m);
         if(response.status!==401)break;
       }
       if(!response.ok) {
         if(response.status===401){clear();throw fail('login-required');}
         if(response.status===400&&pending.op==='answer'){
-          const error=await response.json().catch(()=>null);active(m);
+          const error=data;active(m);
           if(error?.error==='invalid_answer'){
             d.pending=null;d.failures=0;d.retryAt=0;save();emit('ready');throw fail('invalid-answer');
           }
         }
         if(response.status===429||response.status>=500) {
-          const error=await response.json().catch(()=>null);active(m);
+          const error=data;active(m);
           d.issue=error?.error==='storage_quota'||response.status===429&&!['rate_limited','storage_busy'].includes(error?.error)?'storage-quota':response.status===429?'rate-limited':'connection-failed';
           const header=response.headers.get('retry-after'), seconds=Number(header);
           const until=header && !Number.isNaN(seconds)?now()+Math.max(0,seconds)*1000:Date.parse(header||'');
@@ -249,7 +255,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         }
         d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');throw fail('restart-required');
       }
-      const value=await response.json();active(m);
+      const value=data;active(m);
       if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? (isGuestContext(d.context)?!guestCompletion(value):!id(value.resultId))
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
       if(!value.question||d.input?.stamp!==questionStamp(value)||now()-d.input.savedAt>=WORK_TTL)delete d.input;

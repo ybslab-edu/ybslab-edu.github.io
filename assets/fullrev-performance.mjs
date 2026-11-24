@@ -1,3 +1,4 @@
+import {indices} from './fullrev-answer-ui.mjs?v=20261124summary';
 // 通用排卡與演出播放器；只顯示授權題面及 Worker 回傳的本次執行，不在前端判題。
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 export function renderPerformance(host,d,api){
@@ -21,7 +22,8 @@ export function renderPerformance(host,d,api){
     values.forEach((k,j)=>{const row=node('div');row.className='slot-row';const b=button(`${j+1}．${k===null?'待放入':d.cards[k]}`,()=>{if(k===null)selected=j;else{values[j]=null;selected=null;}edit();});b.dataset.slotIndex=j;b.setAttribute('aria-pressed',String(selected===j));row.append(b);
       for(const delta of [-1,1]){const move=button(delta===-1?'▲':'▼',()=>{[values[j],values[j+delta]]=[values[j+delta],values[j]];edit();});move.disabled=j+delta<0||j+delta>=values.length;move.setAttribute('aria-label',`第 ${j+1} 步往${delta===-1?'上':'下'}移`);row.append(move);}slots.append(row);});
   }
-  if(d.cells)controls.append(button('停電／開店示意',()=>{powerOff=!powerOff;initial.replaceChildren(memory(powerOff?'點單牆斷電：RAM 清空':'點單牆（RAM）',d.cells.map(([k,v])=>[`${k} ${Object.fromEntries(d.labels)[k]}`,powerOff?'':v])));edit();}));
+  let powerButton;
+  if(d.cells)controls.append(powerButton=button('停電／開店示意',()=>{powerOff=!powerOff;initial.replaceChildren(memory(powerOff?'點單牆斷電：RAM 清空':'點單牆（RAM）',d.cells.map(([k,v])=>[`${k} ${Object.fromEntries(d.labels)[k]}`,powerOff?'':v])));edit();}));
   controls.append(button('全部拿回來',()=>{values.fill(null);selected=null;edit();}));
   function frame(){
     const s=steps[position];if(!s)return;
@@ -34,6 +36,8 @@ export function renderPerformance(host,d,api){
   }
   function schedule(){stop();timer=setTimeout(()=>{timer=null;if(!host.isConnected)return;if(position<steps.length-1){position++;schedule();}frame();},matchMedia('(prefers-reduced-motion: reduce)').matches?700:1500);}
   draw();
-  return {get:()=>[...values],carry:()=>values.every(k=>k!==null)?[...values]:undefined,ready:()=>!powerOff&&values.every(k=>k!==null),dispose:stop,
+  return {draft:()=>({values:[...values],powerOff}),restoreDraft(v){if(!v||!indices(v.values,values.length,d.cards.length,{unique:true})||typeof v.powerOff!=='boolean'||v.powerOff&&!powerButton)return false;values=[...v.values];if(powerOff!==v.powerOff)powerButton.click();else draw();return true;},
+    fields:()=>[...(powerButton?[{target:powerButton,reason:powerOff?'請恢復開店':''}]:[]),...[...slots.querySelectorAll('.slot-row')].map((target,k)=>({target,reason:values[k]===null?'請放入卡片':''}))],get:()=>[...values],carry:()=>values.every(k=>k!==null)?[...values]:undefined,ready:()=>!powerOff&&values.every(k=>k!==null),dispose:stop,
+    readyReason:()=>powerOff?'目前是停電示意，請先恢復開店。':values.includes(null)?`還有 ${values.filter(k=>k===null).length} 張卡沒排好。`:'',
     feedback(trace){stop();steps=trace.steps;position=0;schedule();frame();}};
 }

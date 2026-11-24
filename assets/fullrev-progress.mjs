@@ -32,6 +32,8 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
           || r.unitEpoch !== 0 || r.roundEpoch !== 0
           || r.completedAt !== null && !Number.isFinite(time(r.completedAt))
           || !Number.isFinite(time(r.xpPolicySnapshot?.openedAt))) return unknown('legacy-invalid');
+    } else if (r.source==='worker-guest-approved') {
+      if(!id(r.approvalId)||!a||!int(r.round)||r.round>=a.rounds.length||!Number.isFinite(time(r.completedAt)))return unknown('guest-invalid');
     } else if (r.schemaVersion !== 1 || r.source !== 'worker-validated' || !id(r.resultId) || !id(r.uid)
         || !['google.com','password','anonymous'].includes(r.provider) || !id(r.sid) || !id(r.classKeyAtPass)
         || !int(r.bindingVersion,1) || !a
@@ -41,18 +43,18 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
         || !/^[a-f0-9]{64}$/.test(r.contentHash) || !id(r.graderVersion)
         || !Number.isFinite(time(r.completedAt))) return unknown('result-invalid');
     const key = JSON.stringify([r.subject,r.activity,r.round]);
-    if (!legacy) {
+    if (r.source==='worker-validated') {
       if (validatedIds.has(key) && validatedIds.get(key) !== r.resultId) return unknown('completion-collision');
       validatedIds.set(key,r.resultId);
     }
     const old = selected.get(key);
-    if (old && (legacy || old.source === 'legacy-unverified')) {
+    if (old && (legacy || old.source === 'legacy-unverified'||r.source==='worker-guest-approved'||old.source==='worker-guest-approved')) {
       const previous = time(old.completedAt), next = time(r.completedAt);
       // Old XP oracle: unknown first-pass time wins; otherwise choose the earliest.
       if (!(Number.isFinite(previous) && (!Number.isFinite(next) || next < previous)
           || Object.is(next,previous) && legacy)) continue;
     }
-    selected.set(key,{...r,course});
+    selected.set(key,{...r,...(r.source==='worker-guest-approved'?{provider:'anonymous'}:{}),course});
   }
   return {state:'confirmed',records:[...selected.values()],exclusions};
 }
@@ -61,7 +63,12 @@ export function growth(snapshot, options, xp) {
   const valid = effectiveRecords(snapshot,options);
   if (valid.state !== 'confirmed') return {...valid,totalXP:null};
   // guest 帳號 XP 尚待核定；不能因 binding 成功就補發。
-  if (options.provider === 'anonymous' || valid.records.some(r=>r.provider==='anonymous')) return {...valid,state:'unknown',reason:'guest-xp-policy-pending',totalXP:null};
+  if (options.provider === 'anonymous' || valid.records.some(r=>r.provider==='anonymous')) {
+    const pendingRecords=valid.records.filter(r=>r.provider==='anonymous');
+    const result=xp.calculate(options.activities,valid.records.filter(r=>r.provider!=='anonymous'),{worker:true});
+    for(const a of result.activities)for(const r of a.rounds)r.teacherPending=pendingRecords.some(p=>p.activity===a.activity&&p.round===a.rounds.indexOf(r));
+    return {...valid,...result,state:'unknown',reason:'guest-xp-policy-pending',totalXP:null,pendingRecords};
+  }
   const result = xp.calculate(options.activities,valid.records,{worker:true});
   const uncertain = result.activities.some(a => a.rounds.some(r => r.onTimeState === 'unknown'));
   return {...valid,...result,state:uncertain?'unknown':'confirmed',

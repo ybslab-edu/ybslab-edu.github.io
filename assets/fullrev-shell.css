@@ -1,4 +1,5 @@
 /* 新版活動共用外框，沿用 shell.css 的尺寸與色彩。 */
+.fullrev-activity #g-whotext,.fullrev-activity #g-notme{font-size:20px}
 .fullrev-activity #stage{overflow-wrap:anywhere}
 .fullrev-activity .quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
 .fullrev-activity .quest-note p{margin:var(--u) 0}
@@ -29,6 +30,8 @@
 .fullrev-activity #activity-tools{font-size:14px}
 .fullrev-activity #activity-tools button{display:block;margin-block:10px}
 #activity-lock{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--void);color:var(--text);font:18px/1.6 "Noto Sans TC",system-ui,sans-serif;text-align:center;color-scheme:dark}
+/* 外框獨立載入時，也須讓 hidden 優先於遮罩的 display:flex。 */
+#activity-lock[hidden]{display:none!important}
 #activity-lock>div{max-width:480px;min-width:0;padding:32px 24px;background:var(--panel);border:2px solid var(--edge);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
 #activity-lock h1{font-size:26px;font-weight:900;margin:8px 0}
 #activity-lock>div>p:first-of-type{color:var(--dim);margin:0 0 20px}
@@ -93,3 +96,13 @@
  .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--u);border:0!important;border-bottom:1px solid var(--edge)!important}
  .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td::before{content:attr(data-label);font-weight:700}
 }
+.fullrev-activity .send-control{display:inline-flex;max-width:100%;cursor:help}
+.fullrev-activity .send-control #b-send:disabled{pointer-events:none}
+.fullrev-activity .send-control:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+.fullrev-activity #send-hint{max-width:100%;overflow-wrap:anywhere}
+
+/* 必填提示沿用主題警示色，深淺色皆由 shell.css 的色票提供。 */
+.fullrev-activity #stage .answer-invalid{outline:2px solid var(--warn);outline-offset:2px;scroll-margin-block:5rem}
+.fullrev-activity #stage input.answer-invalid,.fullrev-activity #stage select.answer-invalid{border-color:var(--warn)}
+.fullrev-activity .answer-error{display:block;color:var(--warn);font-size:14px;font-weight:700;margin-block:6px;line-height:1.5}
+.fullrev-activity #draft-notice:empty{display:none}

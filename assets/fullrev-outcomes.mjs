@@ -1,3 +1,4 @@
+import {inputState} from './fullrev-answer-ui.mjs?v=20261124summary';
 // 通用成果介面；題目、素材與教學內容均來自授權回應，不含答案或判題。
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const urls=new WeakMap();
@@ -81,5 +82,14 @@ export function renderOutcome(host,d,changed){
     else{input.type='text';input.autocomplete='off';input.maxLength=256;if(d.kinds[k]==='n')input.inputMode='numeric';}
     input.oninput=input.onchange=changed;label.append(input);host.append(label);return input;
   });
-  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12))};
+  // 志工答案保留原文交由 Worker 判分；提示不得改寫答案契約。
+  const validNumber=e=>/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12;
+  const readyReason=()=>{
+    const missing=inputs.filter(e=>e.value.trim()==='').length;
+    if(missing)return `還有 ${missing} 格沒填或沒選。`;
+    const invalid=inputs.findIndex((e,k)=>d.kinds[k]==='n'&&!validNumber(e));
+    return invalid<0?'':`第 ${invalid+1} 格請填 0～1000000000000 的整數，不含單位或小數點。`;
+  };
+  return {...inputState(inputs,(e,k)=>!e.value.trim()?e.tagName==='SELECT'?'請選一項':d.kinds[k]==='n'?'請填數字':'請填答案':d.kinds[k]==='n'&&!validNumber(e)?'請填 0～1000000000000 的整數':''),get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>!readyReason(),readyReason,
+    dispose(){for(const url of urls.get(host)||[])URL.revokeObjectURL(url);urls.delete(host);host.replaceChildren();}};
 }

@@ -23,7 +23,7 @@ export function checkConfig(config) {
 // readModel 為 PR4 受控服務的 adapter；沒有 adapter 不猜版本、不直接 list／讀 gate。
 export function createClient({config,session,readModel,course='115-g9',fetcher=globalThis.fetch,storage=globalThis.sessionStorage,
   shared=globalThis.localStorage,events=globalThis.window,now=Date.now,random=Math.random,
-  requestId=()=>crypto.randomUUID(),schedule=setTimeout,cancel=clearTimeout}) {
+  requestId=()=>crypto.randomUUID(),schedule=setTimeout,cancel=clearTimeout,requestTimeoutMs=20000}) {
   const project = checkConfig(config);
   if(!['115-g9','115-df'].includes(course))throw fail('invalid-course');
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
@@ -31,8 +31,10 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   let status='signed-out', snapshot=null, view=null, readingRetry=null;
   let gradingWork=Promise.resolve();
   const listeners = new Set(), running = new Map();
+  // 只保留可公開的錯誤種類，不保存伺服器錯誤內容。
+  const uploadIssue=()=>Object.values(drafts).find(d=>d.pending&&!d.blocked)?.issue||null;
   const emit = next => { status=next; for (const f of listeners) f({profile:profile&&{...profile},status,
-    pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),snapshot,view,readingRetry}); };
+    pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),uploadIssue:uploadIssue(),snapshot,view,readingRetry}); };
   readModel?.subscribeRetry?.(value=>{readingRetry=profile?value:null;emit(status);});
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
@@ -178,7 +180,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       ...epochKeys,'controlVersions'].map(k=>[k,clone(value[k])]));
   }
   function arm(d) {
-    cancel(timer); if(d.failures>=4||d.blocked)return;
+    cancel(timer); if(d.failures>=4||d.blocked||d.issue==='storage-quota')return;
     const g=generation;timer=schedule(()=>{if(g===generation)retry().catch(()=>{});},Math.max(0,d.retryAt-now()));
   }
   async function send(d,m) {
@@ -187,26 +189,34 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const pending=d.pending;if(!pending)throw fail('nothing-pending');
     if(d.blocked)throw fail('restart-required');
     if(d.retryAt>now())throw fail('retry-later');
-    active(m);emit('sending');
+    active(m);delete d.issue;emit('sending');
     try {
       const body=JSON.stringify(pending.body);
       if(new TextEncoder().encode(body).length>8192)throw fail('answer-too-large');
       let response;
       for(let refresh=0;refresh<2;refresh++) {
         const bearer=await token(m,refresh===1);
-        response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
-          redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body});active(m);
+        const controller=new AbortController();let timeout;
+        try{
+          response=await Promise.race([
+            fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
+              redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal}),
+            new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(fail('request-timeout'));},requestTimeoutMs);})
+          ]);
+        }finally{clearTimeout(timeout);}active(m);
         if(response.status!==401)break;
       }
       if(!response.ok) {
         if(response.status===401){clear();throw fail('login-required');}
         if(response.status===400&&pending.op==='answer'){
-          const error=await response.clone().json().catch(()=>null);active(m);
+          const error=await response.json().catch(()=>null);active(m);
           if(error?.error==='invalid_answer'){
             d.pending=null;d.failures=0;d.retryAt=0;save();emit('ready');throw fail('invalid-answer');
           }
         }
         if(response.status===429||response.status>=500) {
+          const error=await response.json().catch(()=>null);active(m);
+          d.issue=error?.error==='storage_quota'?'storage-quota':response.status===429?'rate-limited':'connection-failed';
           const header=response.headers.get('retry-after'), seconds=Number(header);
           const until=header && !Number.isNaN(seconds)?now()+Math.max(0,seconds)*1000:Date.parse(header||'');
           d.retryAt=Math.max(Number.isFinite(until)?until:0,now()+Math.min(60000,1000*2**Math.min(d.failures||0,6))+Math.floor(random()*500));
@@ -217,7 +227,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       const value=await response.json();active(m);
       if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? (isGuestContext(d.context)?!guestCompletion(value):!id(value.resultId))
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
-      d.pending=null;d.failures=0;d.retryAt=0;
+      d.pending=null;delete d.issue;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
       if(value.completed||value.awaitingTeacher)delete drafts[scopeKey(d.activity,d.round)];
       view={activity:d.activity,round:d.round,...clone(value)};
@@ -228,6 +238,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       active(m);
       if(error.code==='invalid-answer')throw error;
       if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
+      d.issue||='connection-failed';
       d.failures=(d.failures||0)+1;
       if(!d.retryAt||d.retryAt<=now())d.retryAt=now()+Math.min(60000,1000*2**Math.min(d.failures-1,6))+Math.floor(random()*500);
       save();emit('pending');arm(d);throw fail('pending');
@@ -352,7 +363,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,teacherQuestion,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
-    state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});
+    state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,uploadIssue:uploadIssue(),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});
 }
 
 export async function createBrowserClient(config) {

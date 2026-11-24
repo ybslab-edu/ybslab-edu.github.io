@@ -90,7 +90,9 @@ function numberFields(host,fields,changed) {
     input.dataset.answerField=key;input.className='num-in';label.style.display='block';label.append(input);host.append(label);input.oninput=input.onchange=changed;inputs[key]=input;
   }
   const valid=input=>input.value!==''&&/^-?\d+$/.test(input.value.trim())&&Number.isSafeInteger(Number(input.value))&&Math.abs(Number(input.value))<=1e12;
-  return {get:()=>Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,Number(input.value)])),ready:()=>Object.values(inputs).every(valid)};
+  return {get:()=>Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,Number(input.value)])),ready:()=>Object.values(inputs).every(valid),
+    readyReason:()=>{const missing=Object.values(inputs).filter(e=>!e.value.trim()).length;
+      return missing?`還有 ${missing} 格沒填或沒選。`:Object.values(inputs).every(valid)?'':'請填整數（絕對值不超過 1000000000000），不含單位或小數點。';}};
 }
 function multi(host,options,changed) {
   const values=new Set();options.forEach((text,k)=>{
@@ -137,7 +139,8 @@ function ascii(host,d,changed) {
   input.oninput=()=>{const a=get(),current=typeof a==='string'?[...a].map(c=>c.charCodeAt(0)):a,target=d.codes||[...d.prompt].map(c=>c.charCodeAt(0));
     preview.textContent='目前編碼：'+current.join(' ');const different=Array.from({length:Math.max(current.length,target.length)},(_,k)=>k).filter(k=>current[k]!==target[k]);
     status.textContent=!current.length?'尚未填入有效答案':different.length?`與目標相差 ${different.length} 個位置（含缺少或多出）；第一個差異在第 ${different[0]+1} 個位置`:'與目標相同';changed();};
-  return {get,ready:()=>get().length>0&&(d.mode==='ascii-decode'||nums().length<=32&&nums().every(n=>Number.isSafeInteger(n)&&n<=1e12))};
+  return {get,ready:()=>get().length>0&&(d.mode==='ascii-decode'||nums().length<=32&&nums().every(n=>Number.isSafeInteger(n)&&n<=1e12)),
+    readyReason:()=>!input.value.trim()?'請先填入答案。':d.mode==='ascii-decode'?'':'請填最多 32 個整數（每個不超過 1000000000000），用空格或逗號隔開。'};
 }
 function table(host,headers,rows) {
   const wrap=node('div'),t=node('table');wrap.style.cssText='max-width:100%;overflow-x:auto';t.style.cssText='border-collapse:collapse;width:100%';
@@ -306,7 +309,7 @@ function renderQuestionControls(q,host,api) {
       const draw=()=>{buttons.dataset.routeLength=path.length;text.textContent='走法：'+path.join(' → ');buttons.replaceChildren();
         for(const [name] of d.nodes){const b=node('button',name);b.type='button';b.className='pk';b.dataset.routeNode=name;b.onclick=()=>{if(name===path.at(-1)&&path.length>1)path.pop();else if(!path.includes(name))path.push(name);draw();api.changed();};buttons.append(b);}
         const back=node('button','退一步');back.type='button';back.onclick=()=>{if(path.length>1)path.pop();draw();api.changed();};buttons.append(back);
-      };draw();return {get:()=>[...path],ready:()=>path.length>1};
+      };draw();return {get:()=>[...path],ready:()=>path.length>1,readyReason:()=>path.length>1?'':'請先選下一站，排出傳送路線。'};
     }
     if(d.mode==='multi'){if(d.edges)network(host,d);return multi(host,d.options,api.changed);}
     if(d.mode==='wifi-dead'){
@@ -394,6 +397,12 @@ function principleView(q,host,get) {
 export function renderQuestion(q,host,api={changed(){}}) {
   let update=()=>{};
   const handle=renderQuestionControls(q,host,{...api,changed(){update();api.changed();}});
+  if(!handle.readyReason)handle.readyReason=()=>{
+    if(!handle.ready||handle.ready())return '';
+    const missing=value=>value==null?1:Array.isArray(value)?value.reduce((n,v)=>n+missing(v),0):0;
+    const n=missing(handle.get());
+    return n?`還有 ${n} 題沒選或沒排好。`:'請先完成這一題的作答。';
+  };
   update=principleView(q,host,handle.get);highlightChangedNumbers(host,q);return handle;
 }
 export function activityConfig(cfg) {

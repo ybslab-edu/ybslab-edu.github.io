@@ -10,6 +10,25 @@ const xp=context.xp, options={project:config.firebase.projectId,course:'115-g9',
 const storageKey='ybs:fullrev:'+config.firebase.projectId+':115-g9';
 const savedDrafts=h=>JSON.parse(h.storage.getItem(storageKey)).drafts;
 
+test('Worker 儲存額度不足：保留原待送、停止自動重試，手動成功後清除原因',async()=>{
+  const h=await harness();await h.login();await h.client.start(5,0);
+  h.state.fetcher=async()=>Response.json({error:'storage_quota'},{status:503,headers:{'retry-after':'60'}});
+  await assert.rejects(h.client.answer(5,0,7),{code:'pending'});
+  assert.equal(h.client.state().uploadIssue,'storage-quota');assert.equal(h.client.state().pending,true);
+  assert.equal(h.timers.length,0);const original=h.requests.at(-1).body;
+  assert.equal((await h.client.retry()).length,0,'冷卻期間不重送');
+  h.advance();h.state.fetcher=async()=>Response.json(response(1,{correct:true}));await h.client.retry();
+  assert.deepEqual(h.requests.at(-1).body,original);assert.equal(h.client.state().uploadIssue,null);assert.equal(h.client.state().pending,false);
+});
+test('Worker 請求無回應會逾時，保留答案並能原封重試，不永久卡在 sending',async()=>{
+  const h=await harness({requestTimeoutMs:10});await h.login();await h.client.start(5,0);
+  let signal;h.state.fetcher=async(_url,init)=>{signal=init.signal;return new Promise(()=>{});};
+  await assert.rejects(h.client.answer(5,0,7),{code:'pending'});
+  assert.equal(signal.aborted,true);assert.equal(h.client.state().status,'pending');assert.equal(h.client.state().uploadIssue,'connection-failed');
+  const original=h.requests.at(-1).body;h.advance();h.state.fetcher=async()=>Response.json(response(1,{correct:true}));await h.client.retry();
+  assert.deepEqual(h.requests.at(-1).body,original);assert.equal(h.client.state().pending,false);
+});
+
 test('預設關閉、空正式設定與舊／試點專案拒絕，不由 URL／儲存區切換',()=>{
   const c=vm.createContext({});vm.runInContext(readFileSync(new URL('../assets/fullrev-config.js',import.meta.url),'utf8')+';globalThis.config=YBS_FULLREV_CONFIG;',c);
   assert.equal(c.config.enabled,false);assert.throws(()=>checkConfig(c.config),{code:'configuration-pending'});

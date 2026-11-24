@@ -5,6 +5,7 @@ const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
 const messages={'report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
   'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
+  'storage-quota':'伺服器儲存額度不足，請告訴老師或改用舊站。',
   'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
   'binding-pending':'尚待老師核發身分；目前只能本機練習。','read-model-pending':'雲端紀錄尚未確認，請稍後重新讀取。',
   'owner-required':'只有此課程擁有者可以使用。','configuration-pending':'新登入服務尚未就緒，請找老師。',

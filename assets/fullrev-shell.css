@@ -96,3 +96,7 @@
  .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--u);border:0!important;border-bottom:1px solid var(--edge)!important}
  .fullrev-activity #stage.quest-outcome .fullrev-outcome-table td::before{content:attr(data-label);font-weight:700}
 }
+.fullrev-activity .send-control{display:inline-flex;max-width:100%;cursor:help}
+.fullrev-activity .send-control #b-send:disabled{pointer-events:none}
+.fullrev-activity .send-control:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+.fullrev-activity #send-hint{max-width:100%;overflow-wrap:anywhere}

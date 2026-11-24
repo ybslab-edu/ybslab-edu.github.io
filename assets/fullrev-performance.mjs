@@ -35,5 +35,6 @@ export function renderPerformance(host,d,api){
   function schedule(){stop();timer=setTimeout(()=>{timer=null;if(!host.isConnected)return;if(position<steps.length-1){position++;schedule();}frame();},matchMedia('(prefers-reduced-motion: reduce)').matches?700:1500);}
   draw();
   return {get:()=>[...values],carry:()=>values.every(k=>k!==null)?[...values]:undefined,ready:()=>!powerOff&&values.every(k=>k!==null),dispose:stop,
+    readyReason:()=>powerOff?'目前是停電示意，請先恢復開店。':values.includes(null)?`還有 ${values.filter(k=>k===null).length} 張卡沒排好。`:'',
     feedback(trace){stop();steps=trace.steps;position=0;schedule();frame();}};
 }

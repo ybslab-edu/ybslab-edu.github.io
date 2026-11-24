@@ -1,7 +1,7 @@
 // Only authenticated Worker projections; no direct list or private-control reads.
 import {fail} from './fullrev-progress.mjs';
 export function createReadModel({session,project,course,workerOrigin,fetcher=globalThis.fetch,
- now=Date.now,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
+ now=Date.now,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),requestTimeoutMs=20000}){
  const origin=new URL(workerOrigin);
  if(origin.protocol!=='https:'||!origin.hostname.endsWith('.workers.dev')||origin.origin!==workerOrigin)throw fail('configuration-pending');
  const listeners=new Set(),waiting=new Map();
@@ -13,10 +13,18 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
   const active=()=>{if(auth.currentUser!==user)throw fail('identity-changed');};
   try{for(let attempt=0;attempt<4;attempt++){
    active();const token=await user.getIdToken();active();let response;
-   try{response=await fetcher(new URL(operation,origin),{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
-    headers:{'content-type':'application/json',authorization:'Bearer '+token},body:payload});}
+   const controller=new AbortController();let timeout;
+   try{response=await Promise.race([
+    fetcher(new URL(operation,origin),{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
+     headers:{'content-type':'application/json',authorization:'Bearer '+token},body:payload,signal:controller.signal}),
+    new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(fail('read-model-pending'));},requestTimeoutMs);})
+   ]);}
    catch{active();throw fail('read-model-pending');}
+   finally{clearTimeout(timeout);}
    active();
+   // 額度不足與短暫流量限制不同；立即說明原因，交由老師決定替代入口。
+   const data=await response.json().catch(()=>null);active();
+   if(!response.ok&&data?.error==='storage_quota')throw fail('storage-quota');
    if([429,503].includes(response.status)&&attempt<3){
     const header=response.headers.get('retry-after'),seconds=header?.trim()?Number(header):NaN;
     const delay=Number.isFinite(seconds)?Math.max(0,seconds*1000):Date.parse(header||'')-now();
@@ -27,7 +35,6 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
      await wait(ms);active();waiting.delete(key);notify();continue;
     }
    }
-   const data=await response.json().catch(()=>null);active();
    if(!response.ok)throw fail(data?.error==='not_open'?'not-open':data?.error==='control_changed'?'control-changed':response.status===429?'retry-later':'read-model-pending');
    if(!data)throw fail('read-model-pending');return data;
   }}finally{if(waiting.delete(key))notify();}

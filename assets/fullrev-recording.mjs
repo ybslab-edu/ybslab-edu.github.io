@@ -72,5 +72,7 @@ export function renderRecording(question,host,api){
   for(const e of controls)e.onchange=e.oninput=()=>{update();
     format.textContent=numbers.some(e=>e.value!==''&&integer(e.value)===null)?'請輸入 0～100000 的整數，不含小數點；已填內容會保留，可直接修改。':'';
     api.changed();};
-  return {get,ready:()=>controls.every(e=>e.value!=='')&&numbers.every(e=>integer(e.value)!==null)&&seen.size>=2,dispose};
+  return {get,ready:()=>controls.every(e=>e.value!=='')&&numbers.every(e=>integer(e.value)!==null)&&seen.size>=2,dispose,
+    readyReason:()=>{const missing=controls.filter(e=>!e.value.trim()).length;
+      return missing?`還有 ${missing} 格沒填或沒選。`:numbers.some(e=>integer(e.value)===null)?'請填 0～100000 的整數，不含小數點。':seen.size<2?'請先比較至少兩種不同設定。':'';}};
 }

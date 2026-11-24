@@ -43,12 +43,14 @@ test('兩活動志工四關 64 組授權題面只渲染觀察、附件與作答�
     const data=projectQuestion({data:c.facts,answer:c.answer},0,bank.type,'志工招募','').data;
     assert.ok(!('model' in data));assert.ok(!('feedback' in data));
     const host=new DOMElement('section'),handle=renderOutcome(host,data,()=>{});
-    assert.deepEqual(Object.keys(handle).sort(),['dispose','get','ready']);assert.equal(handle.ready(),false);
+    assert.deepEqual(Object.keys(handle).sort(),['dispose','get','ready','readyReason']);assert.equal(handle.ready(),false);
     const fields=host.querySelectorAll('label').map(label=>label.childNodes.at(-1));assert.equal(fields.length,c.answer.length);
     fields.forEach((field,k)=>{field.value=String(c.answer[k]);});
     assert.equal(handle.ready(),true);assert.deepEqual(handle.get(),c.answer.map(String));
     const numeric=data.kinds.indexOf('n');fields[numeric].value='01';assert.equal(handle.get()[numeric],'01');
-    fields[numeric].value='1e0';assert.equal(handle.ready(),false);
+    fields[numeric].value='1e0';assert.equal(handle.ready(),false);assert.match(handle.readyReason(),/整數/);
+    for(const value of ['０１',' 01 ','　０１　']){fields[numeric].value=value;assert.equal(handle.ready(),false);assert.equal(handle.get()[numeric],value);assert.match(handle.readyReason(),/整數/);}
+    fields[numeric].value='　';assert.equal(handle.ready(),false);assert.match(handle.readyReason(),/還有 1 格/);
     if(round==='0'&&key.startsWith('7:')){
       const chart=host.querySelector('section[aria-label="職務第一志願比較（人）"]');assert.ok(chart);
       assert.equal(chart.childNodes.length,7);assert.equal(host.querySelectorAll('button').length,0);

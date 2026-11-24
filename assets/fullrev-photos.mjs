@@ -94,5 +94,7 @@ export function renderPhotos(host,d,api){
     }}loaded=true;note.textContent='兩張照片的問題都回答後，再拍下來傳出去。';paint();api.changed();
   })().catch(()=>{if(!disposed)note.textContent='照片尚未取得，請重新讀取這一關。';});
   paint();
-  return {setOriginal(on){if(!api.demonstration||originals.length!==d.photos.length)return;originals.forEach(image=>image.hidden=!on);},get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),dispose(){disposed=true;pixels.length=0;restoreShell();},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
+  return {setOriginal(on){if(!api.demonstration||originals.length!==d.photos.length)return;originals.forEach(image=>image.hidden=!on);},get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),
+    readyReason:()=>!loaded?'圖片尚未準備好，請稍候；太久請告訴老師。':values.flat().includes(null)?`還有 ${values.flat().filter(v=>v===null).length} 題沒選。`:'',
+    dispose(){disposed=true;pixels.length=0;restoreShell();},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
 }

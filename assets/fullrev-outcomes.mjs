@@ -81,6 +81,14 @@ export function renderOutcome(host,d,changed){
     else{input.type='text';input.autocomplete='off';input.maxLength=256;if(d.kinds[k]==='n')input.inputMode='numeric';}
     input.oninput=input.onchange=changed;label.append(input);host.append(label);return input;
   });
-  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12)),
+  // 志工答案保留原文交由 Worker 判分；提示不得改寫答案契約。
+  const validNumber=e=>/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12;
+  const readyReason=()=>{
+    const missing=inputs.filter(e=>e.value.trim()==='').length;
+    if(missing)return `還有 ${missing} 格沒填或沒選。`;
+    const invalid=inputs.findIndex((e,k)=>d.kinds[k]==='n'&&!validNumber(e));
+    return invalid<0?'':`第 ${invalid+1} 格請填 0～1000000000000 的整數，不含單位或小數點。`;
+  };
+  return {get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>!readyReason(),readyReason,
     dispose(){for(const url of urls.get(host)||[])URL.revokeObjectURL(url);urls.delete(host);host.replaceChildren();}};
 }

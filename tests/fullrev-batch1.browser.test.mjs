@@ -265,3 +265,33 @@ test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回�
     }finally{await context.close();}
   });
 });
+
+
+test('送出停用回饋：觸控、鍵盤、漏 input、格式與額度失敗恢復', {timeout:30000},async t=>{
+  if(!workerSource){t.skip('須指定本機 YBS_WORKER_SOURCE');return;}
+  await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+  t.after(()=>context.close());await page.clock.setFixedTime(allActivitiesOpenAt);page.setDefaultTimeout(6000);
+  await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
+  await page.goto(base+'/115-g9/u2-05/index.html');await page.getByLabel('帳號',{exact:true}).fill('9990001');
+  await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'登入',exact:true}).click();
+  await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
+  const send=page.locator('#b-send'),control=page.locator('#send-control'),hint=page.locator('#send-hint');
+  assert.equal(await send.isDisabled(),true);assert.match(await hint.innerText(),/還有 7 格/);
+  await control.click();assert.match(await hint.innerText(),/還不能送出.*7 格/);
+  await control.focus();await page.keyboard.press('Enter');assert.match(await hint.innerText(),/還不能送出/);
+  assert.equal(current.requests.filter(r=>r.op==='answer').length,0);
+  const answer=modules.privateAnswer(current.db);await fill(page,'finite-bank-v1',answer);
+  const input=page.locator('#stage input').first();await input.fill('1人');assert.equal(await send.isDisabled(),true);assert.match(await hint.innerText(),/整數/);
+  await input.evaluate(el=>{el.value='　０１　';el.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));});
+  assert.equal(await send.isDisabled(),true);assert.match(await hint.innerText(),/整數/);
+  await input.evaluate(el=>{el.value='01';el.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));});
+  assert.equal(await send.isDisabled(),false);
+  await input.fill('');const index=Number(await input.getAttribute('data-answer-field'));
+  await input.evaluate((el,value)=>{el.value=value;},String(answer[index]));
+  await page.route('**/worker/answer',route=>route.fulfill({status:503,contentType:'application/json',headers:{'retry-after':'60'},body:JSON.stringify({error:'storage_quota'})}));
+  await control.click();await page.waitForFunction(()=>document.getElementById('send-hint').textContent.includes('儲存額度不足'));
+  assert.equal(await send.isDisabled(),true);assert.equal(await page.locator('#quota-old').isVisible(),true);
+  await page.unroute('**/worker/answer');await page.evaluate(async()=>{app.advance(60001);await app.client.retry();});
+  await page.locator('#b-next-group').waitFor();assert.match(await hint.innerText(),/下一組/);
+  assert.equal(await page.locator('#quota-old').isVisible(),false);
+});

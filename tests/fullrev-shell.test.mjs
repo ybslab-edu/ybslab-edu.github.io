@@ -20,7 +20,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
  const [{createFormalWorker},{MemoryFirestore},{readPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
   load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal/read-model.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
- let readFailure=failInitialRead,secondFailure=null,startHeld=null,releaseStart;let clock=EPOCH,calls=[],throttle=true,waits=[],readsReleased=!holdProgress,release;
+ let readFailure=failInitialRead,answerFailure=null,secondFailure=null,startHeld=null,releaseStart;let clock=EPOCH,calls=[],throttle=true,waits=[],readsReleased=!holdProgress,release;
  const held=new Promise(resolve=>{release=()=>{readsReleased=true;resolve();};});
  const data=await batchData(clock);if(closed)data[paths.global].activities[7].opensAt=clock+86400000;
  const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:readPath});
@@ -42,6 +42,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  }
  const session=async()=>firebase.session,fetcher=async(url,init)=>{
   const op=new URL(url).pathname.slice(1);const call={op,body:JSON.parse(init.body),at:clock};calls.push(call);
+  if(op==='answer'&&answerFailure)return Response.json({error:answerFailure},{status:503,headers:{'retry-after':'60'}});
   if(op==='start'&&startHeld){const held=startHeld;startHeld=null;await held;}
   if(readFailure&&op==='controls')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
   if(op==='context'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
@@ -68,7 +69,7 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  const retry=async()=>{for(let i=0;i<8&&client.state().pending;i++){const call=calls.at(-1);clock+=Number(call.retryAfter||60)*1000;await client.retry();await tick();}};
  const probeStart=async()=>{const body={...calls.find(c=>c.op==='start').body,round:1,requestId:crypto.randomUUID()};return worker.fetch(new Request('https://synthetic.invalid/start',{method:'POST',headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'},body:JSON.stringify(body)}));};
  const result={probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},
-  interruptSecond:mode=>{secondFailure=mode;},holdNextStart:()=>{startHeld=new Promise(resolve=>{releaseStart=resolve;});},releaseStart:()=>releaseStart(),advance:ms=>{clock+=ms;},
+  failAnswer:code=>{answerFailure=code;},interruptSecond:mode=>{secondFailure=mode;},holdNextStart:()=>{startHeld=new Promise(resolve=>{releaseStart=resolve;});},releaseStart:()=>releaseStart(),advance:ms=>{clock+=ms;},
   reload:async()=>{events.pagehide();secondFailure=null;client=createClient(clientOptions);await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title})});await until(()=>!$('g-isme').hidden);}};
  if(holdRoster){await until(()=>rosterReads.length===1);return result;}
  if(failInitialRead){await until(()=>!$('g-reread').hidden);return result;}
@@ -80,6 +81,33 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  return result;
 }
 const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true};
+test('送出停用時具體顯示缺格、格式與下一組，點擊及鍵盤也提示，漏 input 可恢復',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t),send=h.$('b-send'),wrapper=h.$('send-control'),hint=h.$('send-hint');
+ assert.equal(send.disabled,true);assert.match(hint.textContent,/還有 7 格/);
+ wrapper.onclick({target:wrapper});assert.match(hint.textContent,/還不能送出.*7 格/);
+ let prevented=false;wrapper.onkeydown({target:wrapper,key:'Enter',preventDefault(){prevented=true;}});assert.equal(prevented,true);
+ const values=h.answer();h.fill(values);assert.equal(send.disabled,false);assert.equal(hint.textContent,'');
+ const input=h.$('stage').querySelectorAll('input')[0];input.value='1人';input.oninput();
+ assert.equal(send.disabled,true);assert.match(hint.textContent,/第 3 格.*整數/);
+ input.value='　０１　';h.$('stage').listeners.compositionend[0]();assert.equal(send.disabled,true);assert.match(hint.textContent,/整數/);
+ input.value='01';h.$('stage').listeners.compositionend[0]();assert.equal(send.disabled,false);
+ input.value='';input.onchange();assert.equal(send.disabled,true);
+ const index=Number(input.dataset.answerField);input.value=String(values[index]);
+ wrapper.onclick({target:wrapper});await until(()=>!h.$('b-next-group')?.hidden&&!!h.$('b-next-group'));
+ assert.match(hint.textContent,/下一組/);assert.equal(send.disabled,true);
+ h.$('b-next-group').onclick();assert.match(hint.textContent,/還有 7 格/);h.events.pagehide();
+});
+test('上傳失敗及額度不足在按鈕旁說明，重試成功恢復，待送時不能重複送出',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ for(const code of ['synthetic_offline','storage_quota']){
+  const h=await setup(t);h.fill(h.answer());h.failAnswer(code);await h.$('b-send').onclick();
+  assert.equal(h.$('b-send').disabled,true);assert.equal(h.$('b-retry').hidden,false);
+  assert.match(h.$('send-hint').textContent,code==='storage_quota'?/儲存額度不足/:/連線失敗.*重試上傳/);
+  assert.equal(h.$('quota-old').hidden,code!=='storage_quota');const before=h.calls.filter(c=>c.op==='answer').length;
+  h.$('send-control').onclick({target:h.$('send-control')});assert.equal(h.calls.filter(c=>c.op==='answer').length,before);
+  h.failAnswer(null);await h.retry();await until(()=>!!h.$('b-next-group'));assert.match(h.$('send-hint').textContent,/下一組/);
+  assert.equal(h.$('quota-old').hidden,true);h.events.pagehide();
+ }
+});
 test('本人單筆名冊顯示班座、同控制版本不重讀，換人清除',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{roster:ownRoster});
  assert.equal(h.$('who').textContent,'917 班 5 號');assert.equal(h.$('g-whotext').textContent,'你是 917 班 5 號，對嗎？');

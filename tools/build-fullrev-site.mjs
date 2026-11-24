@@ -4,14 +4,14 @@ import {resolve,join,dirname,relative} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {activitiesJSON} from './activities-json.mjs';
-import {buildBatches} from './build-fullrev-batch1.mjs';
+import {buildBatches,PUBLIC_ACTIVITY_ASSETS} from './build-fullrev-batch1.mjs';
 import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
 import {scanPrivateAnswers} from './scan-private-answers.mjs';
 import {publicAnswerRemainder} from './public-answer-allowlist.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 import {fullrevCsp,assertFullrevCsp} from './fullrev-csp.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
-const assets=['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs','login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js','activities.js','activities.json','curriculum.js','fullrev-config.js'];
+const assets=[...PUBLIC_ACTIVITY_ASSETS,'activities.js','activities.json','curriculum.js','fullrev-config.js'];
 // Preserve the existing DF flow; only byte-identical public content is exempt from answer scanning.
 const legacyDFSources={
  '115-df/index.html':'115-df/index.html','115-df/a/index.html':'115-df/a/index.html','115-df/teacher/index.html':'115-df/teacher/index.html',

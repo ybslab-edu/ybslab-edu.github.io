@@ -5,14 +5,25 @@ import {resolve,dirname,join,relative,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8} from '../assets/fullrev-activities.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
-import vm from 'node:vm';
 import {fullrevCsp} from './fullrev-csp.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
+// 批次驗收與正式產物共用同一份公開模組清單。
+export const PUBLIC_ACTIVITY_ASSETS=Object.freeze(['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
+ 'login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js']);
+// 僅解碼靜態字串，避免為每個欄位啟動 VM watchdog，在整套驗收並行時耗盡排程。
+function presentationText(literal){
+ const escapes={b:'\b',f:'\f',n:'\n',r:'\r',t:'\t',v:'\v','0':'\0'};
+ return literal.slice(1,-1).replace(/\\(u\{[\da-fA-F]+\}|u[\da-fA-F]{4}|x[\da-fA-F]{2}|\r\n|[\s\S])/g,(_,escape)=>{
+  if(escape.startsWith('u{'))return String.fromCodePoint(parseInt(escape.slice(2,-1),16));
+  if(/^[ux][\da-fA-F]+$/.test(escape))return String.fromCharCode(parseInt(escape.slice(1),16));
+  if(escape==='\n'||escape==='\r'||escape==='\r\n')return '';
+  return escapes[escape]??escape;
+ });
+}
 // 只取舊頁各關的靜態說明字串；不執行活動腳本或複製 gen/check/fill。
 export function presentationRounds(original,names){
  const fields=[...original.matchAll(/\b(name|now|goal|learn)\s*:\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")\s*(?=[,}])/g)];
- const context=vm.createContext(Object.create(null));
- const values=fields.map(field=>[field[1],vm.runInContext(field[2],context,{timeout:50})]);
+ const values=fields.map(field=>[field[1],presentationText(field[2])]);
  return names.map(name=>{
   let active=false;const info={name};
   for(const [key,value] of values){
@@ -37,10 +48,8 @@ export async function buildBatches({output,config,source=root,batches=[1,2,3,4,5
   let parent=dirname(output);while(!await stat(parent).catch(()=>null))parent=dirname(parent);
   if(!outside(await realpath(source),await realpath(parent)))throw Error('output_must_be_outside_source');
   if(await stat(output).catch(()=>null))throw Error('output_must_not_exist');
-  const assets=['fullrev-guest.mjs','fullrev-client.mjs','fullrev-read-model.mjs','fullrev-df.mjs','df-report.js','fullrev-recording.mjs','fullrev-ui.mjs','fullrev-shell.mjs','fullrev-teacher-view.mjs','fullrev-student-support.mjs','fullrev-shell.css','fullrev-progress.mjs','fullrev-activities.mjs','fullrev-outcomes.mjs','fullrev-performance.mjs','fullrev-photos.mjs',
-    'login.js','xp.js','shell.css','favicon.svg','vendor/xlsx-0.20.3.full.min.js'];
   await mkdir(join(output,'assets'),{recursive:true});
-  for(const asset of assets){await mkdir(dirname(join(output,'assets',asset)),{recursive:true});await copyFile(join(source,'assets',asset),join(output,'assets',asset));}
+  for(const asset of PUBLIC_ACTIVITY_ASSETS){await mkdir(dirname(join(output,'assets',asset)),{recursive:true});await copyFile(join(source,'assets',asset),join(output,'assets',asset));}
   const loginFile=join(output,'assets/login.js');
   await writeFile(loginFile,(await readFile(loginFile,'utf8')).replace(/(?:fullrev-client|fullrev-activities|fullrev-ui)\.mjs\?v=[a-z0-9]+/g,match=>match.replace(/v=[a-z0-9]+$/,'v=20261120b8')));
   await writeFile(join(output,'assets/fullrev-config.js'),`const YBS_FULLREV_CONFIG=Object.freeze(${JSON.stringify(config)});\n`);

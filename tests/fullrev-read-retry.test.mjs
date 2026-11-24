@@ -11,6 +11,16 @@ function setup(fetcher,wait){
  return {model,waits,events,change:()=>{user=null;}};
 }
 const input={course:'115-g9',classKey:'c901',activity:7,round:0};
+test('讀取遇 storage_quota 立即保留具體原因，不當成一般 503 自動重試',async()=>{
+ let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'storage_quota'},{status:503});});
+ await assert.rejects(h.model.context(input),{code:'storage-quota'});assert.equal(calls,1);assert.deepEqual(h.waits,[]);
+});
+test('讀取無回應會逾時並中止請求，可交回重新讀取',async()=>{
+ let signal;const model=createReadModel({session:async()=>({app:{options:{projectId:config.firebase.projectId}},auth:{currentUser:{getIdToken:async()=> 'synthetic'}}}),
+  project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,requestTimeoutMs:10,
+  fetcher:async(_url,init)=>{signal=init.signal;return new Promise(()=>{});}});
+ await assert.rejects(model.context(input),{code:'read-model-pending'});assert.equal(signal.aborted,true);
+});
 test('context、controls、progress 依 Retry-After 秒數／HTTP 日期重送相同讀取，成功清除等待',async()=>{
  for(const operation of ['context','controls','page']){
   const calls=[];let n=0;const h=setup(async(url,init)=>{

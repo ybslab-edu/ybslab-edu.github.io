@@ -31,7 +31,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
   const workStore=createWorkStore({shared,project,course,now});
   const progressCache=createProgressCache({storage:shared,project,course}),progressWork=new Map(),aborters=new Set();
-  let progressActivities=null,binding=null;
+  let progressActivities=null,binding=null,summaryIssue=null,legacyControlsFirst=false,legacyProgressBody=false,historyController=null;
   const abortRequests=(keep=null)=>{readModel?.cancel?.();for(const c of aborters)if(c!==keep){c.abort();aborters.delete(c);}progressWork.clear();};
   function confirmBinding(m,classKey,subject,keep){
     const changed=binding&&(binding.classKey!==classKey||binding.subject&&subject&&binding.subject!==subject);
@@ -54,7 +54,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
   function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest}));}catch{emit('storage-pending');}return workStore.write(profile?.uid,drafts);}
-  function clear() {abortRequests();progressCache.purge();progressActivities=null;binding=null;if(profile?.uid){workStore.purge(profile.uid);
+  function clear() {abortRequests();progressCache.purge();progressActivities=null;binding=null;summaryIssue=null;if(profile?.uid){workStore.purge(profile.uid);
     try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===profile.uid)storage.removeItem(k);}catch{}}}catch{}
     }cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};snapshot=null;lastProgress=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
@@ -67,7 +67,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   const mark = () => {if(!profile)throw fail('login-required');const m={uid:profile.uid,generation};active(m);return m;};
   events?.addEventListener('storage',event=>{if(event.key===signalKey && savedSignal()!==signal){signal=savedSignal();clear();}});
   events?.addEventListener('pagehide',()=>{abortRequests();generation++;readVersion++;running.clear();gradingWork=Promise.resolve();snapshot=null;lastProgress=null;view=null;emit('stale');});
-  events?.addEventListener('online',()=>{if(profile)retry().catch(()=>{});});
+  events?.addEventListener('online',()=>{if(profile)retry({automatic:true}).catch(()=>{});});
   async function getSession() {
     if (firebaseSession) return firebaseSession;
     if (!sessionOpening) sessionOpening=Promise.resolve().then(session).then(value=>{
@@ -189,6 +189,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   async function context(activity,round) {
     const m=mark();if(profile.owner)throw fail('demonstration-only');
+    if(summaryIssue)throw fail(summaryIssue);
     if(profile.provider==='anonymous')return readGuestContext({profile,course,project,activity,round,active:()=>active(m),request:async body=>{
       let response;for(let refresh=0;refresh<2;refresh++){
         const bearer=await token(m,refresh===1);
@@ -198,7 +199,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     }});
     if(typeof readModel?.context!=='function')throw fail('read-model-pending');
     const classKey=await classHint(m);
-    const value=await readModel.context({course,classKey,activity,round});active(m);
+    const saved=snapshot, hints=saved?.startContext, unit=progressActivities?.find(a=>a.course===course&&a.week===activity)?.unit;
+    const cached=hints&&saved.classKey===classKey&&saved.provider===profile.provider?{
+      schemaVersion:1,sourceProject:project,course,uid:m.uid,classKey,subject:saved.subject,activity,round,
+      bindingVersion:hints.bindingVersion,configVersion:hints.configVersions?.[activity],
+      unitEpoch:hints.unitEpochs?.[unit],roundEpoch:hints.roundEpochs?.[`${activity}:${round}`],
+      classUnitEpoch:hints.classUnitEpochs?.[unit],controlVersions:saved.controlVersions}:null;
+    const value=validContext(cached)?cached:await readModel.context({course,classKey,activity,round});active(m);
     if(!validContext(value)||value.schemaVersion!==1||value.sourceProject!==project||value.course!==course
       ||value.uid!==m.uid||value.classKey!==classKey||value.activity!==activity||value.round!==round)throw fail('context-unconfirmed');
     confirmBinding(m,classKey,value.subject);
@@ -206,8 +213,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       ...epochKeys,'controlVersions'].map(k=>[k,clone(value[k])]));
   }
   function arm(d) {
-    cancel(timer); if(d.failures>=4||d.blocked||d.issue==='storage-quota')return;
-    const g=generation;timer=schedule(()=>{if(g===generation)retry().catch(()=>{});},Math.max(0,d.retryAt-now()));
+    cancel(timer); if(d.failures>=4||d.blocked||d.issue==='storage-quota'||d.issue?.startsWith('summary-'))return;
+    const g=generation;timer=schedule(()=>{if(g===generation)retry({automatic:true}).catch(()=>{});},Math.max(0,d.retryAt-now()));
   }
   async function send(d,m) {
     if(!['115-g9','115-df'].includes(course))throw fail('grading-not-supported');
@@ -241,6 +248,12 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       }
       if(!response.ok) {
         if(response.status===401){clear();throw fail('login-required');}
+        if(data?.error==='not_open'){
+          delete drafts[scopeKey(d.activity,d.round)];save();emit('not-open');throw fail('not-open');
+        }
+        if(['summary_unconfirmed','summary_capacity'].includes(data?.error)){
+          snapshot=null;lastProgress=null;summaryIssue=d.issue=data.error.replaceAll('_','-');throw fail(d.issue);
+        }
         if(response.status===400&&pending.op==='answer'){
           const error=data;active(m);
           if(error?.error==='invalid_answer'){
@@ -273,7 +286,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
       active(m);
-      if(error.code==='invalid-answer')throw error;
+      if(['invalid-answer','not-open'].includes(error.code))throw error;
+      if(error.code?.startsWith('summary-')){save();emit('confirmation-pending');throw error;}
       if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
       d.issue||='connection-failed';
       d.failures=(d.failures||0)+1;
@@ -301,6 +315,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         drafts={[key]:d};save();
         return d.pending?send(d,m):resume(activity,round,true);
       }
+      for(let refresh=0;refresh<2;refresh++){
+      const summaryContext=!!snapshot?.startContext;
       const c=await context(activity,round);active(m);
       // One Worker session per course: choosing another scope abandons old work, as on the old site.
       // Cancel retries before dropping it so an offline start cannot later replace the chosen round.
@@ -309,7 +325,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       const body={course,classKey:c.classKey,...guestFields(c),activity,round,requestId:requestId()};
       for(const name of epochKeys)if(name!=='bindingVersion'||!isGuestContext(c))body[name]=c[name];
       const d={project,course,uid:m.uid,activity,round,context:c,startRequestId:body.requestId,pending:{op:'start',body},failures:0,retryAt:0};
-      drafts[key]=d;save();return send(d,m);
+      drafts[key]=d;save();
+      try{return await send(d,m);}catch(error){
+        if(error.code!=='restart-required'||!summaryContext||refresh||!progressActivities)throw error;
+        snapshot=null;lastProgress=null;view=null;progressCache.purge();emit('context-changed');
+        await progress({activities:progressActivities});active(m);
+      }
+      }
     });
   }
   async function answer(activity,round,answer) {
@@ -333,9 +355,9 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     };
     return locked?work():exclusive(scopeKey(activity,round),work);
   }
-  async function retry() {
+  async function retry({automatic=false}={}) {
     const m=mark(), output=[];
-    for(const [key,d] of Object.entries(drafts))if(d.pending&&!d.blocked&&d.retryAt<=now()) {
+    for(const [key,d] of Object.entries(drafts))if(d.pending&&!d.blocked&&d.retryAt<=now()&&(!automatic||!d.issue?.startsWith('summary-'))) {
       const value=await exclusive(key,()=>drafts[key]===d?send(d,m):null);active(m);
       if(value)output.push(value);
     }
@@ -376,14 +398,23 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       }
       const before=await readModel.controls(input);active(m);
       if(!versions(before))throw fail('control-unconfirmed');
-      const records=[],people=[];let cursor=null,subject,provider,seen=new Set();
+      const records=[],people=[],guestPages=new Map();let cursor=null,subject,provider,seen=new Set();
       for(let pageNumber=0;pageNumber<100;pageNumber++) {
         const page=await readModel.page({...input,cursor,controlVersions:before});active(m);
         if(request!==readVersion)throw fail('read-superseded');
         if(page.schemaVersion!==1||page.sourceProject!==project||page.course!==course||page.classKey!==classKey
           ||page.state!=='confirmed'||!sameVersions(page.controlVersions,before)||!Array.isArray(page.records)
-          ||page.records.length>100||typeof page.complete!=='boolean')throw fail('page-unconfirmed');
+          ||page.records.length>121||typeof page.complete!=='boolean')throw fail('page-unconfirmed');
         if(!teacher){if(!id(page.subject)||subject&&subject!==page.subject)throw fail('subject-mismatch');subject=page.subject;provider=profile.provider;}
+        const person=cursor?.person??0,previous=guestPages.get(person);
+        if(page.guestVersion!==undefined||page.guestRecords!==undefined){
+          const target=page.people?.[0]?.subject??previous?.subject??subject;
+          if(!id(target)||!/^[\w-]{43}$/.test(page.guestVersion)||!Array.isArray(page.guestRecords)||page.guestRecords.length>121
+            ||page.guestRecords.some(r=>r.source!=='worker-guest-approved'||r.subject!==target)
+            ||new Set(page.guestRecords.map(r=>`${r.activity}:${r.round}`)).size!==page.guestRecords.length
+            ||previous&&(previous.subject!==target||previous.version!==page.guestVersion||JSON.stringify(previous.records)!==JSON.stringify(page.guestRecords)))throw fail('page-unconfirmed');
+          guestPages.set(person,{subject:target,version:page.guestVersion,records:clone(page.guestRecords)});
+        }else if(previous)throw fail('page-unconfirmed');
         records.push(...clone(page.records));if(page.people)people.push(...clone(page.people));
         if(page.complete){if(page.nextCursor!=null)throw fail('cursor-invalid');cursor=null;break;}
         const next=JSON.stringify(page.nextCursor);
@@ -393,36 +424,57 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       const after=await readModel.controls(input);active(m);
       if(request!==readVersion)throw fail('read-superseded');
       if(!sameVersions(before,after))throw fail('control-changed');
+      for(const page of guestPages.values())records.push(...page.records);
       const result={schemaVersion:1,sourceProject:project,course,classKey,subject,provider,state:'confirmed',complete:true,
         controlVersions:after,records,people};
       const validity=effectiveRecords(result,{project,course,subject,activities});
       if(validity.state!=='confirmed')throw fail(validity.reason);
       snapshot=result;emit('confirmed');return clone(result);
-    }catch(error){active(m);if(request===readVersion){snapshot=null;emit('confirmation-pending');}throw error;}
+    }catch(error){active(m);if(request===readVersion){snapshot=null;if(error.code?.startsWith('summary-')){lastProgress=null;summaryIssue=error.code;}emit('confirmation-pending');}throw error;}
     finally{aborters.delete(controller);}
   }
   async function incrementalProgress({input,m,request,activities,activity,controller}){
     for(let attempt=0;attempt<3;attempt++)try{
-      const before=await readModel.controls(input);active(m);
-      if(request!==readVersion)throw fail('read-superseded');
-      if(!versions(before))throw fail('control-unconfirmed');
+      let before=legacyControlsFirst?await readModel.controls(input):null;active(m);
+      if(before!==null&&!versions(before))throw fail('control-unconfirmed');
       const state=progressCache.begin({...profile,classKey:input.classKey},activity);
-      const records=[];let cursor=null,subject,protocol,seen=new Set();
+      const records=[];let cursor=null,subject,protocol,startContext,guestVersion,guests,seen=new Set();
       for(let pageNumber=0;pageNumber<100;pageNumber++){
-        const page=await readModel.page({...input,cursor,controlVersions:before,progressVersion:2,
-          since:state.since,legacyVersion:state.legacy?.version??null});active(m);
+        const load=()=>readModel.page({...input,cursor,controlVersions:before,...(!legacyProgressBody?{progressVersion:2,
+          since:state.since,legacyVersion:state.legacy?.version??null}:{})});
+        let page;
+        try{page=await load();}catch(error){
+          // Only explicit old-protocol rejection can select the compatibility path.
+          if(cursor!==null||before!==null||!['control-changed','progress-unsupported'].includes(error.code))throw error;
+          legacyControlsFirst=true;legacyProgressBody=error.code==='progress-unsupported';
+          before=await readModel.controls(input);active(m);if(!versions(before))throw fail('control-unconfirmed');
+          page=await load();
+        }active(m);
         if(request!==readVersion)throw fail('read-superseded');
-        if(!sameVersions(page.controlVersions,before))throw fail('control-changed');
+        if(before===null){if(!versions(page.controlVersions))throw fail('control-unconfirmed');before=clone(page.controlVersions);}
+        else if(!sameVersions(page.controlVersions,before))throw fail('control-changed');
         if(page.schemaVersion!==1||page.sourceProject!==project||page.course!==course||page.classKey!==input.classKey
           ||page.state!=='confirmed'||!sameVersions(page.controlVersions,before)||!Array.isArray(page.records)
-          ||page.records.length>100||typeof page.complete!=='boolean')throw fail('page-unconfirmed');
+          ||page.records.length>121||typeof page.complete!=='boolean')throw fail('page-unconfirmed');
         if(!id(page.subject)||subject&&subject!==page.subject)throw fail('subject-mismatch');
         subject=page.subject;
         confirmBinding(m,input.classKey,subject,controller);
         const v2=page.progressVersion===2;
         if(protocol!==undefined&&protocol!==v2)throw fail('control-changed');protocol=v2;
+        if(page.startContext){
+          if(startContext&&JSON.stringify(startContext)!==JSON.stringify(page.startContext))throw fail('control-changed');
+          startContext=clone(page.startContext);
+        }
         if(v2){if(page.provider!==profile.provider)throw fail('subject-mismatch');progressCache.merge(state,page);}
-        else records.push(...clone(page.records));
+        else{
+          records.push(...clone(page.records));
+          if(page.guestRecords!==undefined||page.guestVersion!==undefined){
+            if(!/^[\w-]{43}$/.test(page.guestVersion)||!Array.isArray(page.guestRecords)||page.guestRecords.length>121
+              ||page.guestRecords.some(r=>r.source!=='worker-guest-approved')
+              ||guestVersion&&(guestVersion!==page.guestVersion||JSON.stringify(guests)!==JSON.stringify(page.guestRecords)))throw fail('page-unconfirmed');
+            guestVersion=page.guestVersion;guests=clone(page.guestRecords);
+          }else if(guestVersion)throw fail('page-unconfirmed');
+        }
         if(page.complete){if(page.nextCursor!=null)throw fail('cursor-invalid');cursor=null;break;}
         const next=JSON.stringify(page.nextCursor);
         if(!page.nextCursor||seen.has(next))throw fail('cursor-invalid');seen.add(next);cursor=page.nextCursor;
@@ -433,15 +485,32 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(request!==readVersion)throw fail('read-superseded');
       if(!sameVersions(before,after))throw fail('control-changed');
       const envelope={schemaVersion:1,sourceProject:project,course,classKey:input.classKey,subject,provider:profile.provider,
-        state:'confirmed',complete:true,controlVersions:after,people:[],...(activity===undefined?{}:{activity})};
-      const next=protocol?progressCache.finish(state,envelope):{result:{...envelope,records}};
+        state:'confirmed',complete:true,controlVersions:after,people:[],...(startContext?{startContext}:{}),...(activity===undefined?{}:{activity})};
+      const next=protocol?progressCache.finish(state,envelope):{result:{...envelope,...(guests?{guestRecords:guests,guestVersion}:{}),records:[...records,...(guests||[])]}};
       const validity=effectiveRecords(next.result,{project,course,subject,activities});
       if(validity.state!=='confirmed')throw fail(validity.reason);
       if(protocol)progressCache.commit(state,next.cached,envelope);else progressCache.purge();
-      progressActivities=activities;lastProgress=snapshot=next.result;emit('confirmed');return clone(snapshot);
+      summaryIssue=null;progressActivities=activities;lastProgress=snapshot=next.result;emit('confirmed');return clone(snapshot);
     }catch(error){
       active(m);if(error.code!=='control-changed'||attempt===2||request!==readVersion)throw error;
     }
+  }
+  async function history({classKey,subject,kind='formal',after=null}={}){
+    const m=mark();if(!readModel?.history||!['formal','legacy'].includes(kind))throw fail('history-unconfirmed');
+    if(profile.owner)await assertOwner(m);else{
+      classKey=await classHint(m);subject=snapshot?.subject;
+      if(snapshot?.classKey!==classKey)throw fail('history-unconfirmed');
+    }
+    if(!/^[\w-]{1,40}$/.test(classKey||'')||!id(subject))throw fail('history-unconfirmed');
+    historyController?.abort();const controller=new AbortController();historyController=controller;aborters.add(controller);
+    try{
+      const page=await readModel.history({course,classKey,subject,kind,after,signal:controller.signal});active(m);
+      if(controller.signal.aborted)throw fail('identity-changed');
+      if(page?.historyOnly!==true||page.sourceProject!==project||page.course!==course||page.classKey!==classKey
+        ||!versions(page.controlVersions)||!Array.isArray(page.records)||page.records.length>50
+        ||page.records.some(r=>r.subject!==subject)||page.next!==null&&(!id(page.next)||page.next===after))throw fail('history-unconfirmed');
+      return clone(page);
+    }finally{aborters.delete(controller);if(historyController===controller)historyController=null;}
   }
   function saveInput(activity,round,value){
     mark();const d=drafts[scopeKey(activity,round)];
@@ -475,7 +544,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       ||!['pub','enc-b2','enc-rv'].every(k=>typeof value.scripts[k]==='string'))throw fail('context-unconfirmed');
     return clone(value.scripts);
   }
-  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,teacherQuestion,saveInput,loadInput,savedRound,
+  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,progress,history,cancelHistory:()=>historyController?.abort(),teacherQuestion,saveInput,loadInput,savedRound,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
     state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,uploadIssue:uploadIssue(),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});

@@ -182,7 +182,9 @@ test('進度查詢分頁與結尾 fresh controls；換版／斷線不當0，完�
   const h=await harness();await h.login();let n=0;
   h.model.page=async()=>({...h.state.snapshot,complete:++n===2,nextCursor:n===1?{completedAt:'cursor',resultId:'c_one'}:null,records:n===1?[record()]:[]});
   const s=await h.client.progress({activities});assert.equal(s.records.length,1);assert.equal(n,2);
-  h.model.page=async()=>snapshot();let reads=0;h.model.controls=async()=>({...controls,gateVersion:++reads});
+  // The merged cold page supplies the initial versions; the trailing v1 check
+  // must see a newer gate even on its first controls call.
+  h.model.page=async()=>snapshot();let reads=0;h.model.controls=async()=>({...controls,gateVersion:controls.gateVersion+(++reads)});
   await assert.rejects(h.client.progress({activities}),{code:'control-changed'});assert.equal(h.client.state().snapshot,null);
   h.model.controls=async()=>({...controls});h.model.page=async()=>snapshot([]);assert.equal((await h.client.progress({activities})).records.length,0);
   h.model.page=async()=>{throw Error('offline');};await assert.rejects(h.client.progress({activities}));assert.equal(h.client.state().snapshot,null);

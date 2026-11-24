@@ -242,7 +242,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   try{const saved=sessionStorage.getItem(roundKey());const n=Number(saved);if(saved!==null&&Number.isInteger(n)&&cfg.rounds[n]&&cfg.rounds[n].managed!==false)round=n;}catch{}
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
- const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，答案已保留。':state.uploadIssue==='storage-quota'?'伺服器儲存額度不足，請告訴老師或改用舊站。':state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；稍候按「重試上傳」。':'上傳中，請稍候，答案已保留。';};
+ const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，答案已保留。':state.uploadIssue?.startsWith('summary-')?'進度待確認，請告訴老師；答案已保留，目前暫停採計。':state.uploadIssue==='storage-quota'?'伺服器儲存額度不足，請告訴老師或改用舊站。':state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；稍候按「重試上傳」。':'上傳中，請稍候，答案已保留。';};
  // 頁首沿用待送摘要；按鈕旁另列連線、流量或額度的具體原因。
  const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
@@ -503,7 +503,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();checkSchedule();return;}
   if(checkSchedule())return;
-  if(state.status==='binding-changed'){clear();identity='';}
+  if(['binding-changed','context-changed'].includes(state.status)){clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;
   if(id!==identity){identity=id;restoreRound();
    $('who').textContent=state.profile.owner?'教師模式':state.profile.guest?state.profile.guest.cls+' 班 '+state.profile.guest.seat+' 號（待審）':'已登入';

@@ -14,7 +14,7 @@ import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 // 第二組由 setTimeout 與非同步 Worker 接手；輪詢次數不能當作逾時時間。
 async function until(check){const deadline=performance.now()+5000;do{if(check())return;await new Promise(resolve=>setTimeout(resolve,5));}while(performance.now()<deadline);assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
+async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,summaries=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
  const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,href:'115-g9/'+(i===2?warmupSource:'no-bank-'+i)+'/',date:'2026-10-0'+(i+1)}))];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
@@ -28,6 +28,12 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  if(legacyCount){const {legacyRow}=await load('tests/legacy-progress-fixtures.mjs');for(let j=0;j<legacyCount;j++){
   const r=legacyRow(7,j%4,{subject:'synthetic-a',uid:`old-synthetic-${j}`,at:clock-1000});db.seed(r.path,r.data);
  }}
+ if(summaries){
+  const {rebuildClassSummaries}=await load('src/formal/summary-backfill.mjs'),{guestPath}=await load('src/formal/guest.mjs');
+  db.pathValidator=p=>readPath(p)||guestPath(p);
+  await db.runTransaction(tx=>rebuildClassSummaries(tx,{project:config.firebase.projectId,classKey:'synthetic-class',now:clock,write:true,activate:true}));
+  db.metrics={reads:0,writes:0,attempts:0};
+ }
  const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),provider:rosterProvider,
   ...(rosterProvider==='google.com'?{email:password(uid).email.replace('@ybslab-edu.github.io','@cgjh.hcc.edu.tw'),emailVerified:true}:{}),ybsClassKeys:CLASS_HINTS})}});
  const firebase=await harness();firebase.state.uid='fake-uid-a';firebase.state.owner=false;firebase.state.hints=CLASS_HINTS;
@@ -49,8 +55,8 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
   const op=new URL(url).pathname.slice(1);const call={op,body:JSON.parse(init.body),at:clock};calls.push(call);
   if(op==='answer'&&answerFailure)return Response.json({error:answerFailure},{status:503,headers:{'retry-after':'60'}});
   if(op==='start'&&startHeld){const held=startHeld;startHeld=null;await held;}
-  if(readFailure&&op==='controls')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
-  if(op==='context'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
+  if(readFailure&&op==='progress')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
+  if(op==='progress'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
   if(op==='progress'&&!readsReleased&&db.docs.get(paths.head('synthetic-a'))?.completions&&Object.keys(db.docs.get(paths.head('synthetic-a')).completions).length)await held;
   if(op==='answer'&&call.body.slot===1&&secondFailure==='resume-first')return Response.json({error:'synthetic_offline'},{status:503,headers:{'retry-after':'60'}});
   const body={...call.body};if(v1){delete body.progressVersion;delete body.since;delete body.legacyVersion;}
@@ -90,12 +96,12 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  return result;
 }
 const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true};
-test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 秒才熱讀，合計 107 讀',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{legacyCount:20,throttleRead:false,roster:ownRoster});
+test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 秒才熱讀，摘要合計 79 讀',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{legacyCount:20,throttleRead:false,summaries:true,roster:ownRoster});
  const totalReads=()=>h.db.metrics.reads+h.rosterReads.length;
- assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0),25);
+ assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0),3);
  assert.equal(h.rosterReads.length,1);
- assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0)+h.rosterReads.length,26,'冷讀包含本人名冊');
+ assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0)+h.rosterReads.length,4,'冷讀包含本人名冊');
  assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'登入一次冷讀，開始活動不重讀');
  await h.events.focus();h.advance(1100);await h.events.focus();
  assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'登入確認後跨秒切窗也不重讀');
@@ -110,8 +116,8 @@ test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 �
   assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'回條更新後切窗不重讀');
  }
  const formal=h.calls.filter(c=>['context','start','answer'].includes(c.op)).reduce((n,c)=>n+c.reads,0);
- assert.equal(formal,76);assert.equal(h.db.metrics.writes,20);
- assert.equal(totalReads(),102);
+ assert.equal(formal,72);assert.equal(h.db.metrics.writes,36);
+ assert.equal(totalReads(),76);
  h.advance(60000);
  await Promise.all([h.events.focus(),h.events.visibilitychange()]);
  await until(()=>h.client.state().snapshot!==null);await tick();
@@ -120,8 +126,8 @@ test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 �
  const progress=h.calls.filter(c=>c.op==='progress');assert.equal(progress.length,2);
  assert.equal(progress[1].response.legacy.records,null);assert.deepEqual(progress[1].response.records,[]);
  assert.equal(Object.keys(progress[1].body.since.results).length,4);
- assert.equal(totalReads(),107);assert.equal(h.rosterReads.length,1);assert.equal(h.db.metrics.writes,20);
- t.diagnostic('每生 25 冷讀（含 20 舊史）+ 1 名冊 + 4×19 作答 + 5 熱讀 = 107；30 生 3210。額外切窗熱讀最多每 60 秒一次，每次另加 5 讀。');
+ assert.equal(totalReads(),79);assert.equal(h.rosterReads.length,1);assert.equal(h.db.metrics.writes,36);
+ t.diagnostic('每生 3 摘要冷讀（20 舊史不加讀）+ 1 名冊 + 4×18 作答 + 3 熱讀 = 79／36 寫；30 生 2370／1080。額外切窗熱讀最多每 60 秒一次，每次另加 3 讀。');
  await h.client.logout();
 });
 test('送出停用時具體顯示缺格、格式與下一組，點擊及鍵盤也提示，漏 input 可恢復',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
@@ -157,7 +163,7 @@ test('本人單筆名冊顯示班座、同控制版本不重讀，換人清除',
  const h=await setup(t,{roster:ownRoster});
  assert.equal(h.$('who').textContent,'917 班 5 號');assert.equal(h.$('g-whotext').textContent,'你是 917 班 5 號，對嗎？');
  assert.deepEqual(h.rosterReads,[{path:'ybsCourses/115-g9/roster/cgjh9990001@cgjh.hcc.edu.tw',options:{source:'server'}}]);
- const count=h.calls.length;h.advance(60000);await h.events.focus();assert.ok(h.calls.length>=count+2);
+ const count=h.calls.length;h.advance(60000);await h.events.focus();assert.ok(h.calls.length===count+1);
  assert.equal(h.rosterReads.length,1,'focus 不增加本人名冊讀取');
  h.db.docs.get(h.paths.global).gateVersion++;
  h.advance(60000);
@@ -207,10 +213,10 @@ test('u2-05 四關：真實 Worker、舊版 DOM、429 自動恢復、錯答修�
 });
 test('Worker 未開放顯示舊遮罩，F12 移除遮罩不能取得題面或過關',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{closed:true});assert.equal(h.$('main').hidden,true);assert.match(h.$('activity-lock').textContent,/這個活動還沒開放/);
- await assert.rejects(h.client.start(7,0),{code:'not-open'});assert.equal(h.calls.some(c=>c.op==='start'),false);assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+ await assert.rejects(h.client.start(7,0),{code:'not-open'});assert.ok(h.calls.filter(c=>c.op==='start').every(c=>c.status===403&&c.response.error==='not_open'));assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
 });
 test('completed 回條尚未確認進度時不出現過關或 XP；登出後延遲讀取不能補回畫面',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{holdProgress:true,v1:true});h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
+ const h=await setup(t,{holdProgress:true,v1:true,throttleRead:false});h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
  await until(()=>h.calls.filter(c=>c.op==='progress').length===2);assert.notEqual(h.$('verdict').querySelector('h3')?.textContent,'過關！');assert.equal(h.$('xp-total').textContent,'0 XP');
  await h.client.logout();h.release();await tick();await tick();assert.equal(h.$('main').hidden,true);assert.equal(h.$('stage').textContent,'');assert.equal(h.$('xp-header').hidden,true);
 });
@@ -328,7 +334,7 @@ test('照片與排卡重整：待送第二槽仍須續傳同關、恢復題面�
 });
 test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const method of ['focus','button']){
-  const h=await setup(t,{failInitialRead:true});assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.calls.filter(c=>c.op==='controls').length,4);
+  const h=await setup(t,{failInitialRead:true});assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.calls.filter(c=>c.op==='progress').length,4);
   assert.equal(h.$('g-isme').hidden,true);assert.equal(h.$('main').hidden,true);assert.doesNotMatch(h.$('sync').textContent,/已上傳/);assert.equal(h.$('g-reread').closest('#g-who').hidden,false);
   h.recover();if(method==='focus')h.events.focus();else await h.$('g-reread').onclick();await until(()=>!h.$('g-isme').hidden);
   assert.equal(h.$('g-reread').hidden,true);await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('gate').hidden,true);assert.ok(h.$('stage').querySelector('[data-answer-field]'));
@@ -453,7 +459,7 @@ test('待送且零筆過關時，focus 與切回頁面重讀仍保留待送提�
  assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');
 });
 test('v2 完成回條直接確認進度及上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{holdProgress:true});
+ const h=await setup(t,{holdProgress:true,throttleRead:false});
  assert.match(h.$('xp-level').textContent,/^Lv 1 /);assert.equal(h.$('xp-progress').hidden,false);
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
  await until(()=>h.$('verdict').className==='verdict ok');
@@ -469,18 +475,20 @@ test('同 UID 切關發現改綁：立即清除舊 XP、名冊及題面，重讀
   const uid=h.client.state().profile.uid,binding=h.db.docs.get(h.paths.roster).bindings[uid];
   binding.subject='synthetic-b';binding.version++;
   if(offline)h.failRead();
-  const reads=h.calls.filter(c=>c.op==='controls').length;
-  await h.button('下一關').onclick();
+  const reads=h.calls.filter(c=>c.op==='progress').length;
+  const advancing=h.button('下一關').onclick();
+  await until(()=>h.calls.filter(c=>c.op==='progress').length>reads);
   assert.equal(h.client.state().profile.uid,uid);assert.equal(h.$('xp-header').hidden,true);
   assert.equal(h.$('who').textContent,'已登入');assert.equal(h.$('main').hidden,true);
   assert.equal(h.$('stage').textContent,'');assert.equal(h.$('verdict').hidden,true);
   assert.doesNotMatch(h.$('g-whotext').textContent,/917/);
-  await until(()=>h.calls.filter(c=>c.op==='controls').length>reads);
+  await until(()=>h.calls.filter(c=>c.op==='progress').length>reads);
   if(offline){
    await until(()=>!h.$('g-reread').hidden);assert.equal(h.$('g-isme').hidden,true);
    assert.equal(h.$('xp-header').hidden,true);assert.equal(h.client.state().snapshot,null);
    h.recover();h.release();await h.$('g-reread').onclick();
   }else h.release();
+  await advancing;
   await until(()=>!h.$('g-isme').hidden);
   assert.equal(h.client.state().snapshot.subject,'synthetic-b');assert.equal(h.$('xp-total').textContent,'0 XP');
   assert.equal(h.rosterReads.length,2,'同 UID 改綁後重新讀取本人名冊');

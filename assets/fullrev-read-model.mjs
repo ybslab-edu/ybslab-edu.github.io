@@ -32,6 +32,8 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
    active();
    // 額度不足與短暫流量限制不同；立即說明原因，交由老師決定替代入口。
    if(!response.ok&&(data?.error==='storage_quota'||response.status===429&&!['rate_limited','storage_busy'].includes(data?.error))){quotaUntil=now()+300000;throw fail('storage-quota');}
+   if(!response.ok&&operation==='progress'&&body.controlVersions===null&&response.status===400&&data?.error==='invalid_body')throw fail('progress-unsupported');
+   if(!response.ok&&['summary_unconfirmed','summary_capacity'].includes(data?.error))throw fail(data.error.replaceAll('_','-'));
    if([429,503].includes(response.status)&&attempt<3){
     const header=response.headers.get('retry-after'),seconds=header?.trim()?Number(header):NaN;
     const delay=Number.isFinite(seconds)?Math.max(0,seconds*1000):Date.parse(header||'')-now();
@@ -56,6 +58,7 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
   controls:b=>call('controls',scope(b),b.signal),
   page:b=>call('progress',{...scope(b),controlVersions:b.controlVersions,cursor:b.cursor??null,...(b.activity===undefined?{}:{activity:b.activity}),
    ...(b.progressVersion===2?{progressVersion:2,since:b.since??null,legacyVersion:b.legacyVersion??null}:{})},b.signal),
+  history:b=>call('history',{...scope(b),subject:b.subject,kind:b.kind,after:b.after??null},b.signal),
   dfContent:b=>call('df-content',scope(b))
  });
 }

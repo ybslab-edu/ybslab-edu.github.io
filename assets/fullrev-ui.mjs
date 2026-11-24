@@ -5,6 +5,7 @@ const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
 const messages={'report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
   'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
+  'summary-unconfirmed':'進度待確認，請告訴老師；目前暫停採計。','summary-capacity':'進度待確認，請告訴老師；目前暫停採計。',
   'storage-quota':'伺服器儲存額度不足，請告訴老師或改用舊站。',
   'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
   'binding-pending':'尚待老師核發身分；目前只能本機練習。','read-model-pending':'雲端紀錄尚未確認，請稍後重新讀取。',
@@ -849,6 +850,7 @@ export async function mountGrowth({client:promise}) {
   if(location.search.includes('cls=')||location.search.includes('seat='))return mountTeacher({client:promise});
   const p=growthLayout();let reading=0,shownUID=null;
   try{p.client=await promise;}catch(e){p.status.textContent=explain(e);return;}
+  mountHistory({client:p.client,host:p.$('growth'),scope:()=>({})});
   p.refresh=async()=>{
     const n=++reading,uid=p.client.state().profile?.uid;if(!uid)return;
     p.status.textContent='正在確認自己的雲端紀錄…';p.retry.hidden=true;
@@ -979,15 +981,40 @@ export async function mountActivity({client:promise,cfg,now}) {
   window.addEventListener('pagehide',clearView);
   eventsRefresh(p,refresh);
 }
+// Audit pages are requested explicitly and never enter the grading projection.
+export function mountHistory({client,host,scope}){
+  const box=node('section'),rows=node('div'),status=node('p'),kind=node('select');
+  kind.setAttribute('aria-label','歷史來源');
+  for(const [value,label] of [['formal','正式紀錄'],['legacy','舊站封存']]){const option=node('option',label);option.value=value;kind.append(option);}
+  kind.value='formal';let serial=0,next=null,saved=null;
+  const clear=()=>{serial++;next=null;saved=null;rows.replaceChildren();status.textContent='';more.hidden=true;client.cancelHistory?.();};
+  async function read(advance=false){
+    const target={...scope(),kind:kind.value},key=JSON.stringify(target),n=++serial;
+    if(!advance||saved!==key){next=null;rows.replaceChildren();}saved=key;
+    more.hidden=true;status.textContent='正在查閱歷史…';
+    try{const page=await client.history({...target,after:next});if(n!==serial)return;
+      for(const r of page.records)rows.append(node('p',`活動 ${r.activity}／第 ${r.round+1} 關 · ${r.completedAt||'時間未留存'} · ${r.validity?.state==='effective'?'目前有效':'封存紀錄'}`));
+      next=page.next;more.hidden=next===null;status.textContent='歷史僅供查閱，不會新增採計。';
+    }catch(e){if(n===serial)status.textContent=explain(e);}
+  }
+  const more=button('下一頁',()=>read(true));more.hidden=true;
+  box.append(button('查閱歷史',()=>read()),kind,status,rows,more);host.append(box);kind.onchange=clear;
+  client.subscribe(state=>{if(!state.profile||['stale','binding-changed','context-changed'].includes(state.status))clear();});
+  return {clear};
+}
 export async function mountTeacher({client:promise}) {
   const p=await setup(promise,'教師紀錄與匯出',{ownerOnly:true});if(!p.client)return;
   const classKey=node('input');classKey.placeholder='例如 c901';classKey.setAttribute('aria-label','班級代碼');
   p.tools.append(node('label','班級代碼'),classKey);
+  const subject=node('select');subject.setAttribute('aria-label','查閱歷史的學生');p.tools.append(subject);
+  const history=mountHistory({client:p.client,host:p.tools,scope:()=>({classKey:classKey.value.trim(),subject:subject.value.trim()})});
+  subject.oninput=history.clear;
   let reading=0;
   async function refresh(download=false) {
     const n=++reading;p.content.replaceChildren();
     try {
       const snapshot=await p.client.progress({teacher:true,classKey:classKey.value.trim(),activities:catalog()});
+      subject.replaceChildren();for(const person of snapshot.people||[]){const option=node('option',`${person.cls} 班 ${person.seat} 號`);option.value=person.subject;subject.append(option);}
       const rows=exportRows(snapshot,{project:p.client.project,course:p.client.course,activities:catalog()},await xpCore());
       if(n!==reading||!p.client.state().profile)return;
       const table=node('table');for(const row of rows){const tr=node('tr');for(const cell of row)tr.append(node('td',String(cell)));table.append(tr);}
@@ -1002,7 +1029,7 @@ export async function mountTeacher({client:promise}) {
     }catch(e){if(n===reading){p.content.replaceChildren();p.status.textContent=explain(e);}}
   }
   p.tools.append(button('讀取有效紀錄',()=>refresh()),button('重新確認並下載 Excel',()=>refresh(true)));
-  classKey.oninput=()=>{reading++;p.content.replaceChildren();p.status.textContent='請重新讀取所選班級。';};
+  classKey.oninput=()=>{history.clear();reading++;p.content.replaceChildren();p.status.textContent='請重新讀取所選班級。';};
   p.client.subscribe(state=>{if(!state.profile||state.status==='stale'){reading++;p.content.replaceChildren();}});
   eventsRefresh(p,()=>{p.content.replaceChildren();p.status.textContent='請重新確認紀錄後匯出。';});
 }

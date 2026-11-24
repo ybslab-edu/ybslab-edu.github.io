@@ -53,12 +53,12 @@ test('pagination keeps the original since, shares the archive, and never persist
  let n=0;h.set(input=>{n++;if(input.cursor)throw Error('synthetic offline');return page([],{replace:false,resultVersions:{...d.resultVersions,a5_r2:record(2).resultId},complete:false,nextCursor:{person:0,offset:100},legacy:{version:legacyVersion,records:null,states}});});
  await assert.rejects(h.read());assert.equal(n,2);assert.deepEqual(cacheKeys(h).map(k=>h.shared.getItem(k)),before);
 });
-test('cross-page epoch/hash changes restart from controls; control_changed is bounded; failures do not become empty progress',async()=>{
+test('cross-page epoch/hash changes restart with merged controls; control_changed is bounded; failures do not become empty progress',async()=>{
  const h=await setup();let count=0,controlReads=0;h.model.controls=async()=>{controlReads++;return {gateVersion:1,classGateVersion:1};};
  h.set(input=>{count++;return count===1?page([],{complete:false,nextCursor:{person:0,offset:100}}):count===2?page([],{resultVersion:'h'.repeat(43)}):page();});
- assert.equal((await h.read()).records.length,1);assert.equal(controlReads,2);assert.equal(h.calls[2].cursor,null);
+ assert.equal((await h.read()).records.length,1);assert.equal(controlReads,0);assert.equal(h.calls[2].cursor,null);
  h.set(()=>{throw Object.assign(Error(),{code:'control-changed'});});await assert.rejects(h.read(),{code:'control-changed'});
- assert.equal(controlReads,5);assert.equal(h.client.state().snapshot,null);assert.ok(cacheKeys(h).length);
+ assert.equal(controlReads,3);assert.equal(h.client.state().snapshot,null);assert.ok(cacheKeys(h).length);
 });
 test('same identity restores persistent originals; missing originals cold-read; logout and identity switch purge',async()=>{
  const h=await setup();await h.read();h.closePage();const next=h.reopen();await next.restore();await next.progress({activities});

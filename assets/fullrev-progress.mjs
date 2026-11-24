@@ -63,7 +63,12 @@ export function growth(snapshot, options, xp) {
   const valid = effectiveRecords(snapshot,options);
   if (valid.state !== 'confirmed') return {...valid,totalXP:null};
   // guest 帳號 XP 尚待核定；不能因 binding 成功就補發。
-  if (options.provider === 'anonymous' || valid.records.some(r=>r.provider==='anonymous')) return {...valid,state:'unknown',reason:'guest-xp-policy-pending',totalXP:null};
+  if (options.provider === 'anonymous' || valid.records.some(r=>r.provider==='anonymous')) {
+    const pendingRecords=valid.records.filter(r=>r.provider==='anonymous');
+    const result=xp.calculate(options.activities,valid.records.filter(r=>r.provider!=='anonymous'),{worker:true});
+    for(const a of result.activities)for(const r of a.rounds)r.teacherPending=pendingRecords.some(p=>p.activity===a.activity&&p.round===a.rounds.indexOf(r));
+    return {...valid,...result,state:'unknown',reason:'guest-xp-policy-pending',totalXP:null,pendingRecords};
+  }
   const result = xp.calculate(options.activities,valid.records,{worker:true});
   const uncertain = result.activities.some(a => a.rounds.some(r => r.onTimeState === 'unknown'));
   return {...valid,...result,state:uncertain?'unknown':'confirmed',

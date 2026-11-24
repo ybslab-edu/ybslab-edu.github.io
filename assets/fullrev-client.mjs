@@ -6,6 +6,9 @@ import {createProgressCache} from './fullrev-progress-cache.mjs';
 
 const scopeKey = (activity,round) => activity+':'+round;
 const epochKeys = ['configVersion','bindingVersion','unitEpoch','roundEpoch','classUnitEpoch'];
+const ticketErrors=new Set(['ticket_expired','ticket_invalid','ticket_not_owned','ticket_out_of_order','ticket_attempt_limit',
+  'ticket_stale','ticket_replayed','tickets_disabled','ticket_secret_required','ticket_scope_not_supported']);
+const ticketValid=v=>v?.ticketVersion===1&&typeof v.ticket==='string'&&v.ticket.startsWith('ybs-answer-v1.')&&v.ticket.length<=60000;
 const validContext = c => isGuestContext(c) || c && id(c.subject) && /^[\w-]{1,40}$/.test(c.classKey)
   && versions(c.controlVersions) && epochKeys.every((k,i) => int(c[k],i<2?1:0));
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -153,6 +156,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   function restorable(value){
     const entries=Object.entries(value).filter(([key,d])=>inProgress(d)&&validContext(d.context)&&d.uid===profile.uid
+          &&(!d.ticketMode||config.answerTickets===true)
           &&d.project===project&&d.course===course&&key===scopeKey(d.activity,d.round)&&int(d.activity,1)&&d.activity<=30
           &&int(d.round)&&d.round<=4&&(!d.pending||['start','answer','resume'].includes(d.pending.op)));
     for(const [,d] of entries)if(d.input&&(!Number.isFinite(d.input.savedAt)||now()-d.input.savedAt>=WORK_TTL||d.input.savedAt>now()))delete d.input;
@@ -165,7 +169,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     try{saved=JSON.parse(storage?.getItem(storageKey)||'null');}catch{}
     if(!saved){const local=workStore.read(auth.currentUser.uid);if(Object.keys(local).length)saved={uid:auth.currentUser.uid,signal,drafts:local};}
     if(saved?.uid!==auth.currentUser.uid||saved.signal!==signal){clear();await auth.signOut();return null;}
-    // SESSION 只還原此分頁。持久草稿不含題面／token，仍須重新確認投影與 Worker。
+    // SESSION 只還原此分頁。持久草稿可含加密作答票，不含登入 token／私有題面。
     const g=generation;
     profile={uid:auth.currentUser.uid,kind:'student',owner:false};
     const m=mark(), c=await claims(m);
@@ -190,13 +194,26 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   async function context(activity,round) {
     const m=mark();if(profile.owner)throw fail('demonstration-only');
     if(summaryIssue)throw fail(summaryIssue);
-    if(profile.provider==='anonymous')return readGuestContext({profile,course,project,activity,round,active:()=>active(m),request:async body=>{
-      let response;for(let refresh=0;refresh<2;refresh++){
-        const bearer=await token(m,refresh===1);
-        response=await fetcher(config.workerOrigin+'/guest/context',{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
-          headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body:JSON.stringify(body)});active(m);if(response.status!==401)break;
-      }return response;
-    }});
+    if(profile.provider==='anonymous') {
+      const controller=new AbortController();aborters.add(controller);let timeout;
+      try {
+        // One deadline covers token retry, fetch and the full JSON body.
+        return await Promise.race([
+          readGuestContext({profile,course,project,activity,round,active:()=>active(m),request:async body=>{
+            let response;
+            for(let refresh=0;refresh<2;refresh++){
+              const bearer=await token(m,refresh===1);
+              response=await fetcher(config.workerOrigin+'/guest/context',{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
+                headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+              active(m);if(response.status!==401)break;
+            }
+            return response;
+          }}),
+          new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(fail('identity-changed')),{once:true})),
+          new Promise((_,reject)=>{timeout=setTimeout(()=>{reject(fail('request-timeout'));controller.abort();},requestTimeoutMs);})
+        ]);
+      } finally {clearTimeout(timeout);aborters.delete(controller);}
+    }
     if(typeof readModel?.context!=='function')throw fail('read-model-pending');
     const classKey=await classHint(m);
     const saved=snapshot, hints=saved?.startContext, unit=progressActivities?.find(a=>a.course===course&&a.week===activity)?.unit;
@@ -225,7 +242,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     active(m);delete d.issue;emit('sending');
     try {
       const body=JSON.stringify(pending.body);
-      if(new TextEncoder().encode(body).length>8192)throw fail('answer-too-large');
+      if(new TextEncoder().encode(body).length>(d.ticketMode?70000:8192))throw fail('answer-too-large');
       let response,data;
       for(let refresh=0;refresh<2;refresh++) {
         const bearer=await token(m,refresh===1);
@@ -234,7 +251,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
           // 標頭到達後本文仍可能停住；同一個期限須涵蓋 fetch 與 JSON 讀取。
           ({response,data}=await Promise.race([
             (async()=>{
-              const response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
+              const response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':d.ticketMode?'ticket/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
                 redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal});
               active(m);
               const data=response.status===401?null:await response.json().catch(error=>{if(response.ok)throw error;return null;});
@@ -251,6 +268,10 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         if(data?.error==='not_open'){
           delete drafts[scopeKey(d.activity,d.round)];save();emit('not-open');throw fail('not-open');
         }
+        if(d.ticketMode&&ticketErrors.has(data?.error)){
+          d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');
+          throw fail(data.error.replaceAll('_','-'));
+        }
         if(['summary_unconfirmed','summary_capacity'].includes(data?.error)){
           snapshot=null;lastProgress=null;summaryIssue=d.issue=data.error.replaceAll('_','-');throw fail(d.issue);
         }
@@ -260,6 +281,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
             d.pending=null;d.failures=0;d.retryAt=0;save();emit('ready');throw fail('invalid-answer');
           }
         }
+        if(data?.error==='capacity_deferred'){delete drafts[scopeKey(d.activity,d.round)];save();emit('capacity-deferred');throw fail('capacity-deferred');}
         if(response.status===429||response.status>=500) {
           const error=data;active(m);
           d.issue=error?.error==='storage_quota'||response.status===429&&!['rate_limited','storage_busy'].includes(error?.error)?'storage-quota':response.status===429?'rate-limited':'connection-failed';
@@ -271,12 +293,17 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');throw fail('restart-required');
       }
       const value=data;active(m);
+      if(d.ticketMode&&!value.completed&&!value.awaitingTeacher&&!ticketValid(value)
+        &&!(pending.op==='start'&&value.ticketVersion===undefined&&value.ticket===undefined))throw fail('response-invalid');
       if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? (isGuestContext(d.context)?!guestCompletion(value):!id(value.resultId))
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
       if(!value.question||d.input?.stamp!==questionStamp(value)||now()-d.input.savedAt>=WORK_TTL)delete d.input;
       d.expiresAt=value.expiresAt;d.stamp=value.question?questionStamp(value):null;
       d.pending=null;delete d.issue;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
+      if(ticketValid(value)){d.ticketMode=true;d.ticket=value.ticket;}
+      // A pre-existing legacy session keeps its original protocol after opt-in.
+      else if(pending.op==='start'){delete d.ticketMode;delete d.ticket;}
       if(value.completed||value.awaitingTeacher)delete drafts[scopeKey(d.activity,d.round)];
       view={activity:d.activity,round:d.round,...clone(value)};
       save();
@@ -286,7 +313,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
       active(m);
-      if(['invalid-answer','not-open'].includes(error.code))throw error;
+      if(['invalid-answer','not-open','capacity-deferred'].includes(error.code))throw error;
       if(error.code?.startsWith('summary-')){save();emit('confirmation-pending');throw error;}
       if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
       d.issue||='connection-failed';
@@ -324,7 +351,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       drafts={};
       const body={course,classKey:c.classKey,...guestFields(c),activity,round,requestId:requestId()};
       for(const name of epochKeys)if(name!=='bindingVersion'||!isGuestContext(c))body[name]=c[name];
-      const d={project,course,uid:m.uid,activity,round,context:c,startRequestId:body.requestId,pending:{op:'start',body},failures:0,retryAt:0};
+      const d={project,course,uid:m.uid,activity,round,context:c,startRequestId:body.requestId,pending:{op:'start',body},failures:0,retryAt:0,
+        ...(config.answerTickets===true&&course==='115-g9'&&!isGuestContext(c)?{ticketMode:true}:{})};
       drafts[key]=d;save();
       try{return await send(d,m);}catch(error){
         if(error.code!=='restart-required'||!summaryContext||refresh||!progressActivities)throw error;
@@ -343,6 +371,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(d.pending)throw fail('answer-pending');
       const body={course,classKey:d.context.classKey,...guestFields(d.context),activity,round,requestId:requestId(),sid:d.sid,seq:d.nextSeq,slot:d.slot,answer:clone(answer)};
       if(new TextEncoder().encode(JSON.stringify(body)).length>8192)throw fail('answer-too-large');
+      if(d.ticketMode)body.ticket=d.ticket;
       delete d.input;d.pending={op:'answer',body};save();return send(d,m);
     });
   }
@@ -350,7 +379,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const work=async()=>{
       const m=mark(),d=drafts[scopeKey(activity,round)];
       if(!d||d.blocked)throw fail('restart-required');
-      if(!d.pending)d.pending={op:'resume',body:{course,classKey:d.context.classKey,...guestFields(d.context),activity,round,sid:d.sid,requestId:requestId()}};
+      if(!d.pending)d.pending={op:'resume',body:{course,classKey:d.context.classKey,...guestFields(d.context),activity,round,sid:d.sid,requestId:requestId(),
+        ...(d.ticketMode?{ticket:d.ticket}:{})}};
       save();return send(d,m);
     };
     return locked?work():exclusive(scopeKey(activity,round),work);

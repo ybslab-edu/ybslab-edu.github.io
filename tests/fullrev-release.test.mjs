@@ -9,7 +9,7 @@ import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mj
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
 const workerSource=process.env.YBS_WORKER_SOURCE;
-const config={...fixtureConfig,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
+const config={...fixtureConfig,answerTickets:true,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
 test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups remain unchanged',async t=>{
  if(!workerSource&&process.env.CI){t.skip('略過：需私有來源，由 Console 發布前在本機執行');return;}
  assert.ok(workerSource,'本機發布驗收需設定 YBS_WORKER_SOURCE');
@@ -17,6 +17,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
  await assert.rejects(buildSite({output,config}),/worker_source_required/);
  await assert.rejects(buildSite({output,config:{...config,readModelModule:''},workerSource}),/release_read_model_or_public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,privateKey:'synthetic-forbidden'},workerSource}),/public_config_invalid/);
+ await assert.rejects(buildSite({output,config:{...config,answerTickets:'true'},workerSource}),/release_answer_tickets_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
  const catalogPath=join(output,'assets/activities.json'),catalog=await readFile(catalogPath,'utf8');

@@ -1,4 +1,4 @@
-// 本機續作：僅有 session／版本識別及學生輸入，不含題面或判分結果。
+// 本機續作：session／版本、加密作答票及學生輸入；不保存明文私有題組或題解。
 export const WORK_TTL=24*60*60*1000;
 export function questionStamp(value){
  const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;

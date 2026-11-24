@@ -263,3 +263,38 @@ test('教師 Excel 下載當下重查版本與有效集合，真實檔案讀回�
   const rows=await page.evaluate(bytes=>{const book=XLSX.read(new Uint8Array(bytes),{type:'array'});return XLSX.utils.sheet_to_json(book.Sheets['有效紀錄'],{header:1});},[...bytes]);
   assert.equal(rows.at(-1)[6],45);assert.equal(rows[4][4],'尚未過關');
 });
+test('教師整班分組各自驗版，Excel 下載重讀兩組且保留取消後的 80／45 XP',async t=>{
+  const page=await pageFor(t,'?teacher');await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();
+  await page.getByLabel('班級代碼').fill('c901');
+  await page.evaluate(()=>{
+    window.teacherGateReads=[];
+    window.teacherGateSnapshots=Object.fromEntries(['c901_1','c901_2'].map((classKey,i)=>{
+      const subject='synthetic-group-'+i,controlVersions={gateVersion:1,classGateVersion:i+1};
+      return [classKey,snapshot([0,1,2,3].map(round=>record(round,{subject,classKeyAtPass:classKey,
+        resultId:'c_synthetic_group_'+i+'_'+round,validity:{state:'effective',controlVersions}})),
+        {classKey,controlVersions,people:[{subject,cls:901,seat:i*30+1,provider:'password'}]})];
+    }));
+    app.model.controls=async({classKey})=>{
+      teacherGateReads.push('controls:'+classKey);
+      if(classKey==='c901')throw Object.assign(Error('class-not-found'),{code:'class-not-found'});
+      return {...teacherGateSnapshots[classKey].controlVersions};
+    };
+    app.model.page=async({classKey})=>{teacherGateReads.push('page:'+classKey);return structuredClone(teacherGateSnapshots[classKey]);};
+  });
+  await page.getByRole('button',{name:'讀取有效紀錄',exact:true}).click();await page.locator('table').waitFor();
+  assert.equal(await page.locator('table tr').count(),11);
+  assert.deepEqual(await page.locator('table tr').filter({hasText:'合計'}).locator('td:nth-child(7)').allTextContents(),['80','80']);
+  await page.evaluate(()=>{
+    const gate=teacherGateSnapshots.c901_2,controlVersions={gateVersion:1,classGateVersion:3};
+    gate.controlVersions=controlVersions;
+    gate.records=gate.records.filter(r=>r.round!==3).map(r=>({...r,validity:{state:'effective',controlVersions}}));
+  });
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'重新確認並下載 Excel',exact:true}).click();
+  const download=await downloadPromise,bytes=await readFile(await download.path());
+  const rows=await page.evaluate(bytes=>{const book=XLSX.read(new Uint8Array(bytes),{type:'array'});return XLSX.utils.sheet_to_json(book.Sheets['有效紀錄'],{header:1});},[...bytes]);
+  assert.equal(rows.length,11);assert.deepEqual(rows.filter(r=>r[2]==='合計').map(r=>r[6]),[80,45]);
+  assert.equal(rows[9][4],'尚未過關');
+  assert.deepEqual(await page.evaluate(()=>teacherGateReads),Array(2).fill([
+    'controls:c901','controls:c901_1','page:c901_1','controls:c901_1','controls:c901_2','page:c901_2','controls:c901_2']).flat());
+});

@@ -33,6 +33,7 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
    // 額度不足與短暫流量限制不同；立即說明原因，交由老師決定替代入口。
    if(!response.ok&&(data?.error==='storage_quota'||response.status===429&&!['rate_limited','storage_busy'].includes(data?.error))){quotaUntil=now()+300000;throw fail('storage-quota');}
    if(!response.ok&&operation==='progress'&&body.controlVersions===null&&response.status===400&&data?.error==='invalid_body')throw fail('progress-unsupported');
+   if(!response.ok&&operation==='controls'&&response.status===404&&data?.error==='class_not_found')throw fail('class-not-found');
    if(!response.ok&&['summary_unconfirmed','summary_capacity'].includes(data?.error))throw fail(data.error.replaceAll('_','-'));
    if([429,503].includes(response.status)&&attempt<3){
     const header=response.headers.get('retry-after'),seconds=header?.trim()?Number(header):NaN;

@@ -44,9 +44,10 @@ const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','v
 function releaseConfig(config){
  checkConfig(config);
  if(config.studentGoogleLogin!==undefined&&typeof config.studentGoogleLogin!=='boolean')throw Error('release_student_google_config_invalid');
+ if(config.answerTickets!==undefined&&typeof config.answerTickets!=='boolean')throw Error('release_answer_tickets_config_invalid');
  if(config.courses!==undefined&&JSON.stringify(config.courses)!==JSON.stringify(['115-g9']))throw Error('release_courses_invalid');
  if(/REPLACE_WITH_/i.test(JSON.stringify(config)))throw Error('release_placeholders_forbidden');
- if(Object.keys(config).some(k=>!['enabled','studentGoogleLogin','courses','firebase','workerOrigin','readModelModule'].includes(k))
+ if(Object.keys(config).some(k=>!['enabled','studentGoogleLogin','answerTickets','courses','firebase','workerOrigin','readModelModule'].includes(k))
   ||Object.keys(config.firebase).some(k=>!['projectId','apiKey','messagingSenderId'].includes(k))
   ||typeof config.firebase.apiKey!=='string'||!/^[A-Za-z0-9_-]{8,256}$/.test(config.firebase.apiKey)
   ||config.firebase.messagingSenderId!==undefined&&typeof config.firebase.messagingSenderId!=='string'

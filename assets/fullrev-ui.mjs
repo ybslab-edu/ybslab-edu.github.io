@@ -3,8 +3,18 @@ import {growth,exportRows} from './fullrev-progress.mjs?v=20261120a';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
-const messages={'report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
+const messages={'capacity-deferred':'訪客本次課堂已達開始作答次數上限（最多四次，切關或重置也計次），請找老師確認；目前無法開始新作答。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
   'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
+  'ticket-expired':'作答票已過期，請按「活動工具 → 重新開始」取得新題。',
+  'ticket-invalid':'作答票驗證失敗，請按「活動工具 → 重新開始」。',
+  'ticket-not-owned':'作答票與目前帳號或關卡不符，請重新開始。',
+  'ticket-out-of-order':'作答順序已變更，請重新開始。',
+  'ticket-attempt-limit':'這次作答已達嘗試上限，請重新開始。',
+  'ticket-stale':'老師已重置、調整授權或你已切換關卡，這次作答無法採計，請重新開始。',
+  'ticket-replayed':'這份作答已由另一份完成紀錄取代，請重新開始並確認進度。',
+  'tickets-disabled':'老師已關閉作答票，請重新整理頁面後重新開始。',
+  'ticket-secret-required':'作答票服務尚未設定完成，請告訴老師。',
+  'ticket-scope-not-supported':'這個身分或課程尚未開放作答票，請告訴老師。',
   'summary-unconfirmed':'進度待確認，請告訴老師；目前暫停採計。','summary-capacity':'進度待確認，請告訴老師；目前暫停採計。',
   'storage-quota':'伺服器儲存額度不足，請告訴老師或改用舊站。',
   'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
@@ -773,7 +783,7 @@ function growthLayout() {
   };
   const weekLabel = a => { const term = TERMS.find(t => a.date >= t.begin && a.date <= t.end); return (term?.name || '') + ' · ' + (termWeekLabel(a) || '未排定週次'); };
   function render(activities, result) {
-    const roundInfo = () => '';
+    const roundInfo = (a,r) => r.teacherPending?'（訪客紀錄待老師確認）':'';
     // UI 所需中繼資料直接由活動登記處補入，不改 XP 核心或雲端格式。
     result.stations = result.stations.map(a => {
       const source = activities.find(source => source.week === a.activity);
@@ -791,7 +801,7 @@ function growthLayout() {
     else $('continue-link').removeAttribute('href');
     $('level').textContent = result.title;
     $('level-number').textContent = 'Lv ' + result.level;
-    $('total').textContent = $('xp-total').textContent = result.totalXP + ' XP';
+    $('total').textContent = $('xp-total').textContent = result.totalXP===null?'待老師確認':result.totalXP + ' XP';
     $('progress').value = result.progress;
     $('progress').setAttribute('aria-label','Lv ' + result.level + ' 升級進度 ' + Math.round(result.progress * 100) + '%');
     $('next').innerHTML = result.next === null ? '已達最高等級，繼續探索吧！' : '再累積 <b class="mono">' + result.remaining + ' XP</b><br>成為「' + YBSXP.TITLES[result.level] + '」。';
@@ -802,7 +812,7 @@ function growthLayout() {
     $('badge-count').textContent = result.badges.length;
     radar(result);
     const badge = a => '<span class="badges">' + (a.themes.length ? a.themes.map(id => '<span class="badge route-badge theme-' + id + '" aria-label="' + YBSXP.THEMES[id] + '：已獲得徽章"><svg viewBox="0 0 32 32" aria-hidden="true">' + glyphs[id] + '</svg><span>已獲得徽章<small>' + YBSXP.THEMES[id] + '</small></span></span>').join('') : '<span class="badge route-badge">已獲得徽章<small>開學導覽</small></span>') + '</span>';
-    const title = a => a.isOpen && !teacherTarget ? '<a href="../../' + esc(a.href) + '">' + esc(a.title) + '</a>' : esc(a.title);
+    const title = a => (a.rounds.some(r=>r.teacherPending)?'（待老師確認）':'') + (a.isOpen && !teacherTarget ? '<a href="../../' + esc(a.href) + '">' + esc(a.title) + '</a>' : esc(a.title));
     const stationHTML = (a,i) => '<li class="station ' + (a.complete ? 'complete' : !a.isOpen ? 'locked' : 'current') + (a.visited ? ' visited' : '') + ((i+1)%3===0 ? ' row-end' : '') + '" data-activity="' + a.activity + '" data-state="' + a.state + '"' + (a === current ? ' aria-current="step"' : '') + '><div class="week-line"><i class="route-node" aria-hidden="true">' + (a.complete ? '<svg viewBox="0 0 20 20"><path d="m5 10 3 3 7-7"/></svg>' : '') + '</i><b class="week-label mono" aria-label="' + esc(weekLabel(a)) + '">W' + String(termWeekOf(a)).padStart(2,'0') + '<span>' + esc(a.date.slice(5).replace('-','.')) + '</span></b><span class="station-state">' + (a.complete ? '已完成' : !a.isOpen ? '待開放' : a === current ? '目前活動' : '探索中') + '</span></div><div class="station-body"><h3>' + title(a) + '</h3><p class="learned"><span class="topic-label">' + (a.complete ? '學會了什麼' : '學習主題') + '</span>' + esc(a.topic) + '</p><div class="station-bottom">' + (a.complete ? badge(a) : a.isOpen && !teacherTarget ? '<a href="../../' + esc(a.href) + '" class="route-continue">繼續挑戰 ↗</a>' : '<span class="muted">' + (a.isOpen ? '唯讀檢視' : '尚未開放') + '</span>') + '<span class="station-count mono">' + a.passed + ' / ' + a.rounds.length + ' 關</span></div></div></li>';
     const timeline = items => '<div class="timeline"><ol class="stations">' + items.map((a,i) => (i > 0 && i%3===0 ? '<li class="row-break" aria-hidden="true">↳ 下一列由左至右</li>' : '') + stationHTML(a,i)).join('') + '</ol></div>';
     const next = result.stations.find(a => !a.isOpen);
@@ -814,7 +824,7 @@ function growthLayout() {
     $('route').innerHTML = timeline(shown)
       + (available.length ? '<details class="available-weeks" id="available-weeks"><summary>已開放、尚未開始 <span>' + available.length + ' 個活動</span></summary><ul>' + available.map(a => '<li data-activity="' + a.activity + '"><span class="mono">W' + String(termWeekOf(a)).padStart(2,'0') + '</span>' + title(a) + '<span class="muted">' + a.rounds.length + ' 關</span></li>').join('') + '</ul></details>' : '')
       + (future.size ? '<details id="future-weeks" class="collapsed-group"><summary>還有 ' + future.size + ' 週待開放</summary>' + [...future].map(([week,items]) => '<section class="route-week"><h3>' + esc(week) + '</h3>' + timeline(items) + '</section>').join('') + '</details>' : '');
-    const xpHTML = a => '<details class="xp-item"><summary><span>' + esc(a.title) + '</span><b class="mono">+' + a.totalXP + ' XP</b><span class="expand-icon" aria-hidden="true"></span></summary><dl class="xp-breakdown"><div><dt>首次過關</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.passXP,0) + '</dd></div><div><dt>準時加成</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '</dd></div><div><dt>活動全過</dt><dd class="mono">' + a.completeXP + '</dd></div></dl><ul class="xp-rounds">' + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + roundInfo(a,r) + '</li>').join('') + '</ul></details>';
+    const xpHTML = a => '<details class="xp-item"><summary><span>' + esc(a.title) + '</span><b class="mono">+' + a.totalXP + ' XP</b><span class="expand-icon" aria-hidden="true"></span></summary><dl class="xp-breakdown"><div><dt>首次過關</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.passXP,0) + '</dd></div><div><dt>準時加成</dt><dd class="mono">' + a.rounds.reduce((n,r) => n+r.onTimeXP,0) + '</dd></div><div><dt>活動全過</dt><dd class="mono">' + a.completeXP + '</dd></div></dl><ul class="xp-rounds">' + a.rounds.map(r => '<li>' + esc(r.name) + '：' + (r.teacherPending?'待老師確認':r.passed ? '過關 +' + r.passXP + '、準時 +' + r.onTimeXP : '尚未過關 · 0 XP') + roundInfo(a,r) + '</li>').join('') + '</ul></details>';
     const untouched = result.stations.filter(a => a.totalXP === 0);
     $('details').innerHTML = result.stations.filter(a => a.totalXP > 0).map(xpHTML).join('') + (untouched.length ? '<details id="zero-xp" class="collapsed-group"><summary>尚未過關 ' + untouched.length + ' 項</summary>' + untouched.map(xpHTML).join('') + '</details>' : '');
     $('growth').hidden = false;
@@ -860,8 +870,8 @@ export async function mountGrowth({client:promise}) {
       if(n!==reading||p.client.state().profile?.uid!==uid)return;
       const result=growth(snapshot,{project:p.client.project,course:p.client.course,subject:snapshot.subject,
         provider:snapshot.provider,activities},xp);
-      if(result.state!=='confirmed'){p.clear();p.status.textContent=explain(result);}
-      else{p.render(activities,growthJourney(result,activities));p.status.textContent='已確認自己的雲端紀錄。';}
+      if(result.state!=='confirmed'&&result.reason!=='guest-xp-policy-pending'){p.clear();p.status.textContent=explain(result);}
+      else{p.render(activities,growthJourney(result,activities));p.status.textContent=result.reason==='guest-xp-policy-pending'?'訪客紀錄待老師確認；其餘進度已顯示。':'已確認自己的雲端紀錄。';}
     }catch(e){if(n===reading){p.clear();p.status.textContent=explain(e);}}
     finally{if(n===reading)p.retry.hidden=false;}
   };
@@ -1007,15 +1017,18 @@ export async function mountTeacher({client:promise}) {
   const classKey=node('input');classKey.placeholder='例如 c901';classKey.setAttribute('aria-label','班級代碼');
   p.tools.append(node('label','班級代碼'),classKey);
   const subject=node('select');subject.setAttribute('aria-label','查閱歷史的學生');p.tools.append(subject);
-  const history=mountHistory({client:p.client,host:p.tools,scope:()=>({classKey:classKey.value.trim(),subject:subject.value.trim()})});
+  const history=mountHistory({client:p.client,host:p.tools,scope:()=>({classKey:subject.selectedOptions?.[0]?.dataset.classKey||classKey.value.trim(),subject:subject.value.trim()})});
   subject.oninput=history.clear;
   let reading=0;
   async function refresh(download=false) {
     const n=++reading;p.content.replaceChildren();
     try {
-      const snapshot=await p.client.progress({teacher:true,classKey:classKey.value.trim(),activities:catalog()});
-      subject.replaceChildren();for(const person of snapshot.people||[]){const option=node('option',`${person.cls} 班 ${person.seat} 號`);option.value=person.subject;subject.append(option);}
-      const rows=exportRows(snapshot,{project:p.client.project,course:p.client.course,activities:catalog()},await xpCore());
+      const snapshots=await teacherSnapshots(p.client,classKey.value.trim(),catalog());
+      const snapshot={people:snapshots.flatMap(s=>(s.people||[]).map(p=>({...p,classKey:s.classKey})))};
+      subject.replaceChildren();for(const person of snapshot.people||[]){const option=node('option',`${person.cls} 班 ${person.seat} 號`);option.value=person.subject;option.dataset.classKey=person.classKey;subject.append(option);}
+      const xp=await xpCore();
+      const tables=snapshots.map(s=>exportRows(s,{project:p.client.project,course:p.client.course,activities:catalog()},xp));
+      const rows=[tables[0][0],...tables.flatMap(t=>t.slice(1))];
       if(n!==reading||!p.client.state().profile)return;
       const table=node('table');for(const row of rows){const tr=node('tr');for(const cell of row)tr.append(node('td',String(cell)));table.append(tr);}
       const scroll=node('div');scroll.style.cssText='max-width:100%;overflow-x:auto';scroll.tabIndex=0;scroll.setAttribute('aria-label','有效紀錄表');scroll.append(table);p.content.append(scroll);
@@ -1032,4 +1045,13 @@ export async function mountTeacher({client:promise}) {
   classKey.oninput=()=>{history.clear();reading++;p.content.replaceChildren();p.status.textContent='請重新讀取所選班級。';};
   p.client.subscribe(state=>{if(!state.profile||state.status==='stale'){reading++;p.content.replaceChildren();}});
   eventsRefresh(p,()=>{p.content.replaceChildren();p.status.textContent='請重新確認紀錄後匯出。';});
+}
+
+export async function teacherSnapshots(client,classKey,activities) {
+  // 班級代碼也可能是完整 gate；只有 owner 確認原 gate 不存在才展開分組。
+  try{return [await client.progress({teacher:true,classKey,activities})];}
+  catch(e){if(e.code!=='class-not-found'||client.course!=='115-g9'||!/^c[1-9][0-9]{2}$/.test(classKey))throw e;}
+  const values=[];
+  for(const key of [classKey+'_1',classKey+'_2'])values.push(await client.progress({teacher:true,classKey:key,activities}));
+  return values;
 }

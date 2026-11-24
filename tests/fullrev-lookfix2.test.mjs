@@ -121,3 +121,16 @@ test('成果表格保留每格欄名，手機樣式在桌面覆寫之後還原�
     assert.deepEqual(host.querySelectorAll('td').map(e=>e.dataset.label),['欄甲','欄乙']);
   }finally{if(original)globalThis.document=original;else delete globalThis.document;}
 });
+
+test('訪客 XP 未核定時成長頁保留其餘進度並逐關標待老師確認',async t=>{
+ const p=await page(t);
+ const guest=record(1,{source:'worker-guest-approved',approvalId:'synthetic-approval',provider:'anonymous'});
+ p.set(snapshot([record(0),guest]));await p.$('retry').onclick();
+ assert.equal(p.$('growth').hidden,false);
+ assert.match(p.$('status').textContent,/待老師確認/);
+ assert.equal(p.$('total').textContent,'待老師確認');
+ assert.match(p.$('details').textContent,/待老師確認/);
+ assert.match(p.$('route').textContent,/待老師確認/);
+ assert.equal(p.$('completed').textContent,'1');
+ assert.doesNotMatch(p.$('details').textContent,/null|undefined/);
+});

@@ -14,7 +14,7 @@ import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 // 第二組由 setTimeout 與非同步 Worker 接手；輪詢次數不能當作逾時時間。
 async function until(check){const deadline=performance.now()+5000;do{if(check())return;await new Promise(resolve=>setTimeout(resolve,5));}while(performance.now()<deadline);assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,summaries=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
+async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,summaries=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01',answerTickets=false}={}){
  const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,href:'115-g9/'+(i===2?warmupSource:'no-bank-'+i)+'/',date:'2026-10-0'+(i+1)}))];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
@@ -34,7 +34,8 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
   await db.runTransaction(tx=>rebuildClassSummaries(tx,{project:config.firebase.projectId,classKey:'synthetic-class',now:clock,write:true,activate:true}));
   db.metrics={reads:0,writes:0,attempts:0};
  }
- const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),provider:rosterProvider,
+ const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId,
+  ...(answerTickets?{YBS_ANSWER_TICKETS_ENABLED:'true',YBS_ANSWER_TICKET_SECRET:'synthetic-fixture-only-never-deploy-000000'}:{})},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),provider:rosterProvider,
   ...(rosterProvider==='google.com'?{email:password(uid).email.replace('@ybslab-edu.github.io','@cgjh.hcc.edu.tw'),emailVerified:true}:{}),ybsClassKeys:CLASS_HINTS})}});
  const firebase=await harness();firebase.state.uid='fake-uid-a';firebase.state.owner=false;firebase.state.hints=CLASS_HINTS;
  const rosterReads=[];let releaseRoster;const rosterHeld=new Promise(resolve=>{releaseRoster=resolve;});
@@ -52,7 +53,7 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
   }};
  }
  const session=async()=>firebase.session,fetcher=async(url,init)=>{
-  const op=new URL(url).pathname.slice(1);const call={op,body:JSON.parse(init.body),at:clock};calls.push(call);
+  const route=new URL(url).pathname.slice(1),op=route.replace(/^ticket\//,'');const call={op,route,body:JSON.parse(init.body),at:clock};calls.push(call);
   if(op==='answer'&&answerFailure)return Response.json({error:answerFailure},{status:503,headers:{'retry-after':'60'}});
   if(op==='start'&&startHeld){const held=startHeld;startHeld=null;await held;}
   if(readFailure&&op==='progress')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
@@ -61,14 +62,14 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
   if(op==='answer'&&call.body.slot===1&&secondFailure==='resume-first')return Response.json({error:'synthetic_offline'},{status:503,headers:{'retry-after':'60'}});
   const body={...call.body};if(v1){delete body.progressVersion;delete body.since;delete body.legacyVersion;}
   const beforeReads=db.metrics.reads;
-  let response=await worker.fetch(new Request('https://synthetic.invalid/'+op,{...init,body:JSON.stringify(body),headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'}}));
+  let response=await worker.fetch(new Request('https://synthetic.invalid/'+route,{...init,body:JSON.stringify(body),headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'}}));
   call.reads=db.metrics.reads-beforeReads;
   if(v1&&response.ok&&['start','answer','resume'].includes(op)){const value=await response.json();delete value.progressDelta;response=Response.json(value);}
   if(op==='answer'&&call.body.slot===1&&secondFailure==='lost-second'&&response.ok)response=Response.json({error:'synthetic_lost_response'},{status:503,headers:{'retry-after':'60'}});
   call.status=response.status;call.response=await response.clone().json();call.retryAfter=response.headers.get('retry-after');return response;
  };
  const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher,now:()=>clock,wait:async ms=>{waits.push(ms);clock+=ms;}});
- const clientOptions={config,session,readModel:model,fetcher,shared:store(),storage:store(),now:()=>clock,events:{addEventListener(){}},schedule:()=>null,cancel:()=>{}};
+ const clientOptions={config:{...config,answerTickets},session,readModel:model,fetcher,shared:store(),storage:store(),now:()=>clock,events:{addEventListener(){}},schedule:()=>null,cancel:()=>{}};
  let client=createClient(clientOptions);
  const xpContext=vm.createContext({});vm.runInContext(await readFile(new URL('../assets/xp.js',import.meta.url),'utf8'),xpContext);const xp=vm.runInContext('YBSXP',xpContext);
  const sessionStore=store();if(initialRound!==undefined||restoredRound!==undefined)sessionStore.setItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:${activityId}:fake-uid-a`,String(restoredRound??initialRound));
@@ -83,7 +84,9 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  await client.login(rosterProvider==='google.com'?'google':'password','9990001','synthetic-password');
  const retry=async()=>{for(let i=0;i<8&&client.state().pending;i++){const call=calls.at(-1);clock+=Number(call.retryAfter||60)*1000;await client.retry();await tick();}};
  const probeStart=async()=>{const body={...calls.find(c=>c.op==='start').body,round:1,requestId:crypto.randomUUID()};return worker.fetch(new Request('https://synthetic.invalid/start',{method:'POST',headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'},body:JSON.stringify(body)}));};
- const result={probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},failRead:()=>{readFailure=true;},
+ const result={auth:firebase.auth,probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>answerTickets
+  ?structuredClone(db.docs.get(paths.head('synthetic-a')).activeSession.questions[calls.findLast(c=>c.response?.question)?.response.question.slot??0].answer)
+  :privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},failRead:()=>{readFailure=true;},
   failAnswer:code=>{answerFailure=code;},interruptSecond:mode=>{secondFailure=mode;},holdNextStart:()=>{startHeld=new Promise(resolve=>{releaseStart=resolve;});},releaseStart:()=>releaseStart(),advance:ms=>{clock+=ms;},
   reload:async()=>{events.pagehide();secondFailure=null;client=createClient(clientOptions);await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title}),now:()=>clock});await until(()=>!$('g-isme').hidden);}};
  if(holdRoster){await until(()=>rosterReads.length===1);return result;}
@@ -96,6 +99,31 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  return result;
 }
 const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true};
+test('作答票真實頁面：兩關各組錯兩次即時回饋、中途零讀寫、完成回條不重讀進度',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{answerTickets:true,throttleRead:false,summaries:true,roster:ownRoster});
+ for(let round=0;round<2;round++){
+  if(round){h.advance(60001);await h.button('下一關').onclick();}
+  assert.equal(h.calls.filter(c=>c.op==='start').at(-1).route,'ticket/start');
+  for(let slot=0;slot<2;slot++){
+   const answer=h.answer();
+   for(let attempt=0;attempt<2;attempt++){
+    const wrong=structuredClone(answer);wrong[0]=typeof wrong[0]==='number'?wrong[0]+attempt+1:'合成錯答'+attempt;
+    const before={...h.db.metrics};h.fill(wrong);await h.button('送出').onclick();
+    assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
+    assert.match(h.$('send-hint').textContent,/先修改答案再送出/);assert.equal(h.db.metrics.reads,before.reads);assert.equal(h.db.metrics.writes,before.writes);
+   }
+   const before={...h.db.metrics};h.fill(answer);assert.equal(h.$('b-send').disabled,false);await h.button('送出').onclick();
+   if(slot===0){assert.equal(h.db.metrics.reads,before.reads);assert.equal(h.db.metrics.writes,before.writes);h.button('下一組').onclick();}
+   else{assert.equal(h.db.metrics.reads-before.reads,5);assert.equal(h.db.metrics.writes-before.writes,4);}
+  }
+  await until(()=>h.$('verdict').className==='verdict ok');
+  assert.equal(h.calls.filter(c=>c.op==='progress').length,1);
+ }
+ assert.equal(h.calls.filter(c=>c.route==='ticket/answer').length,12);
+ assert.equal(h.db.metrics.writes,12);assert.equal(h.db.metrics.reads+h.rosterReads.length,24);
+ t.diagnostic('每生 3 摘要冷讀＋1 名冊＋2×(5 開始＋5 最後過關)＝24 讀／12 寫；中途 10 次送答為 0／0。');
+ await h.client.logout();
+});
 test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 秒才熱讀，摘要合計 79 讀',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{legacyCount:20,throttleRead:false,summaries:true,roster:ownRoster});
  const totalReads=()=>h.db.metrics.reads+h.rosterReads.length;
@@ -600,4 +628,14 @@ test('真實 Worker 重置後拒絕舊 session，未送出草稿不回填',{skip
  const gate=h.db.docs.get(h.paths.roster);gate.members['synthetic-a'].roundEpochs['7:0']++;gate.classGateVersion++;
  await h.reload();await h.$('g-isme').onclick();await h.retry();assert.ok(h.calls.some(c=>c.op==='resume'&&c.status===409),'Worker 應拒絕重置前 session');
  assert.equal(h.$('stage').textContent,'');assert.equal(h.$('draft-notice').textContent,'');assert.equal(h.client.loadInput(7,0),undefined);assert.equal(h.calls.some(c=>c.op==='answer'),false);h.events.pagehide();
+});
+
+
+test('確認頁重新讀取先刷新 claims；刷新失敗後仍可重試',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{failInitialRead:true});let attempts=0;
+ const user=h.auth.currentUser,refresh=user.getIdTokenResult;
+ user.getIdTokenResult=async force=>{if(force){attempts++;if(attempts===1)throw Object.assign(Error('offline'),{code:'request-timeout'});}return refresh(force);};
+ await h.$('g-reread').onclick();assert.equal(attempts,1);assert.equal(h.$('g-reread').disabled,false);assert.equal(h.$('g-reread').hidden,false);
+ h.recover();await h.$('g-reread').onclick();await until(()=>!h.$('g-isme').hidden);assert.equal(attempts,2);
+ h.events.pagehide();
 });

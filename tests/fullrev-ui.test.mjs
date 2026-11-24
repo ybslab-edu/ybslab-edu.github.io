@@ -12,14 +12,14 @@ class UIElement extends Element {
   }
 }
 const view=(slot=0,extra={})=>response(slot,{question:{slot,type:'binary-decode-6-v1',data:{bits:[0,0,0,1,1,1]}},...extra});
-async function activity(t) {
+async function activity(t,options={}) {
   const body=new UIElement('body');
   for(const [key,value] of Object.entries({document:{body,createElement:tag=>new UIElement(tag),addEventListener(){}},window:{addEventListener(){}}})) {
     const original=Object.getOwnPropertyDescriptor(globalThis,key);
     Object.defineProperty(globalThis,key,{configurable:true,value});
     t.after(()=>{if(original)Object.defineProperty(globalThis,key,original);else delete globalThis[key];});
   }
-  const h=await harness({fetcher:async()=>Response.json(view())});
+  const h=await harness({fetcher:async()=>Response.json(view()),...options});
   await mountActivity({client:Promise.resolve(h.client),cfg:{week:5,title:'合成活動',rounds:[{name:'合成關卡'}],renderQuestion}});
   await h.login();
   const button=text=>body.querySelectorAll('button').find(el=>el.textContent===text);
@@ -76,4 +76,15 @@ test('Worker 錯答提示顯示為文字並保留同題答案',async t=>{
   await h.button('送出').onclick();
   assert.equal(h.input(),oldInput);assert.equal(h.input().value,'7');assert.equal(h.button('送出').disabled,false);
   assert.ok(h.body.textContent.includes(feedback));
+});
+
+test('作答票即時錯答回饋與說明維持；過期顯示具體原因並可重開',async t=>{
+  const ticket={ticketVersion:1,ticket:'ybs-answer-v1.synthetic-ui-fixture'};
+  const h=await activity(t,{answerTickets:true,fetcher:async()=>Response.json(view(0,ticket))});
+  h.state.fetcher=async()=>Response.json(view(0,{...ticket,nextSeq:2,correct:false,feedback:'合成說明：請核對位值。'}));
+  await h.button('送出').onclick();assert.match(h.body.textContent,/合成說明：請核對位值/);assert.equal(h.button('送出').disabled,false);
+  h.state.fetcher=async()=>Response.json({error:'ticket_expired'},{status:410});await h.button('送出').onclick();
+  assert.match(h.body.textContent,/作答票已過期/);assert.equal(h.client.state().pending,false);
+  h.state.fetcher=async()=>Response.json(view(0,ticket));await h.button('開始這一關').onclick();
+  assert.ok(h.requests.at(-1).url.endsWith('/ticket/start'));
 });

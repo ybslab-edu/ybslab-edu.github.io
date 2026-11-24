@@ -90,3 +90,19 @@ test('兩種登入入口移除老師核發訪客文案；Google 學生仍須明�
     assert.doesNotMatch(source,/老師核發訪客/);assert.match(source,/mountGuestLogin/);assert.match(source,/studentGoogleLogin===true/);
   }
 });
+
+for(const phase of ['fetch','json'])test(`guest context ${phase} 停住沿用請求期限，取消後可重試`,async()=>{
+  const h=await guest({requestTimeoutMs:10});let signal;
+  h.state.fetcher=async(_url,init)=>{signal=init.signal;return phase==='fetch'?new Promise(()=>{}):{json:()=>new Promise(()=>{})};};
+  await assert.rejects(h.client.start(5,0),{code:'request-timeout'});
+  assert.equal(signal.aborted,true);assert.equal(h.client.state().pending,false);
+  h.state.fetcher=(url,init)=>url.endsWith('/guest/context')?noStore(context(JSON.parse(init.body))):noStore(response());
+  const value=await h.client.start(5,0);assert.equal(value.activity,5);
+});
+
+test('capacity_deferred 顯示訪客開始次數限制，不誤判儲存額度且不自動重送',async()=>{
+  const h=await guest();const original=h.state.fetcher;
+  h.state.fetcher=(url,init)=>url.endsWith('/guest/context')?original(url,init):Response.json({error:'capacity_deferred'},{status:429});
+  await assert.rejects(h.client.start(5,0),{code:'capacity-deferred'});
+  assert.equal(h.client.state().pending,false);assert.equal(h.client.state().uploadIssue,null);assert.equal(h.timers.length,0);
+});

@@ -251,7 +251,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   controls();stage.append(node('h3','這一關的說明'));if(typeof cfg.demonstrate==='function')cfg.demonstrate(stage);else para(stage,'請依這一關的任務說明練習。');
  });
  const reread=tool('重新讀取',()=>!handle&&mode==='loading'?start(round):client.state().profile?.provider==='anonymous'?start(round,true):refresh());reread.hidden=true;
- const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=()=>refresh();identityBox.append(gateReread);
+ const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=async()=>{gateReread.disabled=true;try{await client.refreshClaims();await refresh();}catch(e){confirmIdentity();problem(e);}finally{gateReread.disabled=false;}};identityBox.append(gateReread);
  // 每個本人／控制版本只查一次單筆名冊；不列名單、不持久保存，也不作為作答授權。
  let person=null,personKey='';
  async function readPerson(value){
@@ -314,7 +314,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  // 補接選單 change、輸入法組字結束與失焦；重算時讀取現值，不靠事件累計。
  for(const event of ['input','change','compositionend','focusout'])stage.addEventListener(event,changed);
  function rounds(){
-  nav.replaceChildren();cfg.rounds.forEach((r,i)=>{const passed=result?.records.some(r=>r.activity===cfg.week&&r.round===i);const b=node('button',r.name+(passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);nav.append(b);});
+  nav.replaceChildren();cfg.rounds.forEach((r,i)=>{const pending=result?.pendingRecords?.some(r=>r.activity===cfg.week&&r.round===i),passed=result?.records.some(r=>r.activity===cfg.week&&r.round===i&&!result?.pendingRecords?.includes(r));const b=node('button',r.name+(pending?'（待老師確認）':passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);nav.append(b);});
  }
  function count(n){
   $('round-status').textContent=`第 ${round+1} 關／共 ${cfg.rounds.length} 關．本關答對 ${n}/2`;
@@ -446,11 +446,11 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    const currentPerson=await readPerson(fresh).catch(()=>null);if(n!==read||g!==revision)return;
    snapshot=fresh;person=currentPerson;personKey=cacheKey;
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
-   result=value.state==='confirmed'?value:null;reread.hidden=!!result;
+   result=value.state==='confirmed'?value:value.reason==='guest-xp-policy-pending'?value:null;reread.hidden=!!result;
    confirmIdentity();if(!result){$('xp-header').hidden=true;rounds();say(explain(value));return;}loadProblem='';
    focusRefresh?.touch();
-   $('xp-header').hidden=false;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
-   rounds();if(last?.completed)passed();else say('');
+   $('xp-header').hidden=result.totalXP===null;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
+   rounds();if(result.reason==='guest-xp-policy-pending')say('訪客紀錄待老師確認；其餘進度已顯示。');else if(last?.completed)passed();else say('');
   }catch(e){if(n===read&&g===revision){result=null;snapshot=null;$('xp-header').hidden=true;rounds();reread.hidden=false;confirmIdentity();problem(e);}}
   finally{if(n===read){controls();reading=false;}}
  }

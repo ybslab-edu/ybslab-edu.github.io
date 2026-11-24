@@ -62,6 +62,28 @@ test('遺失 guest answer 回應後重整，以相同 requestId 重送並保留 
   assert.equal(restored.state().status,'guest-pending');
 });
 
+for(const code of ['summary_unconfirmed','summary_capacity'])test(`guest ${code} 手動重送成功後可開始下一關，失敗或無效回應仍保持阻擋`,async()=>{
+  const h=await guest();await h.client.start(5,0);
+  h.state.fetcher=()=>Response.json({error:code},{status:503});
+  await assert.rejects(h.client.answer(5,0,7),{code:code.replaceAll('_','-')});
+  const pending=h.requests.at(-1).body,count=h.requests.length,timers=h.timers.length;
+  await assert.rejects(h.client.start(5,1),{code:code.replaceAll('_','-')});assert.equal(h.requests.length,count);
+  h.events.get('online')();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.requests.length,count);
+  assert.equal(h.timers.length,timers);
+  await assert.rejects(h.client.retry(),{code:code.replaceAll('_','-')});assert.deepEqual(h.requests.at(-1).body,pending);
+  h.state.fetcher=()=>noStore({...completed,counted:true});
+  await assert.rejects(h.client.retry(),{code:'pending'});
+  await assert.rejects(h.client.context(5,1),{code:code.replaceAll('_','-')});
+  h.advance();h.state.fetcher=()=>noStore(completed);await h.client.retry();
+  assert.deepEqual(h.requests.at(-1).body,pending);assert.equal(h.client.state().uploadIssue,null);
+  assert.equal(h.client.state().status,'guest-pending');assert.equal(h.client.state().pending,false);assert.equal(h.client.state().snapshot,null);
+  h.state.fetcher=(url,init)=>url.endsWith('/guest/context')?noStore(context(JSON.parse(init.body))):noStore(response());
+  await h.client.start(5,1);
+  assert.deepEqual(h.requests.slice(-2).map(r=>new URL(r.url).pathname),['/guest/context','/guest/start']);
+  assert.equal(h.requests.at(-1).body.round,1);assert.deepEqual(h.reads,[]);
+  await assert.rejects(h.client.progress(),{code:'guest-pending'});
+});
+
 for(const [label,extra] of [['錯專案',{sourceProject:'other-project'}],['錯班座',{seat:1}],['缺控制版本',{controlVersions:null}]])
   test(`guest context ${label}不得啟動作答`,async()=>{
     const h=await guest();h.state.fetcher=(_url,init)=>noStore(context(JSON.parse(init.body),extra));

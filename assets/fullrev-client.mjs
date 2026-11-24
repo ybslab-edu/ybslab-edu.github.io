@@ -299,7 +299,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
       if(!value.question||d.input?.stamp!==questionStamp(value)||now()-d.input.savedAt>=WORK_TTL)delete d.input;
       d.expiresAt=value.expiresAt;d.stamp=value.question?questionStamp(value):null;
-      d.pending=null;delete d.issue;d.failures=0;d.retryAt=0;
+      d.pending=null;delete d.issue;summaryIssue=null;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
       if(ticketValid(value)){d.ticketMode=true;d.ticket=value.ticket;}
       // A pre-existing legacy session keeps its original protocol after opt-in.

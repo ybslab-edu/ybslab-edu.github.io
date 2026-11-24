@@ -424,7 +424,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   }else{showQuestion(value);say('');}controls();
  }
  function passed(){
-  if(client.state().pending||!last?.completed||!result?.records.some(r=>r.activity===cfg.week&&r.round===round))return;
+  if(client.state().pending||!last?.completed||!result?.records.some(r=>r.activity===cfg.week&&r.round===round&&r.provider!=='anonymous'))return;
   mode='passed';count(2);verdict.className='verdict ok';verdict.replaceChildren(node('h3','過關！'));para(verdict,info().learn||lastLearning||'你已完成這一關的兩組挑戰。');
   const item=result.activities.find(a=>a.activity===cfg.week),detail=item.rounds[round],old=before?.activities.find(a=>a.activity===cfg.week);
   if(old?.rounds[round]?.passed)para(verdict,'這關已領過 XP。');else{
@@ -450,7 +450,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    confirmIdentity();if(!result){$('xp-header').hidden=true;rounds();say(explain(value));return;}loadProblem='';
    focusRefresh?.touch();
    $('xp-header').hidden=result.totalXP===null;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
-   rounds();if(result.reason==='guest-xp-policy-pending')say('訪客紀錄待老師確認；其餘進度已顯示。');else if(last?.completed)passed();else say('');
+   rounds();if(last?.completed)passed();else if(result.reason==='guest-xp-policy-pending')say('訪客紀錄待老師確認；其餘進度已顯示。');else say('');
   }catch(e){if(n===read&&g===revision){result=null;snapshot=null;$('xp-header').hidden=true;rounds();reread.hidden=false;confirmIdentity();problem(e);}}
   finally{if(n===read){controls();reading=false;}}
  }

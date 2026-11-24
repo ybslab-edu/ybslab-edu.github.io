@@ -2,6 +2,7 @@ import {createWorkStore,questionStamp,WORK_TTL} from './fullrev-work-store.mjs';
 import {guestScope,isGuestContext,guestFields,guestCompletion,readGuestContext} from './fullrev-guest.mjs';
 import {createDFReports} from './fullrev-df.mjs';
 import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261120a';
+import {createProgressCache} from './fullrev-progress-cache.mjs';
 
 const scopeKey = (activity,round) => activity+':'+round;
 const epochKeys = ['configVersion','bindingVersion','unitEpoch','roundEpoch','classUnitEpoch'];
@@ -29,8 +30,18 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   if(!['115-g9','115-df'].includes(course))throw fail('invalid-course');
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
   const workStore=createWorkStore({shared,project,course,now});
+  const progressCache=createProgressCache({storage:shared,project,course}),progressWork=new Map(),aborters=new Set();
+  let progressActivities=null,binding=null;
+  const abortRequests=(keep=null)=>{readModel?.cancel?.();for(const c of aborters)if(c!==keep){c.abort();aborters.delete(c);}progressWork.clear();};
+  function confirmBinding(m,classKey,subject,keep){
+    if(binding&&(binding.classKey!==classKey||binding.subject&&subject&&binding.subject!==subject)){
+      abortRequests(keep);progressCache.purge();generation++;m.generation=generation;
+      cancel(timer);timer=null;drafts={};view=null;snapshot=null;lastProgress=null;progressActivities=null;running.clear();gradingWork=Promise.resolve();save();
+    }
+    binding={classKey,subject:subject??(binding?.classKey===classKey?binding.subject:null)};
+  }
   let profile=null, generation=0, firebaseSession, sessionOpening, drafts={}, readVersion=0, signal='', timer;
-  let status='signed-out', snapshot=null, view=null, readingRetry=null;
+  let status='signed-out', snapshot=null, lastProgress=null, view=null, readingRetry=null;
   let gradingWork=Promise.resolve();
   const listeners = new Set(), running = new Map();
   // 只保留可公開的錯誤種類，不保存伺服器錯誤內容。
@@ -41,9 +52,9 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
   function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest}));}catch{emit('storage-pending');}return workStore.write(profile?.uid,drafts);}
-  function clear() {if(profile?.uid){workStore.purge(profile.uid);
+  function clear() {abortRequests();progressCache.purge();progressActivities=null;binding=null;if(profile?.uid){workStore.purge(profile.uid);
     try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===profile.uid)storage.removeItem(k);}catch{}}}catch{}
-    }cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};snapshot=null;view=null;readingRetry=null;profile=null;
+    }cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};snapshot=null;lastProgress=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
   function broadcast() {signal=requestId();try{shared?.setItem(signalKey,signal);}catch{}}
   function active(mark) {
@@ -53,7 +64,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   const mark = () => {if(!profile)throw fail('login-required');const m={uid:profile.uid,generation};active(m);return m;};
   events?.addEventListener('storage',event=>{if(event.key===signalKey && savedSignal()!==signal){signal=savedSignal();clear();}});
-  events?.addEventListener('pagehide',()=>{generation++;readVersion++;running.clear();gradingWork=Promise.resolve();snapshot=null;view=null;emit('stale');});
+  events?.addEventListener('pagehide',()=>{abortRequests();generation++;readVersion++;running.clear();gradingWork=Promise.resolve();snapshot=null;lastProgress=null;view=null;emit('stale');});
   events?.addEventListener('online',()=>{if(profile)retry().catch(()=>{});});
   async function getSession() {
     if (firebaseSession) return firebaseSession;
@@ -133,6 +144,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(owner)await assertOwner(m);
       else if(provider==='google.com')try{owner=await assertOwner(m);}catch(e){if(e.code!=='owner-required')throw e;}
       profile={...profile,provider,owner};
+      progressCache.retain(profile);
       workStore.retain(profile.uid);if(!owner)drafts=restorable(workStore.read(profile.uid));
       save();emit('signed-in');return {...profile};
     }).catch(error=>{if(g===generation)clear();throw error;});
@@ -164,11 +176,12 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(saved?.uid===profile.uid&&saved.signal===signal&&saved.drafts) {
         drafts=restorable(saved.drafts);
       }
-    }catch{} workStore.retain(profile.uid);save();emit('signed-in');return {...profile};
+    }catch{} progressCache.retain(profile);workStore.retain(profile.uid);save();emit('signed-in');return {...profile};
   }
   function logout() {clear();broadcast();return serialAuth(async()=>{const {auth}=await getSession();await auth.signOut();});}
   async function classHint(m,force=false) {
     const c=await claims(m,force), map=c.ybsClassKeys;
+    if(c.firebase?.sign_in_provider!==profile.provider){clear();throw fail('identity-changed');}
     if(!map||typeof map!=='object'||Array.isArray(map)||!/^[\w-]{1,40}$/.test(map[course]||''))throw fail('binding-pending');
     return map[course];
   }
@@ -186,6 +199,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const value=await readModel.context({course,classKey,activity,round});active(m);
     if(!validContext(value)||value.schemaVersion!==1||value.sourceProject!==project||value.course!==course
       ||value.uid!==m.uid||value.classKey!==classKey||value.activity!==activity||value.round!==round)throw fail('context-unconfirmed');
+    confirmBinding(m,classKey,value.subject);
     return Object.fromEntries(['schemaVersion','sourceProject','course','uid','classKey','subject','activity','round',
       ...epochKeys,'controlVersions'].map(k=>[k,clone(value[k])]));
   }
@@ -206,14 +220,15 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       let response;
       for(let refresh=0;refresh<2;refresh++) {
         const bearer=await token(m,refresh===1);
-        const controller=new AbortController();let timeout;
+        const controller=new AbortController();aborters.add(controller);let timeout;
         try{
           response=await Promise.race([
             fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
               redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal}),
+            new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(fail('identity-changed')),{once:true})),
             new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(fail('request-timeout'));},requestTimeoutMs);})
           ]);
-        }finally{clearTimeout(timeout);}active(m);
+        }finally{clearTimeout(timeout);aborters.delete(controller);}active(m);
         if(response.status!==401)break;
       }
       if(!response.ok) {
@@ -226,7 +241,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         }
         if(response.status===429||response.status>=500) {
           const error=await response.json().catch(()=>null);active(m);
-          d.issue=error?.error==='storage_quota'?'storage-quota':response.status===429?'rate-limited':'connection-failed';
+          d.issue=error?.error==='storage_quota'||response.status===429&&!['rate_limited','storage_busy'].includes(error?.error)?'storage-quota':response.status===429?'rate-limited':'connection-failed';
           const header=response.headers.get('retry-after'), seconds=Number(header);
           const until=header && !Number.isNaN(seconds)?now()+Math.max(0,seconds)*1000:Date.parse(header||'');
           d.retryAt=Math.max(Number.isFinite(until)?until:0,now()+Math.min(60000,1000*2**Math.min(d.failures||0,6))+Math.floor(random()*500));
@@ -243,8 +258,10 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
       if(value.completed||value.awaitingTeacher)delete drafts[scopeKey(d.activity,d.round)];
       view={activity:d.activity,round:d.round,...clone(value)};
-      save();snapshot=null;emit(guestCompletion(value)?'guest-pending':value.awaitingTeacher?'teacher-pending':value.completed?'confirmation-pending':'ready');
-      // 題面只回傳到記憶體；completed 回條不直接新增進度／XP。
+      save();
+      if(value.completed&&!isGuestContext(d.context))applyProgressDelta(value,d);
+      emit(guestCompletion(value)?'guest-pending':value.awaitingTeacher?'teacher-pending':value.completed?'confirmation-pending':'ready');
+      // 只有 Worker 已提交且 epoch 相符的 v2 投影可直接更新進度。
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
       active(m);
@@ -316,15 +333,39 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     }
     return output;
   }
+  function applyProgressDelta(value,d){
+    const previous=snapshot||lastProgress;snapshot=null;lastProgress=null;
+    readVersion++;progressWork.clear();
+    if(!previous||previous.progressVersion!==2||previous.activity!==undefined||!progressActivities
+      ||!value.progressDelta?.records?.some(r=>r.resultId===value.resultId))return;
+    const next=progressCache.delta({...profile,classKey:previous.classKey},value.progressDelta,
+      {...previous,activity:d.activity,round:d.round});
+    if(!next)return;
+    delete next.result.activity;delete next.result.round;
+    if(effectiveRecords(next.result,{project,course,subject:previous.subject,activities:progressActivities}).state!=='confirmed')return;
+    // Reads already in flight used an older baseline; their replies cannot overwrite this receipt.
+    progressCache.commit(next.state,next.cached,next.result);lastProgress=snapshot=next.result;
+  }
   // 分頁前後重查控制版；完整空頁也是確認後的空集合，查詢失敗絕不回傳 []。
   async function progress({activities,classKey,activity,teacher=false}={}) {
     if(profile?.provider==='anonymous')throw fail('guest-pending');
+    const key=JSON.stringify([profile?.uid,teacher,classKey,activity]);
+    if(progressWork.has(key))return progressWork.get(key);
+    const work=readProgress({activities,classKey,activity,teacher});progressWork.set(key,work);
+    try{return await work;}finally{if(progressWork.get(key)===work)progressWork.delete(key);}
+  }
+  async function readProgress({activities,classKey,activity,teacher}) {
     const m=mark(), request=++readVersion;snapshot=null;emit('confirmation-pending');
+    const controller=new AbortController();aborters.add(controller);
     try {
       if(!readModel?.page||!readModel?.controls)throw fail('read-model-pending');
       if(teacher)await assertOwner(m);else classKey=await classHint(m);
       if(!/^[\w-]{1,40}$/.test(classKey||''))throw fail('invalid-class');
-      const input={course,classKey,...(activity===undefined?{}:{activity}),limit:100};
+      const input={course,classKey,...(activity===undefined?{}:{activity}),limit:100,signal:controller.signal};
+      if(!teacher&&course==='115-g9'){
+        confirmBinding(m,classKey,undefined,controller);
+        return await incrementalProgress({input,m,request,activities,activity,controller});
+      }
       const before=await readModel.controls(input);active(m);
       if(!versions(before))throw fail('control-unconfirmed');
       const records=[],people=[];let cursor=null,subject,provider,seen=new Set();
@@ -350,6 +391,49 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(validity.state!=='confirmed')throw fail(validity.reason);
       snapshot=result;emit('confirmed');return clone(result);
     }catch(error){active(m);if(request===readVersion){snapshot=null;emit('confirmation-pending');}throw error;}
+    finally{aborters.delete(controller);}
+  }
+  async function incrementalProgress({input,m,request,activities,activity,controller}){
+    for(let attempt=0;attempt<3;attempt++)try{
+      const before=await readModel.controls(input);active(m);
+      if(request!==readVersion)throw fail('read-superseded');
+      if(!versions(before))throw fail('control-unconfirmed');
+      const state=progressCache.begin({...profile,classKey:input.classKey},activity);
+      const records=[];let cursor=null,subject,protocol,seen=new Set();
+      for(let pageNumber=0;pageNumber<100;pageNumber++){
+        const page=await readModel.page({...input,cursor,controlVersions:before,progressVersion:2,
+          since:state.since,legacyVersion:state.legacy?.version??null});active(m);
+        if(request!==readVersion)throw fail('read-superseded');
+        if(!sameVersions(page.controlVersions,before))throw fail('control-changed');
+        if(page.schemaVersion!==1||page.sourceProject!==project||page.course!==course||page.classKey!==input.classKey
+          ||page.state!=='confirmed'||!sameVersions(page.controlVersions,before)||!Array.isArray(page.records)
+          ||page.records.length>100||typeof page.complete!=='boolean')throw fail('page-unconfirmed');
+        if(!id(page.subject)||subject&&subject!==page.subject)throw fail('subject-mismatch');
+        subject=page.subject;
+        confirmBinding(m,input.classKey,subject,controller);
+        const v2=page.progressVersion===2;
+        if(protocol!==undefined&&protocol!==v2)throw fail('control-changed');protocol=v2;
+        if(v2){if(page.provider!==profile.provider)throw fail('subject-mismatch');progressCache.merge(state,page);}
+        else records.push(...clone(page.records));
+        if(page.complete){if(page.nextCursor!=null)throw fail('cursor-invalid');cursor=null;break;}
+        const next=JSON.stringify(page.nextCursor);
+        if(!page.nextCursor||seen.has(next))throw fail('cursor-invalid');seen.add(next);cursor=page.nextCursor;
+      }
+      if(cursor)throw fail('page-capacity');
+      // v2 checks controls on every page. v1 keeps its original before/after check.
+      const after=protocol?before:await readModel.controls(input);active(m);
+      if(request!==readVersion)throw fail('read-superseded');
+      if(!sameVersions(before,after))throw fail('control-changed');
+      const envelope={schemaVersion:1,sourceProject:project,course,classKey:input.classKey,subject,provider:profile.provider,
+        state:'confirmed',complete:true,controlVersions:after,people:[],...(activity===undefined?{}:{activity})};
+      const next=protocol?progressCache.finish(state,envelope):{result:{...envelope,records}};
+      const validity=effectiveRecords(next.result,{project,course,subject,activities});
+      if(validity.state!=='confirmed')throw fail(validity.reason);
+      if(protocol)progressCache.commit(state,next.cached,envelope);else progressCache.purge();
+      progressActivities=activities;lastProgress=snapshot=next.result;emit('confirmed');return clone(snapshot);
+    }catch(error){
+      active(m);if(error.code!=='control-changed'||attempt===2||request!==readVersion)throw error;
+    }
   }
   function saveInput(activity,round,value){
     mark();const d=drafts[scopeKey(activity,round)];

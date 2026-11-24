@@ -43,7 +43,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
  }
  await writeFile(cspFile,cspOriginal);
  assert.match(await readFile(join(output,'115-df/teacher/index.html'),'utf8'),/script-src [^;]*https:\/\/apis\.google\.com/);
- for(const p of ['index.html','map/index.html','about/index.html','115-g9/me/index.html','115-g9/teacher/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-df/a/index.html','assets/fullrev-read-model.mjs'])assert.ok((await readFile(join(output,p))).length);
+ for(const p of ['index.html','map/index.html','about/index.html','115-g9/me/index.html','115-g9/teacher/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-df/a/index.html','assets/fullrev-read-model.mjs','assets/fullrev-progress-cache.mjs'])assert.ok((await readFile(join(output,p))).length);
  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.doesNotMatch(login,/class-score-86020|guestId\(|validGuest|\.collection\(/);
  const df=await readFile(join(output,'115-df/a/index.html'),'utf8');
  assert.match(df,/assets\/legacy-df\/login.js/);assert.match(df,/assets\/legacy-df\/config.js/);assert.doesNotMatch(df,/await YBS.loadDFContent/);

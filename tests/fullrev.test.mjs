@@ -92,7 +92,7 @@ test('斷線保留原 requestId／epoch／答案，成功遺失回應重送也�
   await h.client.retry();assert.deepEqual(h.requests.at(-1).body,original);assert.equal(h.client.state().snapshot,null);
 });
 test('429／503 尊重 Retry-After 且有上限重試，401 僅刷新一次',async()=>{
-  const h=await harness();await h.login();h.state.fetcher=async()=>new Response('{}',{status:429,headers:{'Retry-After':'90'}});
+  const h=await harness();await h.login();h.state.fetcher=async()=>Response.json({error:'rate_limited'},{status:429,headers:{'Retry-After':'90'}});
   await assert.rejects(h.client.start(5,0),{code:'pending'});assert.equal(h.timers.at(-1).ms,90000);
   await h.client.retry();assert.equal(h.requests.length,1);h.advance(90001);
   let n=0;h.state.fetcher=async()=>++n===1?new Response('{}',{status:401}):Response.json(response());await h.client.retry();
@@ -163,12 +163,12 @@ test('進度查詢分頁與結尾 fresh controls；換版／斷線不當0，完�
   h.model.controls=async()=>({...controls});h.model.page=async()=>snapshot([]);assert.equal((await h.client.progress({activities})).records.length,0);
   h.model.page=async()=>{throw Error('offline');};await assert.rejects(h.client.progress({activities}));assert.equal(h.client.state().snapshot,null);
 });
-test('兩個同關請求只送一筆；舊查詢晚回不蓋過新查詢',async()=>{
+test('兩個同關請求只送一筆；進度同時查詢合併為一筆',async()=>{
   let release;const h=await harness({fetcher:()=>new Promise(r=>release=r)});await h.login();const a=h.client.start(5,0);
   await assert.rejects(h.client.start(5,0),{code:'request-in-flight'});while(!release)await new Promise(r=>setImmediate(r));release(Response.json(response()));await a;
   let finish;h.model.page=()=>new Promise(r=>finish=r);const old=h.client.progress({activities});while(!finish)await new Promise(r=>setImmediate(r));
-  h.model.page=async()=>snapshot([]);await h.client.progress({activities});finish(snapshot());await assert.rejects(old,{code:'read-superseded'});
-  assert.equal(h.client.state().snapshot.records.length,0);
+  let extra=0;h.model.page=async()=>{extra++;return snapshot([]);};const combined=h.client.progress({activities});finish(snapshot());
+  await Promise.all([old,combined]);assert.equal(extra,0);assert.equal(h.client.state().snapshot.records.length,4);
 });
 test('跨 UID 已完成只回 resultId 時清除草稿，再次 start 重查版本；owner 還原後也不送作答',async()=>{
   const h=await harness();await h.login();h.state.fetcher=async()=>Response.json({completed:true,resultId:'c_existing'});

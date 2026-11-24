@@ -14,17 +14,22 @@ import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 // 第二組由 setTimeout 與非同步 Worker 接手；輪詢次數不能當作逾時時間。
 async function until(check){const deadline=performance.now()+5000;do{if(check())return;await new Promise(resolve=>setTimeout(resolve,5));}while(performance.now()<deadline);assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
+async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
  const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,href:'115-g9/'+(i===2?warmupSource:'no-bank-'+i)+'/',date:'2026-10-0'+(i+1)}))];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
  const [{createFormalWorker},{MemoryFirestore},{readPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
   load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal/read-model.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
- let readFailure=failInitialRead,answerFailure=null,secondFailure=null,startHeld=null,releaseStart;let clock=EPOCH,calls=[],throttle=true,waits=[],readsReleased=!holdProgress,release;
+ let readFailure=failInitialRead,answerFailure=null,secondFailure=null,startHeld=null,releaseStart;let clock=EPOCH,calls=[],throttle=throttleRead,waits=[],readsReleased=!holdProgress,release;
  const held=new Promise(resolve=>{release=()=>{readsReleased=true;resolve();};});
  const data=await batchData(clock);if(closed)data[paths.global].activities[7].opensAt=clock+86400000;
+ if(rosterProvider==='google.com')data[paths.roster].bindings['fake-uid-a'].provider='google.com';
  const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:readPath});
- const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),ybsClassKeys:CLASS_HINTS})}});
+ if(legacyCount){const {legacyRow}=await load('tests/legacy-progress-fixtures.mjs');for(let j=0;j<legacyCount;j++){
+  const r=legacyRow(7,j%4,{subject:'synthetic-a',uid:`old-synthetic-${j}`,at:clock-1000});db.seed(r.path,r.data);
+ }}
+ const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),provider:rosterProvider,
+  ...(rosterProvider==='google.com'?{email:password(uid).email.replace('@ybslab-edu.github.io','@cgjh.hcc.edu.tw'),emailVerified:true}:{}),ybsClassKeys:CLASS_HINTS})}});
  const firebase=await harness();firebase.state.uid='fake-uid-a';firebase.state.owner=false;firebase.state.hints=CLASS_HINTS;
  const rosterReads=[];let releaseRoster;const rosterHeld=new Promise(resolve=>{releaseRoster=resolve;});
  if(roster!==undefined){
@@ -48,7 +53,11 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
   if(op==='context'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
   if(op==='progress'&&!readsReleased&&db.docs.get(paths.head('synthetic-a'))?.completions&&Object.keys(db.docs.get(paths.head('synthetic-a')).completions).length)await held;
   if(op==='answer'&&call.body.slot===1&&secondFailure==='resume-first')return Response.json({error:'synthetic_offline'},{status:503,headers:{'retry-after':'60'}});
-  let response=await worker.fetch(new Request('https://synthetic.invalid/'+op,{...init,headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'}}));
+  const body={...call.body};if(v1){delete body.progressVersion;delete body.since;delete body.legacyVersion;}
+  const beforeReads=db.metrics.reads;
+  let response=await worker.fetch(new Request('https://synthetic.invalid/'+op,{...init,body:JSON.stringify(body),headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'}}));
+  call.reads=db.metrics.reads-beforeReads;
+  if(v1&&response.ok&&['start','answer','resume'].includes(op)){const value=await response.json();delete value.progressDelta;response=Response.json(value);}
   if(op==='answer'&&call.body.slot===1&&secondFailure==='lost-second'&&response.ok)response=Response.json({error:'synthetic_lost_response'},{status:503,headers:{'retry-after':'60'}});
   call.status=response.status;call.response=await response.clone().json();call.retryAfter=response.headers.get('retry-after');return response;
  };
@@ -81,6 +90,31 @@ async function setup(t,{closed=false,holdProgress=false,activityId=7,initialRoun
  return result;
 }
 const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true};
+test('一節課 mock adapter 計數：登入、四關各錯一次再過關、多次切窗符合每生 106 次讀取預算',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{legacyCount:20,throttleRead:false});
+ assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0),25);
+ assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'登入一次冷讀，開始活動不重讀');
+ for(let r=0;r<4;r++){
+  if(r){h.advance(60001);await h.button('下一關').onclick();}
+  const correct=h.answer(),wrong=structuredClone(correct);wrong[0]=typeof wrong[0]==='number'?wrong[0]+1:'合成錯答';
+  h.fill(wrong);await h.button('送出').onclick();assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
+  h.fill(correct);await h.button('送出').onclick();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();
+  await until(()=>h.$('verdict').className==='verdict ok');
+  assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'過關只套用已提交回條');
+ }
+ const formal=h.calls.filter(c=>['context','start','answer'].includes(c.op)).reduce((n,c)=>n+c.reads,0);
+ assert.equal(formal,76);assert.equal(h.db.metrics.writes,20);
+ await Promise.all(Array.from({length:12},(_,i)=>h.events[i%2?'focus':'visibilitychange']()));
+ await until(()=>h.client.state().snapshot!==null);await tick();
+ // Also suppress the paired event after the fast hot-read has already finished.
+ await h.events.focus();await tick();
+ const progress=h.calls.filter(c=>c.op==='progress');assert.equal(progress.length,2);
+ assert.equal(progress[1].response.legacy.records,null);assert.deepEqual(progress[1].response.records,[]);
+ assert.equal(Object.keys(progress[1].body.since.results).length,4);
+ assert.equal(h.db.metrics.reads,106);assert.equal(h.db.metrics.writes,20);
+ t.diagnostic('每生讀取 25 冷讀（含 20 舊史）+ 4×19 作答 + 5 熱讀 = 106；30 生 3180，與後端估算學生部分一致。');
+ await h.client.logout();
+});
 test('送出停用時具體顯示缺格、格式與下一組，點擊及鍵盤也提示，漏 input 可恢復',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t),send=h.$('b-send'),wrapper=h.$('send-control'),hint=h.$('send-hint');
  assert.equal(send.disabled,true);assert.match(hint.textContent,/還有 7 格/);
@@ -114,9 +148,10 @@ test('本人單筆名冊顯示班座、同控制版本不重讀，換人清除',
  const h=await setup(t,{roster:ownRoster});
  assert.equal(h.$('who').textContent,'917 班 5 號');assert.equal(h.$('g-whotext').textContent,'你是 917 班 5 號，對嗎？');
  assert.deepEqual(h.rosterReads,[{path:'ybsCourses/115-g9/roster/cgjh9990001@cgjh.hcc.edu.tw',options:{source:'server'}}]);
- const count=h.calls.length;h.events.focus();await until(()=>h.calls.length>=count+3);await tick();
+ const count=h.calls.length;h.events.focus();await until(()=>h.calls.length>=count+2);await tick();
  assert.equal(h.rosterReads.length,1,'focus 不增加本人名冊讀取');
  h.db.docs.get(h.paths.global).gateVersion++;
+ await new Promise(resolve=>setTimeout(resolve,1010));
  h.events.focus();await until(()=>h.rosterReads.length===2);await tick();
  assert.equal(h.$('who').textContent,'917 班 5 號','控制版本改變須重新確認班座');
  await h.client.logout();assert.equal(h.$('who').textContent,'');assert.equal(h.$('g-whotext').textContent,'');
@@ -166,8 +201,8 @@ test('Worker 未開放顯示舊遮罩，F12 移除遮罩不能取得題面或過
  await assert.rejects(h.client.start(7,0),{code:'not-open'});assert.equal(h.calls.some(c=>c.op==='start'),false);assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
 });
 test('completed 回條尚未確認進度時不出現過關或 XP；登出後延遲讀取不能補回畫面',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{holdProgress:true});h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
- await until(()=>h.calls.filter(c=>c.op==='progress').length===3);assert.notEqual(h.$('verdict').querySelector('h3')?.textContent,'過關！');assert.equal(h.$('xp-total').textContent,'0 XP');
+ const h=await setup(t,{holdProgress:true,v1:true});h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
+ await until(()=>h.calls.filter(c=>c.op==='progress').length===2);assert.notEqual(h.$('verdict').querySelector('h3')?.textContent,'過關！');assert.equal(h.$('xp-total').textContent,'0 XP');
  await h.client.logout();h.release();await tick();await tick();assert.equal(h.$('main').hidden,true);assert.equal(h.$('stage').textContent,'');assert.equal(h.$('xp-header').hidden,true);
 });
 
@@ -395,25 +430,24 @@ test('待送且零筆過關時，focus 與切回頁面重讀仍保留待送提�
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();
  h.interruptSecond('resume-first');h.fill(h.answer());await h.button('送出').onclick();
  assert.equal(h.client.state().pending,true);
- for(const event of ['focus','visibilitychange']){
-  const count=h.calls.filter(c=>c.op==='progress').length;
-  h.events[event]();await until(()=>h.calls.filter(c=>c.op==='progress').length>count&&h.client.state().snapshot!==null);await tick();
+ const count=h.calls.filter(c=>c.op==='progress').length;
+ await Promise.all([h.events.focus(),h.events.visibilitychange()]);
+ await until(()=>h.client.state().snapshot!==null);await tick();
+ assert.equal(h.calls.filter(c=>c.op==='progress').length,count+1);
   assert.equal(h.client.state().snapshot.records.length,0);
   assert.equal(h.client.state().pending,true);
   assert.match(h.$('sync').textContent,/上傳中.*答案已保留/);
   assert.doesNotMatch(h.$('sync').textContent,/已確認|已上傳/);
   assert.equal(h.$('b-retry').hidden,false);
- }
  h.interruptSecond(null);await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
  assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');
 });
-test('完成回條仍須確認進度才恢復上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('v2 完成回條直接確認進度及上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{holdProgress:true});
  assert.match(h.$('xp-level').textContent,/^Lv 1 /);assert.equal(h.$('xp-progress').hidden,false);
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
- await until(()=>h.calls.filter(c=>c.op==='progress').length===3);
- assert.match(h.$('sync').textContent,/上傳中/);assert.doesNotMatch(h.$('sync').textContent,/紀錄已上傳給老師/);
- h.release();await until(()=>h.$('verdict').className==='verdict ok');
+ await until(()=>h.$('verdict').className==='verdict ok');
+ assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'登入只讀一次，過關不重讀');
  assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('sync').className,'sync ok');
  await h.client.logout();assert.equal(h.$('sync').hidden,true);assert.equal(h.$('xp-header').hidden,true);
 });

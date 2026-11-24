@@ -3,6 +3,18 @@ import {mountGuestLogin,showGuestPending,guestCompletion,GUEST_PENDING} from './
 import {mountHintExample} from './fullrev-student-support.mjs';
 // 共用活動外框：正式題庫與判分由 Worker 管理；公開暖身只供不上傳的複習。
 import {growth} from './fullrev-progress.mjs';
+
+// focus and visibility often arrive together, including after a fast response.
+export function createFocusRefresh(refresh,{now=Date.now,intervalMs=1000}={}){
+ let last=-Infinity,inflight=null;
+ const run=()=>{
+  if(inflight)return inflight;
+  if(now()-last<intervalMs)return Promise.resolve();last=now();
+  const work=Promise.resolve().then(refresh);inflight=work;
+  return work.finally(()=>{if(inflight===work)inflight=null;});
+ };
+ run.reset=()=>{last=-Infinity;inflight=null;};return run;
+}
 import {openTeacherQuestion,mountTeacherQuestion} from './fullrev-teacher-view.mjs';
 // 短版題與原活動關卡分離；不引用過關、成績或上傳介面。
 const pick = (rnd, values) => values[Math.floor(rnd() * values.length)];
@@ -210,7 +222,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('activity-title').textContent=title;
  para($('task-instructions'),'切換關卡或活動會放棄未完成作答，回來從第一組開始。').className='small';
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
- let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshAgain=false,roundWork=Promise.resolve();
+ let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshWork=null,roundWork=Promise.resolve();
  let teacherLogin=false,scheduleBlocked=false,loadProblem='',validation=null,restoringInput=false;
  function changed(){validation?.update();controls();if(!restoringInput&&mode==='working'&&!client.state().pending&&client.state().status!=='sending'&&handle?.draft){try{if(client.saveInput?.(cfg.week,round,handle.draft())===false)$('draft-notice').textContent='本機暫存目前無法使用，請保持此頁開啟。';}catch{}}}
  function checkSchedule(){
@@ -399,7 +411,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   if(value.performance){if(!handle&&value.performance.question)showQuestion({question:value.performance.question});handle?.feedback?.(value.performance);}
   if(value.awaitingTeacher){mode='teacher-pending';say('等待老師確認');controls();return;}
   if(showGuestPending({value,host:verdict,next:round+1<cfg.rounds.length?()=>start(round+1):null})){mode='guest-pending';count(2);say(GUEST_PENDING);controls();return;}
-  if(value.completed){mode='confirming';send.disabled=true;say('上傳中，正在確認雲端紀錄…');await refresh();return;}
+  if(value.completed){mode='confirming';send.disabled=true;say('上傳中，正在確認雲端紀錄…');await refresh(client.state().snapshot,{force:true});return;}
   if(value.question.slot===1&&(value.photoAnswer||value.performanceOrder)){
    showQuestion(value);mode='confirming';controls();const g=revision;
    if(!pairTimer)pairTimer=setTimeout(async()=>{pairTimer=null;if(g!==revision)return;try{await receive(await client.answer(cfg.week,round,value.photoAnswer||value.performanceOrder));}catch(e){problem(e);}},0);
@@ -420,22 +432,25 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   }
   const btns=node('div');btns.className='btns';if(round+1<cfg.rounds.length){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}else para(btns,item.passed===cfg.rounds.length?'全部過關！':`這一關完成了！這個活動目前完成 ${item.passed}／${cfg.rounds.length} 關。`);verdict.append(btns);verdict.hidden=false;hint=0;submitted=false;hints();say('✓ 紀錄已上傳給老師');controls();
  }
- async function refresh(){
+ async function refresh(fresh=null,{force=false}={}){
   if(checkSchedule())return;
-  if(!client.state().profile||client.state().profile.owner||client.state().profile.provider==='anonymous')return;if(reading){refreshAgain=true;return;}
+  if(!client.state().profile||client.state().profile.owner||client.state().profile.provider==='anonymous')return;if(reading&&!fresh&&!force)return refreshWork;
+  const work=renderProgress(fresh);refreshWork=work;try{return await work;}finally{if(refreshWork===work)refreshWork=null;}
+ }
+ async function renderProgress(fresh){
   reading=true;const n=++read,g=revision;
   try{
-   const fresh=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
+   fresh||=await client.progress({activities:catalog()});const xp=await xpCore();if(n!==read||g!==revision)return;
    const cacheKey=JSON.stringify([client.state().profile.uid,fresh.subject,fresh.controlVersions]);
    const currentPerson=await readPerson(fresh).catch(()=>null);if(n!==read||g!==revision)return;
    snapshot=fresh;person=currentPerson;personKey=cacheKey;
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
    result=value.state==='confirmed'?value:null;reread.hidden=!!result;
-   confirmIdentity();if(!result){say(explain(value));return;}loadProblem='';
+   confirmIdentity();if(!result){$('xp-header').hidden=true;rounds();say(explain(value));return;}loadProblem='';
    $('xp-header').hidden=false;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
    rounds();if(last?.completed)passed();else say('');
-  }catch(e){if(n===read&&g===revision){result=null;reread.hidden=false;confirmIdentity();problem(e);}}
-  finally{if(n===read){controls();reading=false;if(refreshAgain){refreshAgain=false;refresh();}}}
+  }catch(e){if(n===read&&g===revision){result=null;snapshot=null;$('xp-header').hidden=true;rounds();reread.hidden=false;confirmIdentity();problem(e);}}
+  finally{if(n===read){controls();reading=false;}}
  }
  async function start(i=round,reopen=false){
   if(checkSchedule())return;
@@ -478,9 +493,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  $('b-retry').onclick=async()=>{try{const values=await client.retry();if(values.length)await receive(values.at(-1));else if(client.state().pending){say(pendingMessage());controls();}}catch(e){problem(e);}};
  $('b-swap').onclick=()=>client.logout().catch(problem);
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
- identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round).then(refresh);};
+ identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round);};
  lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
- function clear(){hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ let focusRefresh;
+ function clear(){focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();checkSchedule();return;}
   if(checkSchedule())return;
@@ -496,13 +512,14 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   }
   if(state.status==='stale'){clear();identity='';return;}
   if(state.readingRetry){identityBox.querySelector('#g-whotext').textContent='載入中，請稍候…';say('載入中，請稍候…（'+Math.max(1,Math.ceil((state.readingRetry.retryAt-Date.now())/1000))+' 秒後自動重試）');}
-  else if(state.pending)say('上傳中，請稍候，答案已保留。');
+  else{if(result)confirmIdentity();if(state.pending)say('上傳中，請稍候，答案已保留。');}
   if(['ready','confirmation-pending','teacher-pending','guest-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view).catch(problem);
   controls();
  });
  await mountLogin({client,host:login,oldlook:true});
  try{await client.restore();}catch(e){para(login,explain(e));}
- const focus=()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;client.restore().catch(problem);return;}if(client.state().profile){if(client.state().profile.owner){if(!starting)start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;start(round,true).then(refresh);}else if(!starting)refresh();}else{lock.hidden=true;gate.hidden=false;}};
+ focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}});
+ const focus=()=>focusRefresh().catch(problem);
  window.addEventListener('pageshow',event=>{if(event.persisted)client.restore().catch(problem);});
  window.addEventListener('focus',focus);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')focus();});window.addEventListener('pagehide',()=>{identity='';clear();});
 }

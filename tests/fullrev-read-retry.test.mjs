@@ -33,11 +33,19 @@ test('context、controls、progress 依 Retry-After 秒數／HTTP 日期重送�
 });
 test('連續 429／503 有界停止，超過總等待上限不提早重試',async()=>{
  for(const status of [429,503]){
-  let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'synthetic'},{status,headers:{'retry-after':'60'}});});
+  let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'storage_busy'},{status,headers:{'retry-after':'60'}});});
   await assert.rejects(h.model.context(input),{code:status===429?'retry-later':'read-model-pending'});assert.equal(calls,4);assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.events.at(-1),null);
  }
- let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'synthetic'},{status:429,headers:{'retry-after':'181'}});});
+ let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'181'}});});
  await assert.rejects(h.model.context(input),{code:'retry-later'});assert.equal(calls,1);assert.deepEqual(h.waits,[]);
+});
+test('未知 429 視為 quota，五分鐘內不再送出；cancel 立即取消在途讀取與等待',async()=>{
+ let calls=0;const quota=setup(async()=>{calls++;return Response.json({error:'synthetic_unknown'},{status:429});});
+ await assert.rejects(quota.model.context(input),{code:'storage-quota'});
+ await assert.rejects(quota.model.context(input),{code:'storage-quota'});assert.equal(calls,1);assert.deepEqual(quota.waits,[]);
+ let signal,started;const h=setup(async(_url,init)=>{signal=init.signal;started=true;return new Promise(()=>{});});
+ const pending=h.model.context(input);while(!started)await new Promise(r=>setImmediate(r));h.model.cancel();
+ await assert.rejects(pending,{code:'identity-changed'});assert.equal(signal.aborted,true);
 });
 test('等待時換人即停止，不用舊憑證送下一次讀取；not_open 保留為遮罩狀態',async()=>{
  let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});},()=>h.change());

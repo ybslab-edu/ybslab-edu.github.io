@@ -34,11 +34,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   let progressActivities=null,binding=null;
   const abortRequests=(keep=null)=>{readModel?.cancel?.();for(const c of aborters)if(c!==keep){c.abort();aborters.delete(c);}progressWork.clear();};
   function confirmBinding(m,classKey,subject,keep){
-    if(binding&&(binding.classKey!==classKey||binding.subject&&subject&&binding.subject!==subject)){
+    const changed=binding&&(binding.classKey!==classKey||binding.subject&&subject&&binding.subject!==subject);
+    if(changed){
       abortRequests(keep);progressCache.purge();generation++;m.generation=generation;
       cancel(timer);timer=null;drafts={};view=null;snapshot=null;lastProgress=null;progressActivities=null;running.clear();gradingWork=Promise.resolve();save();
     }
     binding={classKey,subject:subject??(binding?.classKey===classKey?binding.subject:null)};
+    if(changed)emit('binding-changed');
   }
   let profile=null, generation=0, firebaseSession, sessionOpening, drafts={}, readVersion=0, signal='', timer;
   let status='signed-out', snapshot=null, lastProgress=null, view=null, readingRetry=null;
@@ -158,7 +160,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   async function restore() {
     const {auth}=await getSession();
-    if (!auth.currentUser) return null;
+    if (!auth.currentUser) {clear();return null;}
     let saved;
     try{saved=JSON.parse(storage?.getItem(storageKey)||'null');}catch{}
     if(!saved){const local=workStore.read(auth.currentUser.uid);if(Object.keys(local).length)saved={uid:auth.currentUser.uid,signal,drafts:local};}

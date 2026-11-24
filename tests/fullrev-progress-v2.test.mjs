@@ -67,6 +67,20 @@ test('same identity restores persistent originals; missing originals cold-read; 
  assert.equal(h.calls.at(-1).since,null);assert.equal(h.calls.at(-1).legacyVersion,null);
  await missing.logout();assert.deepEqual(cacheKeys(h),[]);
 });
+test('missing SESSION login purges every course progress cache in this project before restore returns',async()=>{
+ const h=await setup();await h.read();assert.equal(cacheKeys(h).length,2);
+ const prefix=`progress-v2/${h.client.project}/`;
+ h.shared.setItem(prefix+'115-df/old-class/old-user/password/old-subject/all','{}');
+ h.shared.setItem(prefix+'115-df/old-class/old-user/password/old-subject/legacy','{}');
+ h.shared.setItem('unrelated-preference','keep');
+ h.shared.setItem('progress-v2/another-project/115-g9/all','keep');
+ h.closePage();h.auth.currentUser=null;
+ const next=h.reopen();assert.equal(await next.restore(),null);
+ assert.ok(!cacheKeys(h).some(k=>k.startsWith(prefix)));
+ assert.equal(h.shared.getItem('unrelated-preference'),'keep');
+ assert.equal(h.shared.getItem('progress-v2/another-project/115-g9/all'),'keep');
+ assert.equal(next.state().snapshot,null);assert.equal(next.state().profile,null);
+});
 test('unknown legacy states stay unconfirmed and late identity responses cannot repopulate cache',async()=>{
  const h=await setup();h.set(page([],{legacy:{version:legacyVersion,records:[old],states:[]}}));
  await assert.rejects(h.read(),{code:'validity-unconfirmed'});assert.equal(h.client.state().snapshot,null);
@@ -78,8 +92,25 @@ test('single in-flight progress and throttled focus/visibility do not queue a se
  const h=await setup();let release;h.set(()=>new Promise(resolve=>{release=()=>resolve(page());}));
  let clock=0;const focus=createFocusRefresh(h.read,{now:()=>clock});const reads=[focus(),focus(),focus()];
  while(!release)await new Promise(r=>setImmediate(r));release();await Promise.all(reads);
- await focus();assert.equal(h.calls.length,1);clock=1001;h.set(page([],{replace:false,legacy:{version:legacyVersion,records:null,states}}));
+ for(const time of [1001,30000,59999]){clock=time;await focus();assert.equal(h.calls.length,1);}
+ clock=60000;h.set(page([],{replace:false,legacy:{version:legacyVersion,records:null,states}}));
  await Promise.all([focus(),focus()]);assert.equal(h.calls.length,2);
+ clock=110000;focus.touch();clock=120001;await focus();assert.equal(h.calls.length,2,'a committed update restarts the 60-second window');
+ clock=170000;await focus();assert.equal(h.calls.length,3);
+ focus.reset();await focus();assert.equal(h.calls.length,4,'a changed identity bypasses the old window');
+});
+test('a context subject rebind notifies observers with cleared progress and permits a fresh identity read',async()=>{
+ const h=await setup();h.set(page([record()]));await h.read();await h.client.start(5,0);
+ h.state.context={...await h.client.context(5,1),subject:'synthetic-rebound',bindingVersion:2};
+ const events=[];h.client.subscribe(value=>events.push(value));
+ await assert.rejects(h.client.start(5,1),{code:'identity-changed'});
+ const changed=events.find(value=>value.status==='binding-changed');
+ assert.ok(changed);assert.equal(changed.profile.uid,h.state.uid);assert.equal(changed.snapshot,null);assert.equal(changed.view,null);
+ assert.deepEqual(cacheKeys(h),[]);assert.equal(h.client.savedRound(5),undefined);
+ h.set(page([],{subject:'synthetic-rebound',epoch:'b'.repeat(43),legacy:{version:'n'.repeat(43),records:[],states}}));
+ assert.equal((await h.read()).subject,'synthetic-rebound');assert.equal(h.calls.at(-1).since,null);
+ assert.ok(cacheKeys(h).every(k=>k.includes('/synthetic-rebound/')));
+ await h.client.start(5,1);assert.equal(h.client.savedRound(5),1);
 });
 test('old Worker v1 responses keep full read validation and ignore v2 tokens',async()=>{
  const h=await setup();h.set(snapshot([record()]));assert.equal((await h.read()).records.length,1);

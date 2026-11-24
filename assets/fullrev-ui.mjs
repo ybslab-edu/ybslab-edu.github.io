@@ -882,8 +882,8 @@ function eventsRefresh(p,refresh) {
   window.addEventListener('focus',()=>{if(p.client.state().profile)refresh();});
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&p.client.state().profile)refresh();});
 }
-export async function mountActivity({client:promise,cfg}) {
-  if(cfg.course==='115-g9')return (await import('./fullrev-shell.mjs')).mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain});
+export async function mountActivity({client:promise,cfg,now}) {
+  if(cfg.course==='115-g9')return (await import('./fullrev-shell.mjs')).mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now});
   const p=await setup(promise,cfg.title);if(!p.client)return;
   const stage=node('section'),summary=node('section'),nav=node('nav');
   p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='',pairTimer=null,generation=0;

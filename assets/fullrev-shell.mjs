@@ -4,8 +4,8 @@ import {mountHintExample} from './fullrev-student-support.mjs';
 // 共用活動外框：正式題庫與判分由 Worker 管理；公開暖身只供不上傳的複習。
 import {growth} from './fullrev-progress.mjs';
 
-// focus and visibility often arrive together, including after a fast response.
-export function createFocusRefresh(refresh,{now=Date.now,intervalMs=1000}={}){
+// 切窗事件共用一次請求；已確認進度（含過關回條）後 60 秒內不自動重讀。
+export function createFocusRefresh(refresh,{now=Date.now,intervalMs=60000}={}){
  let last=-Infinity,inflight=null;
  const run=()=>{
   if(inflight)return inflight;
@@ -13,6 +13,7 @@ export function createFocusRefresh(refresh,{now=Date.now,intervalMs=1000}={}){
   const work=Promise.resolve().then(refresh);inflight=work;
   return work.finally(()=>{if(inflight===work)inflight=null;});
  };
+ run.touch=()=>{last=now();};
  run.reset=()=>{last=-Infinity;inflight=null;};return run;
 }
 import {openTeacherQuestion,mountTeacherQuestion} from './fullrev-teacher-view.mjs';
@@ -197,7 +198,7 @@ export async function mountStudentLogin({client,host,onLogin,explain}){
  host.append(form,error,secondary);
  if(client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
 }
-export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain}){
+export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now=Date.now}){
  const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261124sendstatus';document.head.append(css);
  const activity=typeof ACTIVITIES==='undefined'?null:ACTIVITIES.find(a=>a.course===cfg.course&&a.week===cfg.week);
  const courseClosed=()=>typeof COURSES!=='undefined'&&COURSES.some(c=>c.id===cfg.course&&!c.open);
@@ -447,6 +448,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
    result=value.state==='confirmed'?value:null;reread.hidden=!!result;
    confirmIdentity();if(!result){$('xp-header').hidden=true;rounds();say(explain(value));return;}loadProblem='';
+   focusRefresh?.touch();
    $('xp-header').hidden=false;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
    rounds();if(last?.completed)passed();else say('');
   }catch(e){if(n===read&&g===revision){result=null;snapshot=null;$('xp-header').hidden=true;rounds();reread.hidden=false;confirmIdentity();problem(e);}}
@@ -497,9 +499,11 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  let focusRefresh;
  function clear(){focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}},{now});
  client.subscribe(state=>{
   if(!state.profile){identity='';clear();checkSchedule();return;}
   if(checkSchedule())return;
+  if(state.status==='binding-changed'){clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;
   if(id!==identity){identity=id;restoreRound();
    $('who').textContent=state.profile.owner?'教師模式':state.profile.guest?state.profile.guest.cls+' 班 '+state.profile.guest.seat+' 號（待審）':'已登入';
@@ -518,7 +522,6 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  });
  await mountLogin({client,host:login,oldlook:true});
  try{await client.restore();}catch(e){para(login,explain(e));}
- focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}});
  const focus=()=>focusRefresh().catch(problem);
  window.addEventListener('pageshow',event=>{if(event.persisted)client.restore().catch(problem);});
  window.addEventListener('focus',focus);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')focus();});window.addEventListener('pagehide',()=>{identity='';clear();});

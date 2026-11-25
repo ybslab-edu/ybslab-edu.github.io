@@ -3,7 +3,7 @@ import {growth,exportRows} from './fullrev-progress.mjs?v=20261120a';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
-const messages={'capacity-deferred':'訪客本次課堂已達開始作答次數上限（最多四次，切關或重置也計次），請找老師確認；目前無法開始新作答。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
+const messages={'capacity-deferred':'目前暫時無法開始作答，請稍後重試或找老師確認開收狀態。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
   'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
   'ticket-expired':'作答票已過期，請按「活動工具 → 重新開始」取得新題。',
   'ticket-invalid':'作答票驗證失敗，請按「活動工具 → 重新開始」。',

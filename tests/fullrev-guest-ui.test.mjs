@@ -22,10 +22,11 @@ test('班座表單不提交非法座號；送出鎖定直到登入完成',async(
 
 test('離線 DOM ＋真實 Worker：班座登入、重新整理 resume、兩組作答只顯示待審，換人清除',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
   const load=p=>import(pathToFileURL(resolve(process.env.YBS_WORKER_SOURCE,p)).href);
-  const [{formalData,ENV},{EPOCH,ORIGIN},{MemoryFirestore},{createFormalWorker},{guestPath}]=await Promise.all([
-    load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs'),load('src/memory-adapter.mjs'),load('src/formal/index.mjs'),load('src/formal/guest.mjs')]);
+  const [{formalData,ENV},{EPOCH,ORIGIN},{MemoryFirestore},{createFormalWorker},{guestPath},{YbsAdminService,adminPath}]=await Promise.all([
+    load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs'),load('src/memory-adapter.mjs'),load('src/formal/index.mjs'),load('src/formal/guest.mjs'),load('src/admin/service.mjs')]);
   const data=await formalData();data['ybsCourses/115-g9/classGates/c901_1']=data['ybsCourses/115-g9/classGates/synthetic-class'];delete data['ybsCourses/115-g9/classGates/synthetic-class'];
-  let clock=EPOCH;const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:guestPath});
+  data['ybsTeachers/synthetic-owner']={schemaVersion:1,enabled:true};
+  let clock=EPOCH;const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:p=>guestPath(p)||adminPath(p)});
   const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,
     verifier:{verify:async()=>({uid:'synthetic-student',provider:'anonymous'})}});
   const h=await harness({noModel:true});h.state.hints={};
@@ -63,5 +64,23 @@ test('離線 DOM ＋真實 Worker：班座登入、重新整理 resume、兩組�
   events.pagehide();const completedReload=h.reopen();await mountActivity({client:Promise.resolve(completedReload),cfg});
   await until(()=>$('verdict').querySelector('h3')?.textContent==='已存待審，尚未採計');
   assert.equal($('xp-header').hidden,true);assert.equal([...db.docs.keys()].filter(p=>p.includes('/guestAttempts/')).length,1);
+  const admin=new YbsAdminService({adapter:db,project:config.firebase.projectId,now:()=>clock});
+  const teacher={uid:'synthetic-owner',provider:'google.com',emailVerified:true,auth_time:Math.floor(clock/1000)};
+  const scope={course:'115-g9',classKey:'c901_1'},queue=await admin.guestQueue(teacher,{...scope,after:null}),row=queue.rows[0];
+  const original=structuredClone(db.docs.get(`ybsCourses/115-g9/guestAttempts/${row.attemptId}`));
+  const action={...scope,kind:'guest-decision',reasonCode:'spot-check',subject:row.subjectAtSubmit,attemptId:row.attemptId,attemptHash:row.attemptHash,decision:'return'};
+  const preview=await admin.preview(teacher,action);
+  await admin.execute(teacher,{action,operationId:preview.operationId,fingerprint:preview.fingerprint});
+  clock+=60001;h.advance();events.pagehide();const redo=h.reopen();await mountActivity({client:Promise.resolve(redo),cfg});
+  await until(()=>!!$('stage').querySelector('input'));
+  for(let slot=0;slot<2;slot++){
+    const head=[...db.docs].find(([p])=>p.includes('/guestHeads/'))[1],input=$('stage').querySelector('input');
+    input.value=JSON.stringify(head.activeSession.questions[slot].answer);input.oninput();await button('送出').onclick();
+    if(slot===0){await until(()=>!!button('下一組'));button('下一組').onclick();}
+  }
+  await until(()=>$('verdict').querySelector('h3')?.textContent==='已存待審，尚未採計');
+  assert.equal([...db.docs.keys()].filter(p=>p.includes('/guestAttempts/')).length,2);
+  assert.deepEqual(db.docs.get(`ybsCourses/115-g9/guestAttempts/${row.attemptId}`),original);
+  assert.equal((await admin.guestQueue(teacher,{...scope,after:null})).rows.length,1);
   await $('b-swap').onclick();assert.equal($('main').hidden,true);assert.equal(completedReload.state().profile,null);assert.equal($('sync').hidden,true);
 });

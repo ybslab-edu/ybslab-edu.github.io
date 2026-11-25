@@ -122,9 +122,15 @@ for(const phase of ['fetch','json'])test(`guest context ${phase} 停住沿用請
   const value=await h.client.start(5,0);assert.equal(value.activity,5);
 });
 
-test('capacity_deferred 顯示訪客開始次數限制，不誤判儲存額度且不自動重送',async()=>{
+test('舊服務 capacity_deferred 保留相容處理，不誤判儲存額度且不自動重送',async()=>{
   const h=await guest();const original=h.state.fetcher;
   h.state.fetcher=(url,init)=>url.endsWith('/guest/context')?original(url,init):Response.json({error:'capacity_deferred'},{status:429});
   await assert.rejects(h.client.start(5,0),{code:'capacity-deferred'});
   assert.equal(h.client.state().pending,false);assert.equal(h.client.state().uploadIssue,null);assert.equal(h.timers.length,0);
+});
+
+test('訪客提示不再宣稱每節四次開始上限',async()=>{
+  const ui=await readFile(new URL('../assets/fullrev-ui.mjs',import.meta.url),'utf8');
+  assert.doesNotMatch(ui,/最多四次|訪客.*開始作答次數上限/);
+  assert.match(ui,/目前暫時無法開始作答，請稍後重試/);
 });

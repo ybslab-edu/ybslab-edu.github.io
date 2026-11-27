@@ -60,7 +60,7 @@ test('班座登入手機完成與重整續作：真實 Worker guest API，待審
     assert.ok(['/guest/context','/guest/start','/guest/answer','/guest/resume'].every(path=>calls.includes(path)));
     assert.ok(calls.every(path=>path.startsWith('/guest/')));
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-    await page.getByRole('button',{name:'不是我？換人',exact:true}).click();await page.getByRole('button',{name:'登入',exact:true}).waitFor();
+    await page.locator('#account-toggle').click();await page.getByRole('button',{name:'不是我？換人',exact:true}).click();await page.getByRole('button',{name:'登入',exact:true}).waitFor();
     assert.equal(await page.locator('#main').isVisible(),false);await context.close();
   }
 });

@@ -27,7 +27,8 @@ const legacyDFHashes={
  "assets/df-teacher-cloud.js": "f0773cb1fb757491e2ccf0a9dd129c2d21a019ae97e8856be767998d11e8a217"
 };
 const legacyDFConfig="const YBS_FULLREV_CONFIG=Object.freeze({enabled:false});\n";
-const legacyDFPage=(s)=>s.replace(/((?:\.\.\/)*assets\/)fullrev-config\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/config.js').replace(/((?:\.\.\/)*assets\/)login\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/login.js');
+export const legacyDFTypography=s=>s.replace(/font-size\s*:\s*([^;{}'"\n]+)/g,(_,size)=>`font-size:max(17px,${size.trim()})`);
+const legacyDFPage=(s)=>legacyDFTypography(s).replace('</head>','<style>:root{--text-min:17px}body .ybs-login label,body .ybs-password-toggle,body .ybs-logout-pending,body .ybs-logout-pending span{font-size:17px!important}body :where(button,input,select,textarea,small){font-size:max(17px,1em)!important}</style></head>').replace(/((?:\.\.\/)*assets\/)fullrev-config\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/config.js').replace(/((?:\.\.\/)*assets\/)login\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/login.js');
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 async function earlyOpenSource(source=root){
  const value=(await readFile(join(source,'assets/lock.js'),'utf8')).match(/^const OPEN = \{[\s\S]*?^\};/m)?.[0];

@@ -58,6 +58,10 @@ people 在分頁間不可重複；有下一頁時 `complete:false` 及非空、�
 `complete:true,nextCursor:null`。單頁最多100結果，整批最多100頁，分頁前後重查控制版。
 缺頁、碰撞、混版、換人、查詢失敗均清除採計快照並顯示待確認；確認後的空集合才可計0。
 
+教師輸入 `c901` 時先查同名完整 gate；只有經 owner 驗證的 `controls` 明確回覆
+`404 class_not_found`，才依序讀取 `c901_1`／`c901_2`，兩組各自驗版後合併表格。
+控制資料損壞、班級不符、斷線或任一組失敗均停止匯出；下載時重新執行完整讀取。
+
 成長頁、徽章與教師 Excel 共用 `fullrev-progress.mjs` 的有效集合及 `xp.js` 同一計算核心。
 Worker 結果只用 completedAt 與原 xpPolicySnapshot.openedAt，維持10／5／20及七天含端點；
 重置／轉班／時窗覆寫不重開準時期限。缺快照的準時 XP 顯示待確認，不能補發或默扣5。

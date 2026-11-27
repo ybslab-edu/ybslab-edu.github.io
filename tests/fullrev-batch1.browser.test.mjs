@@ -56,9 +56,14 @@ before(async()=>{
   browser=await chromium.launch({headless:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(resolve=>server.close(resolve));if(dir)await rm(dir,{recursive:true,force:true});});
-async function reset() {
+async function reset(activity,round=0) {
   const m=modules,state={clock:m.EPOCH,requests:[]};
   state.db=new m.MemoryFirestore(await m.batchData(state.clock),{now:()=>state.clock,pathValidator:m.formalPath});
+  if(activity===4){state.db.docs.get(m.paths.global).activities[4].rounds=[0,1,2,3];for(const member of Object.values(state.db.docs.get(m.paths.roster).members))for(let i=0;i<3;i++)member.roundEpochs[`4:${i}`]=0;}
+  // 單關 renderer 驗收先備妥前關的合成舊過關紀錄；仍由真實投影驗證，不繞過關卡鎖。
+  if(round){const {legacyRow}=await import(pathToFileURL(resolve(workerSource,'tests/legacy-progress-fixtures.mjs')).href),{legacyOpenAt}=await import(pathToFileURL(resolve(workerSource,'src/formal/legacy-progress.mjs')).href);for(let i=0;i<round;i++){
+    const row=legacyRow(activity,i,{subject:'synthetic-a',at:legacyOpenAt(activity)+864e5});state.db.seed(row.path,row.data);
+  }}
   state.worker=m.createFormalWorker({env:{...m.ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:state.db,now:()=>state.clock,verifier:{verify:async uid=>({...m.password(uid),ybsClassKeys:m.CLASS_HINTS})}});current=state;
 }
 async function fill(page,type,answer) {
@@ -102,7 +107,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
   for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
     if(process.env.YBS_PR6_SCOPE&&!process.env.YBS_PR6_SCOPE.split(',').includes(`${a.activity}:${round}`))continue;
     await t.test(`${a.activity}:${round}`,async()=>{
-    await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
+    await reset(a.activity,round);const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
     await page.clock.setFixedTime(allActivitiesOpenAt);
     page.setDefaultTimeout(6000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
@@ -206,7 +211,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       await page.getByRole('button',{name:'下一組',exact:true}).click();
       await fill(page,type,modules.privateAnswer(current.db));await page.getByRole('button',{name:/^(送出|拍下來傳出去)$/}).click();
       }
-      await page.waitForFunction(()=>app.client.state().snapshot?.records.length===1);
+      await page.waitForFunction(count=>app.client.state().snapshot?.records.length===count,round+1);
       if(q.questions[0].data.mode?.endsWith('-performance')){
         assert.equal(current.requests.filter(r=>r.op==='answer').length,3,'錯答一次後，一次送出以同一順序驗兩槽');
         const responses=current.requests.filter(r=>r.op==='answer').slice(-2);assert.deepEqual(responses[0].body.answer,responses[1].body.answer);
@@ -217,7 +222,8 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         assert.equal(await page.locator('canvas[data-photo]').count(),2);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
         await page.screenshot({path:`/tmp/ybs-pr6b7-photo-${round}-mobile.png`,fullPage:true});
       }
-      await page.locator('#xp-total').filter({hasText:'15 XP'}).first().waitFor();
+      const expectedXP=(round+1)*15+(round+1===a.rounds.length?20:0);
+      await page.locator('#xp-total').filter({hasText:new RegExp('^'+expectedXP+' XP$')}).first().waitFor();
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
       assert.deepEqual(errors,[]);
     }catch(error){t.diagnostic(JSON.stringify({errors,requests:current.requests,body:await page.locator('body').innerText()}));throw error;}

@@ -2,7 +2,17 @@ import {answerValidation} from './fullrev-answer-ui.mjs';
 import {mountGuestLogin,showGuestPending,guestCompletion,GUEST_PENDING} from './fullrev-guest.mjs';
 import {mountHintExample} from './fullrev-student-support.mjs';
 // 共用活動外框：正式題庫與判分由 Worker 管理；公開暖身只供不上傳的複習。
-import {growth} from './fullrev-progress.mjs';
+import {growth,int,versions,sameVersions} from './fullrev-progress.mjs';
+import {WORK_TTL} from './fullrev-work-store.mjs';
+
+export function roundAccess(index,{owner=false,completed=[]}={}){
+ const locked=!owner&&index>0&&!completed.includes(index-1);
+ return {locked,reason:locked?`你要先完成第 ${index} 關，才能進入這一關。`:''};
+}
+export function startWaitMessage(retry,now=Date.now(),sending=false){
+ const seconds=Math.max(0,Math.ceil((retry.retryAt-now)/1000));
+ return seconds?`切換太快，請等 ${seconds} 秒`:retry.automatic||sending?'等待結束，正在重新載入題目…':'你可以按「重試上傳」繼續，答案已保留。';
+}
 
 // 切窗事件共用一次請求；已確認進度（含過關回條）後 60 秒內不自動重讀。
 export function createFocusRefresh(refresh,{now=Date.now,intervalMs=60000}={}){
@@ -221,10 +231,48 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  document.body.replaceChildren(gate,main,lock);
  const $=id=>main.querySelector('#'+id),status=$('sync'),send=$('b-send'),verdict=$('verdict'),stage=$('stage'),nav=$('rounds');
  $('activity-title').textContent=title;
- para($('task-instructions'),'切換關卡或活動會放棄未完成作答，回來從第一組開始。').className='small';
+ para($('task-instructions'),'你要先完成這一關，再前往下一關。你可以回看已完成的關卡；想重做時，請按「再做一次」。').className='small';
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
  let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshWork=null,roundWork=Promise.resolve();
  let teacherLogin=false,scheduleBlocked=false,loadProblem='',validation=null,restoringInput=false;
+ let waitTimer=null,waitMessage='',guestStorageKey='',guestRestore=null;const guestCompleted=new Map();
+ const guestEpochs=['configVersion','unitEpoch','roundEpoch','classUnitEpoch'];
+ const validGuestSummary=c=>versions(c?.controlVersions)&&guestEpochs.every((k,i)=>int(c[k],i===0?1:0));
+ function saveGuestCompleted(savedAt=now()){try{
+  if(!guestStorageKey)return;
+  if(!guestCompleted.size){sessionStorage.removeItem(guestStorageKey);return;}
+  sessionStorage.setItem(guestStorageKey,JSON.stringify({savedAt,rounds:[...guestCompleted].map(([i,v])=>[i,Object.fromEntries(['completed','status','verified','counted','attemptId','completionContext'].map(k=>[k,v[k]]))])}));
+ }catch{}}
+ async function restoreGuestCompleted(){
+  guestCompleted.clear();guestStorageKey=client.state().profile?.provider==='anonymous'?roundKey()+':guest-completed':'';
+  if(!guestStorageKey)return;
+  const storageKey=guestStorageKey,g=revision,uid=client.state().profile.uid,confirmed=new Map();let controls=null,controlChanged=false;
+  const current=()=>g===revision&&storageKey===guestStorageKey&&uid===client.state().profile?.uid;
+  try{const saved=JSON.parse(sessionStorage.getItem(storageKey));if(!Number.isFinite(saved?.savedAt)||saved.savedAt>now()||now()-saved.savedAt>=WORK_TTL||!Array.isArray(saved.rounds)){sessionStorage.removeItem(storageKey);return;}
+   // 重整先向受控 context 核對；未核對、舊版缺版本或失效摘要都不能解鎖。
+   for(const [i,v] of saved.rounds)if(Number.isInteger(i)&&cfg.rounds[i]&&guestCompletion(v)&&validGuestSummary(v.completionContext)){
+    try{const c=await client.context(cfg.week,i);if(!current())return;
+     if(controls&&!sameVersions(controls,c.controlVersions))controlChanged=true;
+     controls=c.controlVersions;
+     if(sameVersions(c.controlVersions,v.completionContext.controlVersions)&&guestEpochs.every(k=>c[k]===v.completionContext[k]))confirmed.set(i,v);
+    }catch{if(!current())return;}
+   }
+   if(!current())return;
+   if(!controlChanged)for(const [i,v] of confirmed)guestCompleted.set(i,v);
+   saveGuestCompleted(saved.savedAt);
+  }catch{}
+ }
+ const completedRounds=()=>[...new Set([...(result?.records||[]).filter(r=>r.activity===cfg.week&&r.provider!=='anonymous').map(r=>r.round),...guestCompleted.keys()])];
+ const access=i=>roundAccess(i,{owner:!!client.state().profile?.owner,completed:completedRounds()});
+ function startWait(){
+  clearTimeout(waitTimer);waitTimer=null;
+  const state=client.state(),retry=state.startRetry;
+  if(!retry||retry.activity!==cfg.week||retry.round!==round||mode==='review'){waitMessage='';$('start-wait')?.remove();return;}
+  waitMessage=startWaitMessage(retry,now(),state.status==='sending');
+  let box=$('start-wait');if(!box){box=node('p');box.id='start-wait';box.setAttribute('role','status');stage.append(box);}
+  box.textContent=waitMessage;
+  if(retry.retryAt>now())waitTimer=setTimeout(()=>{startWait();controls();},Math.min(1000,retry.retryAt-now()));
+ }
  function changed(){validation?.update();controls();if(!restoringInput&&mode==='working'&&!client.state().pending&&client.state().status!=='sending'&&handle?.draft){try{if(client.saveInput?.(cfg.week,round,handle.draft())===false)$('draft-notice').textContent='本機暫存目前無法使用，請保持此頁開啟。';}catch{}}}
  function checkSchedule(){
   if(client.state().profile?.owner||!scheduleLocked())return false;
@@ -237,21 +285,24 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const firstRound=Math.max(0,cfg.rounds.findIndex(r=>r.managed!==false));
  const roundKey=()=>`ybs:fullrev:round:${client.project}:${cfg.course}:${cfg.week}:${client.state().profile?.uid}`;
  function restoreRound(){
+  guestRestore=restoreGuestCompleted();
+  const work=guestRestore;work.finally(()=>{if(guestRestore===work)guestRestore=null;});
   round=firstRound;
   const local=client.savedRound?.(cfg.week);if(Number.isInteger(local)&&cfg.rounds[local]?.managed!==false&&cfg.rounds[local]){round=local;return;}
   try{const saved=sessionStorage.getItem(roundKey());const n=Number(saved);if(saved!==null&&Number.isInteger(n)&&cfg.rounds[n]&&cfg.rounds[n].managed!==false)round=n;}catch{}
  }
- const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course);
- const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，答案已保留。':state.uploadIssue==='storage-quota'?'伺服器儲存額度不足，請告訴老師或改用舊站。':state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；稍候按「重試上傳」。':'上傳中，請稍候，答案已保留。';};
+ const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course)
+  .map(a=>({...a,openedAt:typeof activityOpenAt==='function'?activityOpenAt(a):a.openedAt}));
+ const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，答案已保留。':state.uploadIssue?.startsWith('summary-')?'進度待確認，請告訴老師；答案已保留，目前暫停採計。':state.uploadIssue==='storage-quota'?'伺服器儲存額度不足，請告訴老師或改用舊站。':state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；稍候按「重試上傳」。':'上傳中，請稍候，答案已保留。';};
  // 頁首沿用待送摘要；按鈕旁另列連線、流量或額度的具體原因。
- const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
+ const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result&&!result.local?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
  const restart=tool('重新開始',()=>start(round,true)),claims=tool('老師已核發，重新確認',async()=>{try{await client.refreshClaims();await start(round,true);}catch(e){problem(e);}}),practice=tool('本機練習／示範',()=>{
   revision++;handle?.dispose?.();handle=null;last=null;stage.replaceChildren();mode='practice';verdict.hidden=true;send.disabled=true;say('本機練習／教師示範，不送出成績。');
   controls();stage.append(node('h3','這一關的說明'));if(typeof cfg.demonstrate==='function')cfg.demonstrate(stage);else para(stage,'請依這一關的任務說明練習。');
  });
  const reread=tool('重新讀取',()=>!handle&&mode==='loading'?start(round):client.state().profile?.provider==='anonymous'?start(round,true):refresh());reread.hidden=true;
- const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=()=>refresh();identityBox.append(gateReread);
+ const gateReread=node('button','重新讀取');gateReread.type='button';gateReread.className='btn';gateReread.id='g-reread';gateReread.hidden=true;gateReread.onclick=async()=>{gateReread.disabled=true;try{await client.refreshClaims();await refresh();}catch(e){confirmIdentity();problem(e);}finally{gateReread.disabled=false;}};identityBox.append(gateReread);
  // 每個本人／控制版本只查一次單筆名冊；不列名單、不持久保存，也不作為作答授權。
  let person=null,personKey='';
  async function readPerson(value){
@@ -282,9 +333,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  function controls(){
   const state=client.state(),changed=handle?.get&&JSON.stringify(handle.get())!==sentValue;
   const teacher=!!state.profile?.owner;send.hidden=teacher;$('send-control').hidden=teacher;$('send-hint').hidden=teacher;$('answer-status').hidden=teacher;$('streak').hidden=teacher;$('b-hint').hidden=teacher;
-  const modeReason={loading:loadProblem||'題目載入中，請稍候。',closed:'這個活動還沒開放。',practice:'目前是本機練習，不送出成績。',teacher:'目前是教師示範。',unmanaged:'這一關尚待老師確認，請選其他關卡。','binding-pending':'身分尚待老師確認，請告訴老師。','teacher-pending':'已送出，等待老師確認。','guest-pending':GUEST_PENDING,confirming:loadProblem||'正在確認雲端紀錄，請稍候。',correct:'這組已答對，請按「下一組」。',passed:'這關已過關，可選下一關。'};
+  const modeReason={loading:loadProblem||'題目載入中，請稍候。',review:'你正在回看這一關；想重做時，請按「再做一次」。',closed:'這個活動還沒開放。',practice:'目前是本機練習，不送出成績。',teacher:'目前是教師示範。',unmanaged:'這一關尚待老師確認，請選其他關卡。','binding-pending':'身分尚待老師確認，請告訴老師。','teacher-pending':'已送出，等待老師確認。','guest-pending':GUEST_PENDING,confirming:loadProblem||'正在確認雲端紀錄，請稍候。',correct:'這組已答對，請按「下一組」。',passed:'這關已過關，可選下一關。'};
   const reason=state.status==='restart-required'?'作答狀態已變更，請按「活動工具 → 重新開始」。'
    :state.status==='stale'?'請重新登入，再繼續作答。'
+   :waitMessage?waitMessage
    :state.pending||state.status==='sending'?pendingMessage()
    :starting?'題目載入中，請稍候。'
    :mode!=='working'?modeReason[mode]||'請重新讀取題目。'
@@ -295,10 +347,11 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const hint=$('send-hint');if(hint.textContent!==reason)hint.textContent=reason;
   const control=$('send-control');control.tabIndex=reason?0:-1;control.setAttribute('aria-label',reason?'送出：'+reason:'送出');control.title=reason;
   $('quota-old').hidden=teacher||!(state.uploadIssue==='storage-quota'||loadProblem.includes('額度'));
-  $('answer-status').textContent=mode==='guest-pending'?GUEST_PENDING:mode==='passed'?'過關':mode==='correct'?'已送出：答對':submitted&&!changed?'已送出：還不對':'作答中';
+  $('answer-status').textContent=mode==='review'?'回看紀錄':mode==='guest-pending'?GUEST_PENDING:mode==='passed'?'過關':mode==='correct'?'已送出：答對':submitted&&!changed?'已送出：還不對':'作答中';
   restart.hidden=state.status!=='restart-required';claims.hidden=state.profile?.provider==='anonymous'||mode!=='binding-pending';
   practice.hidden=!state.profile?.owner&&state.profile?.provider!=='anonymous'&&mode!=='binding-pending';
   $('b-retry').hidden=!state.pending;
+  $('b-retry').disabled=!!state.startRetry&&state.startRetry.retryAt>now();
   $('activity-tools').hidden=[restart,claims,practice,reread].every(b=>b.hidden);
  }
  // 原生 disabled 不會收到 click；外層承接滑鼠／觸控及鍵盤提示。
@@ -314,7 +367,20 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  // 補接選單 change、輸入法組字結束與失焦；重算時讀取現值，不靠事件累計。
  for(const event of ['input','change','compositionend','focusout'])stage.addEventListener(event,changed);
  function rounds(){
-  nav.replaceChildren();cfg.rounds.forEach((r,i)=>{const passed=result?.records.some(r=>r.activity===cfg.week&&r.round===i);const b=node('button',r.name+(passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);nav.append(b);});
+  nav.replaceChildren();cfg.rounds.forEach((r,i)=>{
+   const pending=guestCompleted.has(i)||result?.pendingRecords?.some(r=>r.activity===cfg.week&&r.round===i),passed=completedRounds().includes(i),{locked,reason}=access(i);
+   const b=node('button',r.name+(locked?' 🔒':pending?'（待老師確認）':passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.disabled=locked;b.title=reason;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);
+   if(locked){const item=node('span'),why=node('small',reason);item.className='round-locked';why.id='round-lock-'+i;b.setAttribute('aria-describedby',why.id);item.append(b,why);nav.append(item);}else nav.append(b);
+  });
+ }
+ function redo(host){const b=node('button','再做一次');b.id='b-redo';b.type='button';b.className='btn';b.onclick=()=>start(round,true);host.append(b);}
+ function review(){
+  mode='review';starting=false;client.cancelStart?.();count(2);stage.append(node('h3',guestCompleted.has(round)?'你已完成這一關的兩組挑戰': '你已過關，可以回看這一關'));
+  para(stage,info().learn||'你已完成兩組不同資料的挑戰。');
+  para(stage,guestCompleted.has(round)?GUEST_PENDING:'你正在回看過關摘要，這次不計作答次數。');
+  const btns=node('div');btns.className='btns';redo(btns);
+  if(round+1<cfg.rounds.length&&!access(round+1).locked){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}
+  stage.append(btns);hints();say(guestCompleted.has(round)?GUEST_PENDING:'你已完成這一關。');controls();
  }
  function count(n){
   $('round-status').textContent=`第 ${round+1} 關／共 ${cfg.rounds.length} 關．本關答對 ${n}/2`;
@@ -405,13 +471,14 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  async function receive(value){
   if(checkSchedule())return;
+  if(mode==='review')return;
   if(value.activity!==undefined&&(value.activity!==cfg.week||value.round!==round))return;
   const k=JSON.stringify([value.sid,value.nextSeq,value.completed,value.correct]);if(k===key)return;key=k;
   const old=last;last=value;starting=false;loadProblem='';lastLearning=old?.question?.data?.learning||lastLearning;
   if(value.photo&&!handle)showQuestion({...value.photo,photoAnswer:value.photoAnswer});
   if(value.performance){if(!handle&&value.performance.question)showQuestion({question:value.performance.question});handle?.feedback?.(value.performance);}
   if(value.awaitingTeacher){mode='teacher-pending';say('等待老師確認');controls();return;}
-  if(showGuestPending({value,host:verdict,next:round+1<cfg.rounds.length?()=>start(round+1):null})){mode='guest-pending';count(2);say(GUEST_PENDING);controls();return;}
+  if(showGuestPending({value,host:verdict,next:round+1<cfg.rounds.length?()=>start(round+1):null})){guestCompleted.set(round,value);saveGuestCompleted();mode='guest-pending';rounds();count(2);redo(verdict);say(GUEST_PENDING);controls();await refresh();return;}
   if(value.completed){mode='confirming';send.disabled=true;say('上傳中，正在確認雲端紀錄…');await refresh(client.state().snapshot,{force:true});return;}
   if(value.question.slot===1&&(value.photoAnswer||value.performanceOrder)){
    showQuestion(value);mode='confirming';controls();const g=revision;
@@ -424,19 +491,29 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   }else{showQuestion(value);say('');}controls();
  }
  function passed(){
-  if(client.state().pending||!last?.completed||!result?.records.some(r=>r.activity===cfg.week&&r.round===round))return;
+  if(client.state().pending||!last?.completed||!result?.records.some(r=>r.activity===cfg.week&&r.round===round&&r.provider!=='anonymous'))return;
   mode='passed';count(2);verdict.className='verdict ok';verdict.replaceChildren(node('h3','過關！'));para(verdict,info().learn||lastLearning||'你已完成這一關的兩組挑戰。');
   const item=result.activities.find(a=>a.activity===cfg.week),detail=item.rounds[round],old=before?.activities.find(a=>a.activity===cfg.week);
   if(old?.rounds[round]?.passed)para(verdict,'這關已領過 XP。');else{
    const bits=['+'+detail.passXP+' 過關'];if(detail.onTimeXP)bits.push('+'+detail.onTimeXP+' 準時');if(item.completeXP>(old?.completeXP||0))bits.push('+'+item.completeXP+' 全過');para(verdict,'本關 XP：'+bits.join('、')).className='xp-detail';
    if(before&&result.level>before.level){const card=node('div');card.className='xp-title-card';card.append(node('strong','升級！Lv '+result.level));para(card,result.title);verdict.append(card);}
   }
-  const btns=node('div');btns.className='btns';if(round+1<cfg.rounds.length){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}else para(btns,item.passed===cfg.rounds.length?'全部過關！':`這一關完成了！這個活動目前完成 ${item.passed}／${cfg.rounds.length} 關。`);verdict.append(btns);verdict.hidden=false;hint=0;submitted=false;hints();say('✓ 紀錄已上傳給老師');controls();
+  const btns=node('div');btns.className='btns';if(round+1<cfg.rounds.length){const b=node('button','下一關');b.type='button';b.className='btn primary';b.onclick=()=>start(round+1);btns.append(b);}else para(btns,item.passed===cfg.rounds.length?'全部過關！':`這一關完成了！這個活動目前完成 ${item.passed}／${cfg.rounds.length} 關。`);redo(btns);verdict.append(btns);verdict.hidden=false;hint=0;submitted=false;hints();say('✓ 紀錄已上傳給老師');controls();
  }
  async function refresh(fresh=null,{force=false}={}){
   if(checkSchedule())return;
-  if(!client.state().profile||client.state().profile.owner||client.state().profile.provider==='anonymous')return;if(reading&&!fresh&&!force)return refreshWork;
+  if(!client.state().profile||client.state().profile.owner)return;
+  if(client.state().profile.provider==='anonymous'){
+   const uid=client.state().profile.uid,shownIdentity=identity;
+   try{const xp=await xpCore();if(shownIdentity!==identity||client.state().profile?.uid!==uid||client.state().profile.provider!=='anonymous')return;
+    result=client.guestGrowth({activities:catalog(),xp});renderXP();rounds();
+   }catch(e){problem(e);}return;
+  }
+  if(reading&&!fresh&&!force)return refreshWork;
   const work=renderProgress(fresh);refreshWork=work;try{return await work;}finally{if(refreshWork===work)refreshWork=null;}
+ }
+ function renderXP(){
+  $('xp-header').hidden=result.totalXP===null;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
  }
  async function renderProgress(fresh){
   reading=true;const n=++read,g=revision;
@@ -446,23 +523,31 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    const currentPerson=await readPerson(fresh).catch(()=>null);if(n!==read||g!==revision)return;
    snapshot=fresh;person=currentPerson;personKey=cacheKey;
    const value=growth(snapshot,{project:client.project,course:cfg.course,subject:snapshot.subject,provider:snapshot.provider,activities:catalog()},xp);
-   result=value.state==='confirmed'?value:null;reread.hidden=!!result;
+   result=value.state==='confirmed'?value:value.reason==='guest-xp-policy-pending'?value:null;reread.hidden=!!result;
    confirmIdentity();if(!result){$('xp-header').hidden=true;rounds();say(explain(value));return;}loadProblem='';
    focusRefresh?.touch();
-   $('xp-header').hidden=false;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
-   rounds();if(last?.completed)passed();else say('');
+   renderXP();
+   rounds();if(last?.completed)passed();else if(result.reason==='guest-xp-policy-pending')say('訪客紀錄待老師確認；其餘進度已顯示。');else say('');
   }catch(e){if(n===read&&g===revision){result=null;snapshot=null;$('xp-header').hidden=true;rounds();reread.hidden=false;confirmIdentity();problem(e);}}
   finally{if(n===read){controls();reading=false;}}
  }
  async function start(i=round,reopen=false){
+  if(guestRestore){const restoredAt=revision;await guestRestore;if(restoredAt!==revision)return;}
+  if(!client.state().profile)return;
   if(checkSchedule())return;
+  if(!cfg.rounds[i])return;
+  if(access(i).locked){
+   // 重整可能留下尚未解鎖的舊選擇；先回到可做的第一關。
+   if(i===round&&!handle&&!last)i=firstRound;else return;
+   if(access(i).locked)return;
+  }
   lock.hidden=true;teacherLogin=false;scheduleBlocked=false;
   // 待送時保留目前題面；重整後尚無題面，須讓 client.start 續傳同關草稿。
   if(i===round&&(starting||client.state().pending&&(handle||reopen)))return;
-  // 切關沿用舊站行為：放棄未完成作答，重新進入時從第一組開始。
+  // 已完成關卡只回看；明確重做才要求新作答，未完成的本人草稿仍由 client 續作。
   round=i;
   try{sessionStorage.setItem(roundKey(),String(i));}catch{}
-  const g=++revision;read++;reading=false;handle?.dispose?.();handle=null;validation=null;$('draft-notice').textContent='';last=null;key='';mode='loading';loadProblem='';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
+  const g=++revision;read++;reading=false;clearTimeout(waitTimer);waitTimer=null;waitMessage='';handle?.dispose?.();handle=null;validation=null;$('draft-notice').textContent='';last=null;key='';mode='loading';loadProblem='';lastLearning='';clearTimeout(pairTimer);pairTimer=null;hint=0;submitted=false;starting=true;before=result;delete stage.dataset.questionType;delete stage.dataset.slot;delete stage.dataset.round;stage.replaceChildren();verdict.replaceChildren();verdict.hidden=true;instructions();rounds();count(0);hints();controls();
   if(client.state().profile?.owner){
    send.hidden=true;$('answer-status').hidden=true;$('streak').hidden=true;$('b-hint').hidden=true;
    $('round-status').textContent=`教師示範：第 ${round+1} 關／共 ${cfg.rounds.length} 關`;
@@ -479,13 +564,14 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    }finally{if(g===revision){starting=false;controls();}}
    return;
   }
+  if(!reopen&&completedRounds().includes(i)&&!(client.state().pending&&client.savedRound?.(cfg.week)===i)){review();return;}
   if(info().managed===false){starting=false;mode='unmanaged';say('這一關尚待老師確認，請選其他關卡。');controls();return;}
   say('載入中…');
   // 快速連點以最後選擇為準；前一個 start 回應後才送下一關，略過已被取代的選擇。
   const work=roundWork.then(()=>g===revision?client.start(cfg.week,i,{restart:reopen}):null);
   roundWork=work.catch(()=>{});
   try{const value=await work;if(value&&g===revision)await receive(value);}
-  catch(e){if(g===revision)problem(e);}finally{if(g===revision){starting=false;controls();}}
+  catch(e){if(g===revision){startWait();problem(e);}}finally{if(g===revision){starting=false;controls();}}
  }
  send.onclick=async()=>{
   controls();if(send.disabled||!handle){explainDisabled();return;}if(validation?.show())return;sentValue=JSON.stringify(handle.get());submitted=true;const g=revision;send.disabled=true;controls();
@@ -498,26 +584,28 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round);};
  lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  let focusRefresh;
- function clear(){focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ function clear(){clearTimeout(waitTimer);waitTimer=null;waitMessage='';guestCompleted.clear();focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';identityBox.querySelector('#g-isme').hidden=true;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
  focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}},{now});
  client.subscribe(state=>{
-  if(!state.profile){identity='';clear();checkSchedule();return;}
+  if(!state.profile){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}guestStorageKey='';identity='';clear();checkSchedule();return;}
+  // 離頁通知先清畫面，不能讓舊外框先還原身分而啟動 context／start。
+  if(state.status==='stale'){clear();identity='';return;}
   if(checkSchedule())return;
-  if(state.status==='binding-changed'){clear();identity='';}
+  if(['binding-changed','context-changed'].includes(state.status)){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;
   if(id!==identity){identity=id;restoreRound();
    $('who').textContent=state.profile.owner?'教師模式':state.profile.guest?state.profile.guest.cls+' 班 '+state.profile.guest.seat+' 號（待審）':'已登入';
-   if(state.profile.owner||state.profile.provider==='anonymous'){gate.hidden=true;main.hidden=false;start(round);}
+   if(state.profile.owner||state.profile.provider==='anonymous'){gate.hidden=true;main.hidden=false;start(round);if(state.profile.provider==='anonymous')refresh();}
    else{
     gate.hidden=false;main.hidden=true;login.hidden=true;identityBox.hidden=false;
     const message=identityBox.querySelector('#g-whotext'),confirm=identityBox.querySelector('#g-isme');confirm.hidden=true;message.textContent='正在確認你的身分…';
     refresh();
    }
   }
-  if(state.status==='stale'){clear();identity='';return;}
   if(state.readingRetry){identityBox.querySelector('#g-whotext').textContent='載入中，請稍候…';say('載入中，請稍候…（'+Math.max(1,Math.ceil((state.readingRetry.retryAt-Date.now())/1000))+' 秒後自動重試）');}
-  else{if(result)confirmIdentity();if(state.pending)say('上傳中，請稍候，答案已保留。');}
+  else{if(result&&!result.local)confirmIdentity();if(state.pending)say('上傳中，請稍候，答案已保留。');}
   if(['ready','confirmation-pending','teacher-pending','guest-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view).catch(problem);
+  startWait();
   controls();
  });
  await mountLogin({client,host:login,oldlook:true});

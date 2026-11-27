@@ -44,7 +44,7 @@ for (const phase of ['unfinished', 'wrong', 'first-correct']) test(`guest ${phas
     h.advance(); const back = await restored.start(5, 1);
     assert.notEqual(back.sid, first.sid); assert.equal(back.question.slot, 0); assert.equal(back.nextSeq, 1);
     assert.deepEqual(h.pending(), []); assert.deepEqual(h.backend.results(), []);
-    assert.equal(Object.values(h.head().guestWindows)[0].starts, 3);
+    assert.equal(h.head().guestWindows, undefined);
     let current = back;
     for (let i = 0; i < 2; i++) current = await restored.answer(5, 1, h.solve(current));
     assert.equal(current.counted, false); assert.equal(current.status, 'pending');
@@ -80,5 +80,5 @@ test('guest visiting a completed pending round abandons another round; old SID i
     assert.equal((await h.raw('resume',old)).status,403);h.advance();
     const back=await h.client.start(5,1);assert.notEqual(back.sid,first.sid);assert.equal(back.question.slot,0);assert.equal(back.nextSeq,1);
     assert.equal(h.pending().length,1);assert.deepEqual(h.backend.results(),[]);
-    assert.equal(Object.values(h.head().guestWindows)[0].starts,3);
+    assert.equal(h.head().guestWindows,undefined);
   });

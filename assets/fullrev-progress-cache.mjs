@@ -51,6 +51,7 @@ export function createProgressCache({storage,project,course}){
    if(!page.replace&&state.since?.epoch!==page.epoch)throw fail('page-unconfirmed');
    state.newRecords=new Map((page.replace?[]:state.cached?.newRecords||[]).map(r=>[roundKey(r),r]));
    state.page=copy(page);
+   state.guests=null;
   }
   for(const k of page.removed)state.newRecords.delete(k);
   for(const r of page.records)state.newRecords.set(roundKey(r),copy(r));
@@ -59,12 +60,19 @@ export function createProgressCache({storage,project,course}){
    state.legacy={version:page.legacy.version,records:copy(page.legacy.records)};
   }
   if(state.legacy?.version!==page.legacy.version||!Array.isArray(state.legacy.records))throw fail('legacy-unconfirmed');
+  if(page.guestVersion!==undefined||page.guestRecords!==undefined){
+   if(!stamp(page.guestVersion)||!Array.isArray(page.guestRecords)||page.guestRecords.length>121
+    ||page.guestRecords.some(r=>r.source!=='worker-guest-approved')
+    ||new Set(page.guestRecords.map(roundKey)).size!==page.guestRecords.length
+    ||state.guests&&(state.guests.version!==page.guestVersion||JSON.stringify(state.guests.records)!==JSON.stringify(page.guestRecords)))throw fail('page-unconfirmed');
+   state.guests={version:page.guestVersion,records:copy(page.guestRecords)};
+  }else if(state.guests)throw fail('page-unconfirmed');
  }
  function finish(state,envelope){
   const page=state.page;
   const actual=Object.fromEntries([...state.newRecords].map(([k,r])=>[k,r.resultId]));
   if(!equal(actual,page.resultVersions))throw fail('page-unconfirmed');
-  const cached={epoch:page.epoch,resultVersions:actual,newRecords:[...state.newRecords.values()],states:page.legacy.states};
+  const cached={epoch:page.epoch,resultVersions:actual,newRecords:[...state.newRecords.values()],states:page.legacy.states,...(state.guests?{guests:state.guests}:{})};
   return {cached,result:projectRecords(cached,state.legacy,envelope,state.activity)};
  }
  function projectRecords(cached,legacy,envelope,activity){
@@ -75,7 +83,8 @@ export function createProgressCache({storage,project,course}){
    const validity=states.get(roundKey(r));
    records.push({...r,validity:{state:validity?.state||'unknown',...(validity?.reason?{reason:validity.reason}:{}),controlVersions:envelope.controlVersions}});
   }
-  return {...envelope,progressVersion:2,epoch:cached.epoch,resultVersions:copy(cached.resultVersions),records};
+  for(const r of cached.guests?.records||[])records.push({...r,validity:{...r.validity,controlVersions:envelope.controlVersions}});
+  return {...envelope,...(cached.guests?{guestVersion:cached.guests.version,guestRecords:copy(cached.guests.records)}:{}),progressVersion:2,epoch:cached.epoch,resultVersions:copy(cached.resultVersions),records};
  }
  function commit(state,cached,envelope){
   const who={...state.who,subject:envelope.subject},b=base(who);

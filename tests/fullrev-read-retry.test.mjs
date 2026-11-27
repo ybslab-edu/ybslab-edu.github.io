@@ -11,6 +11,13 @@ function setup(fetcher,wait){
  return {model,waits,events,change:()=>{user=null;}};
 }
 const input={course:'115-g9',classKey:'c901',activity:7,round:0};
+test('只有 controls 明確 404 class_not_found 才辨識為班級不存在，不重試或吞其他錯誤',async()=>{
+ let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'class_not_found'},{status:404});});
+ await assert.rejects(h.model.controls(input),{code:'class-not-found'});assert.equal(calls,1);assert.deepEqual(h.waits,[]);
+ for(const operation of ['context','page'])await assert.rejects(h.model[operation](input),{code:'read-model-pending'});
+ const unknown=setup(async()=>Response.json({error:'controls_unconfirmed'},{status:404}));
+ await assert.rejects(unknown.model.controls(input),{code:'read-model-pending'});
+});
 test('讀取遇 storage_quota 立即保留具體原因，不當成一般 503 自動重試',async()=>{
  let calls=0;const h=setup(async()=>{calls++;return Response.json({error:'storage_quota'},{status:503});});
  await assert.rejects(h.model.context(input),{code:'storage-quota'});assert.equal(calls,1);assert.deepEqual(h.waits,[]);

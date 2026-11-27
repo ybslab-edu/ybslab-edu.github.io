@@ -2,6 +2,7 @@
 const YBS_FULLREV_CONFIG = Object.freeze({
   enabled: false,
   studentGoogleLogin: false, // 老師另行決定開放時機。
+  answerTickets: true, // 11/27 老師決定驗收期開啟；回退改 false
   courses: Object.freeze(['115-g9']), // DF 沿用舊專案；本次切換不啟用 DF 新流程。
   firebase: Object.freeze({projectId:'', apiKey:'', messagingSenderId:''}),
   workerOrigin: '',

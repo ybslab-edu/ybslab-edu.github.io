@@ -13,10 +13,12 @@ app.state.owner=false;
 app.state.snapshot=snapshot([]);app.state.fetcher=async()=>Response.json(response(0,{question:{type:'minimum-bits-v1',slot:0,data:{n:15}}}));
 await mountActivity({client:Promise.resolve(app.client),cfg:{course:'115-g9',week:5,title:'合成活動',rounds:[{name:'合成關卡'}],renderQuestion}});window.ready=true;
 </script></body>`;
-async function open(t){
+async function open(t,{tickets=false}={}){
  const browser=await chromium.launch({headless:true});t.after(()=>browser.close());const context=await browser.newContext({viewport:{width:390,height:700},serviceWorkers:'block'});t.after(()=>context.close());
  await context.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin!=='http://127.0.0.1:8765')return route.abort();
-  if(route.request().isNavigationRequest())return route.fulfill({contentType:'text/html',body:html});
+  if(route.request().isNavigationRequest())return route.fulfill({contentType:'text/html',body:tickets?html
+   .replace('restoredProvider});','restoredProvider,answerTickets:true});')
+   .replace('response(0,{question:','response(0,{ticketVersion:1,ticket:"ybs-answer-v1.synthetic-browser-fixture",question:'):html});
   if(!/^\/(?:assets\/[\w.-]+\.(?:m?js|css)|tests\/fixtures\/fullrev.mjs)$/.test(url.pathname))return route.abort();
   return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+url.pathname,import.meta.url))});});
  const page=await context.newPage();page.setDefaultTimeout(6000);await page.goto('http://127.0.0.1:8765/synthetic/');await page.waitForFunction(()=>window.ready);
@@ -32,6 +34,21 @@ test('實際點擊停用送出鈕與鍵盤操作：所有欄位紅框、最上�
  await page.locator('#send-control').focus();await page.keyboard.press('Enter');assert.equal(await page.locator('#stage input').nth(1).evaluate(e=>e===document.activeElement),true);
  await page.locator('#stage input').nth(1).pressSequentially('12x');assert.equal(await page.locator('#stage input').nth(1).inputValue(),'12x');assert.equal(await page.locator('#stage input').nth(1).evaluate(e=>e===document.activeElement),true);assert.match(await page.locator('.answer-error').innerText(),/整數/);
  await page.locator('#stage input').nth(1).fill('15');assert.equal(await page.locator('.answer-error').count(),0);assert.equal(await page.locator('#b-send').isDisabled(),false);
+});
+test('作答票跨重整帶回原票與草稿；過期提示原因且重新開始可恢復',async t=>{
+ const page=await open(t,{tickets:true});await page.locator('#stage input').first().fill('４');
+ await page.reload();await page.waitForFunction(()=>window.ready);await page.locator('#g-isme').click();
+ await page.locator('#draft-notice').filter({hasText:'已恢復上次未送出的作答'}).waitFor();
+ assert.equal(await page.locator('#stage input').first().inputValue(),'４');
+ assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/ticket/resume']);
+ assert.equal(await page.evaluate(()=>app.requests[0].body.ticket),'ybs-answer-v1.synthetic-browser-fixture');
+ await page.locator('#stage input').first().fill('4');await page.locator('#stage input').nth(1).fill('15');
+ await page.evaluate(()=>{app.state.fetcher=async()=>Response.json({error:'ticket_expired'},{status:410});});
+ await page.locator('#b-send').click();await page.getByText(/作答票已過期/).first().waitFor();
+ assert.equal(await page.evaluate(()=>app.client.state().pending),false);
+ await page.evaluate(async()=>{const {response}=await import('/tests/fixtures/fullrev.mjs');app.state.fetcher=async()=>Response.json(response(0,{ticketVersion:1,ticket:'ybs-answer-v1.synthetic-browser-new',question:{type:'minimum-bits-v1',slot:0,data:{n:15}}}));});
+ await page.getByText('活動工具',{exact:true}).click();await page.getByRole('button',{name:'重新開始',exact:true}).click();
+ await page.waitForFunction(()=>new URL(app.requests.at(-1).url).pathname==='/ticket/start');
 });
 test('跨重整保留未完成原文與同關題面，提示恢復；不是我清除本機草稿',async t=>{
  const page=await open(t);await page.locator('#stage input').first().fill('４');await page.reload();await page.waitForFunction(()=>window.ready);await page.locator('#g-isme').click();

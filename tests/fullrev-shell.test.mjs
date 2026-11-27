@@ -14,7 +14,7 @@ import {harness,config,store} from './fixtures/fullrev.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 // 第二組由 setTimeout 與非同步 Worker 接手；輪詢次數不能當作逾時時間。
 async function until(check){const deadline=performance.now()+5000;do{if(check())return;await new Promise(resolve=>setTimeout(resolve,5));}while(performance.now()<deadline);assert.ok(check(),'離線 UI 未到預期狀態');}
-async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01'}={}){
+async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,throttleRead=true,activityId=7,initialRound,restoredRound,failInitialRead=false,summaries=false,roster,holdRoster=false,rosterProvider='password',warmupSource='u2-01',answerTickets=false}={}){
  const activity=MANAGED_ACTIVITIES.find(a=>a.activity===activityId),catalog=[{...activity,week:activityId,course:'115-g9',codes:[],date:'2026-11-01'},...Array.from({length:3},(_,i)=>({...activity,codes:[],week:20+i,course:'115-g9',title:'合成複習 '+i,href:'115-g9/'+(i===2?warmupSource:'no-bank-'+i)+'/',date:'2026-10-0'+(i+1)}))];
  const source=process.env.YBS_WORKER_SOURCE;assert.ok(source,'本機驗收須指定 YBS_WORKER_SOURCE');
  const load=p=>import(pathToFileURL(resolve(source,p)).href);
@@ -23,12 +23,26 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  let readFailure=failInitialRead,answerFailure=null,secondFailure=null,startHeld=null,releaseStart;let clock=EPOCH,calls=[],throttle=throttleRead,waits=[],readsReleased=!holdProgress,release;
  const held=new Promise(resolve=>{release=()=>{readsReleased=true;resolve();};});
  const data=await batchData(clock);if(closed)data[paths.global].activities[7].opensAt=clock+86400000;
+ // batchData 的舊批次只有活動 4 第四關；本測試另補目前四關的控制資料。
+ if(activityId===4){data[paths.global].activities[4].rounds=[0,1,2,3];for(const member of Object.values(data[paths.roster].members))for(let i=0;i<3;i++)member.roundEpochs[`4:${i}`]=0;}
  if(rosterProvider==='google.com')data[paths.roster].bindings['fake-uid-a'].provider='google.com';
  const db=new MemoryFirestore(data,{now:()=>clock,pathValidator:readPath});
  if(legacyCount){const {legacyRow}=await load('tests/legacy-progress-fixtures.mjs');for(let j=0;j<legacyCount;j++){
   const r=legacyRow(7,j%4,{subject:'synthetic-a',uid:`old-synthetic-${j}`,at:clock-1000});db.seed(r.path,r.data);
  }}
- const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),provider:rosterProvider,
+ // 要測後段 renderer／續作時，合成資料也必須符合先完成前關的前提。
+ const selected=restoredRound??initialRound;
+ if(Number.isInteger(selected)&&selected>0&&selected<activity.rounds.length){const {legacyRow}=await load('tests/legacy-progress-fixtures.mjs');for(let j=0;j<selected;j++){
+  const row=legacyRow(activityId,j,{subject:'synthetic-a',at:clock-1000});db.seed(row.path,row.data);
+ }}
+ if(summaries){
+  const {rebuildClassSummaries}=await load('src/formal/summary-backfill.mjs'),{guestPath}=await load('src/formal/guest.mjs');
+  db.pathValidator=p=>readPath(p)||guestPath(p);
+  await db.runTransaction(tx=>rebuildClassSummaries(tx,{project:config.firebase.projectId,classKey:'synthetic-class',now:clock,write:true,activate:true}));
+  db.metrics={reads:0,writes:0,attempts:0};
+ }
+ const worker=createFormalWorker({env:{...ENV,FIREBASE_PROJECT_ID:config.firebase.projectId,YBS_PROJECT_ID:config.firebase.projectId,
+  ...(answerTickets?{YBS_ANSWER_TICKETS_ENABLED:'true',YBS_ANSWER_TICKET_SECRET:'synthetic-fixture-only-never-deploy-000000'}:{})},adapter:db,now:()=>clock,verifier:{verify:async uid=>({...password(uid),provider:rosterProvider,
   ...(rosterProvider==='google.com'?{email:password(uid).email.replace('@ybslab-edu.github.io','@cgjh.hcc.edu.tw'),emailVerified:true}:{}),ybsClassKeys:CLASS_HINTS})}});
  const firebase=await harness();firebase.state.uid='fake-uid-a';firebase.state.owner=false;firebase.state.hints=CLASS_HINTS;
  const rosterReads=[];let releaseRoster;const rosterHeld=new Promise(resolve=>{releaseRoster=resolve;});
@@ -46,23 +60,23 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
   }};
  }
  const session=async()=>firebase.session,fetcher=async(url,init)=>{
-  const op=new URL(url).pathname.slice(1);const call={op,body:JSON.parse(init.body),at:clock};calls.push(call);
+  const route=new URL(url).pathname.slice(1),op=route.replace(/^ticket\//,'');const call={op,route,body:JSON.parse(init.body),at:clock};calls.push(call);
   if(op==='answer'&&answerFailure)return Response.json({error:answerFailure},{status:503,headers:{'retry-after':'60'}});
-  if(op==='start'&&startHeld){const held=startHeld;startHeld=null;await held;}
-  if(readFailure&&op==='controls')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
-  if(op==='context'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
+  if(['start','resume'].includes(op)&&startHeld){const held=startHeld;startHeld=null;await held;}
+  if(readFailure&&op==='progress')return Response.json({error:'synthetic_unavailable'},{status:503,headers:{'retry-after':'60'}});
+  if(op==='progress'&&throttle){throttle=false;return Response.json({error:'rate_limited'},{status:429,headers:{'retry-after':'3'}});}
   if(op==='progress'&&!readsReleased&&db.docs.get(paths.head('synthetic-a'))?.completions&&Object.keys(db.docs.get(paths.head('synthetic-a')).completions).length)await held;
   if(op==='answer'&&call.body.slot===1&&secondFailure==='resume-first')return Response.json({error:'synthetic_offline'},{status:503,headers:{'retry-after':'60'}});
   const body={...call.body};if(v1){delete body.progressVersion;delete body.since;delete body.legacyVersion;}
   const beforeReads=db.metrics.reads;
-  let response=await worker.fetch(new Request('https://synthetic.invalid/'+op,{...init,body:JSON.stringify(body),headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'}}));
+  let response=await worker.fetch(new Request('https://synthetic.invalid/'+route,{...init,body:JSON.stringify(body),headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'}}));
   call.reads=db.metrics.reads-beforeReads;
   if(v1&&response.ok&&['start','answer','resume'].includes(op)){const value=await response.json();delete value.progressDelta;response=Response.json(value);}
   if(op==='answer'&&call.body.slot===1&&secondFailure==='lost-second'&&response.ok)response=Response.json({error:'synthetic_lost_response'},{status:503,headers:{'retry-after':'60'}});
   call.status=response.status;call.response=await response.clone().json();call.retryAfter=response.headers.get('retry-after');return response;
  };
  const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher,now:()=>clock,wait:async ms=>{waits.push(ms);clock+=ms;}});
- const clientOptions={config,session,readModel:model,fetcher,shared:store(),storage:store(),now:()=>clock,events:{addEventListener(){}},schedule:()=>null,cancel:()=>{}};
+ const clientOptions={config:{...config,answerTickets},session,readModel:model,fetcher,shared:store(),storage:store(),now:()=>clock,events:{addEventListener(){}},schedule:()=>null,cancel:()=>{}};
  let client=createClient(clientOptions);
  const xpContext=vm.createContext({});vm.runInContext(await readFile(new URL('../assets/xp.js',import.meta.url),'utf8'),xpContext);const xp=vm.runInContext('YBSXP',xpContext);
  const sessionStore=store();if(initialRound!==undefined||restoredRound!==undefined)sessionStore.setItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:${activityId}:fake-uid-a`,String(restoredRound??initialRound));
@@ -77,7 +91,9 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  await client.login(rosterProvider==='google.com'?'google':'password','9990001','synthetic-password');
  const retry=async()=>{for(let i=0;i<8&&client.state().pending;i++){const call=calls.at(-1);clock+=Number(call.retryAfter||60)*1000;await client.retry();await tick();}};
  const probeStart=async()=>{const body={...calls.find(c=>c.op==='start').body,round:1,requestId:crypto.randomUUID()};return worker.fetch(new Request('https://synthetic.invalid/start',{method:'POST',headers:{'content-type':'application/json',origin:ORIGIN,authorization:'Bearer fake-uid-a'},body:JSON.stringify(body)}));};
- const result={probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},failRead:()=>{readFailure=true;},
+ const result={auth:firebase.auth,probeStart,get client(){return client;},db,paths,calls,waits,$,button,fill,answer:()=>answerTickets
+  ?structuredClone(db.docs.get(paths.head('synthetic-a')).activeSession.questions[calls.findLast(c=>c.response?.question)?.response.question.slot??0].answer)
+  :privateAnswer(db),release,sessionStore,events,retry,rosterReads,releaseRoster,recover:()=>{readFailure=false;},failRead:()=>{readFailure=true;},
   failAnswer:code=>{answerFailure=code;},interruptSecond:mode=>{secondFailure=mode;},holdNextStart:()=>{startHeld=new Promise(resolve=>{releaseStart=resolve;});},releaseStart:()=>releaseStart(),advance:ms=>{clock+=ms;},
   reload:async()=>{events.pagehide();secondFailure=null;client=createClient(clientOptions);await mountActivity({client:Promise.resolve(client),cfg:activityConfig({course:'115-g9',week:activityId,title:activity.title}),now:()=>clock});await until(()=>!$('g-isme').hidden);}};
  if(holdRoster){await until(()=>rosterReads.length===1);return result;}
@@ -85,22 +101,49 @@ async function setup(t,{closed=false,holdProgress=false,v1=false,legacyCount=0,t
  await until(()=>!$('g-isme').hidden);assert.equal(calls.some(c=>c.op==='start'),false,'確認身分前不可建立作答 session');
  assert.equal($('g-round'),null,'確認頁不提供開始關卡選單');
  await $('g-isme').onclick();await retry();
+ if(legacyCount&&$('b-redo')){await $('b-redo').onclick();await retry();}
  await until(()=>closed?!$('activity-lock').hidden:!!$('stage').dataset.questionType);
  if(!closed)await until(()=>!!client.state().snapshot);
  return result;
 }
 const ownRoster={schemaVersion:1,subject:'synthetic-a',cls:917,seat:5,active:true};
-test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 秒才熱讀，合計 107 讀',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{legacyCount:20,throttleRead:false,roster:ownRoster});
+test('作答票真實頁面：兩關各組錯兩次即時回饋、中途零讀寫、完成回條不重讀進度',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{answerTickets:true,throttleRead:false,summaries:true,roster:ownRoster});
+ for(let round=0;round<2;round++){
+  if(round){h.advance(60001);await h.button('下一關').onclick();}
+  assert.equal(h.calls.filter(c=>c.op==='start').at(-1).route,'ticket/start');
+  for(let slot=0;slot<2;slot++){
+   const answer=h.answer();
+   for(let attempt=0;attempt<2;attempt++){
+    const wrong=structuredClone(answer);wrong[0]=typeof wrong[0]==='number'?wrong[0]+attempt+1:'合成錯答'+attempt;
+    const before={...h.db.metrics};h.fill(wrong);await h.button('送出').onclick();
+    assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
+    assert.match(h.$('send-hint').textContent,/先修改答案再送出/);assert.equal(h.db.metrics.reads,before.reads);assert.equal(h.db.metrics.writes,before.writes);
+   }
+   const before={...h.db.metrics};h.fill(answer);assert.equal(h.$('b-send').disabled,false);await h.button('送出').onclick();
+   if(slot===0){assert.equal(h.db.metrics.reads,before.reads);assert.equal(h.db.metrics.writes,before.writes);h.button('下一組').onclick();}
+   else{assert.equal(h.db.metrics.reads-before.reads,5);assert.equal(h.db.metrics.writes-before.writes,4);}
+  }
+  await until(()=>h.$('verdict').className==='verdict ok');
+  assert.equal(h.calls.filter(c=>c.op==='progress').length,1);
+ }
+ assert.equal(h.calls.filter(c=>c.route==='ticket/answer').length,12);
+ assert.equal(h.db.metrics.writes,12);assert.equal(h.db.metrics.reads+h.rosterReads.length,24);
+ t.diagnostic('每生 3 摘要冷讀＋1 名冊＋2×(5 開始＋5 最後過關)＝24 讀／12 寫；中途 10 次送答為 0／0。');
+ await h.client.logout();
+});
+test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 秒才熱讀，摘要合計 79 讀',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{legacyCount:20,throttleRead:false,summaries:true,roster:ownRoster});
  const totalReads=()=>h.db.metrics.reads+h.rosterReads.length;
- assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0),25);
+ assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0),3);
  assert.equal(h.rosterReads.length,1);
- assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0)+h.rosterReads.length,26,'冷讀包含本人名冊');
+ assert.equal(h.calls.filter(c=>['controls','progress'].includes(c.op)).reduce((n,c)=>n+c.reads,0)+h.rosterReads.length,4,'冷讀包含本人名冊');
  assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'登入一次冷讀，開始活動不重讀');
  await h.events.focus();h.advance(1100);await h.events.focus();
  assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'登入確認後跨秒切窗也不重讀');
  for(let r=0;r<4;r++){
   if(r){h.advance(60001);await h.button('下一關').onclick();}
+  if(h.$('stage').querySelector('#b-redo'))await h.$('b-redo').onclick();
   const correct=h.answer(),wrong=structuredClone(correct);wrong[0]=typeof wrong[0]==='number'?wrong[0]+1:'合成錯答';
   h.fill(wrong);await h.button('送出').onclick();assert.equal(h.$('verdict').querySelector('h3').textContent,'還不對');
   h.fill(correct);await h.button('送出').onclick();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();
@@ -110,8 +153,8 @@ test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 �
   assert.equal(h.calls.filter(c=>c.op==='progress').length,1,'回條更新後切窗不重讀');
  }
  const formal=h.calls.filter(c=>['context','start','answer'].includes(c.op)).reduce((n,c)=>n+c.reads,0);
- assert.equal(formal,76);assert.equal(h.db.metrics.writes,20);
- assert.equal(totalReads(),102);
+ assert.equal(formal,72);assert.equal(h.db.metrics.writes,36);
+ assert.equal(totalReads(),76);
  h.advance(60000);
  await Promise.all([h.events.focus(),h.events.visibilitychange()]);
  await until(()=>h.client.state().snapshot!==null);await tick();
@@ -120,8 +163,8 @@ test('一節課讀量含名冊及跨秒切窗：四關回條不重讀，滿 60 �
  const progress=h.calls.filter(c=>c.op==='progress');assert.equal(progress.length,2);
  assert.equal(progress[1].response.legacy.records,null);assert.deepEqual(progress[1].response.records,[]);
  assert.equal(Object.keys(progress[1].body.since.results).length,4);
- assert.equal(totalReads(),107);assert.equal(h.rosterReads.length,1);assert.equal(h.db.metrics.writes,20);
- t.diagnostic('每生 25 冷讀（含 20 舊史）+ 1 名冊 + 4×19 作答 + 5 熱讀 = 107；30 生 3210。額外切窗熱讀最多每 60 秒一次，每次另加 5 讀。');
+ assert.equal(totalReads(),79);assert.equal(h.rosterReads.length,1);assert.equal(h.db.metrics.writes,36);
+ t.diagnostic('每生 3 摘要冷讀（20 舊史不加讀）+ 1 名冊 + 4×18 作答 + 3 熱讀 = 79／36 寫；30 生 2370／1080。額外切窗熱讀最多每 60 秒一次，每次另加 3 讀。');
  await h.client.logout();
 });
 test('送出停用時具體顯示缺格、格式與下一組，點擊及鍵盤也提示，漏 input 可恢復',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
@@ -157,7 +200,7 @@ test('本人單筆名冊顯示班座、同控制版本不重讀，換人清除',
  const h=await setup(t,{roster:ownRoster});
  assert.equal(h.$('who').textContent,'917 班 5 號');assert.equal(h.$('g-whotext').textContent,'你是 917 班 5 號，對嗎？');
  assert.deepEqual(h.rosterReads,[{path:'ybsCourses/115-g9/roster/cgjh9990001@cgjh.hcc.edu.tw',options:{source:'server'}}]);
- const count=h.calls.length;h.advance(60000);await h.events.focus();assert.ok(h.calls.length>=count+2);
+ const count=h.calls.length;h.advance(60000);await h.events.focus();assert.ok(h.calls.length===count+1);
  assert.equal(h.rosterReads.length,1,'focus 不增加本人名冊讀取');
  h.db.docs.get(h.paths.global).gateVersion++;
  h.advance(60000);
@@ -207,10 +250,10 @@ test('u2-05 四關：真實 Worker、舊版 DOM、429 自動恢復、錯答修�
 });
 test('Worker 未開放顯示舊遮罩，F12 移除遮罩不能取得題面或過關',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{closed:true});assert.equal(h.$('main').hidden,true);assert.match(h.$('activity-lock').textContent,/這個活動還沒開放/);
- await assert.rejects(h.client.start(7,0),{code:'not-open'});assert.equal(h.calls.some(c=>c.op==='start'),false);assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
+ await assert.rejects(h.client.start(7,0),{code:'not-open'});assert.ok(h.calls.filter(c=>c.op==='start').every(c=>c.status===403&&c.response.error==='not_open'));assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
 });
 test('completed 回條尚未確認進度時不出現過關或 XP；登出後延遲讀取不能補回畫面',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{holdProgress:true,v1:true});h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
+ const h=await setup(t,{holdProgress:true,v1:true,throttleRead:false});h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
  await until(()=>h.calls.filter(c=>c.op==='progress').length===2);assert.notEqual(h.$('verdict').querySelector('h3')?.textContent,'過關！');assert.equal(h.$('xp-total').textContent,'0 XP');
  await h.client.logout();h.release();await tick();await tick();assert.equal(h.$('main').hidden,true);assert.equal(h.$('stage').textContent,'');assert.equal(h.$('xp-header').hidden,true);
 });
@@ -252,48 +295,48 @@ test('沿用本人第 3 關與重整還原，不先建立第 0 關 session',{ski
  const restored=await setup(t,{restoredRound:2});assert.equal(restored.$('g-round'),null);assert.equal(restored.$('stage').dataset.round,2);
  assert.ok(restored.calls.filter(c=>c.op==='context'||c.op==='start').every(c=>c.body.round===2));
 });
-test('名冊確認不依賴第 0 關開放，活動 4 可直接開始第 4 關',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('活動 4 前三關已有紀錄時，可還原第四關且不先建立其他 session',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t,{activityId:4,initialRound:3});
  assert.equal(h.$('gate').hidden,true);assert.equal(h.$('stage').dataset.round,3);
  assert.ok(h.calls.filter(c=>c.op==='context'||c.op==='start').every(c=>c.body.round===3));
 });
 
-test('未完成、錯答與第一組答對均可切關，返回重新累積兩組；同關重整仍續作',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('未完成、錯答與第一組答對仍鎖下一關；同關重整續作，過關回看不重開',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t),nav=()=>h.$('rounds').querySelectorAll('button');
  const first=h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid;
- h.fill(h.answer());await nav()[2].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,2);assert.match(h.$('streak').textContent,/0\/2/);
- const wrong=structuredClone(h.answer());wrong[0]++;h.fill(wrong);await h.button('送出').onclick();await h.retry();assert.equal(h.$('verdict').className,'verdict no');
- await nav()[1].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,1);
+ const requests=h.calls.length;h.fill(h.answer());await nav()[2].onclick();assert.equal(h.$('stage').dataset.round,0);assert.equal(h.calls.length,requests);assert.equal(nav()[2].disabled,true);
+ const wrong=structuredClone(h.answer()),d=h.calls.findLast(c=>c.response?.question)?.response.question.data;wrong[0]=d.kinds?.[0]==='s'?d.questions[0].slice(1).find(v=>v!==wrong[0]):wrong[0]+1;h.fill(wrong);await h.button('送出').onclick();await h.retry();assert.equal(h.$('verdict').className,'verdict no');
+ await nav()[1].onclick();assert.equal(h.$('stage').dataset.round,0);
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();assert.match(h.$('streak').textContent,/1\/2/);
  const half=h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid;
- await h.reload();await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('stage').dataset.round,1);assert.equal(h.$('stage').dataset.slot,1);
+ await nav()[1].onclick();assert.equal(nav()[1].disabled,true);
+ await h.reload();await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('stage').dataset.round,0);assert.equal(h.$('stage').dataset.slot,1);
  assert.equal(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid,half);
- await nav()[0].onclick();await h.retry();assert.equal(h.$('stage').dataset.round,0);assert.match(h.$('streak').textContent,/0\/2/);
- assert.notEqual(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.sid,first);
- h.fill(h.answer());await h.button('送出').onclick();await h.retry();
- h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
+ assert.equal(half,first);h.fill(h.answer());await h.button('送出').onclick();await h.retry();await until(()=>h.$('verdict').className==='verdict ok');assert.equal(nav()[1].disabled,false);
+ await nav()[1].onclick();await h.retry();const before=h.calls.length;await nav()[0].onclick();assert.equal(h.calls.length,before);assert.match(h.$('stage').textContent,/回看過關摘要/);
+ const starts=h.calls.filter(c=>c.op==='start'&&c.status===200).length;await h.button('再做一次').onclick();await h.retry();assert.equal(h.calls.filter(c=>c.op==='start'&&c.status===200).length,starts+1,'明確重做才向 Worker 請求；既有過關回條仍由 Worker 決定');
  assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
  assert.ok(!h.calls.some(c=>c.response?.error==='another_round_active'));
  h.events.pagehide();
 });
 test('載入中快速連點以最後選擇為準，不讓舊 start 覆蓋目前關卡',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t),nav=()=>h.$('rounds').querySelectorAll('button');h.holdNextStart();
- const first=nav()[1].onclick();await until(()=>h.calls.filter(c=>c.op==='start').length===2);
+ const h=await setup(t,{initialRound:1}),nav=()=>h.$('rounds').querySelectorAll('button');h.holdNextStart();
+ const first=nav()[1].onclick();await until(()=>h.calls.filter(c=>['start','resume'].includes(c.op)).length===2);
  const middle=nav()[2].onclick(),latest=nav()[0].onclick();h.releaseStart();await Promise.all([first,middle,latest]);await h.retry();
- assert.equal(h.$('stage').dataset.round,0);assert.equal(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.round,0);
+ assert.match(h.$('stage').textContent,/回看過關摘要/);assert.equal(h.$('stage').dataset.questionType,undefined);
+ await h.button('再做一次').onclick();await h.retry();assert.equal(h.$('stage').dataset.round,0);assert.equal(h.db.docs.get(h.paths.head('synthetic-a')).activeSession.round,0);
  assert.ok(!h.calls.some(c=>c.op==='start'&&c.body.round===2),'已被取代的中間選擇不應送到 Worker');
  assert.ok(!h.calls.some(c=>c.response?.error==='another_round_active'));h.events.pagehide();
 });
-test('待送的照片／排卡第二組可放棄切關，舊重試不會把畫面切回去',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('待送的照片／排卡第二組不能跳過未完成關，保留原答案續傳後才解鎖',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const activityId of [1,3])for(const interruption of ['resume-first','lost-second']){
   const h=await setup(t,{activityId});h.interruptSecond(interruption);
   await h.client.answer(activityId,0,h.answer());await until(()=>h.client.state().status==='pending');
   const old=h.calls.filter(c=>c.op==='answer'&&c.body.slot===1).at(-1).body;
-  await h.$('rounds').querySelectorAll('button')[1].onclick();await h.retry();
-  assert.equal(h.$('stage').dataset.round,1);assert.match(h.$('streak').textContent,/0\/2/);
-  assert.equal(h.client.state().pending,false);const count=h.calls.length;h.advance(61000);await h.client.retry();
-  assert.equal(h.calls.length,count);assert.equal(h.calls.filter(c=>c.body.requestId===old.requestId).length,1);
-  assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,interruption==='lost-second'?1:0,'已判分但遺失回應的紀錄不能因切關消失');h.events.pagehide();
+  const count=h.calls.length;await h.$('rounds').querySelectorAll('button')[1].onclick();assert.equal(h.calls.length,count);assert.equal(h.$('stage').dataset.round,0);assert.equal(h.client.state().pending,true);
+  h.interruptSecond(null);await h.retry();await until(()=>h.$('verdict').className==='verdict ok');
+  assert.deepEqual(h.calls.filter(c=>c.body.requestId===old.requestId).at(-1).body,old);assert.equal(h.$('rounds').querySelectorAll('button')[1].disabled,false);
+  assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1,'成功回應遺失也只能有一筆過關');h.events.pagehide();
  }
 });
 test('照片與排卡重整：待送第二槽仍須續傳同關、恢復題面與唯一可信過關',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
@@ -328,7 +371,7 @@ test('照片與排卡重整：待送第二槽仍須續傳同關、恢復題面�
 });
 test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const method of ['focus','button']){
-  const h=await setup(t,{failInitialRead:true});assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.calls.filter(c=>c.op==='controls').length,4);
+  const h=await setup(t,{failInitialRead:true});assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.calls.filter(c=>c.op==='progress').length,4);
   assert.equal(h.$('g-isme').hidden,true);assert.equal(h.$('main').hidden,true);assert.doesNotMatch(h.$('sync').textContent,/已上傳/);assert.equal(h.$('g-reread').closest('#g-who').hidden,false);
   h.recover();if(method==='focus')h.events.focus();else await h.$('g-reread').onclick();await until(()=>!h.$('g-isme').hidden);
   assert.equal(h.$('g-reread').hidden,true);await h.$('g-isme').onclick();await h.retry();assert.equal(h.$('gate').hidden,true);assert.ok(h.$('stage').querySelector('[data-answer-field]'));
@@ -453,7 +496,7 @@ test('待送且零筆過關時，focus 與切回頁面重讀仍保留待送提�
  assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');
 });
 test('v2 完成回條直接確認進度及上傳成功文案，換人清除狀態與成長區',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
- const h=await setup(t,{holdProgress:true});
+ const h=await setup(t,{holdProgress:true,throttleRead:false});
  assert.match(h.$('xp-level').textContent,/^Lv 1 /);assert.equal(h.$('xp-progress').hidden,false);
  h.fill(h.answer());await h.button('送出').onclick();await h.retry();h.button('下一組').onclick();h.fill(h.answer());await h.button('送出').onclick();await h.retry();
  await until(()=>h.$('verdict').className==='verdict ok');
@@ -469,18 +512,20 @@ test('同 UID 切關發現改綁：立即清除舊 XP、名冊及題面，重讀
   const uid=h.client.state().profile.uid,binding=h.db.docs.get(h.paths.roster).bindings[uid];
   binding.subject='synthetic-b';binding.version++;
   if(offline)h.failRead();
-  const reads=h.calls.filter(c=>c.op==='controls').length;
-  await h.button('下一關').onclick();
+  const reads=h.calls.filter(c=>c.op==='progress').length;
+  const advancing=h.button('下一關').onclick();
+  await until(()=>h.calls.filter(c=>c.op==='progress').length>reads);
   assert.equal(h.client.state().profile.uid,uid);assert.equal(h.$('xp-header').hidden,true);
   assert.equal(h.$('who').textContent,'已登入');assert.equal(h.$('main').hidden,true);
   assert.equal(h.$('stage').textContent,'');assert.equal(h.$('verdict').hidden,true);
   assert.doesNotMatch(h.$('g-whotext').textContent,/917/);
-  await until(()=>h.calls.filter(c=>c.op==='controls').length>reads);
+  await until(()=>h.calls.filter(c=>c.op==='progress').length>reads);
   if(offline){
    await until(()=>!h.$('g-reread').hidden);assert.equal(h.$('g-isme').hidden,true);
    assert.equal(h.$('xp-header').hidden,true);assert.equal(h.client.state().snapshot,null);
    h.recover();h.release();await h.$('g-reread').onclick();
   }else h.release();
+  await advancing;
   await until(()=>!h.$('g-isme').hidden);
   assert.equal(h.client.state().snapshot.subject,'synthetic-b');assert.equal(h.$('xp-total').textContent,'0 XP');
   assert.equal(h.rosterReads.length,2,'同 UID 改綁後重新讀取本人名冊');
@@ -564,7 +609,10 @@ test('第三層隔離示範獨立於原題，返回保留輸入，切關及登�
  assert.equal([...h.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
  h.button('回原題繼續做').onclick();assert.equal(h.$('original-work').hidden,false);
  assert.equal(h.$('hint-content').querySelector('.board'),null);assert.equal(h.$('stage').querySelector('.board'),board);
- h.$('b-hint-example').onclick();await h.$('rounds').querySelectorAll('button')[1].onclick();await h.retry();
+ h.$('b-hint-example').onclick();await h.$('rounds').querySelectorAll('button')[1].onclick();assert.equal(h.$('original-work').hidden,true,'未解鎖點擊不清除示範');
+ h.button('回原題繼續做').onclick();
+ for(let slot=0;slot<2;slot++){const answer=h.answer();h.$('stage').querySelectorAll('[data-bit]').forEach((b,i)=>{if(b.getAttribute('aria-pressed')!==String(!!answer[i]))b.onclick();});await h.button('送出').onclick();await h.retry();if(slot===0)h.button('下一組').onclick();}
+ await until(()=>h.$('verdict').className==='verdict ok');await h.$('rounds').querySelectorAll('button')[1].onclick();await h.retry();
  assert.equal(h.$('original-work').hidden,false);assert.equal(h.$('hint-content').textContent,'');
  assert.equal(h.$('stage').dataset.round,1);await h.client.logout();
  assert.equal(h.$('hint-content').textContent,'');assert.equal(h.$('stage').textContent,'');
@@ -592,4 +640,14 @@ test('真實 Worker 重置後拒絕舊 session，未送出草稿不回填',{skip
  const gate=h.db.docs.get(h.paths.roster);gate.members['synthetic-a'].roundEpochs['7:0']++;gate.classGateVersion++;
  await h.reload();await h.$('g-isme').onclick();await h.retry();assert.ok(h.calls.some(c=>c.op==='resume'&&c.status===409),'Worker 應拒絕重置前 session');
  assert.equal(h.$('stage').textContent,'');assert.equal(h.$('draft-notice').textContent,'');assert.equal(h.client.loadInput(7,0),undefined);assert.equal(h.calls.some(c=>c.op==='answer'),false);h.events.pagehide();
+});
+
+
+test('確認頁重新讀取先刷新 claims；刷新失敗後仍可重試',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+ const h=await setup(t,{failInitialRead:true});let attempts=0;
+ const user=h.auth.currentUser,refresh=user.getIdTokenResult;
+ user.getIdTokenResult=async force=>{if(force){attempts++;if(attempts===1)throw Object.assign(Error('offline'),{code:'request-timeout'});}return refresh(force);};
+ await h.$('g-reread').onclick();assert.equal(attempts,1);assert.equal(h.$('g-reread').disabled,false);assert.equal(h.$('g-reread').hidden,false);
+ h.recover();await h.$('g-reread').onclick();await until(()=>!h.$('g-isme').hidden);assert.equal(attempts,2);
+ h.events.pagehide();
 });

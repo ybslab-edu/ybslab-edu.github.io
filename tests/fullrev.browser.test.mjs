@@ -24,7 +24,7 @@ const cfg={course:'115-g9',week:5,title:'合成活動',rounds:ACTIVITIES[0].roun
  demonstrate(host){host.textContent='合成示範';}};
 window.reloadView=async()=>{
   if(location.search.includes('teacher')){app.state.owner=true;await mountTeacher({client:Promise.resolve(app.client)});}
-  else if(location.search.includes('growth'))await mountGrowth({client:Promise.resolve(app.client)});
+  else if(location.search.includes('growth')||location.search.includes('subject='))await mountGrowth({client:Promise.resolve(app.client)});
   else await mountActivity({client:Promise.resolve(app.client),cfg});
 };
 await reloadView();window.ready=true;
@@ -291,8 +291,8 @@ test('教師整班分組各自驗版，Excel 下載重讀兩組且保留取消�
     app.model.page=async({classKey})=>{teacherGateReads.push('page:'+classKey);return structuredClone(teacherGateSnapshots[classKey]);};
   });
   await page.getByRole('button',{name:'讀取有效紀錄',exact:true}).click();await page.locator('table').waitFor();
-  assert.equal(await page.locator('table tr').count(),11);
-  assert.deepEqual(await page.locator('table tr').filter({hasText:'合計'}).locator('td:nth-child(7)').allTextContents(),['80','80']);
+  assert.equal(await page.locator('table tbody tr').count(),2);
+  assert.deepEqual(await page.locator('table tbody tr td:nth-last-child(2)').allTextContents(),['Lv 1 · 80 XP','Lv 1 · 80 XP']);
   await page.evaluate(()=>{
     const gate=teacherGateSnapshots.c901_2,controlVersions={gateVersion:1,classGateVersion:3};
     gate.controlVersions=controlVersions;
@@ -306,4 +306,56 @@ test('教師整班分組各自驗版，Excel 下載重讀兩組且保留取消�
   assert.equal(rows[9][4],'尚未過關');
   assert.deepEqual(await page.evaluate(()=>teacherGateReads),Array(2).fill([
     'controls:c901','controls:c901_1','page:c901_1','controls:c901_1','controls:c901_2','page:c901_2','controls:c901_2']).flat());
+});
+
+test('老師活動摘要、篩選記憶、固定班座與表頭、分組錯誤及 360／1280 圖',async t=>{
+ const page=await pageFor(t,'?teacher');page.setDefaultTimeout(7000);
+ await page.evaluate(()=>{
+  ACTIVITIES.push({...ACTIVITIES[0],week:6,title:'合成活動二'});
+  app.state.snapshot=snapshot([0,1,2,3].map(i=>record(i)),{people:Array.from({length:35},(_,i)=>({subject:i?'synthetic-'+i:'synthetic-subject',cls:901,seat:i+1,provider:'password'}))});
+ });
+ await page.evaluate(()=>reloadView());
+ await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByLabel('班級代碼').fill('c901');
+ await page.getByRole('button',{name:'讀取有效紀錄',exact:true}).click();await page.locator('table tbody tr').nth(34).waitFor();
+ await page.getByLabel('活動篩選').selectOption('5');
+ assert.equal(await page.locator('thead th[scope="col"]').count(),4);assert.equal(await page.locator('tbody th[scope="row"]').count(),35);
+ const first=page.locator('tbody tr').first();await first.locator('summary').click();assert.match(await first.textContent(),/80 XP/);assert.match(await first.textContent(),/2026\/11\/2/);
+ await page.getByLabel('活動篩選').selectOption('');assert.equal(await page.locator('thead th').count(),5);
+ const {mkdir}=await import('node:fs/promises');
+ for(const width of [360,1280]){
+  await page.setViewportSize({width,height:900});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  const scroll=page.getByRole('region',{name:'有效紀錄表'});
+  await scroll.evaluate(el=>{el.scrollLeft=0;el.scrollTop=100;});
+  const before=await scroll.locator('tbody th').first().boundingBox(),header=await scroll.locator('thead th').first().boundingBox();
+  await scroll.evaluate(el=>{el.scrollLeft=260;el.scrollTop=180;});
+  const after=await scroll.locator('tbody th').first().boundingBox(),headerAfter=await scroll.locator('thead th').first().boundingBox();
+  assert.ok(Math.abs(before.x-after.x)<2);assert.ok(Math.abs(header.y-headerAfter.y)<2);
+  await scroll.evaluate(el=>{el.scrollLeft=0;el.scrollTop=0;});
+  if(process.env.TEACHER_SHOTS_DIR){await mkdir(process.env.TEACHER_SHOTS_DIR,{recursive:true});await page.screenshot({path:process.env.TEACHER_SHOTS_DIR+`/teacher-${width}.png`,fullPage:true});}
+ }
+ await page.getByLabel('活動篩選').selectOption('5');
+ assert.deepEqual(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('ybslab:fullrev-activity-filter:'))),['ybslab:fullrev-activity-filter:115-g9']);
+ await page.evaluate(()=>reloadView());assert.equal(await page.getByLabel('活動篩選').inputValue(),'5');
+ await page.getByLabel('班級代碼').fill('c901');
+ await page.evaluate(()=>{app.model.controls=async({classKey})=>{throw Object.assign(Error('synthetic'),{code:classKey==='c901'?'class-not-found':'request-timeout'});};});
+ await page.getByRole('button',{name:'讀取有效紀錄',exact:true}).click();await page.getByText(/c901_1 讀取失敗/).waitFor();assert.equal(await page.locator('table').count(),0);
+ await page.getByRole('button',{name:'登出／換人',exact:true}).click();assert.equal(await page.getByLabel('查閱歷史的學生').locator('option').count(),0);
+});
+
+test('教師唯讀成長：既有 owner 投影、查對班座主體、沒有作答入口，登出清除',async t=>{
+ const page=await pageFor(t,'?growth&classKey=c901&subject=synthetic-subject&cls=901&seat=1');page.setDefaultTimeout(7000);
+ await page.evaluate(()=>{app.state.owner=true;app.state.snapshot=snapshot();});
+ await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByText('已確認學生的雲端紀錄；唯讀檢視。',{exact:true}).waitFor();
+ assert.match(await page.locator('#total').textContent(),/80 XP/);assert.equal(await page.locator('#continue-action').isHidden(),true);
+ assert.equal(await page.locator('#route a').count(),0);assert.equal(await page.locator('#radar svg').count(),1);
+ assert.equal(await page.evaluate(()=>app.requests.length),0);
+ for(const width of [360,1280]){
+  await page.setViewportSize({width,height:900});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  if(process.env.TEACHER_SHOTS_DIR)await page.screenshot({path:process.env.TEACHER_SHOTS_DIR+`/teacher-growth-${width}.png`,fullPage:true});
+ }
+ await page.getByRole('button',{name:'登出',exact:true}).click();assert.equal(await page.locator('#growth').isHidden(),true);assert.equal(await page.locator('#total').textContent(),'');
+ await page.evaluate(()=>app.state.snapshot=snapshot([],{people:[{subject:'somebody-else',cls:901,seat:1,provider:'password'}]}));
+ await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByText('尚未完成，請重新讀取或找老師。',{exact:true}).waitFor();assert.equal(await page.locator('#growth').isHidden(),true);
 });

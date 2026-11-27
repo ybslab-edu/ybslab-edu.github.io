@@ -106,7 +106,7 @@ test('新活動：錯答同題、下一組才換題、回條不先給分、重�
   });
   await page.getByLabel('合成答案').fill('7');await page.getByRole('button',{name:'送出',exact:true}).click();
   await page.waitForFunction(()=>completedReceipt?.resultId==='c_done'&&app.client.state().status==='confirmed'&&app.client.state().snapshot?.records.length===0);
-  await page.locator('#xp-total').getByText('0 XP',{exact:true}).waitFor();
+  await page.locator('#xp-total').getByText('0 XP',{exact:true}).waitFor({state:'attached'});
   assert.equal(await page.locator('#xp-total').textContent(),'0 XP');assert.equal(await page.getByText('過關！',{exact:true}).count(),0);
   // 成長頁從同一有效集合重算，取消的過關與徽章可減少。
   const growth=await pageFor(t,'?growth');await login(growth);

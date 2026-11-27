@@ -2,12 +2,12 @@ import {workerSource,workerSkip} from './helpers/worker-source.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile,mkdtemp,rm} from 'node:fs/promises';
+import {readFile,mkdtemp,rm,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {buildSite} from '../tools/build-fullrev-site.mjs';
-import {MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
+import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
 import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base,dir,output,current,modules;
@@ -56,10 +56,11 @@ before(async()=>{
   browser=await chromium.launch({headless:true});
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(resolve=>server.close(resolve));if(dir)await rm(dir,{recursive:true,force:true});});
-async function reset(activity,round=0) {
+async function reset(activity,round=0,{recording=false}={}) {
   const m=modules,state={clock:m.EPOCH,requests:[]};
   state.db=new m.MemoryFirestore(await m.batchData(state.clock),{now:()=>state.clock,pathValidator:m.formalPath});
   if(activity===4){state.db.docs.get(m.paths.global).activities[4].rounds=[0,1,2,3];for(const member of Object.values(state.db.docs.get(m.paths.roster).members))for(let i=0;i<3;i++)member.roundEpochs[`4:${i}`]=0;}
+  if(recording&&activity===4){const {default:banks}=await import(pathToFileURL(resolve(workerSource,'src/formal/banks/pr6-batch8.mjs')).href);state.db.docs.get(m.paths.global).activities[4].graderVersion=Object.keys(banks)[0].split(':')[1];}
   // 單關 renderer 驗收先備妥前關的合成舊過關紀錄；仍由真實投影驗證，不繞過關卡鎖。
   if(round){const {legacyRow}=await import(pathToFileURL(resolve(workerSource,'tests/legacy-progress-fixtures.mjs')).href),{legacyOpenAt}=await import(pathToFileURL(resolve(workerSource,'src/formal/legacy-progress.mjs')).href);for(let i=0;i<round;i++){
     const row=legacyRow(activity,i,{subject:'synthetic-a',at:legacyOpenAt(activity)+864e5});state.db.seed(row.path,row.data);
@@ -118,10 +119,10 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       await page.evaluate(({activity,round})=>sessionStorage.setItem(`ybs:fullrev:round:synthetic-ybs-pr5:115-g9:${activity}:fake-uid-a`,String(round)),{activity:a.activity,round});
       await page.getByRole('button',{name:'登入',exact:true}).click();await page.locator('#g-isme').waitFor();assert.equal(await page.getByLabel('開始關卡',{exact:true}).count(),0);
       await page.setViewportSize({width:1280,height:800});
-      const title=await page.locator('#gate h1').textContent();
+      const title=await page.locator('#activity-title').textContent();
       const sizes=await page.evaluate(()=>['g-whotext','g-notme'].map(id=>getComputedStyle(document.getElementById(id)).fontSize));
       assert.equal(sizes[0],sizes[1],'桌機確認身分文字須與不是我按鈕同大小');assert.ok(parseFloat(sizes[0])>=20);
-      await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#gate h1').textContent(),title);
+      await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#activity-title').textContent(),title);
       await page.locator('#g-isme').click();
       await page.locator('[data-question-type]').waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'手機版不得橫向溢出');
@@ -223,7 +224,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         await page.screenshot({path:`/tmp/ybs-pr6b7-photo-${round}-mobile.png`,fullPage:true});
       }
       const expectedXP=(round+1)*15+(round+1===a.rounds.length?20:0);
-      await page.locator('#xp-total').filter({hasText:new RegExp('^'+expectedXP+' XP$')}).first().waitFor();
+      await page.locator('#xp-total').filter({hasText:new RegExp('^'+expectedXP+' XP$')}).first().waitFor({state:'attached'});
       assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,1);
       assert.deepEqual(errors,[]);
     }catch(error){t.diagnostic(JSON.stringify({errors,requests:current.requests,body:await page.locator('body').innerText()}));throw error;}
@@ -306,4 +307,66 @@ test('送出停用回饋：觸控、鍵盤、漏 input、格式與額度失敗�
   await page.unroute('**/worker/answer');await page.evaluate(async()=>{app.advance(60001);await app.client.retry();});
   await page.locator('#b-next-group').waitFor();assert.match(await hint.innerText(),/下一組/);
   assert.equal(await page.locator('#quota-old').isVisible(),false);
+});
+
+// 針對 buildSite 的完整 release；使用原 client × 本機 Worker，不連正式服務。
+async function shellportMetrics(page){
+ return page.evaluate(()=>{
+  const small=[];
+  for(const e of document.body.querySelectorAll('*')){
+   if(!e.matches('input,textarea,select')&&![...e.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()))continue;
+   const style=getComputedStyle(e);if(style.display==='none'||style.visibility==='hidden'||!e.getClientRects().length)continue;
+   if(parseFloat(style.fontSize)<17)small.push([e.tagName,e.className?.baseVal??e.className,e.textContent.slice(0,45),style.fontSize]);
+  }
+  return {small,overflow:document.documentElement.scrollWidth>innerWidth};
+ });
+}
+test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；帳號鍵盤／外點／登出及九張截圖',{timeout:420000},async t=>{
+ if(workerSkip){t.skip(workerSkip);return;}
+ const shots='/home/teacher/projects/console/tasks/batch-20261127-eve/shellport-shots';await mkdir(shots,{recursive:true});
+ for(const a of MANAGED_ACTIVITIES)for(const round of [...new Set([...a.managed,...BATCH8.filter(b=>b.course!=='115-df'&&b.activity===a.activity).flatMap(b=>b.managed)])]){
+  await t.test(`${a.activity}:${round}`,async()=>{
+   await reset(a.activity,round,{recording:true});const context=await browser.newContext({viewport:{width:360,height:900}}),page=await context.newPage();page.setDefaultTimeout(6000);
+   await page.clock.setFixedTime(allActivitiesOpenAt);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
+   try{
+    await page.goto(base+'/'+a.file);await page.getByRole('button',{name:'登入',exact:true}).waitFor();
+    assert.equal(await page.locator('#activity-title').textContent(),a.title);assert.match(await page.locator('#activity-week').textContent(),/^第 \d+ 週$/);
+    assert.equal(await page.locator('#activity-header').isVisible(),true,'未登入共用頁首');
+    assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false},'登入前字級與頁寬');
+    await page.getByLabel('帳號',{exact:true}).fill('9990001');await page.getByLabel('密碼',{exact:true}).fill('synthetic-password');
+    await page.evaluate(({activity,round})=>sessionStorage.setItem(`ybs:fullrev:round:synthetic-ybs-pr5:115-g9:${activity}:fake-uid-a`,String(round)),{activity:a.activity,round});
+    await page.getByRole('button',{name:'登入',exact:true}).click();await page.locator('#g-isme').click();await page.locator('[data-question-type]').waitFor();
+    const buttons=page.locator('#rounds button');assert.equal(await buttons.count(),a.rounds.length);
+    for(let i=0;i<a.rounds.length;i++){
+     assert.equal(await buttons.nth(i).textContent(),`第 ${i+1} 關`);assert.match(await buttons.nth(i).getAttribute('aria-label'),new RegExp(`^第 ${i+1} 關：`));assert.ok(await buttons.nth(i).getAttribute('title'));
+     // scrollWidth 包含超出 border 的裝飾底座；直接量測文字是否完整落在按鈕內。
+     assert.equal(await buttons.nth(i).evaluate(e=>{const range=document.createRange();range.selectNode(e.firstChild);const text=range.getBoundingClientRect(),key=e.getBoundingClientRect(),style=getComputedStyle(e);return text.left>=key.left+parseFloat(style.borderLeftWidth)-.5&&text.right<=key.right-parseFloat(style.borderRightWidth)+.5;}),true,'短標不截字');
+    }
+    assert.match(await page.locator('#activity-subtitle').textContent(),new RegExp(`^第 ${round+1} 關`));
+    assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false});
+    const keys=await buttons.evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return {width:r.width,top:r.top};}));
+    assert.ok(keys.every(k=>Math.abs(k.width-keys[0].width)<1&&Math.abs(k.top-keys[0].top)<1),'手機等寬單列 '+JSON.stringify(keys));
+    if(round>0){assert.equal(await buttons.first().getAttribute('class'),'passed');assert.equal(await buttons.first().evaluate(e=>getComputedStyle(e,'::after').content),'"✓"');}
+    if(round===0){
+     const key=buttons.first();await key.scrollIntoViewIfNeeded();const box=await key.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+     assert.equal(await key.evaluate(e=>e.classList.contains('is-pressing')),true);await page.waitForTimeout(180);
+     const pressed=await key.boundingBox();assert.ok(Math.abs(pressed.y-box.y-box.height*.08)<.2,'按下位移 8%');
+     await key.dispatchEvent('pointercancel');assert.equal(await key.evaluate(e=>e.classList.contains('is-pressing')),false);await page.mouse.move(0,0);await page.mouse.up();
+     await page.locator('#account-toggle').click();assert.equal(await page.locator('#account').getAttribute('open'),'');await page.keyboard.press('Escape');assert.equal(await page.locator('#account').getAttribute('open'),null);assert.equal(await page.locator('#account-toggle').evaluate(e=>e===document.activeElement),true);
+     await page.keyboard.press('Enter');assert.equal(await page.locator('#account').getAttribute('open'),'');await page.locator('#task-instructions').click();assert.equal(await page.locator('#account').getAttribute('open'),null);
+     if([5,8,25].includes(a.activity))for(const width of [360,560,1280]){
+      await page.setViewportSize({width,height:900});assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(shots,`${a.file.split('/')[1]}-${width}.png`),fullPage:false});
+     }
+     await page.locator('#account-toggle').click();await page.locator('#b-logout').click();await page.getByRole('button',{name:'登入',exact:true}).waitFor();assert.equal(await page.locator('#main').isVisible(),false);assert.equal(await page.locator('#activity-header').isVisible(),true);assert.equal(await page.locator('#account-name').textContent(),'尚未登入');assert.equal(await page.locator('#b-swap').isVisible(),false);
+    }
+   }finally{await context.close();}
+  });
+ }
+});
+test('release：公開入口、成長與 DF 相容頁的 17px 與 360px 無水平捲動',async t=>{
+ if(workerSkip){t.skip(workerSkip);return;}
+ for(const path of ['index.html','115-g9/index.html','map/index.html','about/index.html','404.html','115-g9/me/index.html','115-df/index.html','115-df/a/index.html']){
+  const context=await browser.newContext({viewport:{width:360,height:900}}),page=await context.newPage();await page.clock.setFixedTime(allActivitiesOpenAt);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
+  try{await page.goto(base+'/'+path);await page.waitForTimeout(150);assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false},path);}finally{await context.close();}
+ }
 });

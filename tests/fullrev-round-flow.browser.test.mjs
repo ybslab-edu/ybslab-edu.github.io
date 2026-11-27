@@ -56,7 +56,7 @@ test('連續限速不循環重送；回看及換人會停止舊倒數',async t=>
  await page.clock.runFor(2000);await page.waitForFunction(()=>h.requests.length===2&&h.client.state().status==='pending');
  await page.clock.runFor(60000);assert.equal(await page.evaluate(()=>h.requests.length),2);assert.match(await page.locator('#start-wait').textContent(),/重試上傳/);
  await page.locator('#rounds button').first().click();await page.locator('#b-redo').waitFor();await page.clock.runFor(60000);assert.equal(await page.evaluate(()=>h.requests.length),2);
- await page.locator('#rounds button').nth(1).click();await page.locator('#start-wait').waitFor();await page.locator('#b-swap').click();await page.clock.runFor(60000);
+ await page.locator('#rounds button').nth(1).click();await page.locator('#start-wait').waitFor();await page.locator('#account-toggle').click();await page.locator('#b-swap').click();await page.clock.runFor(60000);
  assert.equal(await page.locator('#stage').textContent(),'');assert.equal(await page.evaluate(()=>h.requests.length),3);
 });
 test('answer 429 沿用原訊息，保留原答案且不顯示切關倒數',async t=>{

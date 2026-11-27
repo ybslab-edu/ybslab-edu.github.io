@@ -35,7 +35,7 @@
 }
 
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:var(--text-min,17px);line-height:1.65;font-variant-numeric:tabular-nums}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--P);outline-offset:2px;border-radius:0}
 .in{max-width:1180px;margin:0 auto;padding-inline:20px}
@@ -52,8 +52,8 @@ a{color:inherit}
 .motto.lit .k.y{color:var(--why);}
 .motto.lit .k.b{color:var(--because);}
 .motto.lit .k.s{color:var(--so);}
-@media (max-width:420px){.motto{font-size:15px}}
-.bar nav{display:flex;gap:20px;font-size:15px}
+@media (max-width:420px){.motto{font-size:var(--text-min,17px)}}
+.bar nav{display:flex;gap:20px;font-size:var(--text-min,17px)}
 .bar nav a{text-decoration:none;color:var(--muted)}
 .bar nav a:hover{color:var(--ink)}
 .bar nav a[aria-current="page"]{color:var(--ink);font-weight:700;border-bottom:2px solid var(--ember);padding-bottom:2px}

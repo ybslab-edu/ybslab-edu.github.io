@@ -30,7 +30,7 @@ test('手機正式過關不受同活動或其他活動的訪客待確認紀錄�
       assert.match(await page.locator('#verdict').textContent(),/本關 XP：\+10 過關、\+5 準時/);
       assert.equal(await page.locator('#sync').textContent(),'✓ 紀錄已上傳給老師');
       assert.equal(await page.locator('#xp-header').isVisible(),false);
-      if(guestActivity===5)assert.match(await page.locator('#rounds').textContent(),/待老師確認/);
+      if(guestActivity===5)assert.match(await page.locator('#rounds button').evaluateAll(bs=>bs.map(b=>b.getAttribute('aria-label')).join(' ')),/待老師確認/);
       const reads=await page.evaluate(()=>h.state.progressReads);
       await page.evaluate(()=>{h.advance();dispatchEvent(new Event('focus'));});
       await page.waitForFunction(reads=>h.state.progressReads===reads+1,reads);

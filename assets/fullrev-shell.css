@@ -1,26 +1,6 @@
 /* 新版活動共用外框，沿用 shell.css 的尺寸與色彩。 */
 @import url('./fullrev-volunteer-sheet.css?v=20261127sheet');
 .fullrev-activity #stage.quest-sheet{display:block;min-width:0}
-/* u2-06 沿用舊站頁首層次、17px 下限與 B 版實體關卡按鍵。 */
-.fullrev-sheet-activity{font-size:18px}
-.fullrev-sheet-activity :where(small,.small,.linkbtn,.round-status,.answer-error,.xp-header,.who-bar,#activity-tools,.round-locked small){font-size:17px}
-.fullrev-sheet-activity header.top{grid-template-columns:minmax(0,1fr) auto;padding:16px;background:var(--panel);border:1px solid var(--edge)}
-.fullrev-sheet-activity .activity-heading{display:contents}
-.fullrev-sheet-activity .title-rounds{grid-column:1/-1;grid-row:2;min-width:0}
-.fullrev-sheet-activity .who-bar{grid-column:1;grid-row:1;min-width:0}
-.fullrev-sheet-activity .xp-header{grid-column:2;grid-row:1;min-width:0}
-.fullrev-sheet-activity .rounds{--key-cut:10px;--key-depth:6px;--key-shadow:2px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:4px 4px 12px;gap:16px 10px;align-items:start}
-.fullrev-sheet-activity .round-locked{max-width:100%}
-.fullrev-sheet-activity .rounds button{--key-edge:var(--edge);--key-side:#121722;--key-travel:0%;position:relative;isolation:isolate;appearance:none;font:700 17px/1.4 var(--f-text);min-width:0;width:100%;min-height:60px;padding:8px 12px;border:2px solid transparent;border-radius:0;background:transparent;color:var(--text);white-space:normal;overflow-wrap:anywhere;cursor:pointer;outline-offset:-5px;transform:translateY(var(--key-travel));transition:transform .15s}
-.fullrev-sheet-activity .rounds button::before,.fullrev-sheet-activity .rounds .round-depth{content:"";position:absolute;inset:-2px;pointer-events:none;background-repeat:no-repeat}
-.fullrev-sheet-activity .rounds button::before{z-index:-1;border:2px solid transparent;background:linear-gradient(45deg,transparent calc((var(--key-cut) - 1.17157288px)*.70710678),var(--panel-hi) 0) left/51% 100% padding-box,linear-gradient(225deg,transparent calc((var(--key-cut) - 1.17157288px)*.70710678),var(--panel-hi) 0) right/51% 100% padding-box,linear-gradient(45deg,transparent calc(var(--key-cut)*.70710678),var(--key-edge) 0) left/51% 100% border-box,linear-gradient(225deg,transparent calc(var(--key-cut)*.70710678),var(--key-edge) 0) right/51% 100% border-box;background-repeat:no-repeat}
-.fullrev-sheet-activity .rounds .round-depth{z-index:-2;background:linear-gradient(45deg,transparent calc(var(--key-cut)*.70710678),var(--key-side) 0) left/51% 100%,linear-gradient(225deg,transparent calc(var(--key-cut)*.70710678),var(--key-side) 0) right/51% 100%;background-repeat:no-repeat;transform:translateY(calc(var(--key-depth) - var(--key-travel)));filter:drop-shadow(0 var(--key-shadow) 0 #05070a)}
-.fullrev-sheet-activity .rounds button[aria-pressed=true]{--key-edge:var(--ember);--key-side:#7a2e16;color:var(--ember);outline:0}
-.fullrev-sheet-activity .rounds button.passed{--key-edge:var(--frost);--key-side:#235a66;color:var(--frost)}
-.fullrev-sheet-activity .rounds button:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
-.fullrev-sheet-activity .rounds button:active{--key-travel:8%}
-@media(hover:hover){.fullrev-sheet-activity .rounds button:hover{--key-travel:4%}}
-@media(max-width:640px){.fullrev-sheet-activity header.top{grid-template-columns:minmax(0,1fr);padding:12px}.fullrev-sheet-activity .who-bar{grid-column:1;grid-row:1}.fullrev-sheet-activity .xp-header{grid-column:1;grid-row:2}.fullrev-sheet-activity .title-rounds{grid-row:3}.fullrev-sheet-activity .rounds{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 8px}}
 .fullrev-activity #g-whotext,.fullrev-activity #g-notme{font-size:20px}
 .fullrev-activity #stage{overflow-wrap:anywhere}
 .fullrev-activity .quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}
@@ -38,18 +18,18 @@
 .fullrev-activity .quest-answers input,.fullrev-activity .quest-answers select{font:inherit;width:100%;min-width:0;min-height:44px;border:2px solid var(--edge);border-radius:0;background:var(--panel-hi);color:var(--text);padding:var(--u)}
 .fullrev-activity .quest-attach{border-top:1px solid var(--edge);padding-top:calc(var(--u)*2)}
 .fullrev-activity .ybs-login{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin:0 auto;text-align:left}
-.fullrev-activity .ybs-login label{font-size:15px;font-weight:700}
-.fullrev-activity .ybs-login input:not([type="button"]){display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:18px;padding:calc(var(--u)*1.25) calc(var(--u)*1.5);border-radius:0;border:2px solid var(--edge);background:var(--panel-hi);color:var(--text);box-shadow:none}
+.fullrev-activity .ybs-login label{font-size:var(--text-min,17px);font-weight:700}
+.fullrev-activity .ybs-login input:not([type="button"]){display:block;width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:var(--text-body,18px);padding:calc(var(--u)*1.25) calc(var(--u)*1.5);border-radius:0;border:2px solid var(--edge);background:var(--panel-hi);color:var(--text);box-shadow:none}
 .fullrev-activity .ybs-login input::placeholder{color:var(--dim);opacity:1}
 .fullrev-activity .ybs-login .btn{width:100%;min-height:44px;font:inherit;font-weight:700;padding:calc(var(--u)*1.25) calc(var(--u)*3);border:0}
 .fullrev-activity .ybs-password{position:relative}
 .fullrev-activity .ybs-password input[name="password"]{padding-right:92px}
 .fullrev-activity .ybs-password-icon{position:absolute;right:59px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text)}
-.fullrev-activity .ybs-password-toggle{position:absolute;right:3px;top:50%;transform:translateY(-50%);box-sizing:border-box;width:80px;min-height:44px;padding:4px 4px 4px 26px;font:inherit;font-size:14px;border:0;border-radius:0;background:transparent;color:var(--text);box-shadow:none;cursor:pointer}
+.fullrev-activity .ybs-password-toggle{position:absolute;right:3px;top:50%;transform:translateY(-50%);box-sizing:border-box;width:80px;min-height:44px;padding:4px 4px 4px 26px;font:inherit;font-size:var(--text-min,17px);border:0;border-radius:0;background:transparent;color:var(--text);box-shadow:none;cursor:pointer}
 .fullrev-activity .tlogin{margin-top:12px;text-align:center}
-.fullrev-activity .tlogin summary{font-size:14px;color:var(--dim);cursor:pointer;text-decoration:underline}
+.fullrev-activity .tlogin summary{font-size:var(--text-min,17px);color:var(--dim);cursor:pointer;text-decoration:underline}
 .fullrev-activity .tlogin .linkbtn{display:block;margin:12px auto}
-.fullrev-activity #activity-tools{font-size:14px}
+.fullrev-activity #activity-tools{font-size:var(--text-min,17px)}
 .fullrev-activity #activity-tools button{display:block;margin-block:10px}
 #activity-lock{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--void);color:var(--text);font:18px/1.6 "Noto Sans TC",system-ui,sans-serif;text-align:center;color-scheme:dark}
 /* 外框獨立載入時，也須讓 hidden 優先於遮罩的 display:flex。 */
@@ -79,7 +59,7 @@
 .fullrev-activity #stage .photo-step{flex:none;font:inherit;font-weight:700;width:36px;height:36px;min-height:36px;border:1px solid var(--edge);border-radius:0;background:var(--void);color:var(--text);padding:0;cursor:pointer}
 .fullrev-activity .photo-step:disabled{opacity:.35;cursor:default}
 .fullrev-activity .photo-knob input[type=range]{accent-color:var(--text);height:28px}
-.fullrev-activity .photo-kval{font-size:18px;font-weight:700}
+.fullrev-activity .photo-kval{font-size:var(--text-body,18px);font-weight:700}
 .fullrev-activity .photo-samp .photo-kval,.fullrev-activity .photo-tag-samp{color:var(--teach-memory)}
 .fullrev-activity .photo-quant .photo-kval,.fullrev-activity .photo-tag-quant{color:var(--teach-alu)}
 .fullrev-activity .photo-tag-size{color:var(--teach-input)}
@@ -91,10 +71,10 @@
 .fullrev-activity .photo-card{display:flex;flex-direction:column;gap:8px;min-width:0}
 .fullrev-activity .photo-frame{position:relative;width:100%;aspect-ratio:1;overflow:hidden;background:var(--void);border:1px solid var(--edge)}
 .fullrev-activity .photo-frame canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
-.fullrev-activity .photo-label{position:absolute;left:8px;top:8px;background:var(--void);color:var(--text);font-size:13px;font-weight:700;padding:2px 8px}
-.fullrev-activity .photo-ask{font-size:15px;font-weight:700;margin:0}
+.fullrev-activity .photo-label{position:absolute;left:8px;top:8px;background:var(--void);color:var(--text);font-size:var(--text-min,17px);font-weight:700;padding:2px 8px}
+.fullrev-activity .photo-ask{font-size:var(--text-min,17px);font-weight:700;margin:0}
 .fullrev-activity .photo-nums{display:grid;gap:3px;max-width:100%;overflow:auto}
-.fullrev-activity .photo-equation{font-family:var(--f-mono,monospace);font-size:16px;background:var(--void);padding:10px 12px;line-height:1.7;overflow-wrap:anywhere;color:var(--teach-input);margin:0}
+.fullrev-activity .photo-equation{font-family:var(--f-mono,monospace);font-size:var(--text-min,17px);background:var(--void);padding:10px 12px;line-height:1.7;overflow-wrap:anywhere;color:var(--teach-input);margin:0}
 @media(max-width:760px){.fullrev-activity .photo-knobs,.fullrev-activity .photo-store-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:560px){.fullrev-activity .photo-grid{grid-template-columns:minmax(0,1fr)}}
 /* 成果題面沿用舊站的資料表、橫條圖與單欄作答排列。 */
@@ -126,9 +106,19 @@
 /* 必填提示沿用主題警示色，深淺色皆由 shell.css 的色票提供。 */
 .fullrev-activity #stage .answer-invalid{outline:2px solid var(--warn);outline-offset:2px;scroll-margin-block:5rem}
 .fullrev-activity #stage input.answer-invalid,.fullrev-activity #stage select.answer-invalid{border-color:var(--warn)}
-.fullrev-activity .answer-error{display:block;color:var(--warn);font-size:14px;font-weight:700;margin-block:6px;line-height:1.5}
+.fullrev-activity .answer-error{display:block;color:var(--warn);font-size:var(--text-min,17px);font-weight:700;margin-block:6px;line-height:1.5}
 .fullrev-activity #draft-notice:empty{display:none}
 .fullrev-activity .round-locked{display:flex;flex-direction:column;gap:4px;max-width:15rem}
-.fullrev-activity .round-locked small{font-size:12px;line-height:1.5;color:var(--muted);font-style:normal}
+.fullrev-activity .round-locked small{font-size:var(--text-min,17px);line-height:1.5;color:var(--muted);font-style:normal}
 .fullrev-activity .rounds button:disabled{cursor:default;opacity:.65}
 .fullrev-activity #start-wait{padding:16px;border:1px solid var(--line);background:var(--surface);line-height:1.6}
+
+body .shell-header-wrap header.top{display:block}
+body .shell-header-wrap .round-locked{min-width:0;max-width:100%}
+body .shell-header-wrap .rounds button{width:100%}
+
+body .shell-header-wrap header.top .rounds{grid-template-columns:repeat(var(--round-count,4),minmax(0,1fr))}
+
+@media(max-width:520px){body .shell-header-wrap header.top .rounds[data-count="5"]{column-gap:4px}}
+/* 五關單列保留 17px 字形，僅收緊短標的兩個空格，避免系統備援字型溢出。 */
+@media(max-width:560px){body .shell-header-wrap header.top .rounds[data-count="5"] button{word-spacing:-.2em}}

@@ -32,3 +32,9 @@ test('以名冊帳號去重、排除名冊外與異常值；同帳號不同 UID 
   const [r]=summarize({roster,records});assert.equal(r.total,2);assert.equal(r.passed,2);assert.equal(r.average,5.5);assert.equal(r.median,5.5);assert.equal(r.max,7);
   assert.deepEqual(summarize({roster,records}),summarize({roster,records:[...records].reverse()}));
 });
+test('活動登記缺漏時略過無效關卡，仍計算完整活動且不採計無效登記的紀錄',()=>{
+  const roster=[person('a')],records=[record('a',2),record('a',9,{activity:2}),record('a',9,{activity:4})];
+  const incomplete={...activities,2:null,3:{title:'缺關卡'},4:{title:'關卡型別錯誤',rounds:{0:'關一'}}};
+  assert.deepEqual(summarize({activities:incomplete,roster,records}),summarize({roster,records}));
+  for(const registry of [undefined,null,{}])assert.deepEqual(summarize({activities:registry,roster,records}),[]);
+});

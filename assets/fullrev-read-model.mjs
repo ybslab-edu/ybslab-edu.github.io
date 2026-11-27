@@ -20,21 +20,23 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
   const stop=()=>rejectAbort(fail('identity-changed'));controller.signal.addEventListener('abort',stop,{once:true});
   const active=()=>{if(g!==generation||signal?.aborted||controller.signal.aborted||auth.currentUser!==user)throw fail('identity-changed');};
   try{for(let attempt=0;attempt<4;attempt++){
-   active();const token=await Promise.race([user.getIdToken(),aborted]);active();let response,data,timeout;
+   active();const token=await Promise.race([user.getIdToken(),aborted]);active();let response,data,timeout,unreadable=false;
    const deadline=new Promise((_,reject)=>{timeout=setTimeout(()=>{reject(fail('read-model-pending'));controller.abort();},requestTimeoutMs);});
    try{response=await Promise.race([
     fetcher(new URL(operation,origin),{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
      headers:{'content-type':'application/json',authorization:'Bearer '+token},body:payload,signal:controller.signal}),
     deadline,aborted
-   ]);data=await Promise.race([response.json().catch(()=>null),deadline,aborted]);}
+   ]);active();data=await Promise.race([response.json().catch(()=>{unreadable=true;return null;}),deadline,aborted]);}
    catch(error){if(error.code==='read-model-pending')throw error;active();throw fail('read-model-pending');}
    finally{clearTimeout(timeout);}
    active();
+   if(!response.ok&&data?.error==='control_changed')throw fail('control-changed');
    // 額度不足與短暫流量限制不同；立即說明原因，交由老師決定替代入口。
    if(!response.ok&&(data?.error==='storage_quota'||response.status===429&&!['rate_limited','storage_busy'].includes(data?.error))){quotaUntil=now()+300000;throw fail('storage-quota');}
    if(!response.ok&&operation==='progress'&&body.controlVersions===null&&response.status===400&&data?.error==='invalid_body')throw fail('progress-unsupported');
    if(!response.ok&&operation==='controls'&&response.status===404&&data?.error==='class_not_found')throw fail('class-not-found');
    if(!response.ok&&['summary_unconfirmed','summary_capacity'].includes(data?.error))throw fail(data.error.replaceAll('_','-'));
+   if(unreadable)throw fail('read-model-pending');
    if([429,503].includes(response.status)&&attempt<3){
     const header=response.headers.get('retry-after'),seconds=header?.trim()?Number(header):NaN;
     const delay=Number.isFinite(seconds)?Math.max(0,seconds*1000):Date.parse(header||'')-now();
@@ -46,7 +48,7 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
     }
    }
    if(!response.ok)throw fail(data?.error==='not_open'?'not-open':data?.error==='control_changed'?'control-changed':response.status===429?'retry-later':'read-model-pending');
-   if(!data)throw fail('read-model-pending');return data;
+   return data;
   }}finally{controllers.delete(controller);signal?.removeEventListener('abort',abort);controller.signal.removeEventListener('abort',stop);if(waiting.delete(key))notify();}
  }
  const scope=b=>{if(b.course!==course)throw fail('invalid-course');return {course,classKey:b.classKey};};

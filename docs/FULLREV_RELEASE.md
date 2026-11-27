@@ -15,4 +15,14 @@ read model 同源模組只呼叫同一 grader Worker 的 context／controls／pr
 
 全樹 scanner 對精確檔案白名單、symlink、map／備份／工具、舊服務／教師碼、全部八批私有版本與 1,817 題例、私有照片／素材作強制比對。回報檔數、零命中與 tree SHA-256；發布下載後重掃並核對摘要相等，不能掃一棵樹再發布另一棵。公開教材舊版本與 Git 歷史無法收回；沿用現有題目仍須教師現場抽查。
 
-Pages 建議改為 Actions 發布這份 artifact；也可由 Console 決定獨立產物分支。目前 workflow 未修改，來源與讀私有 Worker checkout 的最小權限須先核准，root main 仍不能當新版安全發布。必要驗收要設定 `YBS_WORKER_SOURCE`，CI 未 checkout 對應 Worker 時會失敗，不可改成 skip。
+Pages 建議改為 Actions 發布這份 artifact；也可由 Console 決定獨立產物分支。root main 仍不能當新版安全發布。
+
+## 前端 CI 與本機跨 repo 驗收
+
+`.github/workflows/ci.yml` 沿用 main 的公開前端驗收，只 checkout 本 repo，不讀取私人 `ybslab-edu/classscore`，也不設定 `YBS_WORKER_SOURCE`。公開 repo 的 `GITHUB_TOKEN` 無權讀取該私人來源；不新增 secret／PAT、不擴大權限。
+
+未設定 `YBS_WORKER_SOURCE` 時，CI（`CI=1`）沿用 main 的略過語意：batch1 的 Worker 瀏覽器流程、batch2～7 的私有產物掃描、legacy-progress 的兩項 Worker 整合，以及 answer-scan、fullrev-release、fullrev-csp、fullrev-df-teacher 需要私有來源的驗收會列出 skip；同檔不依賴 Worker 的測試照常執行。
+
+本機未設定來源時，answer-scan、fullrev-release、fullrev-csp 與 fullrev-df-teacher 四項必要驗收仍失敗；原本允許略過的 batch／legacy 測試維持 skip，TAP 會列出設定方式。明確設定來源後，CI 與本機都會檢查必要檔案；來源不存在或不完整均失敗。
+
+發布前須在本機指定既有 Worker 套件目錄，取消 `CI`，執行完整驗收並核對前端與 Worker 的 commit。公開 CI 通過只代表不依賴私有來源的驗收通過，不能取代本機跨 repo 驗收或發布核准。

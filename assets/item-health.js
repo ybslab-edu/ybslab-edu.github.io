@@ -1,7 +1,7 @@
 /* 題目健檢：僅接收教師既有查詢驗證後的帳號 attempts 與 roster，不另讀寫雲端。 */
 'use strict';
 window.YBSItemHealth = (() => {
-  function summarize({activities, roster = [], records = [], cls = ''}) {
+  function summarize({activities = {}, roster = [], records = [], cls = ''}) {
     const students = new Map(roster.filter(p => typeof p.email === 'string' && p.email
       && /^[1-9]\d{2}$/.test(String(p.cls)) && Number.isInteger(p.seat) && p.seat >= 1 && p.seat <= 60)
       .map(p => [p.email, p]));
@@ -10,7 +10,7 @@ window.YBSItemHealth = (() => {
     const latest = new Map();
     for (const r of records) {
       if (!selected.has(r.email) || !Number.isInteger(r.activity) || !Number.isInteger(r.round)
-        || r.round < 0 || !activities[r.activity]?.rounds?.[r.round]
+        || r.round < 0 || !Array.isArray(activities?.[r.activity]?.rounds) || !activities[r.activity].rounds[r.round]
         || !Number.isInteger(r.tries) || r.tries < 1 || r.tries > 999 || !Number.isFinite(r.at) || r.at <= 0) continue;
       const key = JSON.stringify([r.email, r.activity, r.round]), old = latest.get(key);
       if (!old || r.at > old.at || (r.at === old.at && String(r.uid) > String(old.uid))) latest.set(key, r);
@@ -21,7 +21,7 @@ window.YBSItemHealth = (() => {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(r.tries);
     }
-    return Object.keys(activities).map(Number).sort((a,b) => a-b).flatMap(activity =>
+    return Object.keys(activities || {}).map(Number).filter(activity => Array.isArray(activities[activity]?.rounds)).sort((a,b) => a-b).flatMap(activity =>
       activities[activity].rounds.map((name, round) => {
         const values = (groups.get(activity + ':' + round) || []).sort((a,b) => a-b);
         const passed = values.length, total = selected.size, rate = total ? passed / total : null;
@@ -32,16 +32,17 @@ window.YBSItemHealth = (() => {
       }));
   }
   function mount({activities}) {
-    const el = id => document.getElementById(id), select = el('health-class');
+    const el = id => document.getElementById(id), select = el('health-class'), target = el('health-table'), status = el('health-status');
+    if (!select || !target || !status) return () => {};
     let data = null;
     const node = (tag, text) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = String(text); return n; };
     const number = n => n === null ? '—' : Number(n.toFixed(2)).toString();
     function render() {
-      const target = el('health-table'); target.textContent = '';
-      if (!data) { el('health-status').textContent = '請先登入並讀取雲端紀錄。'; return; }
+      target.textContent = '';
+      if (!data) { status.textContent = '請先登入並讀取雲端紀錄。'; return; }
       const results = summarize({activities, ...data, cls:select.value});
       const total = results[0]?.total || 0;
-      el('health-status').textContent = (select.value ? select.value + ' 班' : '全部班級') + '：名冊 ' + total + ' 人。' + (total ? '' : '無名冊學生，無法計算過關率。');
+      status.textContent = (select.value ? select.value + ' 班' : '全部班級') + '：名冊 ' + total + ' 人。' + (total ? '' : '無名冊學生，無法計算過關率。');
       const table = node('table'), head = node('thead'), tr = node('tr'), body = node('tbody');
       for (const title of ['活動','關卡','過關／班級人數','過關率','平均作答次數','中位數','最多次數','提醒']) tr.appendChild(node('th', title));
       head.appendChild(tr); table.appendChild(head);

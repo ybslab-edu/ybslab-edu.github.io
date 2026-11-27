@@ -28,7 +28,14 @@ export function createFocusRefresh(refresh,{now=Date.now,intervalMs=60000}={}){
 }
 import {openTeacherQuestion,mountTeacherQuestion} from './fullrev-teacher-view.mjs';
 // 短版題與原活動關卡分離；不引用過關、成績或上傳介面。
-const pick = (rnd, values) => values[Math.floor(rnd() * values.length)];
+function warmupRandom(rnd) {
+  if (typeof rnd !== 'function') throw new TypeError('暖身 rnd 必須是函式');
+  const value = rnd();
+  if (!Number.isFinite(value) || value < 0 || value >= 1)
+    throw new RangeError('暖身亂數必須是 0（含）到 1（不含）的有限數字');
+  return value;
+}
+const pick = (rnd, values) => values[Math.floor(warmupRandom(rnd) * values.length)];
 // 公開暖身以第一個選項為解答；抽題後再重排，與正式判分題庫分離。
 const firstOption = 0;
 const choice = (prompt, options, review) => ({prompt, options, answer: firstOption, review});
@@ -87,6 +94,7 @@ const WARMUP_BANK = [
 // 依日期辨認先前活動；week 是雲端活動 ID，不能拿來排序。
 export function drawWarmup({current, activities, isOpen, bank = WARMUP_BANK, rnd = Math.random}) {
   if (!current?.date || typeof isOpen !== 'function') return [];
+  const random = () => warmupRandom(rnd);
   const previous = activities.filter(a => a.course === current.course && a.date < current.date && isOpen(a))
     .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const sources = new Map(previous.map(a => [a.href.split('/')[1], a]));
@@ -97,13 +105,13 @@ export function drawWarmup({current, activities, isOpen, bank = WARMUP_BANK, rnd
   });
   // 有界洗牌，不以重抽迴圈處理重複或題庫不足。
   for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   return pool.slice(0, 3).map(q => {
-    const question = q.gen(rnd), order = question.options.map((_, i) => i);
+    const question = q.gen(random), order = question.options.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [order[i], order[j]] = [order[j], order[i]];
     }
     return {...question, id: q.id, source: sources.get(q.activity).title,
@@ -193,7 +201,7 @@ export function questionHints(question) {
  else if(type==='recording-capacity-v1'){direction='1 GB＝1000 MB；所需容量＝分鐘 × 每分鐘 MB。';steps='先把卡片容量換成 MB，再比較每種畫質能否錄完整場；最多分鐘用容量除以每分鐘 MB，取整數部分。';}
  return {direction:d.hint||direction,steps:d.guide||steps};
 }
-export async function mountStudentLogin({client,host,onLogin,explain}){
+export async function mountStudentLogin({client,host,onLogin,explain,active=()=>true}){
  const form=node('form');form.className='ybs-login';form.autocomplete='off';
  form.innerHTML=`<label>帳號<input name="account" inputmode="text" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號"></label><div><label for="activity-password">密碼</label><div class="ybs-password"><input id="activity-password" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號"><input type="button" class="ybs-password-toggle" value="顯示" aria-label="顯示密碼" aria-pressed="false" aria-controls="activity-password"><svg class="ybs-password-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></div></div><button type="submit" class="btn primary">登入</button>`;
  const account=form.querySelector('[name="account"]'),password=form.querySelector('[name="password"]'),submit=form.querySelector('button'),toggle=form.querySelector('.ybs-password-toggle');
@@ -201,10 +209,10 @@ export async function mountStudentLogin({client,host,onLogin,explain}){
  const error=node('div');error.className='gerr';error.setAttribute('role','alert');
  const secondary=node('div');secondary.className='tlogin';secondary.setAttribute('role','group');secondary.setAttribute('aria-label','其他登入方式');const actions=[submit];
  async function run(kind,guest){
-  if(submit.disabled)return;actions.forEach(b=>b.disabled=true);submit.textContent='登入中…';error.textContent='';
-  try{const p=await client.login(kind,guest||account.value,password.value);password.value='';await onLogin(p);}
-  catch(e){password.value='';error.textContent=/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
-  finally{actions.forEach(b=>b.disabled=false);submit.textContent='登入';}
+  if(!active()||submit.disabled)return;actions.forEach(b=>b.disabled=true);submit.textContent='登入中…';error.textContent='';
+  try{const p=await client.login(kind,guest||account.value,password.value);if(!active())return;password.value='';await onLogin(p);}
+  catch(e){if(!active())return;password.value='';error.textContent=/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
+  finally{if(active()){actions.forEach(b=>b.disabled=false);submit.textContent='登入';}}
  }
  form.onsubmit=e=>{e.preventDefault();return run('password');};
  for(const [label,kind] of [...(client.studentGoogleLogin===true?[['學生 Google 登入','google']]:[]),['教師 Google 登入','owner']]){const b=node('button',label);b.type='button';b.className='linkbtn';if(kind==='owner')b.dataset.teacherLogin='';b.onclick=()=>run(kind);actions.push(b);secondary.append(b);}

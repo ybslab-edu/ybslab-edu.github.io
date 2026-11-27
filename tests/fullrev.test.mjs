@@ -4,6 +4,9 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 import {effectiveRecords,growth,exportRows} from '../assets/fullrev-progress.mjs';
+import {mountActivity} from '../assets/fullrev-ui.mjs';
+import {renderOutcome} from '../assets/fullrev-outcomes.mjs';
+import {Element} from './fixtures/activity-dom.mjs';
 import {config,opened,controls,activities,record,snapshot,harness,response} from './fixtures/fullrev.mjs';
 const context=vm.createContext({});vm.runInContext(readFileSync(new URL('../assets/xp.js',import.meta.url),'utf8')+';globalThis.xp=YBSXP;',context);
 const xp=context.xp, options={project:config.firebase.projectId,course:'115-g9',subject:'synthetic-subject',provider:'password',activities};
@@ -99,6 +102,95 @@ test('準時加全過 XP 與教師匯出共用，取消後不留舊徽章或成�
   const records=snapshot().records.map(r=>r.round===3?{...r,validity:{state:'excluded',reason:'reset'}}:r);
   const rows=exportRows(snapshot(records),options,xp);assert.equal(rows.at(-1)[6],45);assert.equal(rows[4][4],'尚未過關');
 });
+test('同一投影多人匯出隔離主體，guest／空集合沿用學生 XP，重算不修改輸入',()=>{
+  const people=[{subject:options.subject,cls:901,seat:1,provider:'password'},
+    {subject:'synthetic-guest',cls:901,seat:2,provider:'anonymous'},
+    {subject:'synthetic-empty',cls:901,seat:3,provider:'google.com'}];
+  const first=[0,1,2,3].map(round=>record(round));
+  const records=[...first,record(0,{uid:'synthetic-other'}),
+    record(0,{subject:people[1].subject,provider:'anonymous'}),
+    record(3,{subject:people[2].subject,validity:{state:'excluded',reason:'reset'}})];
+  let scans=0,visits=0;
+  Object.defineProperty(records,Symbol.iterator,{value:function*(){
+    scans++;for(let i=0;i<this.length;i++){visits++;yield this[i];}
+  }});
+  const projection=snapshot(records,{subject:undefined,people}),before=JSON.stringify(projection);
+  const opts={...options,subject:undefined};let calculations=0;
+  const countedXP={calculate(...args){calculations++;return xp.calculate(...args);}};
+  const rows=exportRows(projection,opts,countedXP);
+  assert.equal(scans,1,'匯出只走訪原始投影一次');assert.equal(visits,records.length);
+  assert.equal(calculations,3,'每個主體只計算一次 XP，含訪客的其餘進度與已確認空集合');
+  assert.equal(rows.length,16);
+  for(let i=0;i<people.length;i++) {
+    const person=people[i],progress=growth(snapshot(records.filter(r=>r.subject===person.subject)),{...opts,...person},xp);
+    const block=rows.slice(1+i*5,6+i*5);
+    assert.deepEqual(block.map(row=>row.slice(0,2)),Array.from({length:5},()=>[901,person.seat]));
+    assert.equal(block.at(-1)[6],progress.totalXP===null?'待確認':progress.totalXP);
+    assert.deepEqual(block.slice(0,4).map(row=>row[4]),i===0?Array(4).fill('已確認過關'):
+      i===1?['已確認過關',...Array(3).fill('尚未過關')]:Array(4).fill('尚未過關'));
+    assert.deepEqual(block.slice(0,4).map(row=>row[6]),i===0?Array(4).fill(15):i===1?Array(4).fill('待確認'):Array(4).fill(0));
+  }
+  assert.deepEqual(exportRows(projection,opts,xp),rows);
+  assert.equal(JSON.stringify(projection),before);
+  const canceled=snapshot(records.map(r=>r.subject===options.subject?{...r,validity:{state:'excluded',reason:'reset'}}:r),{subject:undefined,people});
+  assert.equal(exportRows(canceled,opts,xp)[5][6],0);
+  assert.equal(exportRows(projection,opts,xp)[5][6],80);
+});
+test('多人匯出對原始與有效紀錄的走訪次數隨人數線性成長',t=>{
+  let visits=0;
+  const count=value=>{if(value?.source==='worker-validated'&&value.resultId?.startsWith('c_scan_'))visits++;};
+  const originals=new Map([Symbol.iterator,'filter','find','some'].map(key=>[key,Object.getOwnPropertyDescriptor(Array.prototype,key)]));
+  const iterator=originals.get(Symbol.iterator).value,measurements=[];
+  // 有效集合由實作複製產生；只監看輸入陣列的迭代器會漏掉逐人 filter。
+  try {
+    Object.defineProperty(Array.prototype,Symbol.iterator,{...originals.get(Symbol.iterator),value:function*(){
+      for(const value of Reflect.apply(iterator,this,[])){count(value);yield value;}
+    }});
+    for(const method of ['filter','find','some']) {
+      const descriptor=originals.get(method);
+      Object.defineProperty(Array.prototype,method,{...descriptor,value:function(callback,thisArg){
+        return Reflect.apply(descriptor.value,this,[(value,index,array)=>{
+          count(value);return Reflect.apply(callback,thisArg,[value,index,array]);
+        }]);
+      }});
+    }
+    for(const size of [10,20,40]) {
+      const people=Array.from({length:size},(_,i)=>({subject:'synthetic-scan-'+i,cls:901,seat:i+1,provider:'password'}));
+      const records=people.flatMap(person=>[0,1,2,3].map(round=>record(round,{
+        subject:person.subject,resultId:'c_scan_'+person.seat+'_'+round
+      })));
+      visits=0;
+      const rows=exportRows(snapshot(records,{subject:undefined,people}),{...options,subject:undefined},xp);
+      measurements.push({people:size,records:records.length,visits});
+      assert.equal(rows.length,1+size*5);
+      assert.equal(rows.at(-1)[6],80);
+    }
+  } finally {for(const [key,descriptor] of originals)Object.defineProperty(Array.prototype,key,descriptor);}
+  t.diagnostic('合成紀錄走訪次數：'+JSON.stringify(measurements));
+  for(const result of measurements)assert.ok(result.visits<=result.records*10,
+    `${result.people} 人、${result.records} 筆紀錄走訪 ${result.visits} 次，超過線性成本上限 ${result.records*10}`);
+  for(let i=1;i<measurements.length;i++)assert.ok(measurements[i].visits<=measurements[i-1].visits*2+8,
+    '人數加倍時，紀錄走訪次數應至多加倍（容許固定成本）');
+});
+test('多人匯出遇到 unknown／名冊缺漏不得產生部分成績或採用舊結果',()=>{
+  const opts={...options,subject:undefined};
+  const people=[...snapshot().people,{subject:'synthetic-later',cls:901,seat:2,provider:'password'}];
+  const records=[...snapshot().records,...[0,1,2,3].map(round=>record(round,{
+    subject:people[1].subject,resultId:'c_later_'+round
+  }))];
+  const projection=snapshot(records,{subject:undefined,people});
+  assert.equal(exportRows(projection,opts,xp).at(-1)[6],80);
+  for(const change of [{state:'unknown'},{complete:false},{controlVersions:{gateVersion:2,classGateVersion:1}},
+    {records:records.map(r=>r.subject===people[1].subject?{...r,validity:{state:'unknown'}}:r)}]) {
+    let calculations=0;
+    assert.throws(()=>exportRows({...projection,...change},opts,{calculate(){calculations++;throw Error('unexpected-xp');}}),{code:'export-unconfirmed'});
+    assert.equal(calculations,0);
+  }
+  for(const people of [undefined,[],projection.people.slice(0,1),[...projection.people,projection.people[1]],
+    [projection.people[0],{...projection.people[1],seat:0}]])assert.throws(()=>exportRows({...projection,people},opts,xp),{code:'roster-unconfirmed'});
+  assert.throws(()=>exportRows({...projection,records:records.map(r=>r.subject===people[1].subject?{...r,xpPolicySnapshot:null}:r)},opts,xp),{code:'xp-unconfirmed'});
+  assert.equal(exportRows(projection,opts,xp).at(-1)[6],80);
+});
 test('start／answer／resume 精確協定，沒有 Firestore 寫入或題面持久快取',async()=>{
   const h=await harness();await h.login();await h.client.start(5,0);
   assert.deepEqual(h.requests[0].body,{course:'115-g9',classKey:'c901',activity:5,round:0,requestId:'synthetic-request-2',
@@ -115,17 +207,230 @@ test('斷線保留原 requestId／epoch／答案，成功遺失回應重送也�
   h.state.context={...await h.client.context(5,0),roundEpoch:8};h.advance();h.state.fetcher=async()=>Response.json({completed:true,resultId:'c_confirmed'});
   await h.client.retry();assert.deepEqual(h.requests.at(-1).body,original);assert.equal(h.client.state().snapshot,null);
 });
+for(const op of ['start','answer','resume'])test(`${op} fetch 例外保留原因與 pending 狀態，重新整理仍重送原草稿`,async t=>{
+  for(const [name,cause] of [['Error',Error('synthetic-offline')],['null',null],['undefined',undefined],['字串','synthetic-offline'],
+    ...['invalid-answer','login-required','answer-too-large'].map(code=>[code,Object.assign(Error('synthetic-fetch-error'),{code})])])await t.test(name,async()=>{
+    const h=await harness();await h.login();if(op!=='start')await h.client.start(5,0);
+    h.state.fetcher=()=>{throw cause;};
+    await assert.rejects(h.client[op](5,0,op==='answer'?7:undefined),error=>{
+      assert.equal(error.code,'pending');assert.equal(error.cause,cause);return true;
+    });
+    const original=h.requests.at(-1).body,draft=savedDrafts(h)['5:0'];
+    assert.equal(h.client.state().status,'pending');assert.equal(h.client.state().pending,true);
+    assert.deepEqual(draft.pending,{op,body:original});assert.equal(draft.failures,1);assert.equal(h.timers.at(-1).ms,1000);
+    const restored=h.reopen();await restored.restore();h.advance();h.state.fetcher=async()=>Response.json(response());
+    await restored.retry();assert.deepEqual(h.requests.at(-1).body,original);
+    assert.equal(restored.state().pending,false);assert.equal(restored.state().status,'ready');
+  });
+});
+for(const op of ['start','answer','resume'])test(`${op} 成功 HTTP 的非 JSON／無效內容保留可判斷原因與可重送草稿`,async t=>{
+  const readError=new TypeError('synthetic-body-read-failed');
+  for(const [name,makeResponse,syntax,cause] of [
+    ['HTML',()=>new Response('<html>synthetic-error</html>'),true],
+    ['空回應',()=>new Response(null,{status:204}),true],
+    ['截斷 JSON',()=>new Response('{"completed":'),true],
+    ['本文讀取 TypeError',()=>new Response(new ReadableStream({start(controller){controller.error(readError);}})),false,readError],
+    ['null',()=>Response.json(null),false],
+    ['不完整物件',()=>Response.json({completed:false}),false]
+  ])await t.test(name,async()=>{
+    const h=await harness();await h.login();if(op!=='start')await h.client.start(5,0);
+    h.state.fetcher=async()=>makeResponse();
+    await assert.rejects(h.client[op](5,0,op==='answer'?7:undefined),error=>{
+      assert.equal(error.code,'pending');assert.equal(error.status,name==='空回應'?204:200);
+      assert.equal(error.cause.code,'response-invalid');if(syntax)assert.ok(error.cause.cause instanceof SyntaxError);
+      if(cause)assert.equal(error.cause.cause,cause);return true;
+    });
+    const original=h.requests.at(-1).body;
+    assert.equal(h.client.state().status,'pending');assert.equal(h.client.state().pending,true);
+    assert.deepEqual(savedDrafts(h)['5:0'].pending,{op,body:original});assert.equal(h.timers.at(-1).ms,1000);
+    const restored=h.reopen();await restored.restore();h.advance();h.state.fetcher=async()=>Response.json({completed:true,resultId:'c_replayed'});
+    await restored.retry();assert.deepEqual(h.requests.at(-1).body,original);
+    assert.deepEqual(savedDrafts(h),{});assert.equal(restored.state().snapshot,null);
+  });
+});
+for(const status of [429,503])test(`${status} 非 JSON 回應仍依 HTTP 狀態退避，不解析本文或遺失答案`,async()=>{
+  const h=await harness();await h.login();await h.client.start(5,0);
+  h.state.fetcher=async()=>new Response('<html>synthetic-unavailable</html>',{status,headers:{'Retry-After':'90'}});
+  await assert.rejects(h.client.answer(5,0,7),{code:'pending',status});
+  const original=h.requests.at(-1).body;
+  if(status===429){assert.equal(h.timers.length,0);assert.equal(h.client.state().uploadIssue,'storage-quota');}
+  else assert.equal(h.timers.at(-1).ms,90000);
+  await h.client.retry();assert.equal(h.requests.length,2);
+  h.advance(90001);h.state.fetcher=async()=>Response.json(response());await h.client.retry();
+  assert.deepEqual(h.requests.at(-1).body,original);
+});
+for(const [round,op] of ['start','answer','resume','retry'].entries())test(`${op} 完成回條映射原關卡 5:${round}，只有 fresh 有效投影才能確認過關與 XP`,async()=>{
+  const h=await harness();await h.login();
+  if(op!=='start')await h.client.start(5,round);
+  assert.equal(growth(await h.client.progress({activities}),options,xp).totalXP,80);
+  let original;
+  if(op==='retry'){
+    h.state.fetcher=async()=>{throw Error('synthetic-offline');};
+    await assert.rejects(h.client.answer(5,round,7),{code:'pending'});original=h.requests.at(-1).body;h.advance();
+  }
+  const receipt={completed:true,resultId:record(round).resultId};
+  h.state.fetcher=async()=>Response.json(receipt);
+  const result=op==='retry'?(await h.client.retry())[0]:await h.client[op](5,round,...(op==='answer'?[7]:[]));
+  assert.deepEqual(result,{activity:5,round,...receipt});
+  if(original)assert.deepEqual(h.requests.at(-1).body,original);
+  assert.equal(h.client.state().status,'confirmation-pending');assert.equal(h.client.state().pending,false);
+  assert.equal(h.client.state().snapshot,null);assert.deepEqual(savedDrafts(h),{});
+  assert.equal(growth(h.client.state().snapshot,options,xp).totalXP,null);
+
+  h.state.snapshot=snapshot([],{state:'unknown'});
+  await assert.rejects(h.client.progress({activities}),{code:'page-unconfirmed'});
+  assert.equal(h.client.state().snapshot,null);
+  assert.throws(()=>exportRows(h.client.state().snapshot,options,xp),{code:'export-unconfirmed'});
+  for(const records of [[],[record(round,{validity:{state:'excluded',reason:'reset'}})]]){
+    h.state.snapshot=snapshot(records);
+    const result=growth(await h.client.progress({activities}),options,xp);
+    assert.equal(result.state,'confirmed');assert.equal(result.totalXP,0);
+    assert.equal(result.activities[0].passed,0);assert.equal(result.activities[0].completeXP,0);
+  }
+  h.state.snapshot=snapshot([record(round)]);
+  const confirmed=growth(await h.client.progress({activities}),options,xp);
+  assert.equal(confirmed.state,'confirmed');assert.equal(confirmed.totalXP,15);
+  assert.deepEqual(confirmed.activities[0].rounds.map(r=>r.passed),activities[0].rounds.map((_,i)=>i===round));
+  assert.equal(confirmed.activities[0].completeXP,0);
+});
+test('未知或不完整回條保留原請求待重試，不能當 completed 或 XP',async t=>{
+  for(const value of [{completed:'true',resultId:'c_invalid'},{completed:true},{completed:true,resultId:''},
+    {completed:false},{state:'completed',resultId:'c_invalid'}])await t.test(JSON.stringify(value),async()=>{
+    const h=await harness();await h.login();await h.client.start(5,0);
+    h.state.fetcher=async()=>Response.json(value);
+    await assert.rejects(h.client.answer(5,0,7),{code:'pending'});
+    const original=h.requests.at(-1).body;
+    assert.equal(h.client.state().status,'pending');assert.equal(h.client.state().pending,true);
+    assert.equal(h.client.state().snapshot,null);assert.equal(growth(h.client.state().snapshot,options,xp).totalXP,null);
+    assert.deepEqual(savedDrafts(h)['5:0'].pending.body,original);
+    h.advance();h.state.fetcher=async()=>Response.json({completed:true,resultId:'c_replayed'});
+    await h.client.retry();assert.deepEqual(h.requests.at(-1).body,original);
+    assert.equal(h.client.state().status,'confirmation-pending');assert.equal(h.client.state().snapshot,null);
+  });
+});
+test('等待教師回條只表示已送達，重新開始仍重查 Worker，不產生完成或 XP',async()=>{
+  const receipt={sid:'s'.repeat(22),completed:false,awaitingTeacher:true};
+  const h=await harness({fetcher:async()=>Response.json(receipt)});await h.login();
+  assert.deepEqual(await h.client.start(5,0),{activity:5,round:0,...receipt});
+  assert.equal(h.client.state().status,'teacher-pending');assert.equal(h.client.state().pending,false);
+  assert.equal(h.client.state().snapshot,null);assert.deepEqual(savedDrafts(h),{});
+  assert.equal(growth(h.client.state().snapshot,options,xp).totalXP,null);
+  await h.client.start(5,0);assert.equal(h.requests.length,2);
+  assert.ok(h.requests.every(r=>r.url.endsWith('/start')));
+});
+test('已有完整過關投影遇到未知有效性或混版時，清除採計快照並禁止匯出',async t=>{
+  for(const validity of [undefined,{state:'unknown',reason:'control-unavailable'},{state:'expired'},
+    {state:'effective',controlVersions:{...controls,gateVersion:2}}])await t.test(JSON.stringify(validity)||'missing',async()=>{
+    const h=await harness();await h.login();
+    assert.equal(growth(await h.client.progress({activities}),options,xp).totalXP,80);
+    h.state.snapshot=snapshot([record(0,{validity}),record(1),record(2),record(3)]);
+    await assert.rejects(h.client.progress({activities}),{code:'validity-unconfirmed'});
+    assert.equal(h.client.state().status,'confirmation-pending');assert.equal(h.client.state().snapshot,null);
+    const result=growth(h.state.snapshot,options,xp);
+    assert.equal(result.state,'unknown');assert.equal(result.totalXP,null);assert.deepEqual(result.records,[]);
+    assert.throws(()=>exportRows(h.state.snapshot,options,xp),{code:'export-unconfirmed'});
+  });
+});
+test('成果題介面收到完成回條仍顯示待確認，未知不顯示 XP，fresh 投影才更新過關',async t=>{
+  class UIElement extends Element {
+    append(...children){for(const child of children)super.append(child);}
+    replaceChildren(...children){this.childNodes.forEach(child=>child.parentElement=null);this.childNodes=[];this.append(...children);}
+  }
+  const body=new UIElement('body'),events=new Map();
+  for(const [key,value] of Object.entries({document:{body,createElement:tag=>new UIElement(tag),addEventListener(){}},
+    window:{addEventListener:(name,fn)=>events.set(name,fn)},ACTIVITIES:activities,YBSXP:xp})){
+    const original=Object.getOwnPropertyDescriptor(globalThis,key);
+    Object.defineProperty(globalThis,key,{configurable:true,value});
+    t.after(()=>{if(original)Object.defineProperty(globalThis,key,original);else delete globalThis[key];});
+  }
+  const question={slot:0,type:'finite-bank-v1',data:{mode:'sheet-synthetic',heading:'合成成果',questions:[['合成數量']],kinds:['n']}};
+  const h=await harness({fetcher:async()=>Response.json(response(0,{question}))});
+  await mountActivity({client:Promise.resolve(h.client),cfg:{week:5,title:'合成活動',rounds:[{name:'合成關卡'}],
+    renderQuestion:(q,host,api)=>renderOutcome(host,q.data,api.changed)}});
+  await h.login();
+  const button=text=>body.querySelectorAll('button').find(e=>e.textContent===text);
+  await button('開始這一關').onclick();
+  const input=body.querySelectorAll('input').find(e=>e.dataset.answerField===0);input.value='7';input.oninput();
+  let release,started;
+  const reading=new Promise(resolve=>started=resolve);
+  h.model.page=()=>new Promise(resolve=>{release=resolve;started();});
+  h.state.fetcher=async()=>Response.json({completed:true,resultId:record().resultId});
+  await button('送出').onclick();await reading;
+  assert.match(body.textContent,/作答已送達，正在確認有效過關紀錄/);
+  assert.doesNotMatch(body.textContent,/\d+ XP|已獲得徽章/);assert.equal(button('送出').disabled,true);
+  release(snapshot([],{state:'unknown'}));await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.client.state().snapshot,null);assert.doesNotMatch(body.textContent,/\d+ XP|已獲得徽章/);
+
+  h.model.page=async()=>h.state.snapshot;
+  for(const [records,expected] of [[[],0],[[record()],15],[snapshot().records,80],
+    [[record(0,{validity:{state:'excluded',reason:'reset'}})],0]]){
+    h.state.snapshot=snapshot(records);events.get('focus')();await new Promise(resolve=>setImmediate(resolve));
+    assert.match(body.textContent,new RegExp('· '+expected+' XP'));
+    if(expected===80)assert.match(body.textContent,/已獲得徽章/);else assert.doesNotMatch(body.textContent,/已獲得徽章/);
+    assert.match(body.textContent,new RegExp('：'+records.filter(r=>r.validity.state==='effective').length+'／4 關'));
+    if(expected===80){
+      h.state.snapshot=snapshot([],{state:'unknown'});events.get('focus')();await new Promise(resolve=>setImmediate(resolve));
+      assert.equal(h.client.state().snapshot,null);assert.doesNotMatch(body.textContent,/\d+ XP|已獲得徽章/);
+    }
+  }
+  h.model.page=async()=>{throw Error('synthetic-offline');};
+  events.get('focus')();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.client.state().snapshot,null);assert.doesNotMatch(body.textContent,/\d+ XP|已獲得徽章/);
+});
 test('429／503 尊重 Retry-After 且有上限重試，401 僅刷新一次',async()=>{
   const h=await harness();await h.login();h.state.fetcher=async()=>Response.json({error:'rate_limited'},{status:429,headers:{'Retry-After':'90'}});
   await assert.rejects(h.client.start(5,0),{code:'pending'});assert.equal(h.timers.at(-1).ms,90000);
   await h.client.retry();assert.equal(h.requests.length,1);h.advance(90001);
   let n=0;h.state.fetcher=async()=>++n===1?new Response('{}',{status:401}):Response.json(response());await h.client.retry();
   assert.deepEqual(h.state.force.slice(-2),[false,true]);
-  const failed=await harness();await failed.login();failed.state.fetcher=async()=>new Response('{}',{status:401});
-  await assert.rejects(failed.client.start(5,0));assert.equal(failed.requests.length,2);assert.equal(failed.client.state().profile,null);
+  const failed=await harness();await failed.login();failed.state.fetcher=async()=>new Response('<html>synthetic-unauthorized</html>',{status:401});
+  await assert.rejects(failed.client.start(5,0),{code:'login-required'});assert.equal(failed.requests.length,2);assert.equal(failed.client.state().profile,null);
+  assert.deepEqual(failed.state.force,[false,true]);assert.equal(failed.storage.map.size,0);assert.equal(failed.timers.length,0);
+});
+test('401 刷新後 fetch 失聯保留原答案，pending 不沿用前一次 HTTP 狀態',async()=>{
+  const h=await harness();await h.login();await h.client.start(5,0);const cause=Error('synthetic-offline');
+  let n=0;h.state.fetcher=async()=>{if(++n===1)return new Response(null,{status:401});throw cause;};
+  await assert.rejects(h.client.answer(5,0,7),error=>{
+    assert.equal(error.code,'pending');assert.equal(error.cause,cause);assert.equal(error.status,undefined);return true;
+  });
+  assert.deepEqual(h.state.force.slice(-2),[false,true]);assert.equal(h.client.state().profile.uid,'synthetic-student');
+  const original=h.requests.at(-1).body;assert.deepEqual(h.requests.at(-2).body,original);
+  h.advance();h.state.fetcher=async()=>Response.json(response());await h.client.retry();assert.deepEqual(h.requests.at(-1).body,original);
+});
+for(const op of ['start','answer','resume'])test(`${op} 401 後刷新 token 失敗保留原因與草稿，不沿用 401 或清除登入`,async()=>{
+  const h=await harness();await h.login();if(op!=='start')await h.client.start(5,0);
+  const cause=Object.assign(Error('synthetic-refresh-failed'),{code:'auth/network-request-failed'});
+  const getIdToken=h.auth.currentUser.getIdToken;
+  h.auth.currentUser.getIdToken=async force=>{const value=await getIdToken(force);if(force)throw cause;return value;};
+  h.state.fetcher=async()=>new Response(null,{status:401});
+  await assert.rejects(h.client[op](5,0,op==='answer'?7:undefined),error=>{
+    assert.equal(error.code,'pending');assert.equal(error.cause,cause);assert.equal(error.status,undefined);return true;
+  });
+  assert.deepEqual(h.state.force.slice(-2),[false,true]);assert.equal(h.requests.length,op==='start'?1:2);
+  assert.equal(h.client.state().profile.uid,'synthetic-student');assert.equal(h.client.state().status,'pending');
+  assert.equal(h.client.state().pending,true);
+  const original=h.requests.at(-1).body,draft=savedDrafts(h)['5:0'];
+  assert.deepEqual(draft.pending,{op,body:original});assert.equal(draft.failures,1);assert.equal(h.timers.at(-1).ms,1000);
+  const restored=h.reopen();await restored.restore();h.advance();h.auth.currentUser.getIdToken=getIdToken;
+  h.state.fetcher=async()=>Response.json({completed:true,resultId:'c_replayed'});
+  const count=h.requests.length;await restored.retry();assert.equal(h.requests.length,count+1);
+  assert.deepEqual(h.requests.at(-1).body,original);assert.deepEqual(savedDrafts(h),{});
+  assert.equal(restored.state().pending,false);assert.equal(restored.state().snapshot,null);
+});
+test('400 只有 JSON invalid_answer 可同題修正，非 JSON 仍按原規則重開',async()=>{
+  const h=await harness();await h.login();await h.client.start(5,0);
+  h.state.fetcher=async()=>Response.json({error:'invalid_answer'},{status:400});
+  await assert.rejects(h.client.answer(5,0,7),{code:'invalid-answer'});
+  const original=h.requests.at(-1).body;
+  assert.equal(h.client.state().status,'ready');assert.equal(h.client.state().pending,false);assert.equal(h.timers.length,0);
+  h.state.fetcher=async()=>new Response('<html>synthetic-bad-request</html>',{status:400});
+  await assert.rejects(h.client.answer(5,0,8),{code:'restart-required'});
+  const corrected=h.requests.at(-1).body;for(const key of ['sid','seq','slot'])assert.equal(corrected[key],original[key]);
+  assert.notEqual(corrected.requestId,original.requestId);assert.deepEqual(savedDrafts(h),{});
+  const count=h.requests.length;await h.client.retry();assert.equal(h.requests.length,count);
 });
 for(const status of [403,409,410])test(`${status}：舊草稿不換版補傳，明確重開才產生新 start`,async()=>{
-  const h=await harness();await h.login();h.state.fetcher=async()=>new Response('{}',{status});
+  const h=await harness();await h.login();h.state.fetcher=async()=>new Response('<html>synthetic-rejected</html>',{status});
   await assert.rejects(h.client.start(5,0),{code:'restart-required'});const count=h.requests.length;
   await h.client.retry();assert.equal(h.requests.length,count);
   h.state.fetcher=async()=>Response.json(response());await h.client.start(5,0,{restart:true});
@@ -140,6 +445,16 @@ test('換人及舊分頁清除待送、晚到成功不復活，Auth 已換人也
   h.shared.setItem('ybs:fullrev:'+config.firebase.projectId+':115-g9:identity','other-tab');
   await assert.rejects(h.client.start(5,0),{code:'identity-changed'});assert.equal(h.client.state().profile,null);
   assert.equal(await h.client.restore(),null);
+});
+for(const phase of ['fetch','json'])test(`換人後遲到的 ${phase} 例外仍為 identity-changed，不復活草稿`,async()=>{
+  let reject;
+  const pending=()=>new Promise((resolve,fail)=>{reject=fail;});
+  const h=await harness({fetcher:phase==='fetch'?pending:async()=>({ok:true,status:200,json:pending})});await h.login();
+  const old=h.client.start(5,0);while(!reject)await new Promise(resolve=>setImmediate(resolve));
+  h.state.uid='synthetic-new';await h.login();const saved=h.storage.getItem(storageKey);
+  reject(null);await assert.rejects(old,{code:'identity-changed'});
+  assert.equal(h.client.state().profile.uid,'synthetic-new');assert.equal(h.client.state().status,'signed-in');
+  assert.equal(h.client.state().pending,false);assert.equal(h.storage.getItem(storageKey),saved);assert.equal(h.timers.length,0);
 });
 test('重新整理僅還原同 UID／身分標記的草稿，題面由 resume 重新授權',async()=>{
   const h=await harness();await h.login();await h.client.start(5,0);

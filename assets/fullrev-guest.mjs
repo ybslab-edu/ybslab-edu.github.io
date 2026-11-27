@@ -1,4 +1,4 @@
-import {fail,int,versions} from './fullrev-progress.mjs?v=20261120a';
+import {fail,int,versions} from './fullrev-progress.mjs?v=20261127b3';
 
 export const GUEST_PENDING = '已存待審，尚未採計';
 export function guestScope(value) {

@@ -1,8 +1,9 @@
-import {WARMUP_BANK} from './warmup-bank.js?v=20261105w1';
+import {WARMUP_BANK, warmupRandom} from './warmup-bank.js?v=20261125w1';
 
 // 依日期辨認先前活動；week 是雲端活動 ID，不能拿來排序。
 export function drawWarmup({current, activities, isOpen, bank = WARMUP_BANK, rnd = Math.random}) {
   if (!current?.date || typeof isOpen !== 'function') return [];
+  const random = () => warmupRandom(rnd);
   const previous = activities.filter(a => a.course === current.course && a.date < current.date && isOpen(a))
     .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const sources = new Map(previous.map(a => [a.href.split('/')[1], a]));
@@ -13,13 +14,13 @@ export function drawWarmup({current, activities, isOpen, bank = WARMUP_BANK, rnd
   });
   // 有界洗牌，不以重抽迴圈處理重複或題庫不足。
   for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   return pool.slice(0, 3).map(q => {
-    const question = q.gen(rnd), order = question.options.map((_, i) => i);
+    const question = q.gen(random), order = question.options.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [order[i], order[j]] = [order[j], order[i]];
     }
     return {...question, id: q.id, source: sources.get(q.activity).title,

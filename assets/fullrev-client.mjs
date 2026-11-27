@@ -1,7 +1,7 @@
 import {createWorkStore,questionStamp,WORK_TTL} from './fullrev-work-store.mjs';
 import {guestScope,isGuestContext,guestFields,guestCompletion,readGuestContext} from './fullrev-guest.mjs';
 import {createDFReports} from './fullrev-df.mjs';
-import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261120a';
+import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261127b3';
 import {createProgressCache} from './fullrev-progress-cache.mjs';
 
 const scopeKey = (activity,round) => activity+':'+round;
@@ -250,21 +250,24 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     if(d.blocked)throw fail('restart-required');
     if(d.retryAt>now())throw fail('retry-later');
     active(m);delete d.issue;emit('sending');
+    let response;
     try {
       const body=JSON.stringify(pending.body);
       if(new TextEncoder().encode(body).length>(d.ticketMode?70000:8192))throw fail('answer-too-large');
-      let response,data;
+      let data;
       for(let refresh=0;refresh<2;refresh++) {
+        // 刷新後失聯時，不能把前一次 401 當成本次 HTTP 狀態。
+        response=null;
         const bearer=await token(m,refresh===1);
         const controller=new AbortController();aborters.add(controller);let timeout;
         try{
           // 標頭到達後本文仍可能停住；同一個期限須涵蓋 fetch 與 JSON 讀取。
           ({response,data}=await Promise.race([
             (async()=>{
-              const response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':d.ticketMode?'ticket/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
-                redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal});
+              try{response=await fetcher(config.workerOrigin+'/'+(isGuestContext(d.context)?'guest/':d.ticketMode?'ticket/':'')+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
+                redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body,signal:controller.signal});}catch(cause){throw Object.assign(fail('pending'),{cause});}
               active(m);
-              const data=response.status===401?null:await response.json().catch(error=>{if(response.ok)throw error;return null;});
+              const data=response.status===401?null:await response.json().catch(cause=>{if(response.ok)throw Object.assign(fail('response-invalid'),{cause});return null;});
               return {response,data};
             })(),
             new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(fail('identity-changed')),{once:true})),
@@ -275,7 +278,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         if(response.status!==401)break;
       }
       if(!response.ok) {
-        if(response.status===401){clear();throw fail('login-required');}
+        if(response.status===401)throw fail('login-required');
         if(data?.error==='not_open'){
           delete drafts[scopeKey(d.activity,d.round)];save();emit('not-open');throw fail('not-open');
         }
@@ -306,6 +309,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');throw fail('restart-required');
       }
       const value=data;active(m);
+      if(!value)throw fail('response-invalid');
       if(d.ticketMode&&!value.completed&&!value.awaitingTeacher&&!ticketValid(value)
         &&!(pending.op==='start'&&value.ticketVersion===undefined&&value.ticket===undefined))throw fail('response-invalid');
       if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? (isGuestContext(d.context)?!guestCompletion(value):!id(value.resultId))
@@ -335,6 +339,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       return clone(output);
     } catch(error) {
       active(m);
+      if(error?.code==='login-required'){clear();throw error;}
       if(drafts[scopeKey(d.activity,d.round)]!==d)throw error;
       if(['invalid-answer','not-open','capacity-deferred'].includes(error.code))throw error;
       if(error.code?.startsWith('summary-')){save();emit('confirmation-pending');throw error;}
@@ -342,7 +347,10 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       d.issue||='connection-failed';
       d.failures=(d.failures||0)+1;
       if(!d.retryAt||d.retryAt<=now())d.retryAt=now()+Math.min(60000,1000*2**Math.min(d.failures-1,6))+Math.floor(random()*500);
-      save();emit('pending');arm(d);throw fail('pending');
+      save();emit('pending');arm(d);
+      const pendingError=error?.code==='pending'?error:Object.assign(fail('pending'),{cause:error});
+      if(response)pendingError.status=response.status;
+      throw pendingError;
     }
   }
   async function exclusive(key,fn) {

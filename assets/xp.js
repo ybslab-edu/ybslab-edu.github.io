@@ -7,9 +7,18 @@ const YBSXP = (() => {
   const THEMES = Object.freeze({A:'演算法', P:'程式設計', S:'系統平台', D:'資料處理', T:'資訊應用', H:'資訊與社會'});
   const timestamp = v => {
     if (v == null) return NaN;
-    if (typeof v.toMillis === 'function') v = v.toMillis();
-    else if (typeof v === 'string') v = Date.parse(v);
-    return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : NaN;
+    try {
+      if (typeof v.toMillis === 'function') v = v.toMillis();
+      else if (typeof v === 'string') {
+        // 字串須為帶時區的 ISO 時刻；不猜裝置時區，也不接受不存在的日期自動進位。
+        const match = /^((?:\d{4}|[+-]\d{6})-\d{2}-\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i.exec(v);
+        if (!match) return NaN;
+        const date = Date.parse(match[1] + 'T00:00:00Z');
+        if (!Number.isFinite(date) || new Date(date).toISOString().split('T')[0] !== match[1]) return NaN;
+        v = Date.parse(v);
+      }
+    } catch { return NaN; }
+    return typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 8.64e15 ? v : NaN;
   };
   // at 是既有學生端作答時間；舊紀錄無有效 at 時才採伺服器收件時間。
   const attemptTime = r => {

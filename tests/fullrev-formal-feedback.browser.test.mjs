@@ -53,6 +53,9 @@ test('手機正式過關不受同活動或其他活動的訪客待確認紀錄�
       await page.getByLabel('合成答案').waitFor({state:'visible'});
       assert.equal(await page.getByLabel('合成答案').isVisible(),true);
     } else {
+      // click 不等待非同步 onclick；先等 Worker 完成回條，才檢查待確認畫面。
+      await page.waitForFunction(()=>!h.client.state().pending);
+      await page.locator('#sync').filter({hasText:'正在確認雲端紀錄'}).waitFor();
       assert.equal(await page.getByRole('heading',{name:'過關！',exact:true}).count(),0);
       assert.equal(await page.getByRole('button',{name:'下一關',exact:true}).count(),0);
       assert.equal(await page.locator('#xp-header').isVisible(),false);

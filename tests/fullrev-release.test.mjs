@@ -48,7 +48,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
    if(!key.startsWith('115-df:')&&typeof c.answer==='string')shortAnswers.push(c.answer);
   }
  }
- assert.equal(privateArrays.length,1357);
+ assert.equal(privateArrays.length,1361);
  const victim=join(output,'assets/fullrev-read-model.mjs'),clean=await readFile(victim);
  const stringifyLeaves=value=>Array.isArray(value)?value.map(stringifyLeaves):String(value);
  for(const payload of [JSON.stringify(privateArrays),JSON.stringify(privateArrays.map(stringifyLeaves)),JSON.stringify(JSON.stringify(privateArrays)),JSON.stringify(privateArrays,null,2)]){

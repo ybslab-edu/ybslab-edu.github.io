@@ -12,7 +12,7 @@ function run(file,extra={}){
   const out=join(dir,'stdout'),err=join(dir,'stderr');
   const stdout=openSync(out,'w'),stderr=openSync(err,'w');
   try{
-    const result=spawnSync(process.execPath,['--test','--test-isolation=none','--test-reporter=tap',file],{cwd:root,env:{...env,...extra},stdio:['ignore',stdout,stderr]});
+    const result=spawnSync(process.execPath,['--test','--experimental-test-isolation=none','--test-reporter=tap',file],{cwd:root,env:{...env,...extra},stdio:['ignore',stdout,stderr]});
     return {...result,stdout:readFileSync(out,'utf8'),stderr:readFileSync(err,'utf8')};
   }finally{closeSync(stdout);closeSync(stderr);rmSync(dir,{recursive:true,force:true});}
 }

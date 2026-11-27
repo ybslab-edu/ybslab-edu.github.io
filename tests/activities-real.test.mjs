@@ -3,6 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
+import {fileURLToPath} from 'node:url';
 import {Element} from './fixtures/activity-dom.mjs';
 // 學期週次以台灣日期為準，避免主機時區的日光節約時間影響日期差。
 process.env.TZ='Asia/Taipei';
@@ -74,7 +75,7 @@ function generateRegistry(activities,check){
 function generateRegistrySource(source,check){
   const original='原有輸出\n';let output=original,stdout='';
   const toolUrl=new URL('../tools/activities-json.mjs',import.meta.url);
-  const context={vm,URL,toolUrl,
+  const context={vm,URL,toolUrl,fileURLToPath,process:{argv:['node',fileURLToPath(toolUrl)]},
     readFileSync(url){
       assert.equal(url.href,new URL('../assets/activities.js',toolUrl).href);
       return source;
@@ -86,7 +87,7 @@ function generateRegistrySource(source,check){
   };
   let status=0,stderr='';
   try{
-    vm.runInNewContext(read('tools/activities-json.mjs').replace(/^import .*;$/gm,'').replaceAll('import.meta.url','toolUrl'),context,{timeout:1000});
+    vm.runInNewContext(read('tools/activities-json.mjs').replace(/^import .*;$/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url','toolUrl'),context,{timeout:1000});
   }catch(error){status=1;stderr=String(error.stack||error);}
   check({status,stderr,stdout},output,original);
 }

@@ -11,6 +11,8 @@ class Target {
   count(){return [...this.listeners.values()].reduce((n,set)=>n+set.size,0);}
 }
 class DOM extends Element {
+  removeAttribute(key){delete this[key];}
+  insertAdjacentHTML(position,html){super.insertAdjacentHTML(position,html);const upgrade=el=>{Object.setPrototypeOf(el,DOM.prototype);for(const c of el.childNodes.filter(n=>n.nodeType===1))upgrade(c);};for(const c of this.childNodes.filter(n=>n.nodeType===1))upgrade(c);}
   append(...children){for(const child of children)super.append(child);}
   replaceChildren(...children){for(const child of this.childNodes)child.parentElement=null;this.childNodes=[];this.append(...children);}
 }
@@ -18,16 +20,16 @@ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve
 const view=(extra={})=>({activity:5,round:0,sid:'synthetic',nextSeq:1,question:{slot:0,data:{}},...extra});
 const flush=async()=>{for(let i=0;i<10;i++)await Promise.resolve();};
 function fixture(t){
-  const window=new Target(),document=Object.assign(new Target(),{body:new DOM('body'),head:new DOM('head'),visibilityState:'visible',createElement:tag=>new DOM(tag)});
+  const window=new Target(),document=Object.assign(new Target(),{body:new DOM('body'),head:new DOM('head'),visibilityState:'visible',createElement:tag=>new DOM(tag),querySelectorAll(selector){return [...this.head.querySelectorAll(selector),...this.body.querySelectorAll(selector)];},querySelector(selector){return this.querySelectorAll(selector)[0]||null;}});
   const timers=new Map(),revoked=[];let timerId=0;
-  const globals={URL:{createObjectURL:()=> 'blob:synthetic',revokeObjectURL:url=>revoked.push(url)},XLSX:{utils:{book_new:()=>({}),book_append_sheet(){},aoa_to_sheet:rows=>rows},write:()=>new Uint8Array()},window,document,location:{search:''},YBSXP:{},setTimeout:fn=>{const id=timerId++;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id)};
+  const globals={URL:{createObjectURL:()=> 'blob:synthetic',revokeObjectURL:url=>revoked.push(url)},XLSX:{utils:{book_new:()=>({}),book_append_sheet(){},aoa_to_sheet:rows=>rows},write:()=>new Uint8Array()},window,document,location:{search:''},ACTIVITIES:[],TERMS:[],matchMedia:()=>Object.assign(new Target(),{matches:true}),YBSXP:{},setTimeout:fn=>{const id=timerId++;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id)};
   const saved=Object.fromEntries(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
   let dispose;
   t.after(()=>{dispose?.();for(const [key,descriptor] of Object.entries(saved)){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}});
   const listeners=new Set(),renders=[],calls={progress:0,answer:0};
   let state={profile:{uid:'synthetic',provider:'password'},status:'ready'};
-  const client={state:()=>state,subscribe(fn){listeners.add(fn);fn(state);return()=>listeners.delete(fn);},restore:async()=>{},
+  const client={studentGoogleLogin:true,state:()=>state,subscribe(fn){listeners.add(fn);fn(state);return()=>listeners.delete(fn);},restore:async()=>{},
     progress:async()=>{calls.progress++;return {state:'unknown'};},start:async()=>view(),answer:async()=>{calls.answer++;return view();},retry:async()=>[],refreshClaims:async()=>{}};
   const cfg={week:5,title:'合成活動',rounds:[{name:'關卡一'},{name:'關卡二'}],renderQuestion(question,host,api){
     const render={api,disposed:0,ready:true};renders.push(render);host.append(new DOM('input'));
@@ -82,7 +84,7 @@ for(const failure of [false,true])test(`配對計時器取消且執行中的${fa
 
 for(const kind of [mountGrowth,mountTeacher])test(`${kind.name} 卸載後不處理事件、訂閱或晚到查詢`,async t=>{
   const f=fixture(t);const dispose=await f.mount(kind);const pending=deferred();f.client.progress=()=>pending.promise;
-  const running=kind===mountTeacher?f.button('讀取有效紀錄').onclick():f.button('重新讀取').onclick();
+  const running=kind===mountTeacher?f.button('讀取有效紀錄').onclick():f.document.body.querySelector('#retry').onclick();
   dispose();const text=f.document.body.textContent;pending.reject(Error('synthetic'));await running;
   f.window.fire('focus');f.document.fire('visibilitychange');f.emit({profile:null});
   assert.equal(f.document.body.textContent,text);assert.equal(f.listeners.size,0);assert.equal(f.window.count(),0);assert.equal(f.document.count(),0);
@@ -145,7 +147,7 @@ for(const kind of [mountActivity,mountGrowth])test(`${kind.name} 還原登入暫
   const dispose=await f.mount(kind);assert.equal(typeof dispose,'function');
   assert.equal(!!f.button('學生 Google 登入').disabled,false);
   await f.button('學生 Google 登入').onclick();
-  assert.equal(logins,1);assert.equal(f.calls.progress,1);assert.equal(f.button('登出／換人').hidden,false);
+  assert.equal(logins,1);assert.equal(f.calls.progress,1);assert.equal((kind===mountActivity?f.button('登出／換人'):f.document.body.querySelector('#logout')).hidden,false);
   if(kind===mountActivity){await f.button('開始這一關').onclick();assert.equal(f.renders.length,1);}
   dispose();assert.equal(f.listeners.size,0);assert.equal(f.window.count(),0);assert.equal(f.document.count(),0);
 });

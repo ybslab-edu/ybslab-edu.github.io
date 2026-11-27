@@ -37,7 +37,9 @@ test('四項必要驗收缺 Worker：本機失敗，CI 略過私有來源驗收'
     assert.equal(result.status,ci?0:1,result.stdout+result.stderr);
     if(ci){
       assert.match(result.stdout,/# SKIP 略過：需私有來源，由 Console 發布前在本機執行/);
-      assert.match(result.stdout,/# skipped 1\b/);
+      const expectedSkips=file==='tests/fullrev-answer-scan.test.mjs'?2:1;
+      assert.match(result.stdout,new RegExp(`# skipped ${expectedSkips}\\b`));
+      if(expectedSkips===2)assert.match(result.stdout,/volunteer private mixed answer vectors[^\n]+# SKIP 需本機私有來源/);
       assert.match(result.stdout,/# fail 0\b/);
     }else{
       assert.match(result.stdout+result.stderr,new RegExp(reason));

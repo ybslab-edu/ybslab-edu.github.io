@@ -119,7 +119,7 @@ test('同一投影多人匯出隔離主體，guest／空集合沿用學生 XP，
   const countedXP={calculate(...args){calculations++;return xp.calculate(...args);}};
   const rows=exportRows(projection,opts,countedXP);
   assert.equal(scans,1,'匯出只走訪原始投影一次');assert.equal(visits,records.length);
-  assert.equal(calculations,2,'每個非 guest 主體只計算一次 XP，含已確認空集合');
+  assert.equal(calculations,3,'每個主體只計算一次 XP，含訪客的其餘進度與已確認空集合');
   assert.equal(rows.length,16);
   for(let i=0;i<people.length;i++) {
     const person=people[i],progress=growth(snapshot(records.filter(r=>r.subject===person.subject)),{...opts,...person},xp);
@@ -252,7 +252,9 @@ for(const status of [429,503])test(`${status} 非 JSON 回應仍依 HTTP 狀態�
   const h=await harness();await h.login();await h.client.start(5,0);
   h.state.fetcher=async()=>new Response('<html>synthetic-unavailable</html>',{status,headers:{'Retry-After':'90'}});
   await assert.rejects(h.client.answer(5,0,7),{code:'pending',status});
-  const original=h.requests.at(-1).body;assert.equal(h.timers.at(-1).ms,90000);
+  const original=h.requests.at(-1).body;
+  if(status===429){assert.equal(h.timers.length,0);assert.equal(h.client.state().uploadIssue,'storage-quota');}
+  else assert.equal(h.timers.at(-1).ms,90000);
   await h.client.retry();assert.equal(h.requests.length,2);
   h.advance(90001);h.state.fetcher=async()=>Response.json(response());await h.client.retry();
   assert.deepEqual(h.requests.at(-1).body,original);

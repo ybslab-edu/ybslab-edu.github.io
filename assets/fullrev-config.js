@@ -16,7 +16,8 @@ function parseYbsFullrevConfig(config) {
   const placeholder = value => /replace|placeholder|your[-_]|changeme|change[-_]me|todo|<|>/i.test(value);
   try {
     if (!record(config) || ![true, false].includes(config.enabled)
-        || Object.keys(config).some(key => !['enabled', 'courses', 'firebase', 'workerOrigin', 'readModelModule'].includes(key))) return null;
+        || Object.keys(config).some(key => !['enabled', 'studentGoogleLogin', 'answerTickets', 'courses', 'firebase', 'workerOrigin', 'readModelModule'].includes(key))) return null;
+    if (['studentGoogleLogin', 'answerTickets'].some(key => config[key] !== undefined && typeof config[key] !== 'boolean')) return null;
     const courses = config.courses === undefined ? ['115-g9'] : config.courses;
     const firebase = config.firebase;
     if (!Array.isArray(courses) || courses.length !== 1 || courses[0] !== '115-g9'

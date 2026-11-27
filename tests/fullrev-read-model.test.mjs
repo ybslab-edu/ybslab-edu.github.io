@@ -5,12 +5,13 @@ import {createReadModel} from '../assets/fullrev-read-model.mjs';
 const project='synthetic-read-model',course='115-g9',workerOrigin='https://synthetic-read-model.workers.dev';
 const scope={course,classKey:'c901'},controlVersions={gateVersion:1,classGateVersion:1};
 function harness(fetcher=async()=>Response.json({state:'confirmed'})) {
- const requests=[],tokens=[];
+ const requests=[],tokens=[],waits=[];let clock=0;
  const user={getIdToken:async()=>{tokens.push('synthetic-token');return 'synthetic-token';}};
  const auth={currentUser:user},app={options:{projectId:project}};
  const model=createReadModel({session:async()=>({app,auth}),project,course,workerOrigin,
+  now:()=>clock,wait:async ms=>{waits.push(ms);clock+=ms;},
   fetcher:async(url,init)=>{requests.push({url,init});return fetcher(url,init);}});
- return {model,requests,tokens,user,auth,app};
+ return {model,requests,tokens,waits,user,auth,app};
 }
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 
@@ -29,7 +30,9 @@ test('所有端點使用當前 token、受控 POST 與原有本文格式，成�
   assert.deepEqual(await h.model[method](input),data);
   const {url,init}=h.requests.at(-1);
   assert.equal(url.href,workerOrigin+'/'+path);
-  assert.deepEqual(init,{method:'POST',cache:'no-store',redirect:'error',
+  assert.ok(init.signal instanceof AbortSignal);assert.equal(init.signal.aborted,false);
+  const {signal,...request}=init;
+  assert.deepEqual(request,{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
    headers:{'content-type':'application/json',authorization:'Bearer synthetic-token'},body:JSON.stringify(body)});
  }
  assert.equal(h.tokens.length,calls.length);
@@ -39,7 +42,7 @@ for(const status of [200,400,429,503])for(const [label,body] of [
  ['HTML','<!doctype html><title>synthetic unavailable</title>'],['empty',''],['whitespace',' \n '],['malformed','{"error":']
 ])test(`${status} ${label} 本文不洩漏解析例外`,async()=>{
  const h=harness(async()=>new Response(body,{status}));
- await assert.rejects(h.model.controls(scope),{code:status===429?'retry-later':'read-model-pending'});
+ await assert.rejects(h.model.controls(scope),{code:status===429?'storage-quota':'read-model-pending'});
  assert.equal(h.requests.length,1);
 });
 
@@ -51,7 +54,9 @@ test('204 無本文成功回應仍為 read-model-pending',async()=>{
 for(const status of [400,429,503])for(const data of [null,{},[],false,0,'synthetic'])
 test(`${status} JSON ${JSON.stringify(data)} 保留 HTTP 錯誤分類`,async()=>{
  const h=harness(async()=>Response.json(data,{status}));
- await assert.rejects(h.model.controls(scope),{code:status===429?'retry-later':'read-model-pending'});
+ await assert.rejects(h.model.controls(scope),{code:status===429?'storage-quota':'read-model-pending'});
+ assert.equal(h.requests.length,status===503?4:1);
+ assert.deepEqual(h.waits,status===503?[1000,2000,4000]:[]);
 });
 
 test('control_changed 優先於 429，其餘非成功狀態維持既有分類',async()=>{
@@ -79,7 +84,7 @@ test('網路與本文讀取失敗正規化，不自動重試',async()=>{
  for(const status of [200,429,503]){
   const stream=new ReadableStream({start(controller){controller.error(new TypeError('synthetic body failure'));}});
   const h=harness(async()=>new Response(stream,{status}));
-  await assert.rejects(h.model.controls(scope),{code:status===429?'retry-later':'read-model-pending'});
+  await assert.rejects(h.model.controls(scope),{code:status===429?'storage-quota':'read-model-pending'});
   assert.equal(h.requests.length,1);
  }
 });

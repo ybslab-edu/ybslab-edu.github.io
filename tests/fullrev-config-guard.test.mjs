@@ -30,7 +30,7 @@ test('預設開關及空白部署值保持不變，URL 與儲存區不能覆寫'
   });
   vm.runInContext(source + ';globalThis.config = YBS_FULLREV_CONFIG;', c);
   assert.deepEqual(json(c.config), {
-    enabled: false, courses: ['115-g9'], firebase: {projectId: '', apiKey: '', messagingSenderId: ''},
+    enabled: false, studentGoogleLogin: false, answerTickets: true, courses: ['115-g9'], firebase: {projectId: '', apiKey: '', messagingSenderId: ''},
     workerOrigin: '', readModelModule: ''
   });
   assert.ok(Object.isFrozen(c.config));
@@ -49,6 +49,10 @@ test('正常公開設定可啟用，複製並凍結巢狀欄位，不修改輸�
   input.firebase.projectId = 'changed-project'; input.courses[0] = '115-df';
   assert.equal(result.firebase.projectId, 'synthetic-ybs-guard');
   assert.deepEqual(json(result.courses), ['115-g9']);
+  for (const key of ['studentGoogleLogin', 'answerTickets']) {
+    for (const value of [true, false]) assert.equal(parse({...valid(), [key]: value})[key], value);
+    for (const value of [null, 0, 1, 'true', 'false', {}]) rejects({...valid(), [key]: value});
+  }
   const optional = valid(); delete optional.courses; delete optional.firebase.messagingSenderId;
   assert.deepEqual(json(parse(optional).courses), ['115-g9']);
   for (const apiKey of ['a'.repeat(8), 'a'.repeat(256)]) {

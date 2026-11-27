@@ -11,9 +11,9 @@ import {config,snapshot,record} from './fixtures/fullrev.mjs';
 const read=p=>readFile(new URL('../'+p,import.meta.url),'utf8');
 // 以 git show origin/main:<路徑> 取得的指紋固定舊版基準，避免跟著工作樹變動。
 const legacyHashes={
-  'assets/warmup-bank.js':'f9c1d4568bde89a3f47f78451bd56bd1095fab9cc2f31fa55221f39b20d90c6f',
-  'assets/warmup.js':'e938b0db7332efbf72bc2cadae5f030aaec1a6609cf2b7f1fe4df14b79656779',
-  '115-g9/me/index.html':'c767476b7a638c9b88134144349f46ff42fe250b1569dc710253ce8b3f442a52',
+  'assets/warmup-bank.js':'551395979e8f41fe679e7c70fc506dc77558e7e388739f1bb018babdff8adf8c',
+  'assets/warmup.js':'d9e56818747cd59ddb939c563435cb92a0a49d1f639a3f900839d4c32284f5e8',
+  '115-g9/me/index.html':'1491f1e1fecf88f4ebd5986b893b4275021fda434a3d7e0925c6c98c4e8bb631',
   '115-g9/me/me.css':'9629d89589365d805a7cab7f5b1387d66f1d58a87ef0b1cc020c813fe619ca41'
 };
 const old=async path=>{const source=await read(path);assert.equal(createHash('sha256').update(source).digest('hex'),legacyHashes[path],path+' 舊版基準已變動');return source;};
@@ -37,6 +37,7 @@ test('暖身與 origin/main 同題庫同抽法；沒有實際題庫時不顯示'
     for(const isOpen of [()=>true,()=>false]){
       const options={current,activities:ACTIVITIES,isOpen,rnd:()=>0.3};
       assert.deepEqual(JSON.parse(JSON.stringify(drawWarmup(options))),JSON.parse(JSON.stringify(legacy.draw(options))));
+      if(href==='u2-06'&&isOpen(current))for(const value of [NaN,Infinity,-0.1,1])assert.throws(()=>drawWarmup({...options,rnd:()=>value}),/暖身亂數/);
     }
     if(['u1-01','u2-01'].includes(href))assert.equal(drawWarmup({current,activities:ACTIVITIES,isOpen:()=>true}).length,0);
   }

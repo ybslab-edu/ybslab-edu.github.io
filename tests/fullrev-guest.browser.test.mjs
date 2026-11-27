@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 
-test('班座登入手機完成與重整續作：真實 Worker guest API，待審不顯示正式通過或 XP',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('班座登入手機完成與重整續作：真實 Worker guest API，待審只顯示本機 XP',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
   const load=p=>import(pathToFileURL(resolve(process.env.YBS_WORKER_SOURCE,p)).href);
   const [{formalData,ENV},{EPOCH,ORIGIN},{MemoryFirestore},{createFormalWorker},{guestPath}]=await Promise.all([
     load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs'),load('src/memory-adapter.mjs'),load('src/formal/index.mjs'),load('src/formal/guest.mjs')]);
@@ -25,8 +25,8 @@ test('班座登入手機完成與重整續作：真實 Worker guest API，待審
         return route.fulfill({status:response.status,headers:{...Object.fromEntries(response.headers),'access-control-allow-origin':'*'},body:await response.text()});
       }
       if(url.origin!=='http://127.0.0.1:8765')return route.abort();
-      if(request.isNavigationRequest())return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body></body></html>'});
-      if(!/^\/(?:assets\/[\w.-]+\.(?:mjs|css)|tests\/fixtures\/fullrev\.mjs)$/.test(url.pathname))return route.abort();
+      if(request.isNavigationRequest())return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="/assets/xp.js"></script><body></body></html>'});
+      if(!/^\/(?:assets\/[\w.-]+\.(?:m?js|css)|tests\/fixtures\/fullrev\.mjs)$/.test(url.pathname))return route.abort();
       return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+url.pathname,import.meta.url))});
     });
     const page=await context.newPage();await page.goto('http://127.0.0.1:8765/115-g9/synthetic/');
@@ -54,7 +54,7 @@ test('班座登入手機完成與重整續作：真實 Worker guest API，待審
       if(slot===0)await page.getByRole('button',{name:'下一組',exact:true}).click();
     }
     await page.locator('#verdict h3').filter({hasText:'已存待審，尚未採計'}).waitFor();
-    assert.equal(await page.locator('#xp-header').isVisible(),false);assert.equal(await page.getByRole('heading',{name:'過關！',exact:true}).count(),0);
+    assert.equal(await page.locator('#xp-header').isVisible(),true);assert.equal(await page.locator('#xp-total').textContent(),'30 XP');assert.equal(await page.getByRole('heading',{name:'過關！',exact:true}).count(),0);
     assert.equal([...db.docs.keys()].filter(p=>p.includes('/guestAttempts/')).length,1);
     assert.equal([...db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
     assert.ok(['/guest/context','/guest/start','/guest/answer','/guest/resume'].every(path=>calls.includes(path)));

@@ -3,7 +3,7 @@ import {growth,exportRows} from './fullrev-progress.mjs?v=20261120a';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
-const messages={'capacity-deferred':'訪客本次課堂已達開始作答次數上限（最多四次，切關或重置也計次），請找老師確認；目前無法開始新作答。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
+const messages={'capacity-deferred':'目前暫時無法開始作答，請稍後重試或找老師確認開收狀態。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
   'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
   'ticket-expired':'作答票已過期，請按「活動工具 → 重新開始」取得新題。',
   'ticket-invalid':'作答票驗證失敗，請按「活動工具 → 重新開始」。',
@@ -691,6 +691,8 @@ function growthLayout() {
   const font=node('link');font.rel='stylesheet';font.href='https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap';document.head.append(font);
   document.body.innerHTML=growthMarkup;
   const $ = id => document.body.querySelector('#'+id);
+  $('signin-title').textContent='登入後查看你的成長';
+  $('signin').querySelector('p').textContent='你可以查看自己的等級、探索進度與 XP；用班座登入時，從 0 開始累積這次的成長。';
   // 登入前也沿用原帳密表單；樣式限於登入區，不套用活動頁外框。
   $('login').className='growth-login';
   document.head.append(node('style',`
@@ -863,20 +865,22 @@ export async function mountGrowth({client:promise}) {
   mountHistory({client:p.client,host:p.$('growth'),scope:()=>({})});
   p.refresh=async()=>{
     const n=++reading,uid=p.client.state().profile?.uid;if(!uid)return;
-    p.status.textContent='正在確認自己的雲端紀錄…';p.retry.hidden=true;
+    const local=p.client.state().profile.provider==='anonymous';
+    p.status.textContent=local?'正在整理你這次的成長…':'正在確認自己的雲端紀錄…';p.retry.hidden=true;
     try{
       const activities=growthActivities();
-      const snapshot=await p.client.progress({activities}),xp=await xpCore();
+      const snapshot=local?null:await p.client.progress({activities}),xp=await xpCore();
       if(n!==reading||p.client.state().profile?.uid!==uid)return;
-      const result=growth(snapshot,{project:p.client.project,course:p.client.course,subject:snapshot.subject,
+      const result=local?p.client.guestGrowth({activities,xp}):growth(snapshot,{project:p.client.project,course:p.client.course,subject:snapshot.subject,
         provider:snapshot.provider,activities},xp);
-      if(result.state!=='confirmed'&&result.reason!=='guest-xp-policy-pending'){p.clear();p.status.textContent=explain(result);}
-      else{p.render(activities,growthJourney(result,activities));p.status.textContent=result.reason==='guest-xp-policy-pending'?'訪客紀錄待老師確認；其餘進度已顯示。':'已確認自己的雲端紀錄。';}
+      if(result.state!=='confirmed'&&!result.local&&result.reason!=='guest-xp-policy-pending'){p.clear();p.status.textContent=explain(result);}
+      else{p.render(activities,growthJourney(result,activities));p.status.textContent=local?'這是你這次登入的成長；登出或換人後從 0 開始。'+(result.totalXP?'已存待審，尚未採計。':'完成挑戰後，就能看見自己的進步。'):result.reason==='guest-xp-policy-pending'?'訪客紀錄待老師確認；其餘進度已顯示。':'已確認自己的雲端紀錄。';}
     }catch(e){if(n===reading){p.clear();p.status.textContent=explain(e);}}
     finally{if(n===reading)p.retry.hidden=false;}
   };
   p.client.subscribe(state=>{
     const signedIn=!!state.profile;p.$('signin').hidden=signedIn;p.logout.hidden=!signedIn;
+    document.body.querySelector('.page-heading h1').textContent='我的成長紀錄'+(state.profile?.provider==='anonymous'?'（待審）':'');
     if(!signedIn||state.profile.uid!==shownUID||state.status==='stale'){
       reading++;p.clear();p.retry.hidden=!signedIn;
       p.status.textContent=signedIn?'紀錄待重新確認。':'請先登入帳號。';
@@ -1003,8 +1007,8 @@ export function mountHistory({client,host,scope}){
     if(!advance||saved!==key){next=null;rows.replaceChildren();}saved=key;
     more.hidden=true;status.textContent='正在查閱歷史…';
     try{const page=await client.history({...target,after:next});if(n!==serial)return;
-      for(const r of page.records)rows.append(node('p',`活動 ${r.activity}／第 ${r.round+1} 關 · ${r.completedAt||'時間未留存'} · ${r.validity?.state==='effective'?'目前有效':'封存紀錄'}`));
-      next=page.next;more.hidden=next===null;status.textContent='歷史僅供查閱，不會新增採計。';
+      for(const r of page.records)rows.append(node('p',`活動 ${r.activity}／第 ${r.round+1} 關 · ${r.completedAt||'時間未留存'} · ${page.local?'已存待審，尚未採計':r.validity?.state==='effective'?'目前有效':'封存紀錄'}`));
+      next=page.next;more.hidden=next===null;status.textContent=page.local?'這裡只顯示你這次登入的紀錄，已存待審，尚未採計。':'歷史僅供查閱，不會新增採計。';
     }catch(e){if(n===serial)status.textContent=explain(e);}
   }
   const more=button('下一頁',()=>read(true));more.hidden=true;

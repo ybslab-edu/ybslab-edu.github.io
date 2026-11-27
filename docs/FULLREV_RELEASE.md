@@ -17,14 +17,12 @@ read model 同源模組只呼叫同一 grader Worker 的 context／controls／pr
 
 Pages 建議改為 Actions 發布這份 artifact；也可由 Console 決定獨立產物分支。root main 仍不能當新版安全發布。
 
-## 前端 CI 的跨 repo 驗收
+## 前端 CI 與本機跨 repo 驗收
 
-`.github/workflows/ci.yml` 使用既有官方 `actions/checkout@v6` 讀取 `ybslab-edu/classscore`，固定 P3 版本 `d604038e58a1efaa937b27adebd5b6975ab11c66`，只 checkout `workers/ybs-grader`，移至 runner 暫存目錄後設定 `YBS_WORKER_SOURCE`。權限維持 `contents: read`，不保存 Git 憑證、不部署、不上傳 Worker artifact。更換 SHA 時須重新執行跨 repo 驗收。
+`.github/workflows/ci.yml` 沿用 main 的公開前端驗收，只 checkout 本 repo，不讀取私人 `ybslab-edu/classscore`，也不設定 `YBS_WORKER_SOURCE`。公開 repo 的 `GITHUB_TOKEN` 無權讀取該私人來源；不新增 secret／PAT、不擴大權限。
 
-CI 在安裝瀏覽器前檢查 Worker 必要檔案；所有依賴 Worker 的核心測試也共用同一檢查。未設定來源、來源不存在或不完整均失敗，不能以 skip 換取綠燈。本機未設定來源時，answer-scan、fullrev-release、fullrev-csp 與 fullrev-df-teacher 四項必要驗收仍失敗；原本允許略過的 batch／legacy 測試維持 skip，TAP 會列出設定方式。明確設定錯誤路徑則失敗。
+未設定 `YBS_WORKER_SOURCE` 時，CI（`CI=1`）沿用 main 的略過語意：batch1 的 Worker 瀏覽器流程、batch2～7 的私有產物掃描、legacy-progress 的兩項 Worker 整合，以及 answer-scan、fullrev-release、fullrev-csp、fullrev-df-teacher 需要私有來源的驗收會列出 skip；同檔不依賴 Worker 的測試照常執行。
 
-老師需確認來源 repo 的可見性與上述 SHA 可讀（離線作業無法查證）：
+本機未設定來源時，answer-scan、fullrev-release、fullrev-csp 與 fullrev-df-teacher 四項必要驗收仍失敗；原本允許略過的 batch／legacy 測試維持 skip，TAP 會列出設定方式。明確設定來源後，CI 與本機都會檢查必要檔案；來源不存在或不完整均失敗。
 
-- 若來源公開且 SHA 可讀：不需設定 secret 或增加權限。
-- 若來源私人：公開前端 repo 的 `GITHUB_TOKEN` 不能讀取其他私人 repo，這份 CI 會在 checkout 失敗。不要公開包含答案的 Worker，也不要擴大公開 workflow 的權限。
-- 不需額外 secret 的替代方式：老師在私人 ClassScore repo 新增跨 repo 驗收 workflow；以該 repo 自己的 `contents: read` token checkout 上述固定 ClassScore SHA，再 checkout 公開前端待驗收的完整 SHA 到另一目錄，設定 `YBS_WORKER_SOURCE` 指向前者的 `workers/ybs-grader`，沿用前端 CI 的 Node／Python／Playwright 安裝及驗收指令，在前端目錄執行。前端版本同樣必須釘完整 SHA，並由老師核對私人驗收結果與 PR head 一致。此方式的結果不會自動回寫公開 PR check；公開 CI 仍會失敗，須由老師另行決定檢查配置，不能宣稱已取得跨 repo 綠燈。本次未新增或觸發私人 workflow。
+發布前須在本機指定既有 Worker 套件目錄，取消 `CI`，執行完整驗收並核對前端與 Worker 的 commit。公開 CI 通過只代表不依賴私有來源的驗收通過，不能取代本機跨 repo 驗收或發布核准。

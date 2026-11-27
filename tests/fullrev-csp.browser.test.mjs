@@ -1,4 +1,4 @@
-import {workerSource} from './helpers/worker-source.mjs';
+import {workerSource,workerCISkip} from './helpers/worker-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
@@ -8,6 +8,7 @@ import {buildSite} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 
 test('release CSP permits gapi script, auth iframe and token/Worker fetches offline',async t=>{
+ if(workerCISkip){t.skip(workerCISkip);return;}
  assert.ok(workerSource,'本機 CSP 驗收需設定 YBS_WORKER_SOURCE');
  const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
  const config={...fixtureConfig,readModelModule:'/assets/fullrev-read-model.mjs'};

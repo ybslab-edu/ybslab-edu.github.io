@@ -20,7 +20,8 @@ export function mountTeacherQuestion({host,value,renderQuestion,onNew}){
  }
  const {answer,notes,performance}=value.solution,d=value.question.data;
  solution.append(node('h3','本組解答與說明'));
- const answers=Array.isArray(answer)?answer:answer&&typeof answer==='object'?Object.values(answer):[answer];
+ const sheet=typeof handle.applyTeacherSolution==='function';
+ const answers=sheet?[]:Array.isArray(answer)?answer:answer&&typeof answer==='object'?Object.values(answer):[answer];
  const keys=answer&&typeof answer==='object'&&!Array.isArray(answer)?Object.keys(answer):[];
  const describe=(v,k)=>{
   if(d.questions?.[k])return `${d.questions[k][0]}：${v}`;
@@ -30,9 +31,13 @@ export function mountTeacherQuestion({host,value,renderQuestion,onNew}){
  };
  answers.forEach((v,k)=>solution.append(node('p',describe(v,k))));
  notes.forEach(text=>solution.append(node('p',text)));
+ if(sheet){
+  solution.append(node('p','按「套入解答操作」可對照工作副本、有效操作紀錄與圖表。'));
+  button('tb-fill','套入解答操作',()=>{if(handle.applyTeacherSolution(answer)){solution.hidden=false;reveal.textContent='隱藏解答';}});
+ }
  // 成果題與數值題沿用既有欄位，解答由 Worker 提供，不在前端推算。
  const fields=[...stage.querySelectorAll('[data-answer-field]')];
- if(fields.length)button('tb-fill','填入解答',()=>{
+ if(!sheet&&fields.length)button('tb-fill','填入解答',()=>{
   // ASCII 編碼共用單一文字欄，Worker 的陣列須轉為可讀回的編碼序列。
   for(const input of fields){const k=input.dataset.answerField;const v=d.mode==='ascii-encode'&&k==='text'&&Array.isArray(answer)?answer.join(' '):answer&&typeof answer==='object'?answer[k]:answer;
    if(v!==undefined){input.value=String(v);input.oninput?.();}}

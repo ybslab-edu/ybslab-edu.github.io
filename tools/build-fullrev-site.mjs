@@ -40,7 +40,7 @@ const extraPages=Object.keys(legacyDFSources).concat('assets/legacy-df/config.js
 export const releasePaths=()=>[...assets.map(a=>'assets/'+a),...copiedPages,...Object.keys(mountedPages),...extraPages,...new Set([...MANAGED_ACTIVITIES,...BATCH8].filter(a=>a.course!=='115-df').map(a=>a.file)),...Array.from({length:30},(_,i)=>`115-g9/w${String(i+1).padStart(2,'0')}/index.html`),'.nojekyll'].sort();
 const csp=(html,config)=>html.replace(/(http-equiv="Content-Security-Policy" content=")([^"]+)(")/,(_,a,value,z)=>a+fullrevCsp(value,config)+z);
 const shell=(policy,title,body)=>`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${policy}"><title>${title}｜YBS Lab</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/shell.css"></head><body>${body}</body></html>`;
-const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261127roundflow"></script>`).join('');
+const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261127sheet"></script>`).join('');
 function releaseConfig(config){
  checkConfig(config);
  if(config.studentGoogleLogin!==undefined&&typeof config.studentGoogleLogin!=='boolean')throw Error('release_student_google_config_invalid');
@@ -81,19 +81,19 @@ export async function scanRelease({output,workerSource}){
   // 瀏覽器固定時鐘只能存在 tests；拒絕測試控制碼混入正式腳本或 HTML。
   if(/\b(?:setFixedTime|__YBS_TEST_CLOCK__|clock\.(?:install|setSystemTime))\b|\bDate\.now\s*=(?!=)|\b(?:window|globalThis)\.Date\s*=(?!=)/.test(bytes.toString('utf8')))throw Error('release_test_clock:'+path);
   if(/WARMUP_BANK|firstOption|checkWarmup|teacher-reference\//.test(bytes.toString('utf8')))throw Error('release_public_answer_code:'+path);
-  if(!legacy&&/(?:legacy-df\/|sourceMappingURL|sourceURL=|class-score-86020|ybs-pilot|TEACHER_HASH|TEACHER\.remember|teacher\.js|lock\.js|pr6-batch\d|BEGIN PRIVATE KEY|soundBest|minimumBytes|checkRecordingAnswer|volunteer-questions|volunteerAnswer|volunteerCheck|q(?:One|Two|Three|Four)Expected|qCheck|"budget"\s*:)/.test(bytes.toString('utf8')))throw Error('release_forbidden_content:'+path);
+  if(!legacy&&/(?:legacy-df\/|sourceMappingURL|sourceURL=|class-score-86020|ybs-pilot|TEACHER_HASH|TEACHER\.remember|teacher\.js|lock\.js|pr6-batch\d|BEGIN PRIVATE KEY|soundBest|minimumBytes|checkRecordingAnswer|volunteer-questions|volunteerAnswer|volunteerCheck|volunteer-sheet-(?:sim|generator)|u206-sheet-v2\.mjs|u206-generator-v|\b(?:deriveSheet|sheetSolution|replaySheet|validSheetCase|configureSheet|flowOrder|titleOrder)\b|q(?:One|Two|Three|Four)Expected|qCheck|"budget"\s*:)/.test(bytes.toString('utf8')))throw Error('release_forbidden_content:'+path);
   if(!legacy&&/(?:^|\/)(?:tools|tests|fixtures|workers|backups?|\.git)(?:\/|$)|\.(?:map|bak|zip|pdf)$|(?:teacher|lock)\.js$/.test(path))throw Error('release_forbidden_path');
  }
  let cases=0;const answers=[];
- for(let n=1;n<=8;n++){
-  const file=resolve(workerSource,`src/formal/banks/pr6-batch${n}.mjs`);
+ for(const bankFile of [...Array.from({length:8},(_,i)=>`pr6-batch${i+1}.mjs`),'u206-sheet-v2.mjs']){
+  const file=resolve(workerSource,'src/formal/banks',bankFile);
   const {default:banks}=await import(pathToFileURL(file).href);
   if(!banks||!Object.keys(banks).length)throw Error('release_bank_missing');
   for(const [key,bundle] of Object.entries(banks)){
    if(key.startsWith('115-df:'))continue;
    if(all.includes(key)||all.includes(key.split(':')[1]))throw Error('release_private_version');
    for(const bank of Object.values(bundle.rounds))for(const c of bank.cases||[]){
-    cases++;answers.push(c.answer);if(all.includes(JSON.stringify(c))||all.includes(JSON.stringify(c,null,2)))throw Error('release_private_case');
+    cases++;answers.push(c.answer);if([c,...(Object.keys(c.facts||{}).length?[c.facts]:[])].some(value=>all.includes(JSON.stringify(value))||all.includes(JSON.stringify(value,null,2))))throw Error('release_private_case');
     if(typeof c.facts?.image==='string'&&c.facts.image&&all.includes(c.facts.image))throw Error('release_private_image');
 
    }
@@ -140,8 +140,8 @@ export async function buildSite({output,config,workerSource,source=root}){
  // One release tag prevents mixing cached legacy scripts/config with the release tree.
  for(const path of releasePaths().filter(p=>!Object.hasOwn(legacyDFSources,p)&&p!=='assets/legacy-df/config.js'&&/\.(?:html|m?js|css)$/.test(p))){
   let value=await readFile(join(output,path),'utf8');
-    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261127roundflow');
-  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261127roundflow$3');
+    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261127sheet');
+   if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261127sheet$3');
   await write(path,value);
  }
  await write('.nojekyll','');

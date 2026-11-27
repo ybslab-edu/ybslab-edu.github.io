@@ -5,6 +5,7 @@ import {renderRecording} from './fullrev-recording.mjs';
 import {renderPhotos} from './fullrev-photos.mjs';
 import {renderPerformance} from './fullrev-performance.mjs';
 import {renderOutcome} from './fullrev-outcomes.mjs';
+import {renderVolunteerSheet,SHEET_MODE} from './fullrev-volunteer-sheet.mjs';
 export const BATCH1=Object.freeze([
   {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場'],managed:[3]},
   {activity:5,file:'115-g9/u2-03/index.html',title:'燈牌只有亮和暗',unit:2,rounds:['點亮生日','看燈猜數字','沒有標數字的燈牌','要幾顆燈才夠','燈牌要幾個位元組'],managed:[0,1,2,3,4]},
@@ -294,6 +295,7 @@ function aiQuestion(host,d,changed) {
 }
 function renderQuestionControls(q,host,api) {
   const d=q.data;host.dataset.questionType=q.type;host.dataset.slot=q.slot;
+  if(q.type==='finite-bank-v1'&&d.mode===SHEET_MODE)return renderVolunteerSheet(host,d,api);
   section(host,d.heading||q.title,d.story||q.instruction);
   if(q.type==='finite-bank-v1') {
     if(!api.shell){section(host,'任務',d.task);section(host,'提示',d.hint);}

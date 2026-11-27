@@ -1,4 +1,26 @@
 /* 新版活動共用外框，沿用 shell.css 的尺寸與色彩。 */
+@import url('./fullrev-volunteer-sheet.css?v=20261127sheet');
+.fullrev-activity #stage.quest-sheet{display:block;min-width:0}
+/* u2-06 沿用舊站頁首層次、17px 下限與 B 版實體關卡按鍵。 */
+.fullrev-sheet-activity{font-size:18px}
+.fullrev-sheet-activity :where(small,.small,.linkbtn,.round-status,.answer-error,.xp-header,.who-bar,#activity-tools,.round-locked small){font-size:17px}
+.fullrev-sheet-activity header.top{grid-template-columns:minmax(0,1fr) auto;padding:16px;background:var(--panel);border:1px solid var(--edge)}
+.fullrev-sheet-activity .activity-heading{display:contents}
+.fullrev-sheet-activity .title-rounds{grid-column:1/-1;grid-row:2;min-width:0}
+.fullrev-sheet-activity .who-bar{grid-column:1;grid-row:1;min-width:0}
+.fullrev-sheet-activity .xp-header{grid-column:2;grid-row:1;min-width:0}
+.fullrev-sheet-activity .rounds{--key-cut:10px;--key-depth:6px;--key-shadow:2px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:4px 4px 12px;gap:16px 10px;align-items:start}
+.fullrev-sheet-activity .round-locked{max-width:100%}
+.fullrev-sheet-activity .rounds button{--key-edge:var(--edge);--key-side:#121722;--key-travel:0%;position:relative;isolation:isolate;appearance:none;font:700 17px/1.4 var(--f-text);min-width:0;width:100%;min-height:60px;padding:8px 12px;border:2px solid transparent;border-radius:0;background:transparent;color:var(--text);white-space:normal;overflow-wrap:anywhere;cursor:pointer;outline-offset:-5px;transform:translateY(var(--key-travel));transition:transform .15s}
+.fullrev-sheet-activity .rounds button::before,.fullrev-sheet-activity .rounds .round-depth{content:"";position:absolute;inset:-2px;pointer-events:none;background-repeat:no-repeat}
+.fullrev-sheet-activity .rounds button::before{z-index:-1;border:2px solid transparent;background:linear-gradient(45deg,transparent calc((var(--key-cut) - 1.17157288px)*.70710678),var(--panel-hi) 0) left/51% 100% padding-box,linear-gradient(225deg,transparent calc((var(--key-cut) - 1.17157288px)*.70710678),var(--panel-hi) 0) right/51% 100% padding-box,linear-gradient(45deg,transparent calc(var(--key-cut)*.70710678),var(--key-edge) 0) left/51% 100% border-box,linear-gradient(225deg,transparent calc(var(--key-cut)*.70710678),var(--key-edge) 0) right/51% 100% border-box;background-repeat:no-repeat}
+.fullrev-sheet-activity .rounds .round-depth{z-index:-2;background:linear-gradient(45deg,transparent calc(var(--key-cut)*.70710678),var(--key-side) 0) left/51% 100%,linear-gradient(225deg,transparent calc(var(--key-cut)*.70710678),var(--key-side) 0) right/51% 100%;background-repeat:no-repeat;transform:translateY(calc(var(--key-depth) - var(--key-travel)));filter:drop-shadow(0 var(--key-shadow) 0 #05070a)}
+.fullrev-sheet-activity .rounds button[aria-pressed=true]{--key-edge:var(--ember);--key-side:#7a2e16;color:var(--ember);outline:0}
+.fullrev-sheet-activity .rounds button.passed{--key-edge:var(--frost);--key-side:#235a66;color:var(--frost)}
+.fullrev-sheet-activity .rounds button:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
+.fullrev-sheet-activity .rounds button:active{--key-travel:8%}
+@media(hover:hover){.fullrev-sheet-activity .rounds button:hover{--key-travel:4%}}
+@media(max-width:640px){.fullrev-sheet-activity header.top{grid-template-columns:minmax(0,1fr);padding:12px}.fullrev-sheet-activity .who-bar{grid-column:1;grid-row:1}.fullrev-sheet-activity .xp-header{grid-column:1;grid-row:2}.fullrev-sheet-activity .title-rounds{grid-row:3}.fullrev-sheet-activity .rounds{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 8px}}
 .fullrev-activity #g-whotext,.fullrev-activity #g-notme{font-size:20px}
 .fullrev-activity #stage{overflow-wrap:anywhere}
 .fullrev-activity .quest-note{border-left:3px solid var(--ember);padding:calc(var(--u)*2);background:var(--panel);margin-bottom:calc(var(--u)*2)}

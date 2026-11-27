@@ -1,3 +1,4 @@
+import {mountTeacherPanel,teacherTarget} from './fullrev-teacher-page.mjs';
 import {mountGuestLogin} from './fullrev-guest.mjs';
 import {growth,exportRows} from './fullrev-progress.mjs?v=20261127b3';
 
@@ -705,7 +706,7 @@ button:hover,a:hover,.site-inner nav [aria-current]{color:var(--text)}
 .continue-link:focus-visible,.chart-switch button:focus-visible{outline:3px solid var(--frost);outline-offset:-5px}
 .continue-link:focus-visible{outline-color:var(--on-ember)}
 `;
-function growthLayout() {
+function growthLayout(teacherTarget=null) {
   const life=pageLife();
   for(const link of document.querySelectorAll('link[rel="stylesheet"]'))if(/\/assets\/shell\.css(?:[?]|$)/.test(link.href))link.disabled=true;
   const style=node('style',growthCSS);document.head.append(style);
@@ -735,7 +736,7 @@ function growthLayout() {
     .growth-login .tlogin .linkbtn{display:block;margin:12px auto}
   `));
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const teacherTarget = null;
+
   const mobile = matchMedia('(max-width:700px)');
   const panels = ['exploration','route'];
   let selectedPanel = 'exploration', scope = 'open', confirmed = null;
@@ -882,6 +883,7 @@ export function growthJourney(result,activities) {
   return {...result,stations,badges:stations.filter(a=>a.complete)};
 }
 export async function mountGrowth({client:promise}) {
+  if(new URLSearchParams(location.search).has('subject')||new URLSearchParams(location.search).has('classKey'))return mountTeacherGrowth({client:promise});
   if(location.search.includes('cls=')||location.search.includes('seat='))return mountTeacher({client:promise});
   const p=growthLayout();let reading=0,shownUID=null;
   try{p.client=await promise;if(!p.active())return p.dispose;}catch(e){if(p.active())p.status.textContent=explain(e);p.dispose();return p.dispose;}
@@ -1057,49 +1059,59 @@ export function mountHistory({client,host,scope,life}){
 }
 export async function mountTeacher({client:promise}) {
   const p=await setup(promise,'教師紀錄與匯出',{ownerOnly:true});if(!p.client)return;
-  const classKey=node('input');classKey.placeholder='例如 c901';classKey.setAttribute('aria-label','班級代碼');
-  p.tools.append(node('label','班級代碼'),classKey);
-  const subject=node('select');subject.setAttribute('aria-label','查閱歷史的學生');p.tools.append(subject);
-  const history=mountHistory({client:p.client,host:p.tools,scope:()=>({classKey:subject.selectedOptions?.[0]?.dataset.classKey||classKey.value.trim(),subject:subject.value.trim()}),life:p});
-  subject.oninput=history.clear;
-  let reading=0;
-  async function refresh(download=false) {
-    if(!p.active())return;
-    const n=++reading;p.content.replaceChildren();
-    try {
-      const snapshots=await teacherSnapshots(p.client,classKey.value.trim(),catalog());
-      if(!p.active()||n!==reading||!p.client.state().profile)return;
-      const snapshot={people:snapshots.flatMap(s=>(s.people||[]).map(p=>({...p,classKey:s.classKey})))};
-      subject.replaceChildren();for(const person of snapshot.people||[]){const option=node('option',`${person.cls} 班 ${person.seat} 號`);option.value=person.subject;option.dataset.classKey=person.classKey;subject.append(option);}
-      const xp=await xpCore();
-      if(!p.active()||n!==reading||!p.client.state().profile)return;
-      const tables=snapshots.map(s=>exportRows(s,{project:p.client.project,course:p.client.course,activities:catalog()},xp));
-      const rows=[tables[0][0],...tables.flatMap(t=>t.slice(1))];
-      if(!p.active()||n!==reading||!p.client.state().profile)return;
-      const table=node('table');for(const row of rows){const tr=node('tr');for(const cell of row)tr.append(node('td',String(cell)));table.append(tr);}
-      const scroll=node('div');scroll.style.cssText='max-width:100%;overflow-x:auto';scroll.tabIndex=0;scroll.setAttribute('aria-label','有效紀錄表');scroll.append(table);p.content.append(scroll);
-      p.status.textContent='已確認目前有效紀錄。';
-      if(download){
-        if(typeof XLSX==='undefined')throw new Error('xlsx-unavailable');
-        const book=XLSX.utils.book_new();XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(rows),'有效紀錄');
-        const url=URL.createObjectURL(new Blob([XLSX.write(book,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-        const a=node('a');a.href=url;a.download='YBS_有效紀錄.xlsx';a.click();let revoked=false;const revoke=()=>{if(!revoked){revoked=true;URL.revokeObjectURL(url);}};
-        const timer=setTimeout(revoke,1000);p.cleanup(()=>{clearTimeout(timer);revoke();});
-      }
-    }catch(e){if(p.active()&&n===reading){p.content.replaceChildren();p.status.textContent=explain(e);}}
-  }
-  p.tools.append(button('讀取有效紀錄',()=>refresh()),button('重新確認並下載 Excel',()=>refresh(true)));
-  classKey.oninput=()=>{if(!p.active())return;history.clear();reading++;p.content.replaceChildren();p.status.textContent='請重新讀取所選班級。';};
-  p.subscribe(p.client,state=>{if(!state.profile||state.status==='stale'){reading++;p.content.replaceChildren();}});
-  eventsRefresh(p,()=>{p.content.replaceChildren();p.status.textContent='請重新確認紀錄後匯出。';});
-  return p.dispose;
+  return mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistory,eventsRefresh,explain});
 }
 
 export async function teacherSnapshots(client,classKey,activities) {
   // 班級代碼也可能是完整 gate；只有 owner 確認原 gate 不存在才展開分組。
   try{return [await client.progress({teacher:true,classKey,activities})];}
-  catch(e){if(e.code!=='class-not-found'||client.course!=='115-g9'||!/^c[1-9][0-9]{2}$/.test(classKey))throw e;}
+  catch(e){
+    if(e.code!=='class-not-found'||client.course!=='115-g9'||!/^c[1-9][0-9]{2}$/.test(classKey)){
+      if(/^c[1-9][0-9]{2}_[12]$/.test(classKey))throw Object.assign(new Error(e.message,{cause:e}),{code:e.code,classKey});
+      throw e;
+    }
+  }
   const values=[];
-  for(const key of [classKey+'_1',classKey+'_2'])values.push(await client.progress({teacher:true,classKey:key,activities}));
+  for(const key of [classKey+'_1',classKey+'_2']){
+    try{values.push(await client.progress({teacher:true,classKey:key,activities}));}
+    catch(e){throw Object.assign(new Error(e.message,{cause:e}),{code:e.code,classKey:key});}
+  }
   return values;
+}
+
+// Owner projection only; no additional API, saved roster, or writable student actions.
+async function mountTeacherGrowth({client:promise}) {
+  let target;try{target=teacherTarget(location.search);}catch{return mountTeacher({client:promise});}
+  const p=growthLayout(target);let reading=0,shownUID;
+  document.body.classList.add('teacher-growth');
+  const teacherStyle=node('style','.teacher-growth :is(p,a,span,small,b,label,button,summary,li,dt,dd,text){font-size:max(17px,1em)}');document.head.append(teacherStyle);
+  p.cleanup(()=>{document.body.classList.remove('teacher-growth');teacherStyle.remove();});
+  const heading=document.body.querySelector('.page-heading h1');
+  heading.textContent=`${target.cls} 班 ${target.seat} 號成長紀錄（唯讀）`;
+  p.$('signin-title').textContent='教師登入後查看學生成長';
+  p.$('signin').querySelector('p').textContent='僅限課程擁有者查閱；這裡不提供學生作答操作。';
+  const back=node('a','← 返回教師紀錄');back.href='/115-g9/teacher/';heading.after(back);
+  try{p.client=await promise;if(!p.active())return p.dispose;}catch(e){p.status.textContent=explain(e);return p.dispose;}
+  async function refresh(){
+    if(!p.active())return;const n=++reading;p.clear();p.status.textContent='正在確認學生的雲端紀錄…';
+    try{
+      const activities=growthActivities(),snapshots=await teacherSnapshots(p.client,target.classKey,activities),xp=await xpCore();
+      if(!p.active()||n!==reading||!p.client.state().profile)return;
+      const snapshot=snapshots.find(s=>s.classKey===target.classKey),person=snapshot?.people?.find(v=>v.subject===target.subject&&String(v.cls)===target.cls&&String(v.seat)===target.seat);
+      if(!person)throw Error('student-not-found');
+      // Validate the entire owner projection before selecting a student.
+      exportRows(snapshot,{project:p.client.project,course:p.client.course,activities},xp);
+      const own={...snapshot,records:snapshot.records.filter(r=>r.subject===target.subject)};
+      const result=growth(own,{project:p.client.project,course:p.client.course,subject:target.subject,provider:person.provider,activities},xp);
+      if(result.state!=='confirmed'&&result.reason!=='guest-xp-policy-pending')throw result;
+      p.render(activities,growthJourney(result,activities));p.status.textContent=result.totalXP===null?'訪客紀錄待老師確認；唯讀檢視。':'已確認學生的雲端紀錄；唯讀檢視。';
+    }catch(e){if(p.active()&&n===reading){p.clear();p.status.textContent=explain(e);}}
+  }
+  p.subscribe(p.client,state=>{const signed=!!state.profile;p.$('signin').hidden=signed;p.logout.hidden=!signed;p.retry.hidden=!signed;
+    if(!signed||state.profile.uid!==shownUID||['stale','binding-changed','context-changed'].includes(state.status)){reading++;p.clear();p.status.textContent='請教師登入並重新確認紀錄。';}shownUID=state.profile?.uid;});
+  p.logout.onclick=async()=>{reading++;p.clear();try{await p.client.logout();}catch(e){if(p.active())p.status.textContent=explain(e);}};
+  p.retry.onclick=refresh;
+  await mountLogin({client:p.client,host:p.login,ownerOnly:true,onLogin:refresh,active:p.active});
+  eventsRefresh(p,()=>{reading++;p.clear();p.status.textContent='請重新確認學生紀錄。';});
+  return p.dispose;
 }

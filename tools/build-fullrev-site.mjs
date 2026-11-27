@@ -17,12 +17,12 @@ const legacyDFSources={
 };
 const legacyDFHashes={
  "115-df/index.html": "dda49c53adcf8913f8acf37766080302f9f2a456cfd56e26de8f30d6180615a4",
- "115-df/a/index.html": "3ae2286c62355fd78938b93234f608042055667a4765f661af27a86e5980cc98",
- "115-df/teacher/index.html": "a1daa75e426dad8cd3e4f6599469d27904ae65df9bcf2e349633d6203015127e",
- "assets/legacy-df/login.js": "89e401b710ed692dc8499db819a409c7d164f3ce953763b8a4a9694e436973d3",
+ "115-df/a/index.html": "b2505739cef387f11738c1bb15c211f98bbacf192f01987204e2532647fac9fc",
+ "115-df/teacher/index.html": "ec10e3e2c9b96b2e018b9aedab660e2302bc3a37fdfb76836e93a0f0cbce4e0e",
+ "assets/legacy-df/login.js": "49010fbb970c6fd5296ef7de547a20e7d88304ac88de3cf0072f83216223f983",
  "assets/teacher.js": "c18c458e687f884db51984a9b4ef32829af251eabe4623a07fb0b62055cb5108",
- "assets/lock.js": "c8b0c4e80c5f9e9bc3a0f1c5d3d9c8c3f0af9bdb30a8f12b56a8c2bdb170db7f",
- "assets/df-teacher-cloud.js": "697729063b7a38645e706eeb0eb50a5cdd714dfc2861909dd4e587d84d188088"
+ "assets/lock.js": "1de7d0d8ed42804600019a026cc50093c89e6cff858af5e1a3a5afefad0bf828",
+ "assets/df-teacher-cloud.js": "f0773cb1fb757491e2ccf0a9dd129c2d21a019ae97e8856be767998d11e8a217"
 };
 const legacyDFConfig="const YBS_FULLREV_CONFIG=Object.freeze({enabled:false});\n";
 const legacyDFPage=(s)=>s.replace(/((?:\.\.\/)*assets\/)fullrev-config\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/config.js').replace(/((?:\.\.\/)*assets\/)login\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/login.js');

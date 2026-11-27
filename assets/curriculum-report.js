@@ -2,12 +2,33 @@
 'use strict';
 const YBSCurriculumReport = (() => {
   const integer = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
-  function summarize({activities, items, roster, attempts, isOpen, cls = ''}) {
-    const catalog = new Map(activities.map(a => [a.week, a]));
+  const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const classNumber = v => (typeof v === 'string' && /^[1-9]\d{2}$/.test(v)) || integer(v, 100, 999);
+  const text = v => typeof v === 'string' && v.trim().length > 0;
+  const invalid = field => { throw new TypeError('Invalid curriculum report: ' + field); };
+  function summarize(input) {
+    if (!object(input)) invalid('input');
+    const {activities, items, roster, attempts, isOpen, cls = ''} = input;
+    // 空陣列是有效快照；缺少整批資料不能當成零筆，交由頁面的讀取失敗流程處理。
+    for (const [name, value] of Object.entries({activities, items, roster, attempts})) if (!Array.isArray(value)) invalid(name);
+    if (typeof isOpen !== 'function') invalid('isOpen');
+    if (cls !== '' && !classNumber(cls)) invalid('cls');
+    const catalog = new Map(), openedActivities = new Map();
+    for (const a of activities) {
+      // 不略過不完整的活動設定，避免縮減項目所需活動或將空關卡判為完成。
+      if (!object(a) || !integer(a.week, 1, Number.MAX_SAFE_INTEGER) || catalog.has(a.week)
+          || !Array.isArray(a.rounds) || !a.rounds.length || !Array.from(a.rounds).every(text)
+          || !Array.isArray(a.codes) || !Array.from(a.codes).every(text)) invalid('activities');
+      catalog.set(a.week, a);
+      const open = isOpen(a);
+      if (typeof open !== 'boolean') invalid('isOpen result');
+      openedActivities.set(a.week, open);
+    }
+    for (const item of items) if (!object(item) || !text(item.code)) invalid('items');
     const people = new Map(), seats = new Map();
     let invalidRoster = 0, skipped = 0;
     for (const p of roster) {
-      if (typeof p.email !== 'string' || !p.email || !/^[1-9]\d{2}$/.test(String(p.cls)) || !integer(p.seat, 1, 60) || people.has(p.email)) { invalidRoster++; continue; }
+      if (!object(p) || !text(p.email) || !classNumber(p.cls) || !integer(p.seat, 1, 60) || people.has(p.email)) { invalidRoster++; continue; }
       const person = {email:p.email, cls:Number(p.cls), seat:p.seat};
       people.set(p.email, person);
       const key = person.cls + ':' + person.seat;
@@ -17,10 +38,12 @@ const YBSCurriculumReport = (() => {
     const records = [], emailUIDs = new Map(), uidEmails = new Map();
     const add = (map, key, value) => { if (!map.has(key)) map.set(key, new Set()); map.get(key).add(value); };
     for (const d of attempts) {
+      if (!object(d)) { skipped++; continue; }
       const a = catalog.get(d.activity), person = people.get(d.email);
-      if (!a || !person || typeof d.uid !== 'string' || !d.uid || d.uid.length > 128 || d.id !== d.uid + '_' + d.activity + '_' + d.round
+      if (!a || !person || typeof d.uid !== 'string' || !d.uid || d.uid.length > 128
           || !integer(d.round, 0, a.rounds.length - 1) || !integer(d.level, 1, 2) || !integer(d.tries, 1, 999)
-          || !Number.isFinite(d.passedAt) || d.passedAt <= 0) { skipped++; continue; }
+          || !Number.isFinite(d.passedAt) || d.passedAt <= 0
+          || d.id !== d.uid + '_' + d.activity + '_' + d.round) { skipped++; continue; }
       records.push(d); add(emailUIDs, d.email, d.uid); add(uidEmails, d.uid, d.email);
     }
     const conflict = p => seats.get(p.cls + ':' + p.seat).length > 1 || (emailUIDs.get(p.email)?.size || 0) > 1
@@ -38,7 +61,7 @@ const YBSCurriculumReport = (() => {
     const total = selected.length;
     const rate = (passed, applicable) => total && applicable ? passed / total : null;
     const activityRows = new Map(activities.map(a => {
-      const open = !!isOpen(a), passed = eligible.filter(p => complete(p, a)).length;
+      const open = openedActivities.get(a.week), passed = eligible.filter(p => complete(p, a)).length;
       return [a.week, {week:a.week, title:a.title, href:a.href, open, passed, total, rate:rate(passed, open)}];
     }));
     const rows = items.map(item => {

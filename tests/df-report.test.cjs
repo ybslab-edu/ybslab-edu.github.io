@@ -45,6 +45,284 @@ function full(session, repeat=500) {
   return state;
 }
 const packed = json => ({schemaVersion:1,encoding:'gzip-base64',payload:gzipSync(json).toString('base64')});
+const asciiPacked = json => ({schemaVersion:1,encoding:'ascii-json',payload:json.replace(/[\u007f-\uffff]/g,
+  ch=>'\\u'+ch.charCodeAt(0).toString(16).padStart(4,'0'))});
+const minimal = () => ({app:'DF-investigation',appVersion:'synthetic',version:'synthetic',cls:'999',seat:'99'});
+function stateAt(path,value) {
+  const state = minimal();
+  let parent = state;
+  for (let i=0; i<path.length-1; i++) parent = parent[path[i]] = typeof path[i+1] === 'number' ? [] : {};
+  parent[path.at(-1)] = value;
+  return state;
+}
+
+test('解碼拒絕非物件 envelope，包括附有合法欄位的陣列與函式',async()=>{
+  const encoded = asciiPacked(JSON.stringify(minimal()));
+  assert.deepEqual(await R.decode(encoded),minimal());
+  for (const value of [undefined,null,false,true,0,1,'synthetic',[],
+    Object.assign([],encoded),Object.assign(()=>{},encoded)]) {
+    await assert.rejects(R.decode(value),/報告格式不正確/);
+  }
+});
+
+test('白名單陣列的空洞不得編碼成解碼端拒絕的 null 項目',async()=>{
+  for (const extra of [{exports:Array(1)},{log:Array(1)},{h1:{checks:Array(4)}},
+    {susp:[{ev:Array(1)}]}]) {
+    const state = {...minimal(),...extra};
+    assert.equal((await R.encode(state)).reason,'invalid-report');
+    await assert.rejects(R.decode(asciiPacked(JSON.stringify(state))),/報告格式不正確/);
+  }
+});
+
+test('兩種編碼均拒絕截斷 JSON；合法 base64 包裝的每個 gzip 截斷位置也拒絕',async()=>{
+  const state = {...minimal(),problem:'合成😀"\\\n'};
+  const json = JSON.stringify(state), ascii = asciiPacked(json), gzip = gzipSync(json);
+  assert.deepEqual(await R.decode(ascii),state);
+  assert.deepEqual(await R.decode(packed(json)),state);
+  for (let end=0; end<ascii.payload.length; end++) {
+    await assert.rejects(R.decode({...ascii,payload:ascii.payload.slice(0,end)}),`JSON 截斷於 ${end}`);
+  }
+  for (let end=0; end<gzip.length; end++) {
+    await assert.rejects(R.decode({schemaVersion:1,encoding:'gzip-base64',
+      payload:gzip.subarray(0,end).toString('base64')}),`gzip 截斷於 ${end}`);
+  }
+  // 完整 gzip 容器內的 JSON 截斷，不能只靠 gzip 校驗擋下。
+  for (const end of [1,json.indexOf('problem'),json.length-1]) {
+    await assert.rejects(R.decode(packed(json.slice(0,end))));
+  }
+  for (const offset of [0,gzip.length-8,gzip.length-4]) {
+    const corrupt = Buffer.from(gzip); corrupt[offset] ^= 1;
+    await assert.rejects(R.decode({schemaVersion:1,encoding:'gzip-base64',payload:corrupt.toString('base64')}));
+  }
+});
+
+test('gzip 內文字的 UTF-8 截斷、錯誤接續、過長編碼與 surrogate 均拒絕',async()=>{
+  const [before,after] = JSON.stringify({...minimal(),problem:'marker'}).split('marker');
+  for (const bytes of [[0xc3],[0xe2,0x82],[0xf0,0x9f,0x98],[0xc3,0x28],
+    [0xc0,0xaf],[0xed,0xa0,0x80],[0xf4,0x90,0x80,0x80]]) {
+    await assert.rejects(R.decode(packed(Buffer.concat([Buffer.from(before),Buffer.from(bytes),Buffer.from(after)]))));
+  }
+});
+
+test('兩種編碼均檢查白名單欄位型別，保留選填欄位與合法純量相容性',async()=>{
+  const cases = [
+    [['problem'],[null,123,false,{},[]]],
+    [['briefed'],[null,0,'false',{},[]]],
+    [['h1'],[null,0,false,'synthetic',[]]],
+    [['exports'],[null,0,false,'synthetic',{}]],
+    [['exports',0],[null,123,false,{},[]]],
+    [['susp',0],[null,123,false,'synthetic',[]]],
+    [['h1','checks',0],[null,0,'false',{},[]]],
+    [['ev','E01','exif','time'],[null,123,false,{},[]]],
+    [['timeline','11:04','src',0],[null,123,false,{},[]]],
+    [['s2','unlockedAt'],[123,false,{},[]]],
+    [['b2','hints',0,'level'],[null,'1',true,{},[]]],
+    [['log',0,'d'],[{},[]]]
+  ];
+  for (const wrap of [asciiPacked,packed]) {
+    for (const value of [null,[],true,1,'synthetic',{}]) {
+      await assert.rejects(R.decode(wrap(JSON.stringify(value))),/報告格式不正確/);
+    }
+    for (const [path,values] of cases) for (const value of values) {
+      await assert.rejects(R.decode(wrap(JSON.stringify(stateAt(path,value)))),/報告格式不正確/,path.join('.'));
+    }
+    await assert.rejects(R.decode(wrap(JSON.stringify(stateAt(['b2','hints'],[{level:1}]))
+      .replace('"level":1','"level":1e400'))),/報告格式不正確/);
+    assert.deepEqual(await R.decode(wrap(JSON.stringify(minimal()))),minimal());
+    for (const value of [null,true,false,0,0.5,'synthetic']) {
+      const state = {...minimal(),cls:value,seat:value,gallery:{comments:[{seat:value}]},
+        log:[{d:value}],s2:{unlockedAt:null},reveal:{finalAt:fixedTime}};
+      assert.deepEqual(await R.decode(wrap(JSON.stringify(state))),state);
+    }
+  }
+});
+
+test('兩種編碼均接受各白名單陣列恰好上限，並拒絕多一筆',async()=>{
+  const cases = [
+    [['susp'],1000,{text:''}], [['susp',0,'ev'],100,'E01'],
+    [['timeline','11:04','src'],100,'E01'], [['h1','ev'],100,'E01'],
+    [['h1','checks'],4,false], [['h2','ev'],100,'E01'], [['concl','ev'],100,'E01'],
+    [['gallery','comments'],1000,{seat:'99',text:''}],
+    [['b2','hints'],20000,{level:1,at:''}], [['exports'],20000,''],
+    [['log'],20000,{t:'',e:'',d:null}]
+  ];
+  for (const [path,max,item] of cases) {
+    const list = Array(max).fill(item), state = stateAt(path,list);
+    for (const wrap of [asciiPacked,packed]) {
+      assert.deepEqual(await R.decode(wrap(JSON.stringify(state))),state,path.join('.'));
+    }
+    list.push(item);
+    for (const wrap of [asciiPacked,packed]) {
+      await assert.rejects(R.decode(wrap(JSON.stringify(state))),/報告格式不正確/,path.join('.'));
+    }
+  }
+});
+
+test('ASCII 與 gzip 的 512 KiB payload 邊界可解碼',async()=>{
+  const state = {...minimal(),problem:''};
+  state.problem = 'a'.repeat(R.MAX_PAYLOAD_BYTES-JSON.stringify(state).length);
+  const ascii = asciiPacked(JSON.stringify(state));
+  assert.equal(ascii.payload.length,R.MAX_PAYLOAD_BYTES);
+  assert.deepEqual(await R.decode(ascii),state);
+
+  // 使用 gzip 標準 FCOMMENT 欄位精確補足位元組，避免依賴壓縮率或亂數。
+  const gzip = gzipSync(JSON.stringify(minimal())), header = Buffer.from(gzip.subarray(0,10));
+  header[3] |= 0x10;
+  const padded = Buffer.concat([header,Buffer.alloc(R.MAX_PAYLOAD_BYTES/4*3-gzip.length-1,0x61),
+    Buffer.from([0]),gzip.subarray(10)]);
+  const envelope = {schemaVersion:1,encoding:'gzip-base64',payload:padded.toString('base64')};
+  assert.equal(envelope.payload.length,R.MAX_PAYLOAD_BYTES);
+  assert.deepEqual(await R.decode(envelope),minimal());
+});
+
+test('非字串、非可列印 ASCII、非標準 base64 及超界 payload 在解壓前拒絕',async()=>{
+  let starts = 0;
+  const browser = vm.createContext({TextEncoder,TextDecoder,Blob,btoa,atob,
+    DecompressionStream:class { constructor() { starts++; throw new Error('不應開始解壓'); } }});
+  vm.runInContext(fs.readFileSync('assets/df-report.js','utf8'),browser);
+  for (const encoding of ['ascii-json','gzip-base64']) {
+    for (const payload of [undefined,null,0,true,{},[],new String('{}'),'',
+      '\t','\n','\r','\x00','\x1f','\x7f','中文','😀','a'.repeat(R.MAX_PAYLOAD_BYTES+1)]) {
+      await assert.rejects(browser.DFReport.decode({schemaVersion:1,encoding,payload}),/報告格式不正確/);
+    }
+  }
+  for (const payload of ['A','AAA','AAAA=','AA===','A=AA','AA==AAAA','_w==','-w==',
+    'AB==','AAB=',' AAAA','AAAA ','AA AA','AAAA\n']) {
+    await assert.rejects(browser.DFReport.decode({schemaVersion:1,encoding:'gzip-base64',payload}),/報告格式不正確/);
+  }
+  assert.equal(starts,0);
+});
+
+test('解壓後以 UTF-8 bytes 檢查 2 MiB 邊界，超過一 byte 即拒絕',async()=>{
+  const state = {...minimal(),problem:''}, room = R.MAX_JSON_BYTES-Buffer.byteLength(JSON.stringify(state));
+  state.problem = '文'.repeat(Math.floor(room/3))+'a'.repeat(room%3);
+  const json = JSON.stringify(state);
+  assert.ok(json.length < R.MAX_JSON_BYTES);
+  assert.equal(Buffer.byteLength(json),R.MAX_JSON_BYTES);
+  assert.deepEqual(await R.decode(packed(json)),state);
+  state.problem += 'a';
+  await assert.rejects(R.decode(packed(JSON.stringify(state))),/容量上限/);
+});
+
+test('解壓串流超過 2 MiB 時取消讀取並釋放鎖，不進入 UTF-8 或 JSON 解碼',async()=>{
+  let reads = 0, cancels = 0, parses = 0, decodes = 0;
+  const stream = new ReadableStream({
+    pull(controller) {
+      reads++;
+      assert.ok(reads <= 2,'不讀取超限後的第三塊資料');
+      controller.enqueue(new Uint8Array(reads === 1 ? R.MAX_JSON_BYTES : 1));
+    },
+    cancel() { cancels++; }
+  },{highWaterMark:0});
+  const browser = vm.createContext({TextEncoder,btoa,atob,
+    TextDecoder:class { decode() { decodes++; return '{}'; } },
+    JSON:{parse(json) { parses++; return JSON.parse(json); }},
+    Blob:class { stream() { return {pipeThrough:()=>stream}; } },
+    DecompressionStream:class {}});
+  vm.runInContext(fs.readFileSync('assets/df-report.js','utf8'),browser);
+  await assert.rejects(browser.DFReport.decode(packed('{}')),/容量上限/);
+  assert.equal(reads,2);
+  assert.equal(cancels,1);
+  assert.equal(stream.locked,false);
+  assert.equal(decodes,0);
+  assert.equal(parses,0);
+});
+const ascii = payload => ({schemaVersion:1,encoding:'ascii-json',payload});
+const formatError = error => error instanceof Error && error.message === '報告格式不正確';
+
+test('截斷 JSON、錯誤 escape 與錯誤資料型別均回報一致格式錯誤',async()=>{
+  const json = R.serialize({app:'DF-investigation',appVersion:'1',version:'A'});
+  for (const value of [json.slice(0,-1), '{', '{"problem":"\\uZZZZ"}',
+    '{"problem":"\\x20"}', json+' trailing', 'null', '[]', '123',
+    JSON.stringify({...blank(),problem:123})]) {
+    for (const envelope of [ascii(value),packed(value)]) {
+      await assert.rejects(R.decode(envelope),formatError);
+    }
+  }
+});
+
+test('截斷／損壞 gzip、非法 UTF-8 與非標準 base64 均回報一致格式錯誤',async()=>{
+  const gzip = gzipSync(R.serialize(blank()));
+  const corrupted = Buffer.from(gzip); corrupted[corrupted.length-8] ^= 1;
+  for (const bytes of [gzip.subarray(0,1),gzip.subarray(0,10),gzip.subarray(0,-1),corrupted]) {
+    await assert.rejects(R.decode({schemaVersion:1,encoding:'gzip-base64',payload:bytes.toString('base64')}),formatError);
+  }
+  for (const bytes of [[0xff],[0xc3],[0xc0,0xaf],[0xed,0xa0,0x80]]) {
+    await assert.rejects(R.decode(packed(Buffer.from(bytes))),formatError);
+  }
+  for (const payload of ['!!!!','A','AAA','AAAA=','A===','AA=A','AB==','AAB=','AA-_','AA==\n']) {
+    await assert.rejects(R.decode({schemaVersion:1,encoding:'gzip-base64',payload}),formatError);
+  }
+});
+
+test('接近 512 KiB 的合法 base64 可往返，等長損壞資料穩定回報格式錯誤',async()=>{
+  // 固定的合成位元組避免亂數壓縮率導致邊界測試不穩定。
+  let seed = 1;
+  const bytes = Buffer.alloc(380000);
+  for (let i=0;i<bytes.length;i++) {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    bytes[i] = seed & 255;
+  }
+  const state = blank(); state.problem = bytes.toString('base64');
+  const envelope = packed(R.serialize(state));
+  assert.ok(envelope.payload.length > R.MAX_PAYLOAD_BYTES * 0.95);
+  assert.ok(envelope.payload.length <= R.MAX_PAYLOAD_BYTES);
+  assert.deepEqual(await R.decode(envelope),R.select(state));
+  await assert.rejects(R.decode({...envelope,payload:'A'.repeat(R.MAX_PAYLOAD_BYTES)}),formatError);
+});
+
+test('多份報告同時解碼時，損壞報告不影響有效報告或後續重試',async()=>{
+  const state = blank(); state.problem = '合成作答😀';
+  const valid = packed(R.serialize(state));
+  const results = await Promise.allSettled([
+    R.decode(valid),R.decode(packed('{')),R.decode(packed(Buffer.from([0xff]))),R.decode(valid)
+  ]);
+  for (const index of [0,3]) {
+    assert.equal(results[index].status,'fulfilled');
+    assert.deepEqual(results[index].value,R.select(state));
+  }
+  for (const index of [1,2]) {
+    assert.equal(results[index].status,'rejected');
+    assert.ok(formatError(results[index].reason));
+  }
+  assert.deepEqual(await R.decode(valid),R.select(state));
+});
+
+test('既有陣列上限內可往返，超限一筆固定回報格式錯誤且 encode 改下載',async()=>{
+  for (const [path,max,item] of [
+    [['susp'],1000,{text:'',ev:[],want:'',conf:''}],
+    [['gallery','comments'],1000,{seat:'99',stance:'',ev:'',text:'',at:''}],
+    [['h1','ev'],100,'E01'], [['h1','checks'],4,true],
+    [['b2','hints'],20000,{level:1,at:''}],
+    [['exports'],20000,''], [['log'],20000,{t:'',e:'',d:null}]
+  ]) {
+    const state = blank();
+    const key = path.at(-1), parent = path.slice(0,-1).reduce((value,key)=>value[key],state);
+    parent[key] = Array(max).fill(item);
+    const encoded = await R.encode(state);
+    assert.equal(encoded.ok,true,path.join('.'));
+    assert.deepEqual(await R.decode(encoded),R.select(state));
+    parent[key].push(item);
+    await assert.rejects(R.decode(packed(JSON.stringify(state))),formatError);
+    assert.equal((await R.encode(state)).reason,'invalid-report');
+    const saved = JSON.parse(R.serialize(state));
+    assert.equal(path.reduce((value,key)=>value[key],saved).length,max+1);
+    assert.equal(parent[key].length,max+1);
+  }
+});
+
+test('envelope 錯誤與 payload 超限使用格式錯誤，解壓超限仍保留容量提示',async()=>{
+  const valid = await R.encode(blank());
+  for (const envelope of [null,undefined,{},...[
+    {schemaVersion:2},{encoding:'other'},{payload:123},{payload:''},
+    {payload:'中文'},{payload:'\u001f'},{payload:'\u007f'},
+    {payload:'a'.repeat(R.MAX_PAYLOAD_BYTES+1)}
+  ].map(change=>({...valid,...change}))]) {
+    await assert.rejects(R.decode(envelope),formatError);
+  }
+  await assert.rejects(R.decode(packed('a'.repeat(R.MAX_JSON_BYTES+1))),
+    error=>error.message === '報告解碼超過容量上限');
+});
 
 test('白名單逐層排除合成帳密、個人欄位、素材及未知匯入欄位，原狀態不變',()=>{
   const state = full(3,1);

@@ -13,10 +13,11 @@ const OPEN = {
   if (T && T.remembered()) return;
   const show = () => {
     if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) return;
-    const courseClosed = typeof COURSES !== 'undefined' && COURSES.some(c => c.id === seg[0] && !c.open);
+    // 課程資料缺漏時不能視為已開設；OPEN 與日期都須先確認 open: true。
+    const courseClosed = typeof COURSES === 'undefined' || !COURSES.some(c => c.id === seg[0] && c.open === true);
     // 多數活動頁稍後才載入 activities.js，等 DOM 完成後再讀取共用日期判斷。
     const a = typeof ACTIVITIES !== 'undefined'
-      ? ACTIVITIES.find(a => a.course === seg[0] && a.href.split('/')[1] === sub) : null;
+      ? ACTIVITIES.find(a => a && a.course === seg[0] && typeof a.href === 'string' && a.href.split('/')[1] === sub) : null;
     if (!courseClosed && (list.includes(sub) || (a && isActivityOpen(a)))) return;
     const d = document.createElement('div');
     d.id = 'ybs-lock';

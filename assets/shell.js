@@ -40,7 +40,7 @@ const SHELL = (cfg) => {
     inst: null, handle: null, streak: 0, teacher: false, done: new Set(), previousKey: null, ident: null,
     identityGeneration: 0, identityRevoked: false, accountUid: null };
   shellCreateInterface(s);
-  if (typeof document.createElement === 'function') import('/assets/warmup.js?v=20261105w1').then(m => m.mountWarmup({cfg, main: $('main')})).catch(() => {});
+  if (typeof document.createElement === 'function') import('/assets/warmup.js?v=20261127ib').then(m => m.mountWarmup({cfg, main: $('main')})).catch(() => {});
   s.prog = { mask: 0, tries: Array(cfg.progressLength ?? 6).fill(0), time: Date.now() };
   Object.assign(s, shellCreateHints(s));
   Object.assign(s, shellCreateRoundFlow(s), shellCreateJudging(s), shellCreateProgress(s));
@@ -376,6 +376,9 @@ const shellCreateRoundFlow = (s) => {
   const contentKey = shellContentKey;
   // 共用換題入口：「下一組」、既有演出流程、教師換題及重載同關皆排除前題。
   function fresh(afterSubmit = false) {
+    // 先讓舊題回呼失效，再停止演出與解除活動自行註冊的事件。
+    const question = s.questionGeneration = (s.questionGeneration ?? 0) + 1;
+    s.handle?.dispose?.(); s.handle = null;
     s.closeDemo?.();
     s.answerState = null; s.lastAnswerKey = null;
     const r = R[s.ri], rnd = seed();
@@ -391,8 +394,8 @@ const shellCreateRoundFlow = (s) => {
     $('says').innerHTML = r.instruction ? txt(r.instruction, s.inst) : '<span class="tk"><b>現在</b><span>' + txt(r.now, s.inst) + '</span></span><span class="tk"><b>要做到</b><span>' + txt(r.goal, s.inst) + '</span></span>' + (s.teacher && r.tip ? '<span class="tk tip"><b>提示</b><span>' + txt(r.tip, s.inst) + '</span></span>' : '');
     const identity = s.identityGeneration;
     $('stage').innerHTML = ''; s.handle = r.view(s.inst, $('stage'), {
-      changed: () => { if (identity === s.identityGeneration && !s.identityRevoked) changed(); },
-      attempt: () => { if (identity === s.identityGeneration && !s.identityRevoked) attempt(); }, esc });
+      changed: () => { if (question === s.questionGeneration && identity === s.identityGeneration && !s.identityRevoked) changed(); },
+      attempt: () => { if (question === s.questionGeneration && identity === s.identityGeneration && !s.identityRevoked) attempt(); }, esc });
     shellHighlightQuestion($, previousNumbers);
     renderStreak(); changed(); s.renderHints?.();
     if (afterSubmit) $('task-instructions')?.scrollIntoView?.({behavior: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
@@ -616,18 +619,32 @@ const shellCreateLogin = (s) => {
   return { showLogin };
 };
 
+// 同一份介面只保留一組同步回饋綁定。
+const shellSyncBindings = new WeakMap();
 // 維持上傳欄位並同步顯示上傳狀態。
 const shellCreateSync = (s) => {
+  const previous = shellSyncBindings.get(document.body);
+  if (previous?.s === s) return previous.binding;
+  previous?.binding.disposeSync();
+  let disposed = false, observer = null;
   const { cfg, $, R, loginEnabled } = s;
   // 沿用既有欄位上傳本關紀錄。
   function upload(r) {
-    if (!loginEnabled() || !s.ident) return;
+    if (disposed || !loginEnabled() || !s.ident) return;
     YBS.submit({ course: cfg.course, activity: cfg.week, termWeek: cfg.termWeek, title: cfg.title, round: r, roundName: R[r].name, level: R[r].lv === 1 ? '基礎' : '進階', rounds: R.map(x => x.name), tries: s.prog.tries[r], mask: s.prog.mask, cls: s.ident.cls, seat: s.ident.seat, at: new Date().toISOString() });
   }
   let state = null, identity = null, nodes = [];
-  const retryUpload = () => { if (s.ident && loginEnabled()) return YBS.retry(); };
+  const retryUpload = () => { if (!disposed && s.ident && loginEnabled()) return YBS.retry(); };
+  const unbindRetry = () => { if (nodes[1]?.onclick === retryUpload) nodes[1].onclick = null; };
+  function disposeSync() {
+    if (disposed) return;
+    disposed = true; observer?.disconnect(); unbindRetry(); nodes = [];
+    shellSyncBindings.delete(document.body);
+  }
   function renderStatus() {
-    const current = [$('sync'), $('b-retry')]; nodes = current;
+    const current = [$('sync'), $('b-retry')];
+    if (current[1] !== nodes[1]) unbindRetry();
+    nodes = current;
     const [el, retry] = current;
     if (retry) { retry.onclick = retryUpload; retry.hidden = !s.ident || !loginEnabled() || identity !== s.ident || !state || ['ok', 'sending', 'relogin'].includes(state); retry.disabled = state === 'sending' && identity === s.ident; }
     if (!s.ident || identity !== s.ident || !state) {
@@ -645,18 +662,25 @@ const shellCreateSync = (s) => {
     }
   }
   if (typeof YBS !== 'undefined') YBS.status(st => {
+    if (disposed) return;
     if (st === 'relogin' && !s.teacher) {
       state = null; identity = null; s.resetIdentity(); s.showLogin(); return;
     }
     if (!s.ident) return; state = st; identity = s.ident; renderStatus(); if (st === 'ok') s.xp?.refresh();
   });
   // 元素延後建立或被重建時重綁按鈕及還原目前身分的提示；不依賴首次查找成功。
-  if (window.MutationObserver) new window.MutationObserver(() => {
-    const current = [$('sync'), $('b-retry')];
-    if (current.some((el, i) => el !== nodes[i])) renderStatus();
-  }).observe(document.body, {childList:true, subtree:true});
+  if (window.MutationObserver) {
+    observer = new window.MutationObserver(() => {
+      if (disposed) return;
+      const current = [$('sync'), $('b-retry')];
+      if (current.some((el, i) => el !== nodes[i])) renderStatus();
+    });
+    observer.observe(document.body, {childList:true, subtree:true});
+  }
   renderStatus();
-  return { upload };
+  const binding = { upload, disposeSync };
+  shellSyncBindings.set(document.body, {s, binding});
+  return binding;
 };
 
 // 常用小工具：亂數挑選

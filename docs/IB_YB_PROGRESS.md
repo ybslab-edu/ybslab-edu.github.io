@@ -1,0 +1,22 @@
+# YBS 技術債第二包整合進度
+
+- 狀態：本機整合與沙箱單元／靜態驗證完成；瀏覽器完整驗收待 Console，未 commit／推送／部署／合併。
+- 工作目錄：`ybslab-wt-debt-bundle`；分支 `debt/tests-bundle`；HEAD／本機 origin/main 均為 `d39c962`，未 fetch。
+- 37 個 d worktree 已逐一盤點：5 個屬第一包；其餘 32 個依 reply／review／最後 fix，納入 29 項（21 產品碼、8 純測試），全部相應回歸一併納入。
+- 未併：f-ybslab-fullrev-performance（效能實作未修、回歸仍失敗）、g-yb-curriculum-index（索引實作未修）、h-yb-teacher-save-failure（不存在原設定儲存入口，需使用者親看）。
+- 7 檔文字衝突手動整合；登入保留世代＋UID＋關卡及已嘗試物件防重，兼顧 Auth 暫時失聯與明確重新登入。活動載入校驗保留重複兩筆路徑／標題，新增真實登記＋產生器整合回歸。
+- 另處理 UTF-8 斷言的語意衝突：由原生 TypeError 改驗公開 Error＋固定格式錯誤訊息，仍嚴格拒絕損壞資料。
+- 10 個被 HTML 引用的共用資源統一 `20261127ib`，同步動態引用與報表本頁；暖身題庫沿用來源 `20261125w1`。同步 DF 5 個精確 SHA-256，逐位元／allowlist／scanner 守門皆保留。
+- 改動共 93 檔；HTML 僅快取版本。活動工具輸出 `activities.json: 31 activities`，JSON 無差異。
+- 鎖內完整無瀏覽器 MJS：第一輪 71 檔／68 pass／3 fail；修正後第二輪 71 檔／71 pass／0 fail／0 skip，107019.514923 ms。最後追加活動診斷與 UTF-8 測試調整後，以相應單檔覆驗，未再跑完整 71 檔。
+- 最後輕量單檔：活動 69/69；報告 CJS 30/30；教師雲端 CJS 2/2；scanner 28/28；報告安全 17 pass／0 fail／1 瀏覽器 skip（預設模組路徑無法解析 Playwright）。
+- 最終一次性靜態 artifact 掃描：30 活動／121 關、96 檔、1817 私有案例、0 hits；暫存 artifact 已清除，未將私有答案寫進 repo／Console。
+- 重測試包均加指定鎖。後續 5 秒探測、三次 30 秒、120 秒、180 秒等待皆 exit 75；未刪鎖或中止其他程序。純 VM／CJS 單檔及一次性靜態掃描獨立執行，沒有套 flock，未啟動瀏覽器／HTTP／Emulator。
+- 實際環境限制：loopback bind → PermissionError EPERM；unshare 設定 lo → Cannot open netlink socket: Operation not permitted。排入鎖的 Chromium 探測未執行，不宣稱瀏覽器通過。
+- PR 草稿：`/home/teacher/projects/console/tasks/ybs-newsite-20261123/night/ib-yb-pr.md`（逐項來源／分類／影響、未併、實際輸出、93 檔清單）。ib-cs-pr 尚不存在，沿用 ib-cs-task 指定格式。
+- Console 補跑：`bash /home/teacher/projects/console/tasks/ybs-newsite-20261123/night/ib-yb-console-check.sh`；已通過 bash -n。腳本持共用鎖、網路 namespace 只開 loopback，完整 MJS／CJS／Worker 記憶體／mock 全站回歸；隔離失敗即停，不安裝套件、不讀 secret。
+- 待 Console：22 個獨立瀏覽器檔、DF 教師 Chromium 與報告安全瀏覽器案例、全站回歸、跨 repo Worker 補驗；另親看真實 BFCache 往返。教師碼為空，教師解鎖項照既有流程略過。
+- 本 repo 無 Emulator suite；沒有 Rules／權限變更，不跨 repo 操作 Emulator，不執行 cutover／回填／遷移或碰正式資料。後續若需 Rules 變更，標「需使用者親看」。
+- 來源唯讀雜湊與初始 patch：`/tmp/ib-yb/inventory.json`、`bundle-before.patch`；重測原始輸出：`unit.log`、`unit-final.log`、`activities-integrated.log`、`df-report.log`、`df-teacher-cloud.log`、`answer-scan.log`、`df-report-escape-final.log`、`release-scan.log`。所有來源只讀，原 staged 12 檔 patch 保留。
+- `git diff --check`／`git diff --cached --check`／必要 Node 語法檢查通過。新差異與新檔未 stage；合併 main 會自動上線，須先完成 Console 補驗並取得老師明確核准。
+- 本進度檔依本次使用者明確要求建立，優先於 AGENTS.md 的一般不留進度規則。

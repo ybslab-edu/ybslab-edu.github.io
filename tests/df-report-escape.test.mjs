@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {gzipSync} from 'node:zlib';
 
 const pageHTML=readFileSync(new URL('../115-df/a/index.html',import.meta.url),'utf8');
 const DFReport=createRequire(import.meta.url)('../assets/df-report.js');
@@ -200,6 +201,159 @@ test('實際下載 Blob 可原樣再匯入；保留全部既有欄位並排除�
   await restored.importReport({target:{files:[{name:'synthetic.html',text:async()=>report}],value:''}});
   const imported=plain(restored.S);assert.equal(imported.log.pop().e,'import');
   assert.deepEqual(imported,saved,'原始欄位、中文、換行、引號及所有 < 字元完整往返');
+});
+
+const asciiEnvelope=payload=>({schemaVersion:1,encoding:'ascii-json',payload});
+const gzipEnvelope=bytes=>({schemaVersion:1,encoding:'gzip-base64',
+  payload:gzipSync(bytes).toString('base64')});
+
+test('公開編解碼：控制字元、Unicode、反斜線及標籤原文完整往返',async()=>{
+  const values=[
+    Array.from({length:32},(_,i)=>String.fromCharCode(i)).join('')+'\u007f',
+    '合成😀\u0085\u2028\u2029\ufeff e\u0301 與 é',
+    '\ud800 合成孤立高代理字元 / 合成孤立低代理字元 \udfff',
+    String.raw`合成路徑 C:\synthetic\report；字面 \n \u003c &lt; &#39;`,
+    ...samples.map(sample=>sample.raw)
+  ];
+  for(const value of values){
+    const {state}=fixture();
+    state.problem=value;state.ev.E01.interp=value;
+    state.gallery.comments[0].text=value;state.log[0].d=value;
+    const before=plain(state),serialized=DFReport.serialize(state);
+    assert.doesNotMatch(serialized,/<\/script\b/i,'序列化文字不能提前結束 JSON script');
+    const parsed=JSON.parse(serialized);
+    for(const actual of [parsed.problem,parsed.ev.E01.interp,parsed.gallery.comments[0].text,parsed.log[0].d]){
+      assert.equal(actual,value,'序列化後保留原始字元，不重複解碼或正規化');
+    }
+    const encoded=await DFReport.encode(state);
+    assert.equal(encoded.ok,true);assert.equal(encoded.encoding,'ascii-json');
+    assert.match(encoded.payload,/^[\x20-\x7e]+$/,'雲端 payload 只有可列印 ASCII');
+    // 先檢查具體欄位原文，再比較兩條解碼路徑，避免編解碼同時遺失資料而通過。
+    assert.deepEqual(await DFReport.decode(encoded),parsed);
+    assert.deepEqual(await DFReport.decode(gzipEnvelope(serialized)),parsed);
+    assert.deepEqual(state,before,'編解碼不更動來源作答');
+  }
+});
+
+test('實際 HTML 的控制字元保留於 JSON；危險標籤仍逐欄跳脫',async()=>{
+  const controls='\0\b\t\n\v\f\r\u001f\u007f\u2028\u2029';
+  for(const origin of ['作答','匯入','localStorage']){
+    const {context,state}=fixture();
+    const paths=textPaths.filter(path=>path!=='cls'&&path!=='seat');
+    for(const path of paths) setPath(state,path,`${path}：${controls}${samples[0].raw}`);
+    await load(context,state,origin);
+    const before=plain(context.S),report=context.reportHTML();
+    assertSafe(report,context.S);
+    assert.doesNotMatch(jsonBlock(report),/[\x00-\x1f]/,'JSON 不含未跳脫的 C0 控制字元');
+    for(const path of paths){
+      assert.ok(visibleHTML(report).includes(`${path}：${controls}${samples[0].escaped}`),`${origin} ${path}`);
+    }
+    assert.deepEqual(plain(context.S),before);
+  }
+});
+
+test('舊合法格式：空字串、nullable 時間、純量空值及缺少選填欄位可往返',async()=>{
+  const {state}=fixture();
+  state.problem='';delete state.ev.E01.interp;delete state.reveal.tlnote;
+  for(const path of ['s2.unlockedAt','h1.submittedAt','b2.unlockedAt','concl.doneAt','reveal.unlockedAt','reveal.finalAt']){
+    setPath(state,path,null);
+  }
+  state.log=[null,'',false,0].map(d=>({t:fixedTime,e:'synthetic',d}));
+  const expected=plain(state);delete expected.cid;delete expected.ansMode;
+  delete expected.b2.pw;delete expected.reveal.pw;
+  assert.deepEqual(JSON.parse(DFReport.serialize(state)),expected);
+  const encoded=await DFReport.encode(state);assert.equal(encoded.ok,true);
+  assert.deepEqual(await DFReport.decode(encoded),expected);
+  assert.deepEqual(await DFReport.decode(gzipEnvelope(JSON.stringify(expected))),expected);
+  const {context}=fixture();await load(context,state,'匯入');
+  const report=context.reportHTML();assertSafe(report,context.S);
+  assert.ok(visibleHTML(report).includes('<th>研究問題</th><td><span class="na">（未填）</span></td>'));
+  assert.ok(visibleHTML(report).includes('H1（未送出）'));
+  const imported=plain(context.S);assert.equal(imported.log.pop().e,'import');
+  assert.deepEqual(imported,state,'舊檔的空值及缺少欄位不被改寫');
+});
+
+test('舊 HTML 跳脫、公開 serializer 與 ASCII JSON 均可經實際匯入再輸出',async()=>{
+  const {state}=fixture();
+  state.problem=samples.map(sample=>sample.raw).join('\n');
+  state.ev.E01.interp='合成舊版解釋 & < > " \' \\';
+  const encoded=await DFReport.encode(state);assert.equal(encoded.ok,true);
+  for(const json of [JSON.stringify(state).replace(/<\//g,'<\\/'),DFReport.serialize(state),encoded.payload]){
+    const {context}=fixture();
+    await context.importReport({target:{files:[{name:'synthetic-legacy.html',text:async()=>
+      `<script id="df-report" type="application/json">${json}</script>`}],value:''}});
+    assert.ok(context.S,'合法舊格式可匯入');
+    const imported=plain(context.S);assert.equal(imported.log.pop().e,'import');
+    assert.deepEqual(DFReport.select(imported),DFReport.select(state),'保留合法報告全部白名單作答');
+    assertSafe(context.reportHTML(),context.S);
+  }
+});
+
+test('公開編解碼：錯誤欄位型別拒絕交件及解碼，來源不變',async()=>{
+  for(const [path,value] of [
+    ['problem',null],['problem',0],['problem',{}],['problem',[]],
+    ['h1.submittedAt',false],['b2.hints',null],['b2.hints.0.level','1'],
+    ['gallery.comments.0.text',null],['log.0.d',{}],['log.0.d',[]],['h1.checks.0','true']
+  ]){
+    const {state}=fixture();setPath(state,path,value);const before=plain(state);
+    assert.throws(()=>DFReport.serialize(state),/報告格式不正確/,path);
+    assert.deepEqual(await DFReport.encode(state),{
+      ok:false,action:'download',reason:'invalid-report',message:DFReport.DOWNLOAD_MESSAGE
+    },path);
+    await assert.rejects(DFReport.decode(gzipEnvelope(JSON.stringify(state))),/報告格式不正確/,path);
+    assert.deepEqual(state,before,path);
+  }
+});
+
+test('解碼拒絕空值、錯誤 envelope 與非可列印 ASCII payload',async()=>{
+  const valid=await DFReport.encode(fixture().state);assert.equal(valid.ok,true);
+  for(const envelope of [null,undefined,false,0,'',[],{},
+    ...[{schemaVersion:'1'},{schemaVersion:2},{encoding:'ASCII-JSON'},
+      {encoding:null},{payload:null},{payload:123},{payload:{}},{payload:''},
+      ...['\0','\t','\n','\r','\u001f','\u007f','中','😀'].map(char=>({payload:valid.payload+char}))
+    ].map(change=>({...valid,...change}))
+  ]){
+    await assert.rejects(DFReport.decode(envelope),/報告格式不正確/,JSON.stringify(envelope));
+  }
+});
+
+test('解碼拒絕畸形 JSON、base64、gzip 與非法 UTF-8',async()=>{
+  for(const json of ['{','null','[]','{}','{"app":"other"}',
+    '{"app":"DF-investigation","problem":"\\x00"}',
+    '{"app":"DF-investigation",}', '{"app":"DF-investigation"} trailing'
+  ]){
+    await assert.rejects(DFReport.decode(asciiEnvelope(json)),`ASCII JSON：${json}`);
+    await assert.rejects(DFReport.decode(gzipEnvelope(json)),`gzip JSON：${json}`);
+  }
+  for(const payload of ['!!!!','A','AAA','AA=','A===','AA==AAAA','AA-_','AA==\n',' AA==','AB==','AAB=','AAAA']){
+    await assert.rejects(DFReport.decode({schemaVersion:1,encoding:'gzip-base64',payload}),payload);
+  }
+  const validGzip=gzipSync(DFReport.serialize(fixture().state));
+  const corrupt=Buffer.from(validGzip);corrupt[corrupt.length-8]^=0xff;
+  for(const bytes of [validGzip.subarray(0,10),validGzip.subarray(0,-1),corrupt]){
+    await assert.rejects(DFReport.decode({schemaVersion:1,encoding:'gzip-base64',payload:bytes.toString('base64')}));
+  }
+  // 非法 byte 放在原本有效的 JSON 字串中，確保不是只因 JSON 語法錯誤而拒絕。
+  for(const bytes of [[0xff],[0xc3,0x28],[0xc0,0xaf],[0xed,0xa0,0x80]]){
+    const json=Buffer.concat([Buffer.from('{"app":"DF-investigation","appVersion":"synthetic","version":"synthetic","problem":"'),
+      Buffer.from(bytes),Buffer.from('"}')]);
+    // 公開解碼介面統一格式錯誤，仍須拒絕非法 UTF-8，不依賴串流原生例外型別。
+    await assert.rejects(DFReport.decode(gzipEnvelope(json)),{name:'Error',message:'報告格式不正確'});
+  }
+});
+
+test('匯入畸形 JSON 或錯誤型別時保留既有作答',async()=>{
+  for(const payload of ['{','null','[]',
+    ...[['problem',null],['log',{}],['h1.checks.0','true']].map(([path,value])=>{
+      const {state}=fixture();setPath(state,path,value);return JSON.stringify(state);
+    })
+  ]){
+    const {context,state}=fixture();context.S=state;const before=plain(state);
+    const report=`<script id="df-report" type="application/json">${payload}</script>`;
+    await context.importReport({target:{files:[{name:'synthetic-invalid.html',text:async()=>report}],value:''}});
+    assert.equal(context.S,state,'拒絕匯入不能取代既有作答');
+    assert.deepEqual(state,before,'拒絕匯入不能新增紀錄或更動答案');
+  }
 });
 
 test('瀏覽器開啟實際下載內容：無注入執行，文字顯示與 JSON 可讀',async t=>{

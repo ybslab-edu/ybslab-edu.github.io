@@ -3,7 +3,7 @@
   'use strict';
   if (typeof YBS_FULLREV_CONFIG !== 'undefined' && YBS_FULLREV_CONFIG.enabled) {
     const script = document.createElement('script');
-    script.src = '../../assets/login.js?v=20261121pr8';
+    script.src = '../../assets/login.js?v=20261127ib';
     script.onload = () => YBS.mountGrowth();
     script.onerror = () => { document.getElementById('status').textContent = '登入元件載入失敗，請重新整理。'; };
     document.head.appendChild(script); return;
@@ -262,7 +262,7 @@
   }
   // 學生入口才載入原登入模組；教師入口不執行班座重送的初始化副作用。
   const loginScript = document.createElement('script');
-  loginScript.src = '../../assets/login.js?v=20261121pr8';
+  loginScript.src = '../../assets/login.js?v=20261127ib';
   loginScript.onload = () => {
     YBS.button($('login'), signedIn, message => { $('status').textContent = message; });
     YBS.status(state => { if (state === 'relogin' && owner) signedOut(); else if (state === 'ok' && owner) void refresh(); });

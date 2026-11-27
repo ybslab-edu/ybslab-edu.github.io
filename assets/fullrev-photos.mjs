@@ -61,5 +61,5 @@ export function renderPhotos(host,d,api){
     }}loaded=true;note.textContent='兩張照片的問題都回答後，再拍下來傳出去。';paint();api.changed();
   })().catch(()=>{if(!disposed)note.textContent='照片尚未取得，請重新讀取這一關。';});
   paint();
-  return {get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>loaded&&values.every(a=>a.every(v=>v!==null)),dispose(){disposed=true;pixels.length=0;},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
+  return {get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>!disposed&&loaded&&values.every(a=>a.every(v=>v!==null)),dispose(){disposed=true;pixels.length=0;},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
 }

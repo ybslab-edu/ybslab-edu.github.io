@@ -42,6 +42,7 @@
     exports:list(text,20000), log:list({ t:text, e:text, d:scalar },20000)
   };
   function invalid() { throw new Error('報告格式不正確'); }
+  class CapacityError extends Error {}
   function copy(value, spec, enforceLimits) {
     if (typeof spec === 'string') {
       const valid = spec === text ? typeof value === 'string'
@@ -55,7 +56,10 @@
     if ('nullable' in spec) return value === null ? null : copy(value, spec.nullable, enforceLimits);
     if ('item' in spec) {
       if (!Array.isArray(value) || (enforceLimits && value.length > spec.max)) invalid();
-      return value.map(item => copy(item, spec.item, enforceLimits));
+      // map 會略過空洞，JSON.stringify 卻將空洞寫成 null，造成編解碼驗證不一致。
+      const result = [];
+      for (let i=0; i<value.length; i++) result.push(copy(value[i], spec.item, enforceLimits));
+      return result;
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)) invalid();
     const result = {};
@@ -85,7 +89,7 @@
     return btoa(binary);
   }
   function unbase64(value) {
-    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) invalid();
+    if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) invalid();
     const binary = atob(value);
     const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
     if (base64(bytes) !== value) invalid();
@@ -101,7 +105,7 @@
         size += value.byteLength;
         if (size > limit) {
           await reader.cancel().catch(() => {});
-          throw new Error('報告解碼超過容量上限');
+          throw new CapacityError('報告解碼超過容量上限');
         }
         chunks.push(value);
       }
@@ -132,7 +136,8 @@
     return { ok:true, schemaVersion:SCHEMA_VERSION, encoding, payload };
   }
   async function decode(envelope) {
-    if (!envelope || envelope.schemaVersion !== SCHEMA_VERSION
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)
+        || envelope.schemaVersion !== SCHEMA_VERSION
         || !['ascii-json','gzip-base64'].includes(envelope.encoding)
         || typeof envelope.payload !== 'string' || !envelope.payload.length
         || envelope.payload.length > MAX_PAYLOAD_BYTES
@@ -141,12 +146,21 @@
     if (envelope.encoding === 'ascii-json') json = envelope.payload;
     else {
       if (typeof DecompressionStream !== 'function') throw new Error('此環境無法解壓報告，請使用報告檔');
-      const stream = new Blob([unbase64(envelope.payload)]).stream().pipeThrough(new DecompressionStream('gzip'));
-      const bytes = await readLimited(stream, MAX_JSON_BYTES);
-      json = new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+      try {
+        const stream = new Blob([unbase64(envelope.payload)]).stream().pipeThrough(new DecompressionStream('gzip'));
+        const bytes = await readLimited(stream, MAX_JSON_BYTES);
+        json = new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+      } catch (error) {
+        // 不把損壞資料造成的瀏覽器／串流原生例外洩漏給讀取端。
+        if (error instanceof CapacityError) throw error;
+        invalid();
+      }
     }
     if (utf8Bytes(json) > MAX_JSON_BYTES) throw new Error('報告解碼超過容量上限');
-    return select(JSON.parse(json), true);
+    let report;
+    try { report = JSON.parse(json); }
+    catch (error) { invalid(); }
+    return select(report, true);
   }
   return Object.freeze({ SCHEMA_VERSION, MAX_PAYLOAD_BYTES, MAX_JSON_BYTES,
     DOWNLOAD_MESSAGE, select, serialize, encode, decode });

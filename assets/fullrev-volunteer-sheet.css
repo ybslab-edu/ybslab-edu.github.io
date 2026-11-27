@@ -1,0 +1,34 @@
+/* 只作用於模擬試算表；表格在自己的容器捲動。 */
+.volunteer-sheet{min-width:0;font-size:17px;line-height:1.6}
+.volunteer-sheet *{box-sizing:border-box}
+.volunteer-sheet .sheet-panel{min-width:0;margin:16px 0;padding:16px;border:1px solid var(--edge,#586176);background:var(--panel,#182030)}
+.volunteer-sheet h3{font-size:22px;margin:0 0 12px}
+.volunteer-sheet p{margin:10px 0}
+.volunteer-sheet label{display:grid;gap:6px;margin:12px 0;min-width:0}
+.volunteer-sheet .sheet-field{display:grid;gap:6px;margin:12px 0;min-width:0}
+.volunteer-sheet .sheet-field>label{margin:0}
+.volunteer-sheet input,.volunteer-sheet select,.volunteer-sheet button{font:inherit;min-height:44px;max-width:100%}
+.volunteer-sheet select{width:100%}
+.volunteer-sheet input[type=number]{width:12em}
+.volunteer-sheet .sheet-check{display:flex;align-items:center;gap:10px}
+.volunteer-sheet input[type=checkbox]{width:24px;height:24px;flex:none}
+.volunteer-sheet .btn{margin:6px 10px 6px 0;padding:8px 14px;border:2px solid var(--edge,#586176);color:var(--text,#edf1ff);background:var(--panel-hi,#283246);cursor:pointer;white-space:normal}
+.volunteer-sheet fieldset{min-width:0;margin:12px 0;border:1px solid var(--edge,#586176)}
+.volunteer-sheet .sheet-scroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;margin:12px 0;border:1px solid var(--edge,#586176)}
+.volunteer-sheet table{width:100%;min-width:1080px;border-collapse:collapse;font-size:17px;table-layout:auto}
+.volunteer-sheet caption{text-align:left;padding:10px;font-weight:700}
+.volunteer-sheet th,.volunteer-sheet td{padding:10px;border:1px solid var(--edge,#586176);text-align:left;white-space:nowrap}
+.volunteer-sheet th{background:var(--panel-hi,#283246)}
+.volunteer-sheet small{display:block;font-size:17px}
+.fullrev-activity .volunteer-sheet .answer-error{font-size:17px}
+.volunteer-sheet .sheet-mark{outline:2px solid currentColor;outline-offset:-3px;color:#17212b}
+.volunteer-sheet .sheet-mark-yellow{background:#f7df95}
+.volunteer-sheet .sheet-mark-blue{background:#a8dce9}
+.volunteer-sheet .sheet-mark-pink{background:#ecc2d9}
+.volunteer-sheet .sheet-status{border-left:4px solid var(--frost,#79c8d8);padding-left:12px;min-height:1.6em}
+.volunteer-sheet .sheet-pie{display:block;width:260px;max-width:100%;height:auto}
+.volunteer-sheet .sheet-swatch{display:inline-block;width:1em;height:1em;border:1px solid currentColor;margin-right:8px}
+.volunteer-sheet .sheet-job-0{background:#79c8d8}.volunteer-sheet .sheet-job-1{background:#f5b36c}.volunteer-sheet .sheet-job-2{background:#bfafe9}
+.volunteer-sheet :focus-visible{outline:3px solid var(--frost,#79c8d8);outline-offset:2px}
+.volunteer-sheet details>summary{cursor:pointer;min-height:44px;padding:8px 0}
+@media(max-width:600px){.volunteer-sheet .sheet-panel{padding:10px}.volunteer-sheet .btn{display:block;width:100%;margin:10px 0}}

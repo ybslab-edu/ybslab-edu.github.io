@@ -106,6 +106,7 @@ test('完整建置僅豁免既有 DF／暖身固定內容；新增答案或教�
  const workerSource=join(dir,'synthetic-worker'),banks=join(workerSource,'src/formal/banks'),output=join(dir,'site');
  await mkdir(banks,{recursive:true});
  for(let n=1;n<=8;n++)await writeFile(join(banks,`pr6-batch${n}.mjs`),'export default '+JSON.stringify({['1:synthetic-private-version-'+n]:{rounds:{0:{cases:[{facts:{},answer:'synthetic-private-answer-unique-'+n}]}}}}));
+ await writeFile(join(banks,'u206-sheet-v2.mjs'),'export default '+JSON.stringify({'8:synthetic-private-sheet-version':{rounds:{0:{cases:[{facts:{mode:'synthetic-private-sheet'},answer:{syntheticSheet:'private-only'}}]}}}}));
  for(const name of ['pr6-batch5-materials.mjs','pr6-batch7-materials.mjs'])await writeFile(join(banks,name),'export default {};');
  const result=await buildSite({output,workerSource,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'}});
  assert.equal(await readFile(join(output,'assets/activities.json'),'utf8'),await readFile(new URL('../assets/activities.json',import.meta.url),'utf8'));

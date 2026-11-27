@@ -244,9 +244,11 @@ test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回�
       await page.locator('[data-question-type]').waitFor();
       const order=modules.privateAnswer(current.db);
       if(mode==='resume-first'){
-        // 先直接接受第一槽，關閉頁面，模擬第二槽尚未發送就離開。
+        // 先接受第一槽；第二槽確實被攔截且成為待送後，才解除攔截並重整。
         await page.route('**/worker/answer',route=>{const b=route.request().postDataJSON();return b.slot===1?route.abort():route.continue();});
         await page.evaluate(({activity,order})=>app.client.answer(activity,0,order),{activity,order});
+        await page.waitForFunction(()=>app.client.state().status==='pending');
+        assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0,'第二槽尚未接受，不可已有過關紀錄');
       }else{
         current.dropSecond=true;await fill(page,'finite-bank-v1',order);
         // 第一槽送出也會顯示「上傳中」；須等到第二槽的遺失回應，才檢查已寫入的唯一成績。

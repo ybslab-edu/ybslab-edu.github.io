@@ -190,6 +190,9 @@ const outcomeNotes={
 // 原生燈牌／容量題面沒有 hint、guide；保留舊站公開教學提示，不含特定題目的解答。
 export function questionHints(question) {
  const d=question?.data||{},type=question?.type||'';
+ if(d.mode==='form-volunteer-sheet-v2')return {
+  direction:['你先確認收件截止後的處理順序，再核對完整副本與指定案例。','你把標記與排除分開看；選填空白與有效重複不等於無效回覆。','你從初始副本比較所選欄位，核對欄名、保留順序與衝突回覆。','你先核對目前篩選，再逐職務數回覆；圖表與補招建議要使用同一份統計。'][d.round],
+  steps:['先看資料規格與原始表，再核對備份的三個查核項目，最後分類指定儲存格或列對。','先套用格式，逐列核對同意、必填與期待程度，再勾選排除；指定列可以同時有多個原因。','改設定後重新執行，再查看保留與移除區；同代號但內容不同的回覆需要另外核對。','套用篩選後填寫並記錄統計，選來源與標題重新製圖，再讀百分比並比較需求缺口。'][d.round]};
  let direction='',steps='';
  if(type.startsWith('binary-encode')){direction='最右邊代表 1，往左每顆都是右邊的 2 倍。';steps='從最大的燈開始想：放得下就點亮，再看剩多少；最後把亮燈代表的數字加起來核對。';}
  else if(type.startsWith('binary-decode')){direction='只加亮著的燈下面的數字。';steps='先找出亮燈，再由左到右逐一相加；暗燈不加。';}
@@ -217,7 +220,7 @@ export async function mountStudentLogin({client,host,onLogin,explain,active=()=>
  if(client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
 }
 export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now=Date.now}){
- const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261124sendstatus';document.head.append(css);
+ const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261127sheet';document.head.append(css);
  const activity=typeof ACTIVITIES==='undefined'?null:ACTIVITIES.find(a=>a.course===cfg.course&&a.week===cfg.week);
  const courseClosed=()=>typeof COURSES!=='undefined'&&COURSES.some(c=>c.id===cfg.course&&!c.open);
  // OPEN 由舊站共用清單提供；日期與台灣週日邊界沿用 activities.js。
@@ -228,7 +231,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  const gate=node('section');gate.className='gate fullrev-activity';gate.id='gate';gate.append(node('h1',title));
  const login=node('div');login.id='g-gbtn';gate.append(login);
  const identityBox=node('div');identityBox.id='g-who';identityBox.hidden=true;identityBox.innerHTML='<p id="g-whotext" aria-live="polite"></p><div class="btns" style="justify-content:center"><button type="button" class="btn" id="g-notme">不是我</button><button type="button" class="btn primary" id="g-isme" hidden>對，開始</button></div>';gate.append(identityBox);
- const main=node('div');main.className='wrap fullrev-activity';main.id='main';main.hidden=true;
+ const main=node('div');main.className='wrap fullrev-activity'+(cfg.course==='115-g9'&&cfg.week===8?' fullrev-sheet-activity':'');main.id='main';main.hidden=true;
  main.innerHTML=`<header class="top"><div class="activity-heading"><div class="title-rounds"><h1 id="activity-title"></h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div><div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">活動工具</summary></details></div></div><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-mono" id="xp-total">載入中…</span><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next">等待雲端紀錄</span></a></aside></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><p id="draft-notice" class="small" role="status" aria-live="polite"></p><div id="stage"></div><div class="btns"><span id="send-control" class="send-control" role="group" aria-label="送出"><button class="btn primary" id="b-send" type="button" aria-describedby="send-hint" disabled>送出</button></span><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint" role="status" aria-live="polite" aria-atomic="true"></span><a id="quota-old" class="linkbtn" href="/ybs-old/" hidden>改用舊站</a></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>`;
  // 與 origin/main 的公開暖身題庫、抽題及選擇題回顧相同；不上傳、不參與過關。
  const clientWarmupReset=mountWarmup({cfg,main})||(()=>{});
@@ -378,6 +381,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   nav.replaceChildren();cfg.rounds.forEach((r,i)=>{
    const pending=guestCompleted.has(i)||result?.pendingRecords?.some(r=>r.activity===cfg.week&&r.round===i),passed=completedRounds().includes(i),{locked,reason}=access(i);
    const b=node('button',r.name+(locked?' 🔒':pending?'（待老師確認）':passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.disabled=locked;b.title=reason;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);
+   if(cfg.course==='115-g9'&&cfg.week===8){const depth=node('span');depth.className='round-depth';depth.setAttribute('aria-hidden','true');b.append(depth);}
    if(locked){const item=node('span'),why=node('small',reason);item.className='round-locked';why.id='round-lock-'+i;b.setAttribute('aria-describedby',why.id);item.append(b,why);nav.append(item);}else nav.append(b);
   });
  }
@@ -409,9 +413,13 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  $('b-hint').onclick=()=>{if(submitted){hint=Math.min(3,hint+1);hints();}};
  function instructions(){
-  $('says').replaceChildren();['現在','要做到'].forEach((label,k)=>{const span=node('span');span.className='tk';span.append(node('b',label),node('span',[info().now||last?.question?.instruction||info().name,info().goal||last?.question?.data?.task||'完成兩組不同資料。'][k]));$('says').append(span);});
+  const d=last?.question?.data,sheet=d?.mode==='form-volunteer-sheet-v2';
+  const now=sheet?['收件截止了，你先保住原始回覆，再辨識資料問題。','你拿到原始回覆副本，要判斷哪些資料可以留下。','你拿到已清理副本，要找出內容完全重複的回覆。','你拿到已清理並去重的副本，要分析指定組別與場次。'][d.round]:info().now||last?.question?.instruction||info().name;
+  const goal=sheet?['核對流程、完整備份與四個指定案例。','實際套用格式、排除無效回覆並確認原因。','執行去重並核對結果，判斷衝突回覆的處理方式。','篩選、記錄統計、製圖，再提出補招初步建議。'][d.round]:info().goal||(typeof d?.task==='string'?d.task:'完成兩組不同資料。');
+  $('says').replaceChildren();['現在','要做到'].forEach((label,k)=>{const span=node('span');span.className='tk';span.append(node('b',label),node('span',[now,goal][k]));$('says').append(span);});
  }
  function layoutOutcome(d){
+  if(d?.mode==='form-volunteer-sheet-v2')return;
   if(!d?.questions||!d.kinds)return;
   stage.classList.add('quest-outcome');
   const intro=stage.querySelector('.panel'),work=node('div');work.className='quest-work panel';
@@ -461,7 +469,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   work.append(answers);stage.append(work);
  }
  function showQuestion(value){
-  stage.classList.remove('quest-outcome');stage.dataset.round=round;
+  stage.classList.remove('quest-outcome');stage.classList.toggle('quest-sheet',value.question.data?.mode==='form-volunteer-sheet-v2');stage.dataset.round=round;
   const carry=handle?.carry?.();handle?.dispose?.();stage.replaceChildren();handle=null;
   if(typeof cfg.renderQuestion!=='function')throw Error('renderer-pending');
   validation=null;$('draft-notice').textContent='';

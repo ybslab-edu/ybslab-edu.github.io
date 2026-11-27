@@ -9,8 +9,8 @@ export function renderPerformance(host,d,api){
   const initial=node('section');initial.className='machine';box.append(initial,pool,slots,controls,stage);
   const memory=(label,rows)=>{const e=node('section');e.append(node('h3',label));for(const [key,value] of rows){const row=node('p',`${key}：${value===''?'空格':value}`);row.className='memory-row';e.append(row);}return e;};
   if(d.cells)initial.append(memory('點單牆（RAM）',d.cells.map(([k,v])=>[`${k} ${Object.fromEntries(d.labels)[k]}`,v])));
-  else{initial.append(memory(`RAM：${d.machine.cap} 格，${d.machine.power?'開機中':'關機'}`,d.ram||[['空格','']]));initial.append(memory('儲存空間',d.disk));}
-  box.append(node('p','先排卡再送出，觀看店長／CPU、RAM 與輸出的演出。同一排卡會連續驗證兩組不同資料；兩組都成立才過關，錯答可修正再送出。'));
+  else{if(d.task)box.append(node('p',d.task.replaceAll('小安','你')));initial.append(memory(`RAM：${d.machine.cap} 格，${d.machine.power?'開機中':'關機'}`,d.ram||[['空格','']]));initial.append(memory('儲存空間',d.disk));}
+  box.append(node('p','點卡片放入順序格；點已放入的卡片可拿回，▲／▼ 可移動位置。'));
   let powerOff=false,values=Array(d.slotCount).fill(null),selected=null,timer=null,steps=[],position=0;
   if(Array.isArray(api.carry)&&api.carry.length===values.length&&api.carry.every(k=>Number.isInteger(k)&&k>=0&&k<d.cards.length))values=[...api.carry];
   const stop=()=>{clearTimeout(timer);timer=null;};

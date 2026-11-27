@@ -379,7 +379,7 @@ test('首次讀取耗盡後，focus 與登入區重新讀取均恢復開始鈕',
 });
 test('暖身使用公開選擇題與回顧，不影響成果題面或 Worker',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  const h=await setup(t);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
- assert.ok(h.$('stage').querySelector('.quest-note'));assert.ok(h.$('stage').querySelector('.quest-work'));
+ assert.equal(h.$('stage').querySelector('.quest-note'),null);assert.ok(h.$('stage').querySelector('.question-data-notes'));assert.ok(h.$('stage').querySelector('.quest-work'));
  const region=h.$('stage').querySelector('section[aria-label="職務第一志願比較（人）"]'),chart=region.querySelector('.quest-chart');assert.equal(chart.tagName,'UL');assert.equal(chart.childNodes.length,6);assert.ok(h.$('stage').querySelector('.quest-table'));
  const calls=h.calls.length;h.button('開始暖身').onclick();assert.match(h.$('warmup').textContent,/暖身 1／3/);h.$('warmup').querySelector('.warmup-options').querySelector('button').onclick();assert.match(h.$('warmup').textContent,/暖身 2／3/);h.button('跳過暖身').onclick();assert.equal(h.$('warmup').hidden,true);assert.equal(h.calls.length,calls);
  await h.client.logout();assert.equal(h.$('warmup').hidden,false);assert.match(h.$('warmup').textContent,/開場暖身 3 題/);
@@ -420,14 +420,14 @@ test('志工第 1 關三欄長條圖保留具名 region，換組與重整後作�
 });
 
 
-test('公開說明逐段與上線頁 qCommon 相同，成果排列與題面版本一致',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
+test('開頭不重述 qCommon，必要資料折疊保留且成果排列與題面版本一致',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{
  for(const activityId of [7,8,9]){
   const h=await setup(t,{activityId}),note=h.$('stage').querySelector('.quest-note');
-  const page=await readFile(new URL(`../115-g9/u2-0${activityId-2}/index.html`,import.meta.url),'utf8');
-  const old=new Element('div');old.innerHTML=page.match(/const qCommon='(.*?)';/)[1];
-  assert.deepEqual(note.childNodes.map(n=>n.outerHTML??n.textContent),old.firstChild.childNodes.map(n=>n.outerHTML??n.textContent),'公開說明包含段落、既有紀錄及課堂安排');
-  if(activityId===7||activityId===8)assert.doesNotMatch(note.textContent,/虛構|示意資料|後援會|2-13|前測|半成品|巡堂|待確認/);
-  else assert.doesNotMatch(note.textContent,/保留檔案|巡堂抽查|每次重建|未完成操作/);
+  assert.equal(note,null,'操作區不再印出故事與兩組過關規則');
+  const source=h.calls.find(c=>c.op==='start').response.question.data;
+  const notes=h.$('stage').querySelector('.question-data-notes');
+  assert.ok(notes);assert.ok(!notes.open);
+  assert.ok(notes.textContent.includes((Array.isArray(source.story)?source.story.join(''):source.story).replaceAll('每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。','').trim()),'Worker 資料說明保留在折疊區');assert.doesNotMatch(notes.textContent,/每關答對兩組不同資料才完成/);
   assert.equal(h.$('warmup').hidden,false,'預設不得跳過暖身');
   assert.equal(h.$('activity-tools').hidden,true,'一般學生不顯示空的教師工具選單');
   assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('sync').className,'sync ok');
@@ -440,12 +440,12 @@ test('公開說明逐段與上線頁 qCommon 相同，成果排列與題面版�
   const children=work.childNodes.filter(n=>n.nodeType===1),attachment=work.querySelector('.quest-attach');
   assert.equal(children.at(-1),answers);
   assert.equal(!!attachment,!!(h.calls.find(c=>c.op==='start').response.question.data.backup||h.calls.find(c=>c.op==='start').response.question.data.attachment));
-  if(attachment){assert.equal(attachment.firstChild.textContent,'本組委託附件');assert.equal(answers.previousElementSibling,attachment);}
+  if(attachment){assert.equal(attachment.firstChild.textContent,'本組委託附件');assert.equal(notes.previousElementSibling,attachment);assert.equal(answers.previousElementSibling,notes);}
   if(activityId===7){
    const stageNodes=h.$('stage').childNodes;
-   assert.deepEqual(stageNodes.slice(stageNodes.indexOf(note)+1,stageNodes.indexOf(work)).filter(n=>n.tagName!=='STYLE').map(n=>n.textContent),[],'說明卡與任務卡之間不得留下段落或遊離文字');
+   assert.deepEqual(stageNodes.filter(n=>n.tagName!=='STYLE'&&n!==work).map(n=>n.textContent),[],'操作卡前不得留下重複說明');
    assert.ok(!h.$('stage').textContent.includes(d.passages.join('')),'重複任務目標須移除原節點');
-   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','SECTION','DIV']);
+   assert.deepEqual(children.map(n=>n.tagName),['H3','DIV','SECTION','DETAILS','DIV']);
    assert.equal(d.mode,'form-volunteer-summary');
    const region=children[2],chart=region.querySelector('.quest-chart');
    assert.equal(region.getAttribute('aria-label'),'職務第一志願比較（人）');

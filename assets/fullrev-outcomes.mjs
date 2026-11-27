@@ -25,7 +25,7 @@ function materials(host,d){
     }).catch(()=>{status.textContent='素材尚未取得，請重新整理；仍無法取得時請告知老師。';});
   }
 }
-export function renderOutcome(host,d,changed){
+export function renderOutcome(host,d,changed,{shell=false}={}){
   if(!d.questions||!d.kinds)return;
   const volunteer=d.mode.startsWith('form-volunteer-');
   host.append(node('style',`@media(max-width:559px){
@@ -35,7 +35,12 @@ export function renderOutcome(host,d,changed){
     .fullrev-outcome-table td::before{content:attr(data-label);font-weight:bold}
   }`));
   if(d.practice)paragraph(host,d.practice);
-  if(d.passages)paragraph(host,d.passages);
+  if(d.passages){
+    // 志工題第一行重述關卡目標；其餘委託條件仍是作答依據。
+    const passages=Array.isArray(d.passages)?d.passages.join(''):d.passages;
+    const body=shell&&volunteer&&!['form-volunteer-summary'].includes(d.mode)?passages.split('\n').slice(1).join('\n'):passages;
+    if(body)paragraph(host,body);
+  }
   const rows=d.tableField?d[d.tableField]:d.rows;
   if(rows)table(host,d.headers,rows.map((row,k)=>d.indexRows?[k+1,row]:Array.isArray(row)?row:[row]));
   if(d.chartNames){

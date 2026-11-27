@@ -6,13 +6,15 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 const root=new URL('../',import.meta.url);
+// Node 22 使用實驗旗標名稱；隔離模式與原本驗收行為相同。
+const isolation=Number(process.versions.node.split('.')[0])>=24?'--test-isolation=none':'--experimental-test-isolation=none';
 function run(file,extra={}){
   const env={...process.env};delete env.CI;delete env.YBS_WORKER_SOURCE;delete env.NODE_TEST_CONTEXT;
   const dir=mkdtempSync(join(tmpdir(),'ybs-worker-check-'));
   const out=join(dir,'stdout'),err=join(dir,'stderr');
   const stdout=openSync(out,'w'),stderr=openSync(err,'w');
   try{
-    const result=spawnSync(process.execPath,['--test','--test-isolation=none','--test-reporter=tap',file],{cwd:root,env:{...env,...extra},stdio:['ignore',stdout,stderr]});
+    const result=spawnSync(process.execPath,['--test',isolation,'--test-reporter=tap',file],{cwd:root,env:{...env,...extra},stdio:['ignore',stdout,stderr]});
     return {...result,stdout:readFileSync(out,'utf8'),stderr:readFileSync(err,'utf8')};
   }finally{closeSync(stdout);closeSync(stderr);rmSync(dir,{recursive:true,force:true});}
 }

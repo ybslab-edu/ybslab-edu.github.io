@@ -42,7 +42,7 @@ for(const online of [true,false])test('教師課程設定'+(online?'連線':'離
     const createElement=document.createElement;
     document.createElement=tag=>{
       const element=createElement(tag),append=element.append.bind(element);
-      element.append=(...children)=>children.forEach(append);
+      element.append=(...children)=>children.forEach(child=>append(child));
       return element;
     };
     for(const id of ['teacher-courses','teacher-activities']){

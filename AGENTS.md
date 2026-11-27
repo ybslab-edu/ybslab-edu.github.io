@@ -4,7 +4,7 @@
 - 本檔是唯一 AI 入口；以繁體中文簡潔回覆，不在 repo 維護交接快照、進度或待辦。
 - `ybslab-edu/ybslab-edu.github.io` 是教學靜態網站，提供課堂活動、雲端過關紀錄與報告交件。
 - 網站：<https://ybslab-edu.github.io/>；HTML、CSS、JavaScript 直接提供服務，無建置步驟或套件安裝需求。
-- ClassScore 位於 `ybslab-edu/class-score`；兩站共用 Firebase，跨站資料規格見該 repo 的 `docs/YBS_FIRESTORE.md`。
+- ClassScore 位於 `ybslab-edu/class-score`；新站使用獨立 Firebase 專案 `ybs-lab`，與 ClassScore 隔離，跨站資料規格見該 repo 的 `docs/YBS_FIRESTORE.md`。
 
 ## 主要目錄
 - `index.html`：學期進度；`map/`：課綱學習地圖；`about/`：關於與著作權。
@@ -46,8 +46,8 @@
 - 每週開放活動須修改 `assets/lock.js` 的 `OPEN`，並同步 `tools/dev/check-pages.py` 的開放預期；前端鎖不具授權保護能力。
 - 新增外部字型、CDN、iframe 或 API 時，須同步檢查各頁 CSP；更換教師通行碼雜湊時同步更新引用的快取版本。
 - 一個功能一個 Draft PR；合併與發布須先取得老師明確核准。
-- 本 repo 的 `main` 更新即由 GitHub Pages 上線（純文件也會）；ClassScore 的 Hosting 要手動觸發 workflow 才發布。
-- ClassScore 的 `firestore.rules` 變更會自動部署 Rules，YBS 共用這份 Rules；權限與模擬器測試維護在 ClassScore，不再要求手動發布。
+- 本 repo 的 `main` 更新即由 GitHub Pages 上線（純文件也會）；ClassScore 的 Hosting 由 main 的相關變更自動觸發 Actions 發布。
+- 新站名冊採差異核對＋教師確認；預覽異動後逐筆確認，不自動覆寫。新站 Rules 與舊站分開維護，ClassScore 的 `firestore.rules` 自動部署僅影響 ClassScore／舊站。
 - commit 用中文短句，結尾依工作階段附正確的 `Co-Authored-By` 署名。
 
 ## 禁止事項

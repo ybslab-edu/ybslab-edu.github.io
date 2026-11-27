@@ -1,3 +1,5 @@
+import {inputState,indices} from './fullrev-answer-ui.mjs';
+import {highlightChangedNumbers} from './fullrev-student-support.mjs';
 import {renderRecording} from './fullrev-recording.mjs';
 // PR6：只包含公開導覽與 renderer；正式題面與判定均由 Worker 提供。
 import {renderPhotos} from './fullrev-photos.mjs';
@@ -36,8 +38,8 @@ export const BATCH4=Object.freeze([
   {activity:29,file:'115-g9/u1-04/index.html',title:'演唱會倒數直播',unit:1,rounds:['收進來還是送出去','輸入、處理、輸出','幫小裝置挑零件','直播的一秒鐘'],managed:[0,1,2,3]}
 ]);
 export const BATCH5=Object.freeze([
-  {activity:7,file:'115-g9/u2-05/index.html',title:'後援會問卷',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查'],managed:[0,1,2,3]},
-  {activity:8,file:'115-g9/u2-06/index.html',title:'問卷回來一團亂',unit:2,rounds:['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據'],managed:[0,1,2,3]},
+  {activity:7,file:'115-g9/u2-05/index.html',title:'動漫／遊戲展志工招募',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查'],managed:[0,1,2,3]},
+  {activity:8,file:'115-g9/u2-06/index.html',title:'志工回覆整理所',unit:2,rounds:['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據'],managed:[0,1,2,3]},
   {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
 ]);
 export const BATCH6=Object.freeze([
@@ -96,27 +98,37 @@ const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
 }
-function picks(host,rows,choices,changed) {
-  const values=rows.map(()=>null);
+function picks(host,rows,choices,changed,{describe=false}={}) {
+  const values=rows.map(()=>null),targets=[];
+  const list=node('div');list.className='rows';host.append(list);
   rows.forEach((text,r)=>{
-    const row=node('section');row.className='row';row.append(node('p',text));
+    const row=node('section'),question=node('div'),options=node('div');row.className='row';question.className='q';options.className='picks';
+    const split=describe?text.indexOf('：'):-1;
+    if(split>0)question.append(node('b',text.slice(0,split)),node('small',text.slice(split+1)));else question.textContent=text;
+    row.append(question,options);targets.push(options);
     choices(r).forEach((label,j)=>{
       const b=node('button',label);b.type='button';b.className='pk';b.dataset.row=r;b.dataset.choice=j;b.setAttribute('aria-pressed','false');
-      b.onclick=()=>{values[r]=values[r]===j?null:j;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[r])));changed();};row.append(b);
-    });host.append(row);
+      b.onclick=()=>{values[r]=values[r]===j?null:j;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[r])));changed();};options.append(b);
+    });list.append(row);
   });
-  return {get:()=>[...values],ready:()=>values.every(v=>v!==null)};
+  return {get:()=>[...values],ready:()=>values.every(v=>v!==null),fields:()=>targets.map((target,k)=>({target,reason:values[k]===null?'請選一項':''})),draft:()=>[...values],
+    restoreDraft(v){if(!indices(v,values.length,Math.max(...rows.map((_,k)=>choices(k).length)))||v.some((x,k)=>x!==null&&x>=choices(k).length))return false;v.forEach((x,k)=>{values[k]=x;targets[k].querySelectorAll('button').forEach((b,j)=>b.setAttribute('aria-pressed',String(j===x)));});changed();return true;}};
 }
-function ordered(host,cards,changed) {
-  const pool=node('section'),slots=node('section'),values=cards.map(()=>null);pool.append(node('h3','卡片'));slots.append(node('h3','順序'));
-  host.append(pool,slots);
+function ordered(host,cards,changed,{ai=false}={}) {
+  const layout=node('div'),pool=node('div'),slots=node('div'),values=cards.map(()=>null);layout.className='two';pool.className='picks ob-pool';slots.className='slots ob-slots';
+  for(const [content,title,hint] of [[pool,ai?'步驟卡':'卡片','點一下放進右邊下一格'],[slots,ai?'做 AI 的順序':'順序','點格子裡的卡片拿回去']]){
+    const box=node('section'),heading=node('div'),tip=node('span',hint);box.className='panel';heading.className='ptitle';tip.className='small';heading.append(node('h3',title),tip);box.append(heading,content);layout.append(box);
+  }host.append(layout);
   function draw(){
-    pool.replaceChildren(node('h3','卡片'));slots.replaceChildren(node('h3','順序'));
+    pool.replaceChildren();slots.replaceChildren();
     cards.forEach((text,k)=>{if(values.includes(k))return;const b=node('button',text);b.type='button';b.className='pk';b.dataset.poolIndex=k;
-      b.onclick=()=>{values[values.indexOf(null)]=k;draw();changed();};pool.append(b);});
-    values.forEach((k,j)=>{const b=node('button',`${j+1}．${k===null?'待放入':cards[k]}`);b.type='button';b.className='slot';b.dataset.slotIndex=j;
-      b.onclick=()=>{values[j]=null;draw();changed();};slots.append(b);});
-  }draw();return {get:()=>[...values],ready:()=>values.every(v=>v!==null)};
+      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;values[next]=k;draw();changed();};pool.append(b);});
+    if(values.every(v=>v!==null)){const done=node('p','都排好了，按「送出」。');done.className='small';pool.append(done);}
+    values.forEach((k,j)=>{const row=node('div'),number=node('span',String(j+1));row.className='slot';number.className='n';row.append(number);
+      if(k===null){const empty=node('span',ai&&j===0?'最先':ai&&j===cards.length-1?'最後':'　');empty.className='empty';row.append(empty);}
+      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{values[j]=null;draw();changed();};row.append(b);}slots.append(row);});
+  }draw();return {get:()=>[...values],ready:()=>values.every(v=>v!==null),fields:()=>[...slots.querySelectorAll('.slot')].map((target,k)=>({target,reason:values[k]===null?'請放入卡片':''})),draft:()=>[...values],
+    restoreDraft(v){if(!indices(v,values.length,cards.length,{unique:true}))return false;values.splice(0,values.length,...v);draw();return true;}};
 }
 function numberFields(host,fields,changed) {
   const inputs={};for(const [key,text,options] of fields) {
@@ -126,13 +138,15 @@ function numberFields(host,fields,changed) {
     input.dataset.answerField=key;input.className='num-in';label.style.display='block';label.append(input);host.append(label);input.oninput=input.onchange=changed;inputs[key]=input;
   }
   const valid=input=>input.value!==''&&/^-?\d+$/.test(input.value.trim())&&Number.isSafeInteger(Number(input.value))&&Math.abs(Number(input.value))<=1e12;
-  return {get:()=>Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,Number(input.value)])),ready:()=>Object.values(inputs).every(valid)};
+  return {...inputState(Object.values(inputs),e=>valid(e)?'':e.tagName==='SELECT'?'請選一項':!e.value.trim()?'請填數字':'請填整數（絕對值不超過 1000000000000）'),get:()=>Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,Number(input.value)])),ready:()=>Object.values(inputs).every(valid),
+    readyReason:()=>{const missing=Object.values(inputs).filter(e=>!e.value.trim()).length;
+      return missing?`還有 ${missing} 格沒填或沒選。`:Object.values(inputs).every(valid)?'':'請填整數（絕對值不超過 1000000000000），不含單位或小數點。';}};
 }
 function multi(host,options,changed) {
   const values=new Set();options.forEach((text,k)=>{
     const b=node('button',text);b.type='button';b.className='pk';b.dataset.multiIndex=k;b.setAttribute('aria-pressed','false');
     b.onclick=()=>{values.has(k)?values.delete(k):values.add(k);b.setAttribute('aria-pressed',String(values.has(k)));changed();};host.append(b);
-  });return {get:()=>[...values].sort((a,b)=>a-b),ready:()=>true};
+  });return {get:()=>[...values].sort((a,b)=>a-b),ready:()=>true,draft:()=>[...values],restoreDraft(v){if(!Array.isArray(v)||!indices(v,v.length,options.length,{unique:true})||v.includes(null))return false;values.clear();v.forEach(k=>values.add(k));host.querySelectorAll('[data-multi-index]').forEach(b=>b.setAttribute('aria-pressed',String(values.has(Number(b.dataset.multiIndex)))));return true;}};
 }
 function network(host,d) {
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 430 330');svg.setAttribute('role','img');svg.setAttribute('aria-label','網路線路示意圖');svg.style.cssText='width:100%;max-width:540px';
@@ -173,12 +187,19 @@ function ascii(host,d,changed) {
   input.oninput=()=>{const a=get(),current=typeof a==='string'?[...a].map(c=>c.charCodeAt(0)):a,target=d.codes||[...d.prompt].map(c=>c.charCodeAt(0));
     preview.textContent='目前編碼：'+current.join(' ');const different=Array.from({length:Math.max(current.length,target.length)},(_,k)=>k).filter(k=>current[k]!==target[k]);
     status.textContent=!current.length?'尚未填入有效答案':different.length?`與目標相差 ${different.length} 個位置（含缺少或多出）；第一個差異在第 ${different[0]+1} 個位置`:'與目標相同';changed();};
-  return {get,ready:()=>get().length>0&&(d.mode==='ascii-decode'||nums().length<=32&&nums().every(n=>Number.isSafeInteger(n)&&n<=1e12))};
+  return {...inputState([input],()=>get().length>0&&(d.mode==='ascii-decode'||nums().length<=32&&nums().every(n=>Number.isSafeInteger(n)&&n<=1e12))?'':!input.value.trim()?'請填答案':'請填最多 32 個整數，用空格或逗號隔開'),get,ready:()=>get().length>0&&(d.mode==='ascii-decode'||nums().length<=32&&nums().every(n=>Number.isSafeInteger(n)&&n<=1e12)),
+    readyReason:()=>!input.value.trim()?'請先填入答案。':d.mode==='ascii-decode'?'':'請填最多 32 個整數（每個不超過 1000000000000），用空格或逗號隔開。'};
 }
 function table(host,headers,rows) {
   const wrap=node('div'),t=node('table');wrap.style.cssText='max-width:100%;overflow-x:auto';t.style.cssText='border-collapse:collapse;width:100%';
   const head=node('tr');headers.forEach(text=>{const th=node('th',text);th.scope='col';head.append(th);});t.append(head);
   rows.forEach(row=>{const tr=node('tr');row.forEach(text=>{const td=node('td',text);td.style.cssText='padding:5px;border-bottom:1px solid #aaa';tr.append(td);});t.append(tr);});wrap.append(t);host.append(wrap);
+  if(rows.length>8||headers.length>4){
+    wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label','資料表，可左右捲動');wrap.style.maxHeight='65vh';
+    const tip=node('p','表格可左右、上下滑動；頂端欄名與左側第一欄會固定，方便對照。');tip.className='small table-position-tip';host.append(tip);
+    [...t.querySelectorAll('th')].forEach(th=>{th.style.position='sticky';th.style.top='0';th.style.background='var(--panel, #fff)';th.style.zIndex='2';});
+    [...t.querySelectorAll('tr')].forEach(tr=>{const cell=tr.children?.[0]||tr.firstChild;if(cell){cell.style.position='sticky';cell.style.left='0';cell.style.background='var(--panel, #fff)';}});
+  }
 }
 const colors=['#2171b5','#a64b00','#167f50'];
 // 所有圖形只使用授權題面中的觀察值；不繪製私有最近鄰、最佳線或收斂結果。
@@ -273,7 +294,7 @@ function aiQuestion(host,d,changed) {
     let value=null;const choices=node('div');choices.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px';host.append(choices);
     d.scenes.forEach((s,k)=>{const b=node('button');b.type='button';b.dataset.sceneChoice=k;b.setAttribute('aria-label',`第 ${k+1} 張`);b.setAttribute('aria-pressed','false');b.style.cssText='min-width:0;padding:4px';b.append(scene(s));
       b.onclick=()=>{value=k;choices.querySelectorAll('button').forEach((b,j)=>b.setAttribute('aria-pressed',String(j===k)));changed();};choices.append(b);});
-    return {get:()=>value,ready:()=>value!==null};
+    return {get:()=>value,ready:()=>value!==null,fields:()=>[{target:choices,reason:value===null?'請選一張圖片':''}],draft:()=>value,restoreDraft(v){if(!Number.isInteger(v)||v<0||v>=d.scenes.length)return v===null;choices.querySelectorAll('button')[v].click();return true;}};
   }
   if(d.mode?.startsWith('tree-')) {
     if(d.mode==='tree-follow')return picks(host,d.rows.map(rowLabel),()=>d.options,changed);
@@ -316,12 +337,12 @@ function aiQuestion(host,d,changed) {
   }
   if(d.mode==='elbow'){table(host,['服務台數量','總距離','比上一個少了'],d.values.map((v,k)=>[k+1,v,k?d.values[k-1]-v:'—']));return single();}
 }
-export function renderQuestion(q,host,api={changed(){}}) {
+function renderQuestionControls(q,host,api) {
   const d=q.data;host.dataset.questionType=q.type;host.dataset.slot=q.slot;
   section(host,d.heading||q.title,d.story||q.instruction);
   if(q.type==='finite-bank-v1') {
-    section(host,'任務',d.task);section(host,'提示',d.hint);
-    if(d.guide){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
+    if(!api.shell){section(host,'任務',d.task);section(host,'提示',d.hint);}
+    if(d.guide&&!api.shell){const detail=node('details');detail.append(node('summary','拆成步驟'),node('p',Array.isArray(d.guide)?d.guide.join(''):d.guide));host.append(detail);}
     if(d.references)section(host,'資料卡（課本整理）',d.references.join('\n'));
     if(d.prompt&&d.mode!=='scene-choice')section(host,'目標／提示詞',d.prompt);
     if(d.mode?.startsWith('recording-'))return renderRecording(q,host,api);
@@ -336,22 +357,22 @@ export function renderQuestion(q,host,api={changed(){}}) {
       const draw=()=>{buttons.dataset.routeLength=path.length;text.textContent='走法：'+path.join(' → ');buttons.replaceChildren();
         for(const [name] of d.nodes){const b=node('button',name);b.type='button';b.className='pk';b.dataset.routeNode=name;b.onclick=()=>{if(name===path.at(-1)&&path.length>1)path.pop();else if(!path.includes(name))path.push(name);draw();api.changed();};buttons.append(b);}
         const back=node('button','退一步');back.type='button';back.onclick=()=>{if(path.length>1)path.pop();draw();api.changed();};buttons.append(back);
-      };draw();return {get:()=>[...path],ready:()=>path.length>1};
+      };draw();return {get:()=>[...path],draft:()=>path.slice(1),restoreDraft(v){if(!Array.isArray(v)||v.length>d.nodes.length||v.some(n=>!d.nodes.some(([name])=>name===n))||new Set([d.from,...v]).size!==v.length+1)return false;path=[d.from,...v];draw();return true;},fields:()=>[{target:buttons,reason:path.length>1?'':'請選下一站'}],ready:()=>path.length>1,readyReason:()=>path.length>1?'':'請先選下一站，排出傳送路線。'};
     }
     if(d.mode==='multi'){if(d.edges)network(host,d);return multi(host,d.options,api.changed);}
     if(d.mode==='wifi-dead'){
-      const values=new Set();floor(host,d.walls,d.grid.flat(),{ap:d.ap,click:(i,b)=>{values.has(i)?values.delete(i):values.add(i);b.setAttribute('aria-pressed',String(values.has(i)));api.changed();}});
-      return {get:()=>[...values].sort((a,b)=>a-b),ready:()=>true};
+      const values=new Set();const grid=floor(host,d.walls,d.grid.flat(),{ap:d.ap,click:(i,b)=>{values.has(i)?values.delete(i):values.add(i);b.setAttribute('aria-pressed',String(values.has(i)));api.changed();}});
+      return {get:()=>[...values].sort((a,b)=>a-b),ready:()=>true,draft:()=>[...values],restoreDraft(v){if(!Array.isArray(v)||!indices(v,v.length,48,{unique:true})||v.includes(null))return false;values.clear();v.forEach(k=>values.add(k));grid.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(values.has(Number(b.dataset.cell)))));return true;}};
     }
     if(d.mode==='wifi-router'){
       let choice=null;const simulation=node('section');
       const grid=floor(host,d.walls,Array(48).fill(''),{cells:d.cells,click:(i)=>{if(!d.cells.includes(i))return;choice=d.cells.indexOf(i);grid.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.cell)===i)));simulation.replaceChildren();
         const g=signals(d.walls,i);section(simulation,'模擬',`位置 ${'ABCD'[choice]}：收得到 ${g.filter(v=>v>=-70).length}／48 格`);floor(simulation,d.walls,g,{ap:i});api.changed();}});host.append(simulation);
-      return {get:()=>choice,ready:()=>choice!==null};
+      return {get:()=>choice,ready:()=>choice!==null,fields:()=>[{target:grid,reason:choice===null?'請選一個位置':''}],draft:()=>choice,restoreDraft(v){if(v===null)return true;if(!Number.isInteger(v)||v<0||v>=d.cells.length)return false;grid.querySelectorAll('button')[d.cells[v]].click();return true;}};
     }
-    if(d.mode==='classify')return picks(host,d.rows,()=>d.options,api.changed);
+    if(d.mode==='classify')return picks(host,d.rows,()=>d.options,api.changed,{describe:true});
     if(d.mode==='select'){const h=picks(host,['請選一個'],()=>d.options,api.changed);return {...h,get:()=>h.get()[0]};}
-    if(d.mode==='order')return ordered(host,d.cards,api.changed);
+    if(d.mode==='order')return ordered(host,d.cards,api.changed,{ai:d.heading==='一個 AI 怎麼做出來'});
     if(d.mode==='tokens'){
       const sentence=node('p');sentence.setAttribute('aria-live','polite');host.append(sentence);
       const h=picks(host,['第 1 步','第 2 步','第 3 步'],r=>d.words.slice(r*4,r*4+4).map((w,j)=>`${w}（${d.weights[r*4+j]}%）`),()=>{sentence.textContent='國中的第一天，我'+h.get().map((v,r)=>v===null?'＿＿':d.words[r*4+v]).join('');api.changed();});return h;
@@ -359,10 +380,10 @@ export function renderQuestion(q,host,api={changed(){}}) {
   }
   if(/^binary-encode-(5|8)-v1$/.test(q.type)) {
     section(host,'任務',`把燈點亮，拼出 ${d.target}。亮＝1、暗＝0；最右邊代表 1，往左每顆是右邊的兩倍。`);
-    const values=Array(d.width).fill(0),board=node('div');board.className='board';board.setAttribute('aria-label','燈牌');
-    values.forEach((_,k)=>{const b=node('button',d.width===5?String(2**(d.width-k-1)):'○');b.type='button';b.className='pk';b.dataset.bit=k;b.setAttribute('aria-label',`第 ${k+1} 顆燈`);b.setAttribute('aria-pressed','false');
-      b.onclick=()=>{values[k]^=1;b.setAttribute('aria-pressed',String(!!values[k]));b.textContent=values[k]?'●':'○';api.changed();};board.append(b);});host.append(board);
-    return {get:()=>[...values],ready:()=>true};
+    const values=Array(d.width).fill(0),board=node('div');board.className='board';board.setAttribute('role','group');board.setAttribute('aria-label','燈牌');
+    values.forEach((_,k)=>{const weight=d.width===5?' '+2**(d.width-k-1):'',b=node('button','○'+weight);b.type='button';b.className='pk';b.dataset.bit=k;b.setAttribute('aria-label',`第 ${k+1} 顆燈${weight?'，代表'+weight:''}`);b.setAttribute('aria-pressed','false');
+      b.onclick=()=>{values[k]^=1;b.setAttribute('aria-pressed',String(!!values[k]));b.textContent=(values[k]?'●':'○')+weight;api.changed();};board.append(b);});host.append(board);
+    return {get:()=>[...values],ready:()=>true,draft:()=>[...values],restoreDraft(v){if(!Array.isArray(v)||v.length!==values.length||v.some(n=>n!==0&&n!==1))return false;board.querySelectorAll('button').forEach((b,k)=>{if(values[k]!==v[k])b.click();});return true;}};
   }
   if(q.type==='binary-decode-6-v1') {
     section(host,'燈牌',d.bits.map((b,k)=>`${b?'●':'○'}（${2**(d.bits.length-k-1)}）`).join('　'));
@@ -386,7 +407,56 @@ export function renderQuestion(q,host,api={changed(){}}) {
   }
   throw Object.assign(Error('unsupported-question'),{code:'renderer-pending'});
 }
+// 原理觀察只呈現公開題面或學生正在操作的值，不保存、判分或推導正式解答。
+function principleView(q,host,get) {
+  const d=q.data,box=node('section');box.className='panel principle-view';
+  const title=node('h3','電腦裡發生的'),detail=node('p');box.append(title,detail);
+  let update;
+  if(/^binary-(?:encode|decode)-/.test(q.type)) {
+    update=()=>{const values=q.type.startsWith('binary-encode')?get():d.bits;
+      detail.textContent='亮＝1、暗＝0：'+values.join('')+'。一顆燈就是一個位元。';
+      if(q.type==='binary-encode-5-v1')detail.textContent+=' 目前亮燈代表：'+(values.map((v,k)=>v?String(2**(values.length-k-1)):null).filter(Boolean).join(' + ')||'0');
+      detail.textContent+='；最右邊代表 1，往左每顆是右邊的 2 倍。';};
+  } else if(q.type==='minimum-bits-v1') {
+    update=()=>{detail.textContent='1 顆 → 0～1；2 顆 → 0～3；3 顆 → 0～7。每多一顆，能表示的數量加倍。';};
+  } else if(q.type==='capacity-conversion-v1') {
+    update=()=>{detail.textContent='8 位元＝1 位元組；1 KiB＝1024 位元組。記憶卡標示：1 KB＝1000 位元組；1 MB＝1000 KB；1 GB＝1000 MB。';};
+  } else if(d.mode?.startsWith('ascii-')) {
+    update=()=>{const values=d.mode==='ascii-decode'?d.codes:get();
+      detail.textContent=(values.length?values.map(n=>n+' → '+(n<=255?n.toString(2).padStart(8,'0'):'超過 1 個位元組')).join('；'):'尚未填入編碼')+'。8 個位元可以存一個 ASCII 英文字。';};
+  } else if(d.mode==='knn'&&d.k===3) {
+    title.textContent='最近的 3 個';box.hidden=true;
+    update=()=>{box.hidden=get()===null;if(box.hidden){detail.textContent='';return;}
+      const distance=p=>(p[0]-d.query[0])**2+(p[1]-d.query[1])**2;
+      detail.textContent=[...d.points].sort((a,b)=>distance(a)-distance(b)).slice(0,3).map(p=>`${d.options[p[2]]}（${p[0]}, ${p[1]}）`).join('、');};
+  } else if(d.mode==='route') {
+    update=()=>{const path=get(),types={sea:'海纜',land:'陸上光纖',mw:'微波',sat:'衛星'};
+      detail.textContent=path.slice(1).map((b,k)=>{const a=path[k],edge=d.edges.find(e=>e[0]===a&&e[1]===b||e[0]===b&&e[1]===a);
+        return a+' → '+b+'：'+(edge?types[edge[2]]:'沒有直接線路');}).join('；')||'先選一段路線，觀察訊息經過的傳輸媒介。';};
+  } else if(['網址的真名','名字換門牌'].includes(d.heading)) {
+    update=()=>{const urls=[d.prompt,...(d.rows||[])].filter(v=>typeof v==='string').flatMap(v=>v.match(/https?:\/\/[^\s「」]+/g)||[]);
+      detail.textContent=urls.map(value=>{try{const url=new URL(value);return value+' → 主機名稱：'+url.hostname+'；路徑：'+url.pathname;}catch{return value;}}).join('；')||'主機名稱在通訊協定之後、第一個斜線之前；DNS 要查完全相同的主機名稱。';};
+  } else if(d.mode==='order'&&d.heading==='把封包組回來') {
+    update=()=>{detail.textContent=get().map(k=>k===null?'□':d.cards[k]).join('');};
+  }
+  if(!update)return ()=>{};
+  host.append(box);update();return update;
+}
+export function renderQuestion(q,host,api={changed(){}}) {
+  let update=()=>{};
+  const handle=renderQuestionControls(q,host,{...api,changed(){update();api.changed();}});
+  if(!handle.readyReason)handle.readyReason=()=>{
+    if(!handle.ready||handle.ready())return '';
+    const missing=value=>value==null?1:Array.isArray(value)?value.reduce((n,v)=>n+missing(v),0):0;
+    const n=missing(handle.get());
+    return n?`還有 ${n} 題沒選或沒排好。`:'請先完成這一題的作答。';
+  };
+  update=principleView(q,host,handle.get);
+  const restore=handle.restoreDraft;
+  if(restore)handle.restoreDraft=value=>{const restored=restore(value);if(restored){update();api.changed();}return restored;};
+  highlightChangedNumbers(host,q);return handle;
+}
 export function activityConfig(cfg) {
   const entry=COMPLETE_ACTIVITIES.find(a=>activityCourse(a)==='115-g9'&&a.activity===cfg.week&&cfg.course==='115-g9');
-  return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
+  return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({...cfg.rounds?.[r],name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
 }

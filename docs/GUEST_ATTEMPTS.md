@@ -1,5 +1,13 @@
 # 班座過關紀錄
 
+## 新站 Worker 流程
+
+新站 fullrev 活動由「登入不了？用班級＋座號」進入 SESSION 匿名登入；使用 `/guest/context`、`/guest/start`、`/guest/answer`、`/guest/resume`，由 Worker fresh 驗名冊、有效班級時窗、配額並批改兩組題目。瀏覽器不直讀寫 guestHeads／guestAttempts。只有 Worker 待審回條顯示「已存待審，尚未採計」，不增加正式技能、XP 或排名；草稿重試保留原 UID、班座、sid、requestId 與 payload。學生 Google 登入預設隱藏。
+
+完整新站契約見 `docs/FULLREV_CLIENT.md` 與 ClassScore `docs/ybs-fullrev/data-contract.md`。下方只描述舊站，不能套用到新站 Worker。
+
+## 舊站歷史
+
 九年級 `115-g9/u*/` 的共用作答外框支援班座作答自動上傳。帳號登入仍寫原本的 `attempts`；班座作答背景使用 Firebase 匿名登入，寫 `ybsCourses/{courseId}/guestAttempts/{uid}_{activity}_{round}`。共用同一份 `assets/login.js` Firebase 設定與 10.14.1 compat SDK；班座匿名登入維持 SESSION，學生帳號使用 LOCAL 加瀏覽器 session cookie。DF 報告交件仍依既有報告流程。
 
 資料契約以 ClassScore `docs/YBS_FIRESTORE.md` 的 guestAttempts 章節及 `firestore.rules` 為準。

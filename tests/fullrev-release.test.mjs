@@ -5,19 +5,28 @@ import {mkdtemp,readFile,writeFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import vm from 'node:vm';
+import {activitiesJSON} from '../tools/activities-json.mjs';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
-const config={...fixtureConfig,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
-test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',async t=>{
+const config={...fixtureConfig,answerTickets:true,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
+test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups remain unchanged',async t=>{
  if(workerCISkip){t.skip(workerCISkip);return;}
  assert.ok(workerSource,'本機發布驗收需設定 YBS_WORKER_SOURCE');
  const dir=await mkdtemp(join(tmpdir(),'ybs-pr8-release-'));t.after(()=>rm(dir,{recursive:true,force:true}));const output=join(dir,'site');
  await assert.rejects(buildSite({output,config}),/worker_source_required/);
  await assert.rejects(buildSite({output,config:{...config,readModelModule:''},workerSource}),/release_read_model_or_public_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,privateKey:'synthetic-forbidden'},workerSource}),/public_config_invalid/);
+ await assert.rejects(buildSite({output,config:{...config,answerTickets:'true'},workerSource}),/release_answer_tickets_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ const catalogPath=join(output,'assets/activities.json'),catalog=await readFile(catalogPath,'utf8');
+ assert.equal(catalog,activitiesJSON(await readFile(new URL('../assets/activities.js',import.meta.url),'utf8')));
+ assert.deepEqual(JSON.parse(catalog),JSON.parse(await readFile(new URL('../assets/activities.json',import.meta.url),'utf8')));
+ await rm(catalogPath);await assert.rejects(scanRelease({output,workerSource}),/release_allowlist_mismatch/);await writeFile(catalogPath,catalog);
+ await writeFile(catalogPath,catalog+'\n'+JSON.stringify({answer:'synthetic',qThreeExpected:[]}));
+ await assert.rejects(scanRelease({output,workerSource}),/release_forbidden_content/);await writeFile(catalogPath,catalog);
+ t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}`);
  // Every new release page, including all w01–w30 redirects, shares popup CSP.
  // The three pinned legacy DF pages retain their separate, byte-checked policy.
  for(const p of releasePaths().filter(p=>p.endsWith('.html')&&!p.startsWith('115-df/'))){
@@ -35,12 +44,19 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
  }
  await writeFile(cspFile,cspOriginal);
  assert.match(await readFile(join(output,'115-df/teacher/index.html'),'utf8'),/script-src [^;]*https:\/\/apis\.google\.com/);
- for(const p of ['index.html','map/index.html','about/index.html','115-g9/me/index.html','115-g9/teacher/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-df/a/index.html','assets/fullrev-read-model.mjs'])assert.ok((await readFile(join(output,p))).length);
+ for(const p of ['index.html','map/index.html','about/index.html','115-g9/me/index.html','115-g9/teacher/index.html','115-g9/teacher/report/index.html','115-df/teacher/index.html','115-df/a/index.html','assets/fullrev-read-model.mjs','assets/fullrev-progress-cache.mjs'])assert.ok((await readFile(join(output,p))).length);
  const login=await readFile(join(output,'assets/login.js'),'utf8');assert.doesNotMatch(login,/class-score-86020|guestId\(|validGuest|\.collection\(/);
  const df=await readFile(join(output,'115-df/a/index.html'),'utf8');
  assert.match(df,/assets\/legacy-df\/login.js/);assert.match(df,/assets\/legacy-df\/config.js/);assert.doesNotMatch(df,/await YBS.loadDFContent/);
  const legacyLogin=await readFile(join(output,'assets/legacy-df/login.js'),'utf8');assert.match(legacyLogin,/project: 'class-score-86020'/);
  const dfCloud=await readFile(join(output,'assets/df-teacher-cloud.js'),'utf8');assert.match(dfCloud,/LEGACY_DF_INIT_START/);
+ // An exemption is a pinned file or block, never a whole modified shell.
+ const shellFile=join(output,'assets/fullrev-shell.mjs'),shellOriginal=await readFile(shellFile,'utf8');
+ assert.match(shellOriginal,/function mountWarmup/);assert.match(shellOriginal,/openTeacherQuestion/);
+ for(const [path,original,changed] of [
+  [join(output,'115-df/a/index.html'),df,df+'\n'],
+  [shellFile,shellOriginal,shellOriginal.replace('const checkWarmup =','const checkWarmup  =')]
+ ]){await writeFile(path,changed);await assert.rejects(scanRelease({output,workerSource}),/public_answer_allowlist_changed|legacy_df_changed/);await writeFile(path,original);}
  const privateArrays=[],shortAnswers=[];
  for(let n=1;n<=8;n++){
   const {default:banks}=await import(new URL('file://'+resolve(workerSource,`src/formal/banks/pr6-batch${n}.mjs`)));
@@ -49,7 +65,16 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
    if(!key.startsWith('115-df:')&&typeof c.answer==='string')shortAnswers.push(c.answer);
   }
  }
+ // Teacher code and content outside the pinned warmup block remain subject to scanning.
+ for(const path of [shellFile,join(output,'assets/fullrev-teacher-view.mjs')]){
+  const original=await readFile(path);
+  await writeFile(path,Buffer.concat([original,Buffer.from('\nconst leaked='+JSON.stringify(shortAnswers[0])+';')]));
+  await assert.rejects(scanRelease({output,workerSource}),/private_text_answer/);
+  await writeFile(path,original);
+ }
+ // 指定 Worker 的 src/formal/banks/pr6-batch1～8：逐 case 計算 Array 答案（含 DF），不計純字串答案。
  assert.equal(privateArrays.length,1361);
+ t.diagnostic(`private array answers: ${privateArrays.length} (Worker pr6-batch1–8)`);
  const victim=join(output,'assets/fullrev-read-model.mjs'),clean=await readFile(victim);
  const stringifyLeaves=value=>Array.isArray(value)?value.map(stringifyLeaves):String(value);
  for(const payload of [JSON.stringify(privateArrays),JSON.stringify(privateArrays.map(stringifyLeaves)),JSON.stringify(JSON.stringify(privateArrays)),JSON.stringify(privateArrays,null,2)]){
@@ -63,7 +88,7 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
   await mkdir(join(output,injected,'..'),{recursive:true});await writeFile(join(output,injected),'private');await assert.rejects(scanRelease({output,workerSource}),/allowlist/);await rm(join(output,injected));if(injected.startsWith('tools/'))await rm(join(output,'tools'),{recursive:true});
  }
  const file=join(output,'assets/fullrev-read-model.mjs'),original=await readFile(file);
- for(const content of ['//# sourceMappingURL=private.map','const TEACHER_HASH="synthetic";','const answers="class-score-86020";']){
+ for(const content of ['//# sourceMappingURL=private.map','const TEACHER_HASH="synthetic";','const answers="class-score-86020";','function volunteerCheck(){}','function qCheck(){}','const qThreeExpected=()=>[];']){
   await writeFile(file,content);await assert.rejects(scanRelease({output,workerSource}),/forbidden_content/);
  }
  await writeFile(file,original);await rm(file);await symlink('/tmp',file);await assert.rejects(scanRelease({output,workerSource}),/nonregular/);await rm(file);await writeFile(file,original);
@@ -77,11 +102,12 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',as
 test('PR8 read adapter authenticates fresh identity, never lists Firestore or falls back on 503',async()=>{
  let user={getIdToken:async()=> 'synthetic'},requests=[];
  const auth={get currentUser(){return user;}},session=async()=>({app:{options:{projectId:config.firebase.projectId}},auth});
- const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher:async(url,init)=>{requests.push({url,init});return Response.json({error:'temporarily_unavailable'},{status:503});}});
+ const waits=[];
+ const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,wait:async ms=>waits.push(ms),fetcher:async(url,init)=>{requests.push({url,init});return Response.json({error:'temporarily_unavailable'},{status:503});}});
  await assert.rejects(model.context({course:'115-g9',classKey:'c901',activity:5,round:0}),{code:'read-model-pending'});
- assert.equal(requests.length,1);assert.equal(requests[0].url.pathname,'/context');assert.equal(requests[0].init.redirect,'error');
- assert.throws(()=>model.controls({course:'115-df',classKey:'c901'}),{code:'invalid-course'});assert.equal(requests.length,1);
- user=null;await assert.rejects(model.controls({course:'115-g9',classKey:'c901'}),{code:'login-required'});assert.equal(requests.length,1);
+ assert.equal(requests.length,4);assert.deepEqual(waits,[1000,2000,4000]);assert.equal(requests[0].url.pathname,'/context');assert.equal(requests[0].init.redirect,'error');
+ assert.throws(()=>model.controls({course:'115-df',classKey:'c901'}),{code:'invalid-course'});assert.equal(requests.length,4);
+ user=null;await assert.rejects(model.controls({course:'115-g9',classKey:'c901'}),{code:'login-required'});assert.equal(requests.length,4);
 });
 
 test('DF 60-second cooldown preserves changed draft, identical receipt is idempotent, retry after interval succeeds',async t=>{

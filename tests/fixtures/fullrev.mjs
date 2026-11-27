@@ -11,7 +11,7 @@ export const record=(round=0,extra={})=>({schemaVersion:1,source:'worker-validat
 export const snapshot=(records=[0,1,2,3].map(r=>record(r)),extra={})=>({schemaVersion:1,sourceProject:config.firebase.projectId,course:'115-g9',
   classKey:'c901',subject:'synthetic-subject',provider:'password',state:'confirmed',complete:true,controlVersions:{...controls},records,
   people:[{subject:'synthetic-subject',cls:901,seat:1,provider:'password'}],...extra});
-export const store=(map=new Map())=>({getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k),map});
+export const store=(map=new Map())=>({getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k),key:i=>[...map.keys()][i]??null,get length(){return map.size;},map});
 export const response=(slot=0,extra={})=>({sid:'s'.repeat(22),nextSeq:slot+1,completed:false,expiresAt:'2026-12-01T00:00:00Z',
   question:{slot,type:'synthetic',title:'合成',instruction:'請輸入數值',data:{value:7}},...extra});
 export async function harness(options={}) {
@@ -35,11 +35,11 @@ export async function harness(options={}) {
       configVersion:1,bindingVersion:1,unitEpoch:0,roundEpoch:0,classUnitEpoch:0,controlVersions:{...controls}}),
     page:async()=>({...state.snapshot})};
   if(options.restoredProvider)auth.currentUser=user();
-  const clientOptions={config,course:options.course||'115-g9',session:async()=>session,readModel:options.noModel?undefined:model,
+  const clientOptions={requestTimeoutMs:options.requestTimeoutMs??20000,config:{...config,studentGoogleLogin:options.studentGoogleLogin===true,answerTickets:options.answerTickets===true},course:options.course||'115-g9',session:async()=>session,readModel:options.noModel?undefined:model,
     shared,storage,now:()=>clock,requestId:options.requestId||(()=>('synthetic-request-'+(++serial))),random:()=>0,
     events:options.events||{addEventListener:(key,fn)=>eventHandlers.set(key,fn)},schedule:(fn,ms)=>{timers.push({fn,ms});return timers.length;},cancel:()=>{},
     fetcher:async(url,init)=>{requests.push({url,...init,body:JSON.parse(init.body)});return state.fetcher?state.fetcher(url,init):Response.json(response());}};
   const client=createClient(clientOptions);
-  return {client,reopen:()=>createClient(clientOptions),state,session,auth,requests,reads,model,storage,shared,timers,events:eventHandlers,
-    advance:(ms=60001)=>{clock+=ms;},login:()=>client.login('password','9990001','synthetic-password'),changed};
+  return {client,reopen:(overrides={})=>createClient({...clientOptions,...overrides}),state,session,auth,requests,reads,model,storage,shared,timers,events:eventHandlers,
+    closePage:()=>observers.clear(),advance:(ms=60001)=>{clock+=ms;},login:()=>client.login('password','9990001','synthetic-password'),changed};
 }

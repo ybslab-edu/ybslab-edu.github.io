@@ -18,7 +18,8 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();if(server?.listening)await new Promise(r=>server.close(r));assert.deepEqual(outside,[],'無對外請求')});
 async function pageFor(width,dir){
- const page=await browser.newPage({viewport:{width,height:950},serviceWorkers:'block'});
+ // 下一組會捲回任務說明；關閉平滑捲動，避免長表格尚在移動時點擊教師填答。
+ const page=await browser.newPage({viewport:{width,height:950},serviceWorkers:'block',reducedMotion:'reduce'});
  await page.route('**/*',r=>{
   const u=new URL(r.request().url());if(u.origin!==base){outside.push(u.origin);return r.abort()}
   if(u.pathname==='/assets/teacher.js')return r.fulfill({contentType:'text/javascript',body:'window.TEACHER={remembered:()=>true,remember(){}};'});

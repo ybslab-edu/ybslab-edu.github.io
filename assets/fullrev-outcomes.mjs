@@ -1,3 +1,4 @@
+import {inputState} from './fullrev-answer-ui.mjs';
 // 通用成果介面；題目、素材與教學內容均來自授權回應，不含答案或判題。
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const urls=new WeakMap();
@@ -21,11 +22,12 @@ function materials(host,d){
       if(!host.contains(box))return;const url=URL.createObjectURL(blob);active.push(url);status.remove();
       const a=node('a',file.name.endsWith('.pdf')?'下載本組公告 PDF（示意）':file.name.endsWith('.zip')?'下載本組種子素材包（示意）':file.name.endsWith('.png')?'原圖（查看完整指定區域）':'有損壓縮圖（同一指定區域）');a.href=url;a.download=file.name;a.dataset.material=file.name;box.append(a);
       if(/\.(png|jpg)$/.test(file.name)){const img=node('img');img.src=url;img.alt=a.textContent;img.style.cssText='display:block;max-width:100%;height:auto';img.dataset.materialImage=file.name;box.append(img);}
-    }).catch(()=>{status.textContent='素材尚未取得，請重新整理或使用備用素材，並告知老師未實際操作。';});
+    }).catch(()=>{status.textContent='素材尚未取得，請重新整理；仍無法取得時請告知老師。';});
   }
 }
 export function renderOutcome(host,d,changed){
   if(!d.questions||!d.kinds)return;
+  const volunteer=d.mode.startsWith('form-volunteer-');
   host.append(node('style',`@media(max-width:559px){
     .fullrev-outcome-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
     .fullrev-outcome-table tr{display:block;margin-bottom:8px;border:1px solid #aaa}
@@ -40,25 +42,39 @@ export function renderOutcome(host,d,changed){
     const chart=node('section');chart.setAttribute('aria-label','人數長條圖');const total=d.chartCounts.reduce((sum,n)=>sum+n,0);
     d.chartNames.forEach((name,k)=>{const count=d.chartCounts[k],row=node('div',`${name}：${count} 人`),bar=node('div');bar.style.cssText=`height:12px;background:#718b9a;width:${count/total*100}%`;row.append(bar);chart.append(row);});host.append(chart);
   }
+  if(d.chartRows){
+    const chart=node('section');chart.setAttribute('aria-label','職務第一志願比較（人）');
+    paragraph(chart,'實心為國中組，斜線為高中組。各長條共用 0～6 人刻度。');
+    for(const [job,group,count] of d.chartRows){
+      const row=node('div',`${job}／${group}：${count} 人`),track=node('div'),bar=node('div');
+      track.style.cssText='background:var(--panel-hi);margin-bottom:8px';
+      bar.style.cssText=`height:12px;width:${count/6*100}%;background:${group==='高中組'?'repeating-linear-gradient(135deg,var(--ember) 0 4px,var(--panel-hi) 4px 6px)':'var(--dim)'}`;
+      track.append(bar);row.append(track);chart.append(row);
+    }host.append(chart);
+  }
   if(d.copyGuide){
     const copy=node('details');copy.append(node('summary','複製到試算表的素材與操作提示'));const pre=node('pre',[d.headers,...rows].map(r=>r.join('\t')).join('\n'));pre.style.cssText='white-space:pre;overflow:auto;max-width:100%';copy.append(pre);paragraph(copy,d.copyGuide);host.append(copy);
   }
   if(d.summaryRows)table(host,d.summaryHeaders,d.summaryRows);
   materials(host,d);
-  const fallback=node('details'),use=node('button','使用備用素材並記錄'),log=node('p');use.type='button';use.dataset.fallback='use';log.setAttribute('role','status');
-  fallback.append(node('summary','備用素材：設備或 Google 權限受阻時使用'));
-  paragraph(fallback,'可讀本題示意素材當場作答；請告知老師未實際操作。紀錄只存此瀏覽器，屬於本機備用紀錄，不是個人成績，不會上傳，也不會自動過關或補過其他關卡。');fallback.append(use,log);host.append(fallback);
-  const key='ybs:u2-'+(d.mode.startsWith('form-')?'05':d.mode.startsWith('sheet-')?'06':'07')+':fallback:v1';
-  const read=()=>{try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a.filter(v=>typeof v==='string').slice(-64):[];}catch{return [];}};
-  const show=()=>{log.textContent='本機備用紀錄（非個人成績）：\n'+(read().join('\n')||'尚未使用');};show();
-  use.onclick=()=>{
-    const label=(Array.isArray(d.guide)?d.guide.join(''):d.guide)?.match(/任務\s+(\d+-\d+)/)?.[1]||d.heading,entry=label+'：未實際操作',records=read();
-    if(!records.some(s=>s.startsWith(entry)))records.push(entry+'（'+new Date().toLocaleString('zh-TW')+'）');
-    try{localStorage.setItem(key,JSON.stringify(records.slice(-64)));show();}catch{log.textContent=entry+'；無法保存，請讓老師記錄。';}
-    if(d.backup)table(fallback,d.backupHeaders||['備用素材（示意）','觀察'],d.backup);
-    else paragraph(fallback,'請使用上方示意表格、任務結構或燈牌，在紙上或本機編輯器保留兩組成果，依規則逐項核對。');
-    use.disabled=true;
-  };
+  if(d.attachment){
+    const attachment=node('section');attachment.className='quest-attach';attachment.append(node('h4','本組委託附件'));
+    for(const block of d.attachment){
+      if(block.text)paragraph(attachment,block.text);
+      else if(block.headers){attachment.append(node('h5',block.caption));table(attachment,block.headers,block.rows);}
+      else if(block.stops){
+        const chart=node('figure'),pie=node('div');chart.append(node('figcaption',block.chart));
+        const [a,b]=block.stops;pie.setAttribute('role','img');pie.setAttribute('aria-label',block.chart+'；色塊依序為入口引導、遊戲體驗、舞台支援');
+        pie.style.cssText=`width:160px;max-width:100%;aspect-ratio:1;border-radius:50%;background:conic-gradient(#cc6034 0 ${a}%,#398989 ${a}% ${b}%,#a98bd4 ${b}% 100%)`;
+        chart.append(pie);attachment.append(chart);
+      }
+    }host.append(attachment);
+  }
+  if(d.backup){
+    const attachment=node('div');attachment.className='quest-attach';
+    attachment.append(node('h4','本組委託附件'));
+    table(attachment,d.backupHeaders||['附件（示意）','觀察'],d.backup);host.append(attachment);
+  }
   const inputs=d.questions.map(([text,...options],k)=>{
     const label=node('label',text),input=node(options.length?'select':'input');label.style.cssText='display:block;margin:12px 0;min-width:0';input.style.cssText='display:block;width:100%;max-width:100%;box-sizing:border-box;min-height:44px';
     input.dataset.answerField=k;input.setAttribute('aria-label',text);
@@ -66,5 +82,14 @@ export function renderOutcome(host,d,changed){
     else{input.type='text';input.autocomplete='off';input.maxLength=256;if(d.kinds[k]==='n')input.inputMode='numeric';}
     input.oninput=input.onchange=changed;label.append(input);host.append(label);return input;
   });
-  return {get:()=>inputs.map((e,k)=>d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>inputs.every((e,k)=>e.value.trim()!==''&&(d.kinds[k]!=='n'||/^\d+$/.test(e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12))};
+  // 志工答案保留原文交由 Worker 判分；提示不得改寫答案契約。
+  const validNumber=e=>/^\d+$/.test(volunteer?e.value:e.value.trim())&&Number.isSafeInteger(Number(e.value))&&Number(e.value)<=1e12;
+  const readyReason=()=>{
+    const missing=inputs.filter(e=>e.value.trim()==='').length;
+    if(missing)return `還有 ${missing} 格沒填或沒選。`;
+    const invalid=inputs.findIndex((e,k)=>d.kinds[k]==='n'&&!validNumber(e));
+    return invalid<0?'':`第 ${invalid+1} 格請填 0～1000000000000 的整數，不含單位或小數點。`;
+  };
+  return {...inputState(inputs,(e,k)=>!e.value.trim()?e.tagName==='SELECT'?'請選一項':d.kinds[k]==='n'?'請填數字':'請填答案':d.kinds[k]==='n'&&!validNumber(e)?'請填 0～1000000000000 的整數':''),get:()=>inputs.map((e,k)=>!volunteer&&d.kinds[k]==='n'?Number(e.value):e.value),ready:()=>!readyReason(),readyReason,
+    dispose(){for(const url of urls.get(host)||[])URL.revokeObjectURL(url);urls.delete(host);host.replaceChildren();}};
 }

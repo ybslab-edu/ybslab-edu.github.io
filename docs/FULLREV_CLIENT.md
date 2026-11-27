@@ -16,10 +16,10 @@
 學生 Google／password／匿名 guest 使用新專案 SESSION Auth。Google owner 另須由 server
 單筆讀取確認 `ybsTeachers/{uid}.enabled`、已驗證 Google provider 與課程 ownerUid。
 只有教師文件查詢的 `permission-denied` 視為非教師，學生登入／還原繼續；其他查詢錯誤仍失敗，教師入口仍須 owner。
-教師示範及未核發 guest 的本機練習不呼叫判題 API、不寫過關或 XP。
-claim 只讀 `ybsClassKeys[course]`；subject／版本只能由受控讀取 adapter 提供，不能自填班座授權。
+教師示範不寫過關或 XP。學生 Google 登入預設隱藏；帳密登入不了可輸入班級與座號，匿名登入後交由 Worker 核對名冊與時段。
+帳號 claim 只讀 `ybsClassKeys[course]`；subject／版本由受控讀取 adapter 提供。訪客不需 claim，依 cutover 的公開分片規則 `c{cls}_{ceil(seat/30)}` 找班級 gate，班座有效性仍由 Worker 驗證。
 
-`fullrev-client.mjs` 使用 PR2 精確 `/start`、`/answer`、`/resume` JSON 與 8KiB 上限。
+`fullrev-client.mjs` 帳號流程使用 PR2 精確 `/start`、`/answer`、`/resume` JSON 與 8KiB 上限。訪客透過 `fullrev-guest.mjs` 接入 `/guest/context`、`/guest/start`、`/guest/answer`、`/guest/resume`，附 cls（三位字串）與 seat（整數），不送 subject 或 bindingVersion；四個啟動版本直接取 context。SESSION 草稿另保留該 UID 的班座與原 context，重整續作沿原 sid／requestId。只有 completed:true,status:pending,verified:false,counted:false,attemptId 回條顯示「已存待審，尚未採計」；不讀正式進度、不增加 XP／排名。
 原 requestId、sid、seq、slot、epochs 與答案保存在以 project／course／UID／subject 分隔的
 分頁草稿；題面只在記憶體，沒有 token、私有答案或舊 attempts 的寫入旁路。
 網斷、429／503 依 Retry-After 與有界退避重試；401 只強制刷新一次。
@@ -57,6 +57,10 @@ validity 使用 `{state:'effective',controlVersions}`、`{state:'excluded',reaso
 people 在分頁間不可重複；有下一頁時 `complete:false` 及非空、不重複游標，末頁為
 `complete:true,nextCursor:null`。單頁最多100結果，整批最多100頁，分頁前後重查控制版。
 缺頁、碰撞、混版、換人、查詢失敗均清除採計快照並顯示待確認；確認後的空集合才可計0。
+
+教師輸入 `c901` 時先查同名完整 gate；只有經 owner 驗證的 `controls` 明確回覆
+`404 class_not_found`，才依序讀取 `c901_1`／`c901_2`，兩組各自驗版後合併表格。
+控制資料損壞、班級不符、斷線或任一組失敗均停止匯出；下載時重新執行完整讀取。
 
 成長頁、徽章與教師 Excel 共用 `fullrev-progress.mjs` 的有效集合及 `xp.js` 同一計算核心。
 Worker 結果只用 completedAt 與原 xpPolicySnapshot.openedAt，維持10／5／20及七天含端點；

@@ -23,6 +23,14 @@ test('static template literals decode escapes and serialized arrays without eval
  }
  assert.doesNotThrow(()=>scanPrivateAnswers('const label=`合成短答案${suffix}`;',answers));
 });
+test('private object answers are blocked in literals and serialized JSON, including reordered numeric strings',()=>{
+ const answers=[{rate:173,levels:29},{fps:37,one:37,total:111,parts:1}];
+ for(const source of ['const leaked={rate:173,levels:29};','const leaked={"levels":"29","rate":"173"};',
+  'const leaked="{\\"rate\\":173,\\"levels\\":29}";','const leaked=`{"parts":1,"total":111,"one":37,"fps":37}`;']){
+  assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_object/);
+ }
+ assert.doesNotThrow(()=>scanPrivateAnswers('const labels={rate:"取樣",levels:"量化"}; const input={rate:null,levels:null};',answers));
+});
 test('HTML text and quoted/unquoted attributes decode entities and compare complete values',()=>{
  const answers=['合成短答案','含<&"字'];
  for(const source of ['<p> 合成短答案 </p>','<p title="合成短答案">提示</p>',"<p title='合成短答案'>提示</p>",'<input value=合成短答案>','<p>&#x5408;&#25104;短答案</p>','<input title="含&lt;&amp;&quot;字">']){
@@ -205,4 +213,19 @@ test('all nine private string answer types are blocked in templates, HTML text a
   for(const source of [template,'<p>'+escapeHTML(answer)+'</p>','<input title="'+escapeHTML(answer)+'">'])assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_text_answer/);
   assert.doesNotThrow(()=>scanPrivateAnswers('const label=`請輸入答案`; <button title="下一組">開始作答</button><p>尚未完成</p>',answers));
  });
+});
+
+test('volunteer private mixed answer vectors are detected in literal, stringified and numeric-string forms',async t=>{
+ const workerSource=process.env.YBS_WORKER_SOURCE;
+ if(!workerSource&&process.env.CI){t.skip('需本機私有來源');return;}
+ assert.ok(workerSource,'志工答案掃描需設定 YBS_WORKER_SOURCE');
+ const {default:banks}=await import(pathToFileURL(resolve(workerSource,'src/formal/banks/pr6-batch5.mjs')).href);
+ const bundle=Object.entries(banks).find(([key])=>key.startsWith('7:'))[1];let count=0;
+ for(const bank of Object.values(bundle.rounds))for(const c of bank.cases){
+  assert.ok(c.facts.mode.startsWith('form-volunteer-'));assert.ok(c.answer.some(v=>typeof v==='number'));assert.ok(c.answer.some(v=>typeof v==='string'));
+  for(const value of [JSON.stringify(c.answer),JSON.stringify(c.answer.map(String)),JSON.stringify(JSON.stringify(c.answer)),'`'+JSON.stringify(c.answer)+'`']){
+   assert.throws(()=>scanPrivateAnswers('const leaked='+value+';',[c.answer]),/release_private_answer_array/);
+  }count++;
+ }
+ assert.equal(count,32);t.diagnostic('volunteer private answer vectors: 32; injection forms: 128 detected');
 });

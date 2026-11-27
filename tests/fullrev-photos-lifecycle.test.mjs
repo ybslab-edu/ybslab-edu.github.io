@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {gzipSync} from 'node:zlib';
 import {Element} from './fixtures/activity-dom.mjs';
+import {indices} from '../assets/fullrev-answer-ui.mjs';
 
 const source=await readFile(new URL('../assets/fullrev-photos.mjs',import.meta.url),'utf8');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
@@ -63,7 +64,7 @@ function harness(t) {
     }
   }
   const context=vm.createContext({document:{createElement:tag=>new PhotoElement(tag)},
-    Response:DelayedResponse,Blob,DecompressionStream,atob,Uint8Array,Float32Array:PixelBuffer,Map,
+    Response:DelayedResponse,Blob,DecompressionStream,atob,Uint8Array,Float32Array:PixelBuffer,Map,indices,
     observeCache:cache=>caches.add(cache)});
   // 隔離觀察持有像素 Map 的陣列，確認 dispose 釋放暫存；不新增正式測試介面。
   const renderPhotos=vm.runInContext(`
@@ -72,7 +73,7 @@ function harness(t) {
       if(items.some(item=>item instanceof Map))observeCache(this);
       return Reflect.apply(originalPush,this,items);
     };
-    ${source.replace(/^export /gm,'')}
+    ${source.replace(/^import .*;\n/gm,'').replace(/^export /gm,'')}
     renderPhotos;
   `,context);
   const drain=async()=>{for(const request of requests)await request.release();};
@@ -117,8 +118,8 @@ test('正常載入等待全部照片與解析度，沿用等待期間的設定�
     assert.equal(canvas.width,16);assert.equal(canvas.height,16);assert.equal(canvas.frames.length,1);
     assert.deepEqual(canvas.frames[0],Array.from({length:16*16},()=>i?[255,0,0,255]:[0,255,0,255]).flat());
   }
-  assert.equal(host.querySelectorAll('span').length,48);
-  assert.equal(host.querySelector('span').textContent,'00 11 00');
+  assert.equal(host.querySelector('.photo-nums').querySelectorAll('span').length,48);
+  assert.equal(host.querySelector('.photo-nums').querySelector('span').textContent,'00 11 00');
   assert.equal(handle.ready(),false);
   answer(host,0,1);assert.equal(handle.ready(),false);
   answer(host,1,2);assert.equal(handle.ready(),true);

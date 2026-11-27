@@ -40,26 +40,36 @@ function htmlValues(text){
  return values;
 }
 function literals(text){
- const values=[];const pattern=/"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[\[\],]|[A-Za-z_$][\w$]*/gi;
+ const values=[];const pattern=/"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[\[\]{},:]|[A-Za-z_$][\w$]*/gi;
  const tokens=[...text.matchAll(pattern)].map(m=>({raw:m[0],at:m.index}));
- const scalar=raw=>{if(['`','"',"'"].includes(raw[0]))return stringValue(raw);if(/^-?\d/.test(raw))return Number(raw);throw Error();};
+ const scalar=raw=>{if(['`','"',"'"].includes(raw[0]))return stringValue(raw);if(/^-?\d/.test(raw))return Number(raw);if(['true','false','null'].includes(raw))return JSON.parse(raw);throw Error();};
+ function object(i){const result=Object.create(null);let j=i+1;
+  while(j<tokens.length){if(tokens[j].raw==='}')return {value:result,end:j};
+   const key=/^[A-Za-z_$][\w$]*$/.test(tokens[j].raw)?tokens[j].raw:scalar(tokens[j].raw);
+   if(typeof key!=='string'||Object.hasOwn(result,key)||tokens[++j]?.raw!==':')throw Error();
+   j++;const nested=valueAt(j);result[key]=nested.value;j=nested.end+1;
+   if(tokens[j]?.raw===',')j++;else if(tokens[j]?.raw!=='}')throw Error();
+  }throw Error();
+ }
+ const valueAt=i=>tokens[i].raw==='['?array(i):tokens[i].raw==='{'?object(i):{value:scalar(tokens[i].raw),end:i};
  function array(i){const result=[];let j=i+1;while(j<tokens.length){if(tokens[j].raw===']')return {value:result,end:j};let value;
-  if(tokens[j].raw==='['){const nested=array(j);value=nested.value;j=nested.end;}else value=scalar(tokens[j].raw);
+  const nested=valueAt(j);value=nested.value;j=nested.end;
   result.push(value);j++;if(tokens[j]?.raw===',')j++;else if(tokens[j]?.raw!==']')throw Error();
  }throw Error();}
  for(let i=0;i<tokens.length;i++){const {raw,at}=tokens[i];
   if(raw==='['&&/[\w$)\]\"']$/.test(text.slice(Math.max(0,at-100),at).trimEnd())&&!/\b(?:return|yield)\s*$/.test(text.slice(Math.max(0,at-100),at)))continue;
-  try{const value=raw==='['?array(i).value:scalar(raw);values.push({value,at});
-  if(typeof value==='string'&&/^\s*\[/.test(value)){try{const visit=v=>{if(Array.isArray(v)){values.push({value:v,at});v.forEach(visit);}};visit(JSON.parse(value));}catch{}}
+  try{const value=valueAt(i).value;values.push({value,at});
+  if(typeof value==='string'&&/^\s*[\[{]/.test(value)){try{const visit=v=>{if(v&&typeof v==='object'){values.push({value:v,at});Object.values(v).forEach(visit);}};visit(JSON.parse(value));}catch{}}
  }catch{}}
  return values;
 }
 export function scanPrivateAnswers(text,answers){
- const arrays=new Set(),strings=new Set(),numbers=new Set();
- for(const answer of answers){if(Array.isArray(answer))arrays.add(signature(answer));else if(typeof answer==='string')strings.add(atom(answer));else if(typeof answer==='number')numbers.add(atom(answer));}
+ const arrays=new Set(),objects=new Set(),strings=new Set(),numbers=new Set();
+ for(const answer of answers){if(Array.isArray(answer))arrays.add(signature(answer));else if(answer&&typeof answer==='object')objects.add(signature(answer));else if(typeof answer==='string')strings.add(atom(answer));else if(typeof answer==='number')numbers.add(atom(answer));}
  const weak=new Set();
  for(const {value,at} of [...literals(text),...htmlValues(text)]){
   const context=text.slice(Math.max(0,at-80),at),label=/(?:answer|solution|correct|答案|解答)[\w\s"':=,[\]-]*$/i.test(context);
+  if(value&&typeof value==='object'&&!Array.isArray(value)&&objects.has(signature(value)))throw Error('release_private_answer_object');
   if(Array.isArray(value)&&arrays.has(signature(value))){
    // Small/common numeric arrays can be layout dimensions. Require an answer label
    // or two distinct matching private arrays; longer varied arrays identify a case.

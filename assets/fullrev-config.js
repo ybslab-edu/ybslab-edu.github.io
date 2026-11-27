@@ -1,6 +1,8 @@
 // 唯一切換開關；PR8 核准窗口前保持 false。禁止網址／localStorage 覆寫。
 const YBS_FULLREV_CONFIG = parseYbsFullrevConfig({
   enabled: false,
+  studentGoogleLogin: false, // 老師另行決定開放時機。
+  answerTickets: true, // 11/27 老師決定驗收期開啟；回退改 false
   courses: Object.freeze(['115-g9']), // DF 沿用舊專案；本次切換不啟用 DF 新流程。
   firebase: Object.freeze({projectId:'', apiKey:'', messagingSenderId:''}),
   workerOrigin: '',
@@ -14,7 +16,8 @@ function parseYbsFullrevConfig(config) {
   const placeholder = value => /replace|placeholder|your[-_]|changeme|change[-_]me|todo|<|>/i.test(value);
   try {
     if (!record(config) || ![true, false].includes(config.enabled)
-        || Object.keys(config).some(key => !['enabled', 'courses', 'firebase', 'workerOrigin', 'readModelModule'].includes(key))) return null;
+        || Object.keys(config).some(key => !['enabled', 'studentGoogleLogin', 'answerTickets', 'courses', 'firebase', 'workerOrigin', 'readModelModule'].includes(key))) return null;
+    if (['studentGoogleLogin', 'answerTickets'].some(key => config[key] !== undefined && typeof config[key] !== 'boolean')) return null;
     const courses = config.courses === undefined ? ['115-g9'] : config.courses;
     const firebase = config.firebase;
     if (!Array.isArray(courses) || courses.length !== 1 || courses[0] !== '115-g9'

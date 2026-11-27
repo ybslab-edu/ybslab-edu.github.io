@@ -1,3 +1,4 @@
+import {indices} from './fullrev-answer-ui.mjs';
 // 通用取樣／量化介面：只處理授權後的像素，不含照片產生器、身分或過關門檻。
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 export function quantize(px,bits){
@@ -6,39 +7,72 @@ export function quantize(px,bits){
   return {rgb:q.map(v=>Math.round(v*255/(L-1))),code:q};
 }
 const fmt=n=>n.toLocaleString('en-US');
+// 借用外框原有按鈕與回饋節點，仍由外框掌管送出、待送及雲端確認。
+function photoShell(host,store,enabled){
+  const work=enabled&&host.closest('#original-work'),send=work&&work.querySelector('#b-send'),verdict=work&&work.querySelector('#verdict');
+  if(!send||!verdict)return ()=>{};
+  const bar=send.parentElement,parent=bar.parentElement,heading=work.querySelector('.sec-h'),originalHeading=heading&&[...heading.childNodes],originalLabel=send.textContent;
+  if(heading){heading.replaceChildren();const num=node('span','2');num.className='num';heading.append(num,node('span','調設定，拍下來'));}
+  send.textContent='拍下來傳出去';
+  // 插在儲存說明之前，避免多出第二顆送出鈕或第二條送出路徑。
+  host.append(bar,verdict,store);
+  const feedback=()=>{const title=verdict.querySelector('h3');if(verdict.className.split(' ').includes('ok')&&title?.textContent==='過關！')title.textContent='朋友回訊息：「看到了！」';};
+  const observer=globalThis.MutationObserver?new MutationObserver(feedback):null;
+  observer?.observe(verdict,{childList:true,subtree:true});feedback();
+  return ()=>{observer?.disconnect();parent.append(bar,verdict);send.textContent=originalLabel;if(heading)heading.replaceChildren(...originalHeading);};
+}
 export function renderPhotos(host,d,api){
   if(d.mode!=='photo')return;
   let disposed=false,loaded=false,n=api.carry?.n||d.start[0],bits=api.carry?.d||d.start[1];
-  const values=api.carry?.answers?.map(a=>[...a])||d.photos.map(()=>d.ask.map(()=>null)),pixels=[],canvases=[];
-  const settings=node('section'),size=node('p'),photos=node('div'),store=node('section'),note=node('p','照片準備中…');
-  photos.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px;max-width:820px';
-  const nums=node('div'),formula=node('p'),numNote=node('p');nums.style.cssText='display:grid;gap:3px;max-width:100%;overflow:auto';
-  store.append(node('h2','電腦怎麼存這張照片'),node('h3','照片 1 中間的一小塊'),nums,numNote,formula,
-    node('p','8 位元 = 1 位元組（Byte）；1024 位元組 = 1 KiB。每格只存一個顏色，放大不會增加細節。'));
-  host.append(settings,size,photos,note,store);
+  const values=api.carry?.answers?.map(a=>[...a])||d.photos.map(()=>d.ask.map(()=>null)),pixels=[],canvases=[],answerRows=[];
+  const settings=node('div'),sizeBox=node('section'),sizeLine=node('div'),size=node('strong'),cap=node('span'),photos=node('div'),store=node('section'),note=node('p','照片準備中…');
+  settings.className='photo-knobs';sizeBox.className='panel photo-size';sizeLine.className='photo-size-line';size.className='photo-size-value';cap.className='small';photos.className='photo-grid';store.className='sec photo-store';note.className='small';
+  sizeLine.append(node('span','每張照片的大小'),size,cap);sizeBox.append(sizeLine);
+  const nums=node('div'),formula=node('p'),numNote=node('p'),heading=node('h2'),number=node('span','3'),storeGrid=node('div'),pixelBox=node('section'),formulaBox=node('section');
+  nums.className='photo-nums';numNote.className='small';formula.className='photo-equation';heading.className='sec-h';number.className='num';storeGrid.className='photo-store-grid';pixelBox.className=formulaBox.className='panel';
+  heading.append(number,node('span','電腦怎麼存這張照片'));
+  const panelTitle=(box,title,label,kind)=>{const row=node('div'),tag=node('span',label);row.className='ptitle';tag.className='tag photo-tag-'+kind;row.append(node('h3',title),tag);box.append(row);};
+  panelTitle(pixelBox,'照片 1 中間的一小塊','每格一個數字','quant');pixelBox.append(nums,numNote);
+  panelTitle(formulaBox,'檔案多大，這樣算','大小','size');
+  const explanation=node('p','8 位元 = 1 位元組（Byte）。容量有兩種算法：電腦常用 1024 位元組 = 1 KiB；手機、記憶卡標示用 1000 位元組 = 1 KB，下一站會用這一種。真的手機照片有幾千萬格、每格 24 位元，所以一張就要好幾 MB（還會再壓縮）。');explanation.className='small';
+  formulaBox.append(formula,explanation);storeGrid.append(pixelBox,formulaBox);store.append(heading,storeGrid);
+  host.append(settings,sizeBox,photos,note,store);
+  const restoreShell=photoShell(host,store,api.shell);
+  // 教師原圖經 teacher-question 獨立欄位傳入，學生題面 photos 不含原圖。
+  const originals=[];
+  if(api.demonstration&&Array.isArray(api.originals)&&api.originals.length===d.photos.length){
+    for(const src of api.originals){if(!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(src))break;
+      const image=node('img');image.src=src;image.alt='教師對照原圖';image.hidden=true;image.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain';originals.push(image);}
+  }
   function slider(title,list,value,change){
-    const box=node('section'),label=node('label',title),text=node('p'),row=node('div'),input=node('input');
+    const box=node('section'),label=node('label',title),text=node('div'),row=node('div'),input=node('input'),tip=node('p');
+    const sampling=title==='格子數';box.className='panel photo-knob '+(sampling?'photo-samp':'photo-quant');text.className='photo-kval';tip.className='small';
+    const titleRow=node('div'),tag=node('span',sampling?'取樣':'量化');titleRow.className='ptitle';tag.className='tag photo-tag-'+(sampling?'samp':'quant');titleRow.append(label,tag);
+    tip.textContent=list.length===1?(sampling?'這一關格子數固定。':'這一關顏色數固定用最多的。'):(sampling?(d.kind==='sat'?'一格代表的公尺數越小，衛星圖越清楚。':'格子越多，每一格代表的範圍越小。'):'位元越多，能分的顏色越細。');
+    input.id=sampling?'photo-resolution':'photo-depth';label.setAttribute('for',input.id);
     row.style.cssText='display:flex;align-items:center;gap:8px';input.type='range';input.min=0;input.max=list.length-1;input.step=1;input.value=list.indexOf(value);input.setAttribute('aria-label',title);input.style.cssText='flex:1;min-width:0';input.disabled=list.length===1;
-    const buttons=[];const update=()=>{const k=Number(input.value);text.textContent=title==='格子數'?(d.kind==='sat'?`一格代表地面 ${64/list[k]} 公尺（${list[k]} × ${list[k]} 格）`:`每邊 ${list[k]} 格（共 ${fmt(list[k]**2)} 格）`):`每格 ${list[k]} 位元，可分 ${fmt(2**list[k])} 種顏色`;buttons.forEach((b,j)=>b.disabled=list.length===1||(j===0?k===0:k===list.length-1));};
-    for(const [k,delta] of [[0,-1],[1,1]]){const b=node('button',delta<0?'−':'＋');b.type='button';b.className='btn';b.setAttribute('aria-label',title+(delta<0?'少一點':'多一點'));b.onclick=()=>{input.value=Math.max(0,Math.min(list.length-1,Number(input.value)+delta));input.oninput();};buttons.push(b);}
-    input.oninput=()=>{change(list[Number(input.value)]);update();paint();api.changed();};label.append(text);row.append(buttons[0],input,buttons[1]);box.append(label,row);settings.append(box);update();
+    const buttons=[];const update=()=>{const k=Number(input.value),depth=list[k],colors=depth===1?'2 種（黑、白）':depth===24?'約 1677 萬種':`${fmt(2**depth)} 種`;text.textContent=title==='格子數'?(d.kind==='sat'?`一格代表地面 ${64/list[k]} 公尺（${list[k]} × ${list[k]} 格）`:`每邊 ${list[k]} 格（共 ${fmt(list[k]**2)} 格）`):`每格 ${depth} 位元，可分 ${colors}顏色`;buttons.forEach((b,j)=>b.disabled=list.length===1||(j===0?k===0:k===list.length-1));};
+    for(const [k,delta] of [[0,-1],[1,1]]){const b=node('button',delta<0?'−':'＋');b.type='button';b.className='photo-step';b.setAttribute('aria-label',title+(delta<0?'少一點':'多一點'));b.onclick=()=>{input.value=Math.max(0,Math.min(list.length-1,Number(input.value)+delta));input.oninput();};buttons.push(b);}
+    input.oninput=()=>{change(list[Number(input.value)]);update();paint();api.changed();};row.append(buttons[0],input,buttons[1]);box.append(titleRow,text,row,tip);settings.append(box);update();
   }
   slider('格子數',d.resolutions,n,v=>n=v);slider('顏色數',d.depths,bits,v=>bits=v);
   d.photos.forEach((photo,i)=>{
-    const box=node('section'),canvas=node('canvas');canvas.dataset.photo=String(i);canvas.setAttribute('aria-label',`照片 ${i+1}（數位化後）`);canvas.style.cssText='display:block;width:100%;aspect-ratio:1;image-rendering:pixelated;background:#101020';canvases.push(canvas);
-    box.append(node('h3',`照片 ${i+1}`),canvas);
+    const box=node('section'),frame=node('div'),label=node('span',`照片 ${i+1}`),canvas=node('canvas');box.className='photo-card';frame.className='photo-frame';label.className='photo-label';canvas.dataset.photo=String(i);canvas.setAttribute('aria-label',`照片 ${i+1}（數位化後）`);canvases.push(canvas);
+    frame.append(canvas);if(originals[i])frame.append(originals[i]);frame.append(label);box.append(frame);
     d.ask.forEach((kind,j)=>{
-      const row=node('div');box.append(node('p',kind==='digit'?'背號是幾號？':kind==='count'?'有幾台遊覽車？':kind==='member'?'這是哪一位成員？':'應援色是哪一個？'),row);
+      const row=node('div'),ask=node('p',kind==='digit'?'背號是幾號？':kind==='count'?'有幾台遊覽車？':kind==='member'?'這是哪一位成員？':'應援色是哪一個？');row.className='picks';answerRows.push([row,i,j]);ask.className='photo-ask';box.append(ask,row);
       const choices=kind==='digit'||kind==='count'?Array.from({length:10},(_,k)=>String(k)):d.palette.map(p=>kind==='color'?p[2]:p[0]);
       choices.forEach((label,k)=>{
-        const b=node('button',label);b.type='button';b.className='pk';b.style.cssText='min-height:44px;margin:3px';b.dataset.photoIndex=i;b.dataset.photoField=j;b.dataset.choice=k;b.setAttribute('aria-pressed',String(values[i][j]===k));
+        const b=node('button',label);b.type='button';b.className='pk';b.dataset.photoIndex=i;b.dataset.photoField=j;b.dataset.choice=k;b.setAttribute('aria-pressed',String(values[i][j]===k));
         if(kind==='member'||kind==='color'){const sw=node('span');sw.style.cssText=`display:inline-block;width:18px;height:18px;background:${d.palette[k][1]};margin-right:6px`;b.prepend(sw);}
         b.onclick=()=>{values[i][j]=values[i][j]===k?null:k;row.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.choice)===values[i][j])));api.changed();};row.append(b);
       });
     });photos.append(box);
   });
   function paint(){
-    size.textContent=`每張照片的大小：${fmt(n*n*bits)} 位元 = ${fmt(n*n*bits/8)} 位元組`+(d.cap?`（只能傳 ${fmt(d.cap/8)} 位元組）`:'');
+    size.textContent=`${fmt(n*n*bits)} 位元 = ${fmt(n*n*bits/8)} 位元組`+(n*n*bits/8>=1024?` ≈ ${(n*n*bits/8192).toFixed(1)} KiB`:'');
+    cap.textContent=d.cap?`（只能傳 ${fmt(d.cap/8)} 位元組）`+(n*n*bits>d.cap?'　超過了，傳不出去！':''):'';
+    sizeLine.classList.toggle('over',!!d.cap&&n*n*bits>d.cap);
     formula.textContent=`${n} × ${n} 格 × ${bits} 位元 = ${fmt(n*n*bits/8)} 位元組`+(d.kind==='sat'?`；一格 ${64/n} 公尺，${n} 格是 64 公尺寬的停車場。`:'');
     if(!loaded||disposed)return;
     for(let i=0;i<canvases.length;i++){
@@ -61,5 +95,10 @@ export function renderPhotos(host,d,api){
     }}loaded=true;note.textContent='兩張照片的問題都回答後，再拍下來傳出去。';paint();api.changed();
   })().catch(()=>{if(!disposed)note.textContent='照片尚未取得，請重新讀取這一關。';});
   paint();
-  return {get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>!disposed&&loaded&&values.every(a=>a.every(v=>v!==null)),dispose(){disposed=true;pixels.length=0;},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
+  return {draft:()=>({n,d:bits,answers:values.map(a=>[...a])}),restoreDraft(v){if(!v||!d.resolutions.includes(v.n)||!d.depths.includes(v.d)||!Array.isArray(v.answers)||v.answers.length!==values.length||v.answers.some(a=>!indices(a,d.ask.length,Math.max(10,d.palette?.length||0)))||v.answers.some(a=>a.some((k,j)=>k!==null&&k>=(['digit','count'].includes(d.ask[j])?10:d.palette.length))))return false;
+    n=v.n;bits=v.d;v.answers.forEach((a,i)=>values[i]=[...a]);answerRows.forEach(([row,i,j])=>row.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.choice)===values[i][j]))));
+    for(const [id,list,value] of [['photo-resolution',d.resolutions,n],['photo-depth',d.depths,bits]]){const input=settings.querySelector('#'+id);input.value=list.indexOf(value);input.oninput();}paint();return true;},
+    fields:()=>[{target:note,reason:loaded?'':'圖片尚未準備好，請稍候'},...answerRows.map(([target,i,j])=>({target,reason:values[i][j]===null?'請選一項':''}))],setOriginal(on){if(!api.demonstration||originals.length!==d.photos.length)return;originals.forEach(image=>image.hidden=!on);},get:()=>({n,d:bits,answers:values.map(a=>[...a])}),ready:()=>!disposed&&loaded&&values.every(a=>a.every(v=>v!==null)),
+    readyReason:()=>!loaded?'圖片尚未準備好，請稍候；太久請告訴老師。':values.flat().includes(null)?`還有 ${values.flat().filter(v=>v===null).length} 題沒選。`:'',
+    dispose(){disposed=true;pixels.length=0;restoreShell();},carry:()=>({n,d:bits,answers:values.map(a=>[...a])})};
 }

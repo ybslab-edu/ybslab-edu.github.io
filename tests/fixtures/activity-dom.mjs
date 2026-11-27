@@ -54,11 +54,12 @@ export class Element {
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
   get outerHTML() { return '<'+this.tagName.toLowerCase()+(this.id?' id="'+this.id+'"':'')+(this.className?' class="'+this.className+'"':'')+'>'+this.childNodes.map(n=>n.outerHTML??n.textContent).join('')+'</'+this.tagName.toLowerCase()+'>'; }
   addEventListener(type,fn) { (this.listeners??={})[type]??=[];this.listeners[type].push(fn); }
+  dispatchEvent(event){this['on'+event.type]?.(event);for(const fn of this.listeners?.[event.type]||[])fn(event);return !event.defaultPrevented;}
   matches(selector){
     if(selector.includes('>')){const parts=selector.split('>');return this.matches(parts.pop().trim())&&!!this.parentElement?.matches(parts.join('>').trim())}
     if(selector.includes(' ')){const parts=selector.split(' ');return this.matches(parts.pop())&&!!this.parentElement?.closest(parts.join(' '))}
     const attrs=[...selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g)];
-    if(!attrs.every(([,k,v])=>this[k]!==undefined&&(v===undefined||this[k]===v)))return false;
+    if(!attrs.every(([,k,v])=>{const value=k.startsWith('data-')?this.dataset[k.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]??this[k]:this[k];return value!==undefined&&(v===undefined||String(value)===v)}))return false;
     selector=selector.replace(/\[[^\]]+\]/g,'');
     if(selector.startsWith('#'))return this.id===selector.slice(1);
     if(selector.startsWith('.'))return selector.slice(1).split('.').every(c=>(this.className||'').split(' ').includes(c));
@@ -66,9 +67,12 @@ export class Element {
   }
   closest(selector){return this.matches(selector)?this:this.parentElement?.closest(selector)||null}
   appendChild(el){this.append(el);return el}
-  append(el){if(el.parentElement){const a=el.parentElement.childNodes;a.splice(a.indexOf(el),1)}el.parentElement=this;this.childNodes.push(el)}
+  append(...elements){for(const el of elements){if(el.parentElement){const a=el.parentElement.childNodes;a.splice(a.indexOf(el),1)}el.parentElement=this;this.childNodes.push(el)}}
+  remove(){const parent=this.parentElement;if(parent){parent.childNodes.splice(parent.childNodes.indexOf(this),1);this.parentElement=null;}}
+  replaceChildren(...elements){this.childNodes.forEach(el=>el.parentElement=null);this.childNodes=[];this.append(...elements)}
   get previousElementSibling(){const a=this.parentElement.childNodes.filter(n=>n.nodeType===1);return a[a.indexOf(this)-1]}
   get parentNode(){return this.parentElement}
+  get firstChild(){return this.childNodes[0]||null}
   get lastElementChild(){return this.childNodes.filter(n=>n.nodeType===1).at(-1)}
   getContext(){
     // 畫布只替代像素 I/O；照片產生、取樣、量化、UI 與判定仍執行頁面原碼。

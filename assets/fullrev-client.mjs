@@ -1,5 +1,5 @@
 import {createDFReports} from './fullrev-df.mjs';
-import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261120a';
+import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261127b3';
 
 const scopeKey = (activity,round) => activity+':'+round;
 const epochKeys = ['configVersion','bindingVersion','unitEpoch','roundEpoch','classUnitEpoch'];

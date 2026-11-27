@@ -59,6 +59,95 @@ test('準時加全過 XP 與教師匯出共用，取消後不留舊徽章或成�
   const records=snapshot().records.map(r=>r.round===3?{...r,validity:{state:'excluded',reason:'reset'}}:r);
   const rows=exportRows(snapshot(records),options,xp);assert.equal(rows.at(-1)[6],45);assert.equal(rows[4][4],'尚未過關');
 });
+test('同一投影多人匯出隔離主體，guest／空集合沿用學生 XP，重算不修改輸入',()=>{
+  const people=[{subject:options.subject,cls:901,seat:1,provider:'password'},
+    {subject:'synthetic-guest',cls:901,seat:2,provider:'anonymous'},
+    {subject:'synthetic-empty',cls:901,seat:3,provider:'google.com'}];
+  const first=[0,1,2,3].map(round=>record(round));
+  const records=[...first,record(0,{uid:'synthetic-other'}),
+    record(0,{subject:people[1].subject,provider:'anonymous'}),
+    record(3,{subject:people[2].subject,validity:{state:'excluded',reason:'reset'}})];
+  let scans=0,visits=0;
+  Object.defineProperty(records,Symbol.iterator,{value:function*(){
+    scans++;for(let i=0;i<this.length;i++){visits++;yield this[i];}
+  }});
+  const projection=snapshot(records,{subject:undefined,people}),before=JSON.stringify(projection);
+  const opts={...options,subject:undefined};let calculations=0;
+  const countedXP={calculate(...args){calculations++;return xp.calculate(...args);}};
+  const rows=exportRows(projection,opts,countedXP);
+  assert.equal(scans,1,'匯出只走訪原始投影一次');assert.equal(visits,records.length);
+  assert.equal(calculations,2,'每個非 guest 主體只計算一次 XP，含已確認空集合');
+  assert.equal(rows.length,16);
+  for(let i=0;i<people.length;i++) {
+    const person=people[i],progress=growth(snapshot(records.filter(r=>r.subject===person.subject)),{...opts,...person},xp);
+    const block=rows.slice(1+i*5,6+i*5);
+    assert.deepEqual(block.map(row=>row.slice(0,2)),Array.from({length:5},()=>[901,person.seat]));
+    assert.equal(block.at(-1)[6],progress.totalXP===null?'待確認':progress.totalXP);
+    assert.deepEqual(block.slice(0,4).map(row=>row[4]),i===0?Array(4).fill('已確認過關'):
+      i===1?['已確認過關',...Array(3).fill('尚未過關')]:Array(4).fill('尚未過關'));
+    assert.deepEqual(block.slice(0,4).map(row=>row[6]),i===0?Array(4).fill(15):i===1?Array(4).fill('待確認'):Array(4).fill(0));
+  }
+  assert.deepEqual(exportRows(projection,opts,xp),rows);
+  assert.equal(JSON.stringify(projection),before);
+  const canceled=snapshot(records.map(r=>r.subject===options.subject?{...r,validity:{state:'excluded',reason:'reset'}}:r),{subject:undefined,people});
+  assert.equal(exportRows(canceled,opts,xp)[5][6],0);
+  assert.equal(exportRows(projection,opts,xp)[5][6],80);
+});
+test('多人匯出對原始與有效紀錄的走訪次數隨人數線性成長',t=>{
+  let visits=0;
+  const count=value=>{if(value?.source==='worker-validated'&&value.resultId?.startsWith('c_scan_'))visits++;};
+  const originals=new Map([Symbol.iterator,'filter','find','some'].map(key=>[key,Object.getOwnPropertyDescriptor(Array.prototype,key)]));
+  const iterator=originals.get(Symbol.iterator).value,measurements=[];
+  // 有效集合由實作複製產生；只監看輸入陣列的迭代器會漏掉逐人 filter。
+  try {
+    Object.defineProperty(Array.prototype,Symbol.iterator,{...originals.get(Symbol.iterator),value:function*(){
+      for(const value of Reflect.apply(iterator,this,[])){count(value);yield value;}
+    }});
+    for(const method of ['filter','find','some']) {
+      const descriptor=originals.get(method);
+      Object.defineProperty(Array.prototype,method,{...descriptor,value:function(callback,thisArg){
+        return Reflect.apply(descriptor.value,this,[(value,index,array)=>{
+          count(value);return Reflect.apply(callback,thisArg,[value,index,array]);
+        }]);
+      }});
+    }
+    for(const size of [10,20,40]) {
+      const people=Array.from({length:size},(_,i)=>({subject:'synthetic-scan-'+i,cls:901,seat:i+1,provider:'password'}));
+      const records=people.flatMap(person=>[0,1,2,3].map(round=>record(round,{
+        subject:person.subject,resultId:'c_scan_'+person.seat+'_'+round
+      })));
+      visits=0;
+      const rows=exportRows(snapshot(records,{subject:undefined,people}),{...options,subject:undefined},xp);
+      measurements.push({people:size,records:records.length,visits});
+      assert.equal(rows.length,1+size*5);
+      assert.equal(rows.at(-1)[6],80);
+    }
+  } finally {for(const [key,descriptor] of originals)Object.defineProperty(Array.prototype,key,descriptor);}
+  t.diagnostic('合成紀錄走訪次數：'+JSON.stringify(measurements));
+  for(const result of measurements)assert.ok(result.visits<=result.records*10,
+    `${result.people} 人、${result.records} 筆紀錄走訪 ${result.visits} 次，超過線性成本上限 ${result.records*10}`);
+  for(let i=1;i<measurements.length;i++)assert.ok(measurements[i].visits<=measurements[i-1].visits*2+8,
+    '人數加倍時，紀錄走訪次數應至多加倍（容許固定成本）');
+});
+test('多人匯出遇到 unknown／名冊缺漏不得產生部分成績或採用舊結果',()=>{
+  const opts={...options,subject:undefined};
+  const people=[...snapshot().people,{subject:'synthetic-later',cls:901,seat:2,provider:'password'}];
+  const records=[...snapshot().records,...[0,1,2,3].map(round=>record(round,{
+    subject:people[1].subject,resultId:'c_later_'+round
+  }))];
+  const projection=snapshot(records,{subject:undefined,people});
+  assert.equal(exportRows(projection,opts,xp).at(-1)[6],80);
+  for(const change of [{state:'unknown'},{complete:false},{controlVersions:{gateVersion:2,classGateVersion:1}},
+    {records:records.map(r=>r.subject===people[1].subject?{...r,validity:{state:'unknown'}}:r)}]) {
+    let calculations=0;
+    assert.throws(()=>exportRows({...projection,...change},opts,{calculate(){calculations++;throw Error('unexpected-xp');}}),{code:'export-unconfirmed'});
+    assert.equal(calculations,0);
+  }
+  for(const people of [undefined,[],projection.people.slice(0,1),[...projection.people,projection.people[1]],
+    [projection.people[0],{...projection.people[1],seat:0}]])assert.throws(()=>exportRows({...projection,people},opts,xp),{code:'roster-unconfirmed'});
+  assert.throws(()=>exportRows({...projection,records:records.map(r=>r.subject===people[1].subject?{...r,xpPolicySnapshot:null}:r)},opts,xp),{code:'xp-unconfirmed'});
+  assert.equal(exportRows(projection,opts,xp).at(-1)[6],80);
+});
 test('start／answer／resume 精確協定，沒有 Firestore 寫入或題面持久快取',async()=>{
   const h=await harness();await h.login();await h.client.start(5,0);
   assert.deepEqual(h.requests[0].body,{course:'115-g9',classKey:'c901',activity:5,round:0,requestId:'synthetic-request-2',

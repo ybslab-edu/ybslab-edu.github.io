@@ -17,9 +17,9 @@ const legacyDFSources={
 };
 const legacyDFHashes={
  "115-df/index.html": "dda49c53adcf8913f8acf37766080302f9f2a456cfd56e26de8f30d6180615a4",
- "115-df/a/index.html": "b2505739cef387f11738c1bb15c211f98bbacf192f01987204e2532647fac9fc",
- "115-df/teacher/index.html": "ec10e3e2c9b96b2e018b9aedab660e2302bc3a37fdfb76836e93a0f0cbce4e0e",
- "assets/legacy-df/login.js": "49010fbb970c6fd5296ef7de547a20e7d88304ac88de3cf0072f83216223f983",
+ "115-df/a/index.html": "1d209b8e1302e8c6a1eb567218a12090da84d1e02e483b4eede520429f157cb4",
+ "115-df/teacher/index.html": "77142454e9e5548112e45116d504819717c248bcf28ad1a74ad799a2497635b5",
+ "assets/legacy-df/login.js": "c45cd6a0ba7db67312f0fee3519f22956bbf86e76e38d6783bd5ed4d24f89882",
  "assets/teacher.js": "c18c458e687f884db51984a9b4ef32829af251eabe4623a07fb0b62055cb5108",
  "assets/lock.js": "1de7d0d8ed42804600019a026cc50093c89e6cff858af5e1a3a5afefad0bf828",
  "assets/df-teacher-cloud.js": "f0773cb1fb757491e2ccf0a9dd129c2d21a019ae97e8856be767998d11e8a217"

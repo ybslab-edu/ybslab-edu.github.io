@@ -612,7 +612,7 @@ const YBS = (() => {
 function ybsFullrevFacade(config) {
   const ready = Promise.resolve().then(() => {
     if (!config || config.enabled !== true) throw Object.assign(new Error('configuration-pending'), {code:'configuration-pending'});
-    return import('./fullrev-client.mjs?v=20261127ib');
+    return import('./fullrev-client.mjs?v=20261127b3');
   }).then(m => m.createBrowserClient(config));
   // 先掛失敗處理；設定未就緒不啟動舊專案。
   ready.catch(() => {});
@@ -622,7 +622,7 @@ function ybsFullrevFacade(config) {
     if(previousUid!==current?.uid)window.dispatchEvent(new CustomEvent('ybs-report-auth',{detail:{uid:current?.uid||null}}));
   })).catch(() => {});
   const call = name => (...args) => ready.then(client => client[name](...args));
-  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261127ib')
+  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261127b3')
     .then(m => m[name]({client:ready, ...args}));
   return Object.freeze({fullrev:true, enabled:()=>true, profile:()=>current,
     firebaseSession:call('session'), logout:call('logout'), retry:call('retry'),
@@ -637,13 +637,13 @@ function ybsFullrevFacade(config) {
       const client=await ready;
       if(!client.state().profile){
         const host=document.createElement('section');document.body.append(host);
-        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261127ib')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
+        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261127b3')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
       }
       const scripts=await client.dfContent();
       for(const key of ['pub','enc-b2','enc-rv'])document.getElementById(key).textContent=scripts[key];
     },
     button:async(el,ok,bad)=>{
-      try { await (await import('./fullrev-ui.mjs?v=20261127ib')).mountLogin({client:await ready,host:el,onLogin:ok}); }
+      try { await (await import('./fullrev-ui.mjs?v=20261127b3')).mountLogin({client:await ready,host:el,onLogin:ok}); }
       catch { bad?.('登入服務尚未就緒，請找老師。'); }
     },
     submitReport:call('submitReport')

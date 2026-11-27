@@ -194,18 +194,20 @@ test('跨活動超過八關仍可切換；實際重整保留當關離線原答�
     return {count:app.requests.length-count,keys:Object.keys(JSON.parse(sessionStorage.getItem('ybs:fullrev:synthetic-ybs-pr5:115-g9')).drafts)};
   }),{count:0,keys:['13:0']});
 });
-test('學生未完成與上傳待送均可點關卡切換，切回從第一組開始',async t=>{
+test('學生未完成與上傳待送仍鎖住下一關，保留原答案同關修正',async t=>{
   const page=await pageFor(t);await login(page);await confirmActivity(page);
-  await page.getByLabel('合成答案').fill('7');await page.locator('#rounds button').nth(2).click();
-  await page.waitForFunction(()=>app.requests.at(-1).body.round===2&&document.querySelector('#stage').childElementCount>0);
+  const count=await page.evaluate(()=>app.requests.length);
+  await page.getByLabel('合成答案').fill('7');assert.equal(await page.locator('#rounds button').nth(2).isDisabled(),true);
+  await page.locator('#rounds button').nth(2).evaluate(b=>b.click());assert.equal(await page.evaluate(()=>app.requests.length),count);
   assert.match(await page.locator('#streak').textContent(),/0\/2/);
-  await page.getByLabel('合成答案').fill('7');await page.evaluate(()=>app.state.fetcher=async()=>{throw Error('synthetic-offline');});
+  await page.evaluate(()=>app.state.fetcher=async()=>{throw Error('synthetic-offline');});
   await page.getByRole('button',{name:'送出',exact:true}).click();await page.waitForFunction(()=>app.client.state().status==='pending');
-  await page.evaluate(()=>app.state.fetcher=async()=>Response.json(response()));await page.locator('#rounds button').nth(1).click();
-  await page.waitForFunction(()=>app.requests.at(-1).body.round===1&&!app.client.state().pending);
-  await page.locator('#rounds button').nth(2).click();await page.waitForFunction(()=>app.requests.at(-1).body.round===2&&!app.client.state().pending);
-  assert.match(await page.locator('#streak').textContent(),/0\/2/);
-  assert.equal(await page.evaluate(()=>app.requests.at(-1).url.endsWith('/start')),true);
+  const original=await page.evaluate(()=>app.requests.at(-1).body);await page.getByLabel('合成答案').fill('8');
+  await page.locator('#rounds button').nth(1).evaluate(b=>b.click());assert.equal(await page.evaluate(()=>app.requests.length),count+1);assert.equal(await page.getByLabel('合成答案').inputValue(),'8');
+  await page.evaluate(()=>{app.advance();app.state.fetcher=async()=>Response.json(response(0,{nextSeq:2,correct:false}));});
+  await page.locator('#b-retry').click();await page.getByText('修改答案後再送一次',{exact:true}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>app.requests.at(-1).body),original);assert.equal(await page.getByLabel('合成答案').inputValue(),'8');
+  assert.equal(await page.locator('#rounds button').nth(1).isDisabled(),true);
 });
 test('斷線答案待確認；換人及其他分頁登出清空題面與待送',async t=>{
   const context=await browser.newContext();t.after(()=>context.close());const first=await pageFor(t,'',context);await login(first);

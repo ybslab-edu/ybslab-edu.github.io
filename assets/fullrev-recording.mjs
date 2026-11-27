@@ -48,6 +48,9 @@ export function renderRecording(question,host,api){
   const d=question.data,seen=new Set(),numbers=[];let controls=[],get,update=()=>{},dispose=()=>{};
   const select=(id,label,values,format)=>{const el=selectControl(host,id,label,values,format);controls.push(el);return el;};
   const num=(id,label)=>{const el=numberControl(host,id,label);controls.push(el);numbers.push(el);return el;};
+  const requirement=document.createElement('p');
+  requirement.textContent=d.mode==='recording-sound'?`本組接近度：至少 ${d.target}%。`:d.mode==='recording-image'?`本組用途：${d.use}；至少 ${d.minRes} × ${d.minRes} 像素、${d.minColors} 色。`:`本組需求：至少 ${d.target} fps。`;
+  host.append(requirement);
   const stat=document.createElement('p');stat.className='lab-stat';stat.setAttribute('aria-live','polite');stat.textContent=d.mode==='recording-movie'?'選擇 fps 開始看。':'先選兩個設定。';
   if(d.mode==='recording-sound'){
     const c=canvas(host,'灰色原始連續波形與橘色取樣點、階梯還原波形');c.style.maxWidth='100%';

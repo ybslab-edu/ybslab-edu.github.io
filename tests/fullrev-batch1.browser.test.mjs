@@ -130,11 +130,14 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
       const type=q.type,answer=modules.privateAnswer(current.db);
       const outcome=['form-','sheet-','media-'].some(prefix=>q.questions[0].data.mode?.startsWith(prefix));
       if(outcome&&a.activity!==7){
-        // u2-06／u2-07 已全改為站內作答；逐段核對現行頁的公開說明。
-        const source=await readFile(new URL('../'+a.file,import.meta.url),'utf8');
-        const note=source.match(/const qCommon='<div class="quest-note">(.*?)<\/div>';/);
-        assert.ok(note,'活動頁須保留公開說明');
-        assert.equal(await page.locator('#stage .quest-note').evaluate(el=>el.innerHTML),note[1]);
+        // 去重後不再重述舊頁 qCommon；本組資料說明仍完整保留於折疊區。
+        assert.equal(await page.locator('#stage .quest-note').count(),0);
+        const notes=page.locator('#stage .question-data-notes');
+        const story=q.questions[0].data.story;
+        const expected=(Array.isArray(story)?story.join(''):story).replaceAll('每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。','').trim();
+        assert.equal(await notes.locator('p').textContent(),expected);
+        assert.equal(await notes.evaluate(el=>el.open),false);
+        assert.doesNotMatch(await notes.textContent(),/每關答對兩組不同資料才完成/);
         assert.doesNotMatch(await page.locator('#stage').innerText(),/抽查|抽看/);
         const requests=current.requests.length,session=structuredClone(q);
         assert.equal(await page.locator('[data-fallback]').count(),0);
@@ -144,14 +147,18 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
         assert.deepEqual(current.db.docs.get(modules.paths.head('synthetic-a')).activeSession,session);
         assert.equal([...current.db.docs.keys()].filter(p=>p.includes('/validatedResults/')).length,0);
         assert.equal(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.endsWith(':fallback:v1'))),false);
-        for(const file of q.questions[0].data.assets||[]){
-          const link=page.locator(`[data-material="${file[0]}"]`);await link.waitFor();
-          const event=page.waitForEvent('download');await link.click();const download=await event,stream=await download.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);
-          assert.deepEqual(Buffer.concat(chunks),await readFile(new URL('../115-g9/u2-07/materials/'+file[0],import.meta.url)));
-        }
+        // 先完成圖片解碼與內容核對，讓下載連結點擊時的版面穩定。
         if(q.questions[0].data.mode==='media-lossy'){
+          await page.locator('[data-material-image]').nth(1).waitFor();
           const counts=await page.locator('[data-material-image]').evaluateAll(async imgs=>{const counts=[];for(const img of imgs){await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);const p=ctx.getImageData(0,80,320,1).data;let n=0,on=false;for(let x=0;x<320;x++){const dark=p[x*4]<205;if(dark&&!on)n++;on=dark;}counts.push(n);}return counts;});
           assert.deepEqual(counts,q.questions[0].data.imageGroup?[8,4]:[6,3]);
+        }
+        for(const file of q.questions[0].data.assets||[]){
+          const link=page.locator(`[data-material="${file[0]}"]`);await link.waitFor();
+          // 先聚焦讓瀏覽器完成焦點捲動，再由滑鼠實際啟動下載。
+          await link.focus();
+          const event=page.waitForEvent('download');await link.click();const download=await event,stream=await download.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);
+          assert.deepEqual(Buffer.concat(chunks),await readFile(new URL('../115-g9/u2-07/materials/'+file[0],import.meta.url)));
         }
         if(a.activity===8&&round===1){
           await page.evaluate(()=>window.scrollTo(0,document.querySelector('table').getBoundingClientRect().top+scrollY));

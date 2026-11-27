@@ -88,3 +88,12 @@ test('作答票即時錯答回饋與說明維持；過期顯示具體原因並�
   h.state.fetcher=async()=>Response.json(view(0,ticket));await h.button('開始這一關').onclick();
   assert.ok(h.requests.at(-1).url.endsWith('/ticket/start'));
 });
+
+test('Worker 回 tickets_disabled 時顯示需重新整理，停止自動重送',async t=>{
+  const h=await activity(t,{answerTickets:true,fetcher:async()=>Response.json(view(0,{ticketVersion:1,ticket:'ybs-answer-v1.synthetic-ui-fixture'}))});
+  h.state.fetcher=async()=>Response.json({error:'tickets_disabled'},{status:409});
+  await h.button('送出').onclick();
+  assert.match(h.body.textContent,/老師已關閉作答票，請重新整理頁面後重新開始/);
+  assert.equal(h.client.state().pending,false);
+  const requests=h.requests.length;await h.client.retry();assert.equal(h.requests.length,requests);
+});

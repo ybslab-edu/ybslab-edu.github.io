@@ -106,3 +106,7 @@
 .fullrev-activity #stage input.answer-invalid,.fullrev-activity #stage select.answer-invalid{border-color:var(--warn)}
 .fullrev-activity .answer-error{display:block;color:var(--warn);font-size:14px;font-weight:700;margin-block:6px;line-height:1.5}
 .fullrev-activity #draft-notice:empty{display:none}
+.fullrev-activity .round-locked{display:flex;flex-direction:column;gap:4px;max-width:15rem}
+.fullrev-activity .round-locked small{font-size:12px;line-height:1.5;color:var(--muted);font-style:normal}
+.fullrev-activity .rounds button:disabled{cursor:default;opacity:.65}
+.fullrev-activity #start-wait{padding:16px;border:1px solid var(--line);background:var(--surface);line-height:1.6}

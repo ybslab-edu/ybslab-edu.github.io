@@ -25,14 +25,14 @@ test('班座先驗證再匿名登入，分片與 Worker 名冊一致；不接受
   const df=await harness({course:'115-df'});await assert.rejects(df.client.login('guest',seat),{code:'grading-not-supported'});
 });
 
-test('班座匿名登入不需 claims 或正式投影；context/start/answer/resume 只送 guest 路徑',async()=>{
-  const h=await guest();await h.client.start(5,0);
+for(const answerTickets of [false,true])test(`班座匿名登入不需 claims 或正式投影；開票 ${answerTickets} 時 context/start/answer/resume 只送 guest 路徑`,async()=>{
+  const h=await guest({answerTickets});await h.client.start(5,0);
   assert.deepEqual(h.requests.map(r=>new URL(r.url).pathname),['/guest/context','/guest/start']);
   assert.equal(h.requests[1].body.bindingVersion,undefined);
   assert.deepEqual(Object.keys(h.requests[0].body).sort(),['activity','classKey','cls','course','round','seat'].sort());
   await h.client.resume(5,0);await h.client.answer(5,0,7);
   assert.deepEqual(h.requests.slice(2).map(r=>new URL(r.url).pathname),['/guest/resume','/guest/answer']);
-  for(const request of h.requests){assert.equal(request.body.cls,'901');assert.equal(request.body.seat,31);assert.equal(request.body.classKey,'c901_2');assert.equal(request.credentials,'omit');assert.equal(request.cache,'no-store');}
+  for(const request of h.requests){assert.equal(request.body.ticket,undefined);assert.equal(request.body.cls,'901');assert.equal(request.body.seat,31);assert.equal(request.body.classKey,'c901_2');assert.equal(request.credentials,'omit');assert.equal(request.cache,'no-store');}
   assert.deepEqual(h.reads,[]);
 });
 

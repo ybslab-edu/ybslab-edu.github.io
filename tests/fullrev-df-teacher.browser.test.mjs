@@ -1,3 +1,4 @@
+import {workerSource,workerSkip} from './helpers/worker-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -8,11 +9,11 @@ import {buildSite} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 test('DF release preserves old Firebase owner login, roster and report queries',async t=>{
- if(!process.env.YBS_WORKER_SOURCE&&process.env.CI){t.skip('略過：需私有來源，由 Console 發布前在本機執行');return;}
+ if(workerSkip){t.skip(workerSkip);return;}
  const dir=await mkdtemp(join(tmpdir(),'ybs-pr8-df-teacher-')),output=join(dir,'public');let server,browser,page;const errors=[];
  const config={...fixtureConfig,readModelModule:'/assets/fullrev-read-model.mjs'},calls=[];
  try{
-  await buildSite({output,config,workerSource:process.env.YBS_WORKER_SOURCE});
+  await buildSite({output,config,workerSource});
   server=createServer(async(req,res)=>{try{
    const path=new URL(req.url,'http://localhost').pathname,file=resolve(output,'.'+path+(path.endsWith('/')?'index.html':''));
    if(!file.startsWith(output+'/'))throw Error('outside');

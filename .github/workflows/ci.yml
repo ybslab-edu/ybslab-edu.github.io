@@ -30,16 +30,34 @@ jobs:
             echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/playwright-node/node_modules/playwright/index.mjs"
             echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/playwright-browsers"
             echo "npm_config_cache=$RUNNER_TEMP/npm-cache"
+            echo "YBS_WORKER_SOURCE=$RUNNER_TEMP/classscore/workers/ybs-grader"
           } >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
+      # 與前端 P3 配對；更新時須一起驗收，不追蹤可移動的 branch/tag。
+      # 來源若為私人 repo，本 repo 的 GITHUB_TOKEN 無權讀取，checkout 必須失敗。
+      - name: Checkout pinned ClassScore Worker
+        uses: actions/checkout@v6
+        with:
+          repository: ybslab-edu/classscore
+          ref: d604038e58a1efaa937b27adebd5b6975ab11c66
+          path: .ci-classscore
+          sparse-checkout: workers/ybs-grader
+          persist-credentials: false
+
+      - name: Move Worker outside frontend source tree
+        run: mv "$GITHUB_WORKSPACE/.ci-classscore" "$RUNNER_TEMP/classscore"
+
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
           package-manager-cache: false
+
+      - name: Require Worker source before acceptance
+        run: node tests/helpers/worker-source.mjs
 
       - uses: actions/setup-python@v6
         with:

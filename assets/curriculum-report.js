@@ -24,7 +24,11 @@ const YBSCurriculumReport = (() => {
       if (typeof open !== 'boolean') invalid('isOpen result');
       openedActivities.set(a.week, open);
     }
-    for (const item of items) if (!object(item) || !text(item.code)) invalid('items');
+    const uniqueItems = new Map();
+    for (const item of items) {
+      if (!object(item) || !text(item.code)) invalid('items');
+      if (!uniqueItems.has(item.code)) uniqueItems.set(item.code,item);
+    }
     const people = new Map(), seats = new Map();
     let invalidRoster = 0, skipped = 0;
     for (const p of roster) {
@@ -64,7 +68,7 @@ const YBSCurriculumReport = (() => {
       const open = openedActivities.get(a.week), passed = eligible.filter(p => complete(p, a)).length;
       return [a.week, {week:a.week, title:a.title, href:a.href, open, passed, total, rate:rate(passed, open)}];
     }));
-    const rows = items.map(item => {
+    const rows = [...uniqueItems.values()].map(item => {
       const linked = activities.filter(a => a.codes.includes(item.code));
       const opened = linked.filter(a => activityRows.get(a.week).open);
       const passed = opened.length ? eligible.filter(p => opened.every(a => complete(p, a))).length : 0;

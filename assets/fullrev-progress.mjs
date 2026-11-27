@@ -60,6 +60,9 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
 export function growth(snapshot, options, xp) {
   const valid = effectiveRecords(snapshot,options);
   if (valid.state !== 'confirmed') return {...valid,totalXP:null};
+  return confirmedGrowth(valid,options,xp);
+}
+function confirmedGrowth(valid, options, xp) {
   // guest 帳號 XP 尚待核定；不能因 binding 成功就補發。
   if (options.provider === 'anonymous' || valid.records.some(r=>r.provider==='anonymous')) return {...valid,state:'unknown',reason:'guest-xp-policy-pending',totalXP:null};
   const result = xp.calculate(options.activities,valid.records,{worker:true});
@@ -73,14 +76,24 @@ export function exportRows(snapshot, options, xp) {
   const valid = effectiveRecords(snapshot,options);
   if (valid.state !== 'confirmed') throw fail('export-unconfirmed');
   if (!Array.isArray(snapshot.people)) throw fail('roster-unconfirmed');
-  const rows = [['班級','座號','活動','關卡','狀態','完成時間','XP','結果識別']];
   const subjects = new Set();
   for (const person of snapshot.people) {
     if (!id(person.subject) || subjects.has(person.subject) || !int(person.cls,100) || person.cls > 999
         || !int(person.seat,1) || person.seat > 60) throw fail('roster-unconfirmed');
     subjects.add(person.subject);
-    const records = valid.records.filter(r => r.subject === person.subject);
-    const progress = growth({...snapshot,records}, {...options,subject:person.subject,provider:person.provider},xp);
+  }
+  // 整份投影只核對一次；先按主體分組，避免每位學生重掃全班紀錄。
+  const bySubject = new Map();
+  for (const record of valid.records) {
+    if (!subjects.has(record.subject)) throw fail('roster-unconfirmed');
+    if (!bySubject.has(record.subject)) bySubject.set(record.subject,[]);
+    bySubject.get(record.subject).push(record);
+  }
+  const rows = [['班級','座號','活動','關卡','狀態','完成時間','XP','結果識別']];
+  for (const person of snapshot.people) {
+    const records = bySubject.get(person.subject) || [];
+    const progress = confirmedGrowth({state:'confirmed',records,exclusions:[]},
+      {...options,subject:person.subject,provider:person.provider},xp);
     if (progress.state !== 'confirmed' && progress.reason !== 'guest-xp-policy-pending') throw fail('xp-unconfirmed');
     for (const a of options.activities) for (let round=0;round<a.rounds.length;round++) {
       const record = records.find(r => r.activity === a.week && r.round === round);
@@ -90,6 +103,5 @@ export function exportRows(snapshot, options, xp) {
     }
     rows.push([person.cls,person.seat,'合計','','','',progress.totalXP === null?'待確認':progress.totalXP,'']);
   }
-  if (valid.records.some(r => !subjects.has(r.subject))) throw fail('roster-unconfirmed');
   return rows;
 }

@@ -1,3 +1,4 @@
+import {workerSource,workerSkip} from './helpers/worker-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -46,6 +47,36 @@ test('mixed old/new passes choose old first time (including unknown), deduplicat
  assert.equal(growth(snapshot([]),{...options,provider:'anonymous'},xp).reason,'guest-xp-policy-pending');
  const csv=exportRows(snapshot([old()]),options,xp);assert.ok(csv.some(r=>r[4]==='舊紀錄過關（未驗證）'));
 });
+test('多人混合投影匯出與 frozen oracle 全欄一致，含準時邊界、未知時間與重算',()=>{
+ const deltas=[-1,0,7*864e5,7*864e5+1,null];
+ const people=deltas.map((_,i)=>({subject:'synthetic-legacy-'+i,cls:901,seat:i+1,provider:'password'}));
+ const records=[],expected=[['班級','座號','活動','關卡','狀態','完成時間','XP','結果識別']];
+ for(const [i,person] of people.entries()) {
+  const legacy=activities.flatMap(a=>a.rounds.map((_,round)=>old(round,{subject:person.subject,activity:a.week,unit:a.unit,
+   resultId:'l_'+(i*1000+a.week*10+round).toString(16).padStart(64,'0'),
+   completedAt:deltas[i]===null?null:new Date(a.openedAt+deltas[i]).toISOString(),
+   xpPolicySnapshot:{openedAt:new Date(a.openedAt).toISOString()}})));
+  const current=legacy.map(r=>record(r.round,{subject:person.subject,activity:r.activity,unit:r.unit,
+   resultId:'c_'+i+'_'+r.activity+'_'+r.round,completedAt:new Date(Date.parse(r.completedAt||r.xpPolicySnapshot.openedAt)+1).toISOString(),
+   xpPolicySnapshot:r.xpPolicySnapshot}));
+  records.push(...(i%2?[...current,...legacy]:[...legacy,...current]));
+  const reference=oracle.calculate(activities,legacy.map(r=>({course:'115-g9',activity:r.activity,round:r.round,at:r.completedAt})));
+  assertOracle(growth(snapshot([...legacy,...current]),{...options,subject:person.subject},xp),reference);
+  let k=0;
+  for(const [aIndex,a] of activities.entries())for(let round=0;round<a.rounds.length;round++) {
+   const r=legacy[k++];
+   expected.push([901,person.seat,a.title,a.rounds[round],'舊紀錄過關（未驗證）',r.completedAt||'',
+    reference.activities[aIndex].rounds[round].totalXP,r.resultId]);
+  }
+  expected.push([901,person.seat,'合計','','','',reference.totalXP,'']);
+ }
+ const projection=snapshot(records,{subject:undefined,people}),before=JSON.stringify(projection);let calculations=0;
+ const countedXP={calculate(...args){calculations++;return xp.calculate(...args);}};
+ assert.deepEqual(exportRows(projection,{...options,subject:undefined},countedXP),expected);
+ assert.equal(calculations,people.length);
+ assert.deepEqual(exportRows(projection,{...options,subject:undefined},xp),expected);
+ assert.equal(JSON.stringify(projection),before);
+});
 test('login matches original login.js account/password normalization and retains SESSION',async()=>{
  const source=read('assets/login.js');
  const accountLine=source.match(/const normAccount = .*;/)[0],passwordLine=source.match(/const normPassword = .*;/)[0];
@@ -60,9 +91,8 @@ test('login matches original login.js account/password normalization and retains
  }
  assert.ok(persist.every(v=>v==='session'));assert.doesNotMatch([...h.storage.map.values()].join(),/Synthetic-Pass|cgjhA/);
 });
-const workerSource=process.env.YBS_WORKER_SOURCE;
 // YBS_WORKER_SOURCE is the Worker PACKAGE, e.g. classscore-wt-legacy/workers/ybs-grader.
-test('Worker matches frozen oracle for undefined activity/round and production activity distribution', {skip:!workerSource},async()=>{
+test('Worker matches frozen oracle for undefined activity/round and production activity distribution', {skip:workerSkip},async()=>{
  const load=file=>import(pathToFileURL(resolve(workerSource,file)).href);
  const {legacyHarness,PROJECT}=await load('tests/legacy-progress-fixtures.mjs');
  const {legacyCatalog}=await load('src/formal/legacy-progress.mjs');
@@ -97,7 +127,7 @@ test('Worker matches frozen oracle for undefined activity/round and production a
  missing.change((await load('tests/legacy-progress-fixtures.mjs')).paths.global,g=>{delete g.activities[6];});
  await assert.rejects(missing.progress(),/legacy_unconfirmed/,'a known round with missing controls must not silently disappear');
 });
-test('actual Worker projection/reset and frozen XP oracle agree, including fallback times and schedule', {skip:!workerSource},async()=>{
+test('actual Worker projection/reset and frozen XP oracle agree, including fallback times and schedule', {skip:workerSkip},async()=>{
  const load=file=>import(pathToFileURL(resolve(workerSource,file)).href);
  const {legacyHarness,PROJECT,paths,owner}=await load('tests/legacy-progress-fixtures.mjs');
  const {legacyOpenAt}=await load('src/formal/legacy-progress.mjs');

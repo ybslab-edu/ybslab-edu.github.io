@@ -1,3 +1,4 @@
+import {workerSource,workerSkip} from './helpers/worker-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolve} from 'node:path';
@@ -189,8 +190,7 @@ test('public dimensions and index arrays keep their exceptions until answer evid
  assert.doesNotThrow(()=>scanPrivateAnswers('const height=[11,23];',answers));
 });
 test('all nine private string answer types are blocked in templates, HTML text and attributes',async t=>{
- const workerSource=process.env.YBS_WORKER_SOURCE;
- if(!workerSource&&process.env.CI){t.skip('略過：需私有來源，由 Console 發布前在本機執行');return;}
+ if(workerSkip){t.skip(workerSkip);return;}
  assert.ok(workerSource,'本機答案掃描驗收需設定 YBS_WORKER_SOURCE');
  const answers=[];
  for(let n=1;n<=8;n++){

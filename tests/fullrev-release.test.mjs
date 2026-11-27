@@ -1,3 +1,4 @@
+import {workerSource,workerSkip} from './helpers/worker-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,writeFile,rm,mkdir,symlink} from 'node:fs/promises';
@@ -7,10 +8,9 @@ import vm from 'node:vm';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
-const workerSource=process.env.YBS_WORKER_SOURCE;
 const config={...fixtureConfig,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
 test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF remains legacy',async t=>{
- if(!workerSource&&process.env.CI){t.skip('略過：需私有來源，由 Console 發布前在本機執行');return;}
+ if(workerSkip){t.skip(workerSkip);return;}
  assert.ok(workerSource,'本機發布驗收需設定 YBS_WORKER_SOURCE');
  const dir=await mkdtemp(join(tmpdir(),'ybs-pr8-release-'));t.after(()=>rm(dir,{recursive:true,force:true}));const output=join(dir,'site');
  await assert.rejects(buildSite({output,config}),/worker_source_required/);

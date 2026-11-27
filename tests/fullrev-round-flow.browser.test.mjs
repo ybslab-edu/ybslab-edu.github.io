@@ -24,7 +24,9 @@ async function open(t,options={}){
 test('手機按鎖定關卡零請求、過關解鎖、回看零請求、明確重做才 start',async t=>{
  const page=await open(t);await page.getByLabel('合成答案').waitFor();
  assert.equal(await page.locator('#rounds button').nth(1).isDisabled(),true);
- assert.match(await page.locator('.round-locked').first().innerText(),/你要先完成第 1 關/);
+ assert.match(await page.locator('#rounds button').nth(1).getAttribute('title'),/你要先完成第 1 關/);
+ assert.equal(await page.locator('#rounds').innerText(),'第 1 關\n第 2 關\n第 3 關\n第 4 關');
+ assert.equal(await page.locator('#round-unlock-hint').innerText(),'完成目前關卡後解鎖下一關');
  const n=await page.evaluate(()=>h.requests.length);await page.locator('#rounds button').nth(1).evaluate(e=>e.click());assert.equal(await page.evaluate(()=>h.requests.length),n);
  for(let slot=0;slot<2;slot++){
   await page.getByLabel('合成答案').fill('合成答案');await page.locator('#b-send').click();
@@ -56,7 +58,7 @@ test('連續限速不循環重送；回看及換人會停止舊倒數',async t=>
  await page.clock.runFor(2000);await page.waitForFunction(()=>h.requests.length===2&&h.client.state().status==='pending');
  await page.clock.runFor(60000);assert.equal(await page.evaluate(()=>h.requests.length),2);assert.match(await page.locator('#start-wait').textContent(),/重試上傳/);
  await page.locator('#rounds button').first().click();await page.locator('#b-redo').waitFor();await page.clock.runFor(60000);assert.equal(await page.evaluate(()=>h.requests.length),2);
- await page.locator('#rounds button').nth(1).click();await page.locator('#start-wait').waitFor();await page.locator('#b-swap').click();await page.clock.runFor(60000);
+ await page.locator('#rounds button').nth(1).click();await page.locator('#start-wait').waitFor();await page.locator('#account-toggle').click();await page.locator('#b-swap').click();await page.clock.runFor(60000);
  assert.equal(await page.locator('#stage').textContent(),'');assert.equal(await page.evaluate(()=>h.requests.length),3);
 });
 test('answer 429 沿用原訊息，保留原答案且不顯示切關倒數',async t=>{

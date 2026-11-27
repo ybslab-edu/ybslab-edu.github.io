@@ -35,7 +35,7 @@ async function login(page,cls='901',seat='1'){
   if(!await page.locator('details.tlogin').evaluate(el=>el.open))await page.getByText('登入不了？用班級＋座號',{exact:true}).click();
   await page.getByLabel('班級',{exact:true}).fill(cls);await page.getByLabel('座號',{exact:true}).fill(seat);
   await page.getByRole('button',{name:'用班級＋座號開始',exact:true}).click();
-  await page.getByLabel('合成答案').waitFor();await page.locator('#xp-total').getByText('0 XP',{exact:true}).waitFor();
+  await page.getByLabel('合成答案').waitFor();await page.locator('#xp-total').getByText('0 XP',{exact:true}).waitFor({state:'attached'});
 }
 async function complete(page){
   for(let slot=0;slot<2;slot++){
@@ -43,12 +43,12 @@ async function complete(page){
     if(slot===0){assert.equal(await page.locator('#xp-total').textContent(),'0 XP');await page.locator('#b-next-group').click();}
   }
   await page.getByRole('heading',{name:'已存待審，尚未採計',exact:true}).waitFor();
-  await page.locator('#xp-total').getByText('15 XP',{exact:true}).waitFor();
+  await page.locator('#xp-total').getByText('15 XP',{exact:true}).waitFor({state:'attached'});
 }
 async function growthXP(page,value){
   // 手機版收起等級面板；等待可見摘要，再核對面板的同一份 XP。
   await page.locator('#growth').waitFor();
-  await page.locator('#xp-total').getByText(value+' XP',{exact:true}).waitFor();
+  await page.locator('#xp-total').getByText(value+' XP',{exact:true}).waitFor({state:'attached'});
   assert.equal(await page.locator('#total').textContent(),value+' XP');
 }
 test('班座 360／1280：Lv 1、0 XP，可由右上角進同版成長，探索與徽章從 0 開始且無雲端查詢',async t=>{
@@ -85,7 +85,7 @@ test('班座兩組完成增本機 XP，跨頁及重整保留，待審狀態與�
   assert.equal(await page.evaluate(()=>h.requests.length),0);
 });
 test('班座按「不是我？換人」歸零；新班座成長仍為 0 且不讀前一人的資料',async t=>{
-  const page=await open(t);await complete(page);await page.locator('#b-swap').click();
+  const page=await open(t);await complete(page);await page.locator('#account-toggle').click();await page.locator('#b-swap').click();
   await page.locator('#g-gbtn').waitFor();assert.equal(await page.locator('#xp-header').isVisible(),false);
   await login(page,'902','2');assert.match(await page.locator('#who').textContent(),/902 班 2 號（待審）/);
   await page.locator('#xp-header a').click();await growthXP(page,0);

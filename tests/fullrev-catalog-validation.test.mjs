@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {
   BATCH1,BATCH2,BATCH3,BATCH4,BATCH5,BATCH6,BATCH7,BATCH8,MANAGED_ACTIVITIES,
-  validateActivityCatalog,mergeActivityBatches,activityConfig,renderQuestion
+  validateActivityCatalog,mergeActivityBatches,activityConfig,renderQuestion,ROUND_COPY
 } from '../assets/fullrev-activities.mjs';
 
 const fixture=(extra={})=>({activity:1,file:'115-g9/fixture/index.html',title:'合成活動',unit:0,
@@ -132,7 +132,7 @@ test('activityConfig 維持全部九年級活動映射，活動 4 由合法合�
     const cfg=freeze({course:'115-g9',week:a.activity,title:'保留頁面標題',unit:a.unit,rounds:[{name:'頁面原始關卡'}],confirmations:2});
     const configured=activityConfig(cfg);
     assert.notEqual(configured,cfg);
-    assert.deepEqual(configured,{...cfg,rounds:a.rounds.map(name=>({name,managed:true})),renderQuestion});
+    assert.deepEqual(configured,{...cfg,rounds:a.rounds.map((name,r)=>({name,managed:true,now:ROUND_COPY[a.activity][r][0],goal:ROUND_COPY[a.activity][r][1]})),renderQuestion});
     assert.deepEqual(cfg.rounds,[{name:'頁面原始關卡'}]);
   }
   for(const cfg of [{course:'115-df',week:1},{course:'unknown',week:4},{week:4},

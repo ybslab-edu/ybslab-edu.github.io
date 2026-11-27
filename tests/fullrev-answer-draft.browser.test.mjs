@@ -54,5 +54,5 @@ test('跨重整保留未完成原文與同關題面，提示恢復；不是我�
  const page=await open(t);await page.locator('#stage input').first().fill('４');await page.reload();await page.waitForFunction(()=>window.ready);await page.locator('#g-isme').click();
  await page.locator('#draft-notice').filter({hasText:'已恢復上次未送出的作答'}).waitFor();assert.equal(await page.locator('#stage input').first().inputValue(),'４');assert.equal(await page.locator('#stage input').nth(1).inputValue(),'');
  assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/resume']);
- await page.locator('#b-swap').click();assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('ybs:fullrev:work:')).length),0);assert.equal(await page.locator('#stage').innerText(),'');
+ await page.locator('#account-toggle').click();await page.locator('#b-swap').click();assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('ybs:fullrev:work:')).length),0);assert.equal(await page.locator('#stage').innerText(),'');
 });

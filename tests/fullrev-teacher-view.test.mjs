@@ -32,7 +32,9 @@ test('教師附件離開後撤銷 Blob URL；晚到附件不會在登出後建�
  t.after(()=>{URL.createObjectURL=create;URL.revokeObjectURL=revoke;});
  const data={...teacherPayload().question.data,materials:[{name:'synthetic.pdf',gzip:gzipSync('synthetic attachment').toString('base64')}]};
  const host=document.createElement('section'),h=renderOutcome(host,data,()=>{});
- await settle();assert.equal(created.length,1);h.dispose();assert.deepEqual(revoked,created);assert.equal(host.childNodes.length,0);
+ // gzip 解壓經過原生串流；等待可觀察的 URL 完成，不能只假設 8 次事件迴圈足夠。
+ for(let i=0;i<200&&created.length===0;i++)await new Promise(resolve=>setTimeout(resolve,10));
+ assert.equal(created.length,1);h.dispose();assert.deepEqual(revoked,created);assert.equal(host.childNodes.length,0);
  const late=renderOutcome(host,data,()=>{});late.dispose();await settle();assert.equal(created.length,1);
 });
 test('兩種登入介面預設無學生 Google，明確開關才顯示，教師登入保留',async t=>{

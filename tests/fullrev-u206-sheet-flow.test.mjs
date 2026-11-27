@@ -6,7 +6,7 @@ import {Element} from './fixtures/activity-dom.mjs';
 import {harness,response,snapshot,store,activities,config} from './fixtures/fullrev.mjs';
 import {sheetQuestion,syntheticSolution} from './fixtures/fullrev-u206-sheet.mjs';
 import {mountActivity} from '../assets/fullrev-ui.mjs';
-import {renderQuestion} from '../assets/fullrev-activities.mjs';
+import {renderQuestion,ROUND_COPY} from '../assets/fullrev-activities.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
 async function until(check){for(let k=0;k<200;k++){if(check())return;await tick();}assert.ok(check(),'未到預期狀態');}
 async function open(t,{tickets=false,round=3,teacher=false}={}){
@@ -23,7 +23,7 @@ async function open(t,{tickets=false,round=3,teacher=false}={}){
  for(const [key,value] of Object.entries({document:{body,head:new Element('head'),createElement:tag=>new Element(tag),addEventListener:(k,f)=>events[k]=f},window:{addEventListener:(k,f)=>events[k]=f},sessionStorage:store(),localStorage:store(),ACTIVITIES:activities,isActivityOpen:()=>true,YBSXP:vm.runInContext('YBSXP',xp)})){
   const saved=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});t.after(()=>saved?Object.defineProperty(globalThis,key,saved):delete globalThis[key]);
  }
- const cfg={course:'115-g9',week:5,title:'合成志工回覆整理所',rounds:[{name:'合成整理任務'}],renderQuestion};
+ const cfg={course:'115-g9',week:5,title:'合成志工回覆整理所',rounds:[{name:'合成整理任務',now:ROUND_COPY[8][round][0],goal:ROUND_COPY[8][round][1]}],renderQuestion};
  await mountActivity({client:Promise.resolve(h.client),cfg});const $=id=>body.querySelector('#'+id);
  if(teacher)await h.client.login('owner');else{await h.login();await until(()=>!$('g-isme').hidden);await $('g-isme').onclick();}await until(()=>!!body.querySelector('.volunteer-sheet'));
  const label=text=>{const l=body.querySelectorAll('label').find(el=>el.textContent===text);return l?body.querySelector('#'+l.getAttribute('for')):null;};
@@ -37,7 +37,7 @@ function fill(h){
  h.action('counts');h.input('圖表資料來源','filtered');h.input('圖表標題','1');h.action('pie');h.input('入口引導占有效回覆百分之幾？四捨五入到小數 1 位。','28.6');h.input('你會優先補招哪個職務？','0');h.input('你採用什麼理由？','demandGap');
 }
 test('真實 shell：物件 answer、錯答保留同一 renderer／圖、下一組才清空 token 與草稿',async t=>{
- const h=await open(t);assert.doesNotMatch(h.$('says').textContent,/\[object Object\]/);assert.match(h.$('says').textContent,/記錄統計/);assert.equal(h.$('stage').classList? h.$('stage').className.includes('quest-outcome'):false,false);
+ const h=await open(t);assert.doesNotMatch(h.$('says').textContent,/\[object Object\]/);assert.equal(h.$('says').textContent,'現在'+ROUND_COPY[8][3][0]+'要做到'+ROUND_COPY[8][3][1]);assert.equal(h.$('stage').classList? h.$('stage').className.includes('quest-outcome'):false,false);
  fill(h);const original=h.body.querySelector('.volunteer-sheet'),canvas=h.body.querySelector('canvas');assert.ok(canvas);assert.equal(h.$('b-send').disabled,false);
  await h.$('b-send').onclick();await until(()=>h.$('answer-status').textContent==='已送出：還不對');assert.equal(h.body.querySelector('.volunteer-sheet'),original);assert.equal(h.body.querySelector('canvas'),canvas);
  const a=h.requests.at(-1).body.answer;assert.equal(a.schemaVersion,2);assert.equal(a.state.percentTenths,286);assert.equal(a.ops.length,3);assert.equal(a.datasetToken,'A'.repeat(22));

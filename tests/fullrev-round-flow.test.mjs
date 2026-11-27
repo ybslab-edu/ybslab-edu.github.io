@@ -34,7 +34,7 @@ test('倒數向上取整，結束區分自動重試與手動重試',()=>{
  assert.match(startWaitMessage({retryAt:2000,automatic:false},2000),/重試上傳/);
 });
 test('未解鎖點擊不發 start，過關即解鎖下一關；已過回看零請求，重做才 start',async t=>{
- const h=await open(t);assert.equal(h.round(1).disabled,true);assert.match(h.round(1).parentElement.textContent,/你要先完成第 1 關/);
+ const h=await open(t);assert.equal(h.round(1).disabled,true);assert.match(h.round(1).getAttribute('aria-label'),/你要先完成第 1 關/);assert.equal(h.round(1).textContent,'第 2 關');assert.equal(h.$('round-unlock-hint').hidden,false);
  const n=h.requests.length;await h.round(1).onclick();assert.equal(h.requests.length,n);
  for(let slot=0;slot<2;slot++){
   const input=h.$('stage').querySelector('input');input.value='合成答案';input.oninput();await h.$('b-send').onclick();

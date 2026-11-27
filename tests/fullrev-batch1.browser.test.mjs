@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {buildSite} from '../tools/build-fullrev-site.mjs';
-import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
+import {MANAGED_ACTIVITIES,BATCH8,ROUND_COPY} from '../assets/fullrev-activities.mjs';
 import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base,dir,output,current,modules;
@@ -328,7 +328,7 @@ async function shellportMetrics(page){
   return {small,overflow:document.documentElement.scrollWidth>innerWidth};
  });
 }
-test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；帳號鍵盤／外點／登出及九張截圖',{timeout:420000},async t=>{
+test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；帳號鍵盤／外點／登出及指定情境截圖',{timeout:420000},async t=>{
  if(workerSkip){t.skip(workerSkip);return;}
  const shots='/home/teacher/projects/console/tasks/batch-20261127-eve/shellport-shots';await mkdir(shots,{recursive:true});
  for(const a of MANAGED_ACTIVITIES)for(const round of [...new Set([...a.managed,...BATCH8.filter(b=>b.course!=='115-df'&&b.activity===a.activity).flatMap(b=>b.managed)])]){
@@ -351,9 +351,16 @@ test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；
     }
     assert.match(await page.locator('#activity-subtitle').textContent(),new RegExp(`^第 ${round+1} 關`));
     assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false});
+    assert.deepEqual(await page.locator('#says .tk > span').allTextContents(),ROUND_COPY[a.activity][round],'任務採用 cfg 的兩句文案');
+    assert.equal(await page.locator('#task-instructions > p').count(),0,'流程說明已移至頁尾');
+    assert.equal(await page.locator('#rounds small').count(),0,'關卡下不重複長篇鎖定說明');
     const keys=await buttons.evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return {width:r.width,top:r.top};}));
     assert.ok(keys.every(k=>Math.abs(k.width-keys[0].width)<1&&Math.abs(k.top-keys[0].top)<1),'手機等寬單列 '+JSON.stringify(keys));
     if(round>0){assert.equal(await buttons.first().getAttribute('class'),'passed');assert.equal(await buttons.first().evaluate(e=>getComputedStyle(e,'::after').content),'"✓"');}
+    if(a.activity===5&&round===2){
+     assert.equal(await page.locator('#rounds .passed').count(),2);
+     await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(shots,'u2-03-passed-two-360.png')});
+    }
     if(round===0){
      const key=buttons.first();await key.scrollIntoViewIfNeeded();const box=await key.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
      assert.equal(await key.evaluate(e=>e.classList.contains('is-pressing')),true);await page.waitForTimeout(180);
@@ -361,8 +368,11 @@ test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；
      await key.dispatchEvent('pointercancel');assert.equal(await key.evaluate(e=>e.classList.contains('is-pressing')),false);await page.mouse.move(0,0);await page.mouse.up();
      await page.locator('#account-toggle').click();assert.equal(await page.locator('#account').getAttribute('open'),'');await page.keyboard.press('Escape');assert.equal(await page.locator('#account').getAttribute('open'),null);assert.equal(await page.locator('#account-toggle').evaluate(e=>e===document.activeElement),true);
      await page.keyboard.press('Enter');assert.equal(await page.locator('#account').getAttribute('open'),'');await page.locator('#task-instructions').click();assert.equal(await page.locator('#account').getAttribute('open'),null);
-     if([5,8,25].includes(a.activity))for(const width of [360,560,1280]){
-      await page.setViewportSize({width,height:900});assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(shots,`${a.file.split('/')[1]}-${width}.png`),fullPage:false});
+     if(['u0-01','u1-05','u2-03','u2-06','u5-10'].includes(a.file.split('/')[1]))for(const width of [360,560,1280]){
+      await page.setViewportSize({width,height:900});
+      if(width>520)assert.match(await page.locator('#xp-header').innerText(),/Lv 1 位元見習生\s*·\s*0 XP/);
+      assert.equal(await page.locator('#activity-header').evaluate(e=>{const a=e.querySelector('.header-back').getBoundingClientRect(),b=e.querySelector('.header-account').getBoundingClientRect();return a.right<=b.left&&b.right<=innerWidth;}),true,'頁首無重疊');
+      assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(shots,`${a.file.split('/')[1]}-${width}.png`),fullPage:false});
      }
      await page.locator('#account-toggle').click();await page.locator('#b-logout').click();await page.getByRole('button',{name:'登入',exact:true}).waitFor();assert.equal(await page.locator('#main').isVisible(),false);assert.equal(await page.locator('#activity-header').isVisible(),true);assert.equal(await page.locator('#account-name').textContent(),'尚未登入');assert.equal(await page.locator('#b-swap').isVisible(),false);
     }
@@ -372,8 +382,13 @@ test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；
 });
 test('release：公開入口、成長與 DF 相容頁的 17px 與 360px 無水平捲動',async t=>{
  if(workerSkip){t.skip(workerSkip);return;}
- for(const path of ['index.html','115-g9/index.html','map/index.html','about/index.html','404.html','115-g9/me/index.html','115-df/index.html','115-df/a/index.html']){
+ for(const path of ['index.html','115-g9/index.html','map/index.html','about/index.html','404.html','115-g9/me/index.html','115-g9/teacher/index.html','115-df/index.html','115-df/a/index.html']){
   const context=await browser.newContext({viewport:{width:360,height:900}}),page=await context.newPage();await page.clock.setFixedTime(allActivitiesOpenAt);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
-  try{await page.goto(base+'/'+path);await page.waitForTimeout(150);assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false},path);}finally{await context.close();}
+  try{await page.goto(base+'/'+path);await page.waitForTimeout(150);assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false},path);
+   if(path==='115-g9/teacher/index.html'){
+    await page.getByRole('button',{name:'教師 Google 登入',exact:true}).waitFor();
+    await page.screenshot({path:'/home/teacher/projects/console/tasks/batch-20261127-eve/shellport-shots/teacher-logged-out-360.png'});
+   }
+  }finally{await context.close();}
  }
 });

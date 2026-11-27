@@ -108,13 +108,10 @@
 .fullrev-activity #stage input.answer-invalid,.fullrev-activity #stage select.answer-invalid{border-color:var(--warn)}
 .fullrev-activity .answer-error{display:block;color:var(--warn);font-size:var(--text-min,17px);font-weight:700;margin-block:6px;line-height:1.5}
 .fullrev-activity #draft-notice:empty{display:none}
-.fullrev-activity .round-locked{display:flex;flex-direction:column;gap:4px;max-width:15rem}
-.fullrev-activity .round-locked small{font-size:var(--text-min,17px);line-height:1.5;color:var(--muted);font-style:normal}
 .fullrev-activity .rounds button:disabled{cursor:default;opacity:.65}
 .fullrev-activity #start-wait{padding:16px;border:1px solid var(--line);background:var(--surface);line-height:1.6}
 
 body .shell-header-wrap header.top{display:block}
-body .shell-header-wrap .round-locked{min-width:0;max-width:100%}
 body .shell-header-wrap .rounds button{width:100%}
 
 body .shell-header-wrap header.top .rounds{grid-template-columns:repeat(var(--round-count,4),minmax(0,1fr))}
@@ -122,3 +119,7 @@ body .shell-header-wrap header.top .rounds{grid-template-columns:repeat(var(--ro
 @media(max-width:520px){body .shell-header-wrap header.top .rounds[data-count="5"]{column-gap:4px}}
 /* 五關單列保留 17px 字形，僅收緊短標的兩個空格，避免系統備援字型溢出。 */
 @media(max-width:560px){body .shell-header-wrap header.top .rounds[data-count="5"] button{word-spacing:-.2em}}
+
+/* 鎖頭沿用 B 版右上狀態章位置，短標維持完整寬度。 */
+body .shell-header-wrap .rounds button:disabled:not(.passed)::after{content:"🔒";position:absolute;top:-11px;right:0;font-size:var(--text-min,17px);line-height:20px;pointer-events:none}
+body .shell-header-wrap #round-unlock-hint{margin:14px 0 0;color:var(--muted)}

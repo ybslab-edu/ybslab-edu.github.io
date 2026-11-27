@@ -13,7 +13,7 @@ test('未送出原文跨重整、sessionStorage 遺失及重新登入還原；�
  let client=h.reopen();await client.restore();assert.equal(client.savedRound(5),2);await client.start(5,2);
  assert.deepEqual(client.loadInput(5,2),['０１','未填完的合成文字','']);assert.equal(h.requests.at(-1).url,config.workerOrigin+'/resume');assert.deepEqual(h.reads,[]);
  client=resetSession(h);await client.restore();await client.start(5,2);assert.deepEqual(client.loadInput(5,2),['０１','未填完的合成文字','']);
- // Browser SESSION auth may require sign-in after closing; same UID may recover local work.
+ // Explicit same-UID sign-in may recover unexpired work when no logout was requested.
  h.closePage();h.storage.map.clear();h.auth.currentUser=null;client=h.reopen();await client.login('password','9990001','synthetic-password');await client.start(5,2);
  assert.deepEqual(client.loadInput(5,2),['０１','未填完的合成文字','']);
 });

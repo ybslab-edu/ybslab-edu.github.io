@@ -1,4 +1,6 @@
-import {createWorkStore,questionStamp,WORK_TTL} from './fullrev-work-store.mjs';
+import {createWorkStore,questionStamp,WORK_TTL,workExpiresAt} from './fullrev-work-store.mjs';
+import {createAccountSession} from './fullrev-account-session.mjs';
+import {mountTicketNotice,TICKET_WARNING_MS} from './fullrev-ticket-notice.mjs';
 import {guestScope,isGuestContext,guestFields,guestCompletion,readGuestContext} from './fullrev-guest.mjs';
 import {createDFReports} from './fullrev-df.mjs';
 import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261127b3';
@@ -28,7 +30,8 @@ export function checkConfig(config) {
 // readModel 為 PR4 受控服務的 adapter；沒有 adapter 不猜版本、不直接 list／讀 gate。
 export function createClient({config,session,readModel,course='115-g9',fetcher=globalThis.fetch,storage=globalThis.sessionStorage,
   shared=globalThis.localStorage,events=globalThis.window,now=Date.now,random=Math.random,
-  requestId=()=>crypto.randomUUID(),schedule=setTimeout,cancel=clearTimeout,requestTimeoutMs=20000}) {
+  requestId=()=>crypto.randomUUID(),schedule=setTimeout,cancel=clearTimeout,requestTimeoutMs=20000,
+  deadlineSchedule=setTimeout,deadlineCancel=clearTimeout}) {
   const project = checkConfig(config);
   if(!['115-g9','115-df'].includes(course))throw fail('invalid-course');
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
@@ -47,6 +50,23 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   let profile=null, generation=0, startVersion=0, firebaseSession, sessionOpening, drafts={}, readVersion=0, signal='', timer;
   let status='signed-out', snapshot=null, lastProgress=null, view=null, readingRetry=null, guestXP=[];
+  let ticketTimer=null,expiredTicket=null;
+  const timingOf=(d,state)=>({state,activity:d.activity,round:d.round,expiresAt:d.expiresAt});
+  function ticketTiming(){const d=Object.values(drafts).find(d=>d.ticketMode&&Number.isFinite(workExpiresAt(d)));
+    return d?timingOf(d,workExpiresAt(d)-now()>TICKET_WARNING_MS?'active':'warning'):expiredTicket;}
+  function checkTicketDeadline(notify=true){
+    deadlineCancel(ticketTimer);ticketTimer=null;if(!profile)return;
+    if(savedSignal()!==signal||firebaseSession?.auth.currentUser?.uid!==profile.uid){signal=savedSignal();clear();return;}
+    let expired=false,next=Infinity;
+    for(const [key,d] of Object.entries(drafts))if(d.ticketMode&&Number.isFinite(workExpiresAt(d))){
+      const left=workExpiresAt(d)-now();
+      if(left<=0){expiredTicket=timingOf(d,'expired');delete drafts[key];expired=true;}
+      else next=Math.min(next,left>TICKET_WARNING_MS?left-TICKET_WARNING_MS:left);
+    }
+    if(expired){cancel(timer);timer=null;view=null;save();emit('restart-required');abortRequests();}
+    else if(notify&&Number.isFinite(next))emit(status);
+    if(Number.isFinite(next)){ticketTimer=deadlineSchedule(()=>checkTicketDeadline(),Math.min(next,WORK_TTL));ticketTimer?.unref?.();}
+  }
   let gradingWork=Promise.resolve();
   const listeners = new Set(), running = new Map();
   // 只保留可公開的錯誤種類，不保存伺服器錯誤內容。
@@ -55,16 +75,18 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const d=Object.values(drafts).find(d=>d.pending?.op==='start'&&d.startRateLimited&&!d.blocked);
     return d?{activity:d.activity,round:d.round,retryAt:d.retryAt,automatic:!d.startRetryUsed}:null;
   };
-  const emit = next => { status=next; for (const f of listeners) f({profile:profile&&{...profile},status,
-    pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),uploadIssue:uploadIssue(),startRetry:startRetry(),snapshot,view,readingRetry}); };
+  const emit = next => { status=profile&&expiredTicket?'restart-required':next; for (const f of listeners) f({profile:profile&&{...profile},status,
+    pending:Object.values(drafts).some(d=>d.pending&&!d.blocked),uploadIssue:uploadIssue(),startRetry:startRetry(),snapshot,view,readingRetry,ticketTiming:ticketTiming()}); };
   readModel?.subscribeRetry?.(value=>{readingRetry=profile?value:null;emit(status);});
   const savedSignal = () => {try{return shared?.getItem(signalKey)||'';}catch{return signal;}};
   signal=savedSignal();
   function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest,
     ...(profile?.provider==='anonymous'?{guestXP}:{})}));}catch{emit('storage-pending');}return workStore.write(profile?.uid,drafts);}
-  function clear() {abortRequests();progressCache.purge();progressActivities=null;binding=null;summaryIssue=null;if(profile?.uid){workStore.purge(profile.uid);
-    try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===profile.uid)storage.removeItem(k);}catch{}}}catch{}
-    }cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};guestXP=[];snapshot=null;lastProgress=null;view=null;readingRetry=null;profile=null;
+  function purgeUID(uid){if(uid){workStore.purge(uid);
+    try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===uid)storage.removeItem(k);}catch{}}}catch{}
+    }}
+  function clear(uid=profile?.uid) {abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;progressCache.purge();progressActivities=null;binding=null;summaryIssue=null;purgeUID(uid);
+    cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};guestXP=[];snapshot=null;lastProgress=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
   function broadcast() {signal=requestId();try{shared?.setItem(signalKey,signal);}catch{}}
   function active(mark) {
@@ -75,12 +97,17 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   }
   const mark = () => {if(!profile)throw fail('login-required');const m={uid:profile.uid,generation};active(m);return m;};
   events?.addEventListener('storage',event=>{if(event.key===signalKey && savedSignal()!==signal){signal=savedSignal();clear();}});
-  events?.addEventListener('pagehide',()=>{abortRequests();generation++;readVersion++;running.clear();gradingWork=Promise.resolve();snapshot=null;lastProgress=null;view=null;emit('stale');});
+  events?.addEventListener('pagehide',()=>{abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();snapshot=null;lastProgress=null;view=null;emit('stale');});
+  events?.addEventListener('focus',()=>{if(profile)checkTicketDeadline();});
+  events?.addEventListener('pageshow',()=>{if(profile)checkTicketDeadline();});
   events?.addEventListener('online',()=>{if(profile)retry({automatic:true}).catch(()=>{});});
   async function getSession() {
     if (firebaseSession) return firebaseSession;
-    if (!sessionOpening) sessionOpening=Promise.resolve().then(session).then(value=>{
+    if (!sessionOpening) sessionOpening=Promise.resolve().then(session).then(async value=>{
       if (value.app?.options?.projectId !== project) throw fail('wrong-project');
+      if(value.browserSession?.isAccount(value.auth.currentUser)&&!value.browserSession.has()){
+        const uid=value.auth.currentUser.uid;value.browserSession.clear();purgeUID(uid);progressCache.purge();broadcast();await value.auth.signOut();
+      }
       firebaseSession=value;
       value.auth.onAuthStateChanged?.(user=>{if(profile && user?.uid!==profile.uid)clear();});
       return value;
@@ -127,13 +154,14 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   async function login(kind,account,password) {
     const guest=kind==='guest'?guestScope(account):null;
     if(guest&&course!=='115-g9')throw fail('grading-not-supported');
-    clear();broadcast();const g=generation;
+    firebaseSession?.browserSession?.clear();clear();broadcast();const g=generation;
     return serialAuth(async()=>{
-      const {auth,googleProvider,persistence}=await getSession();
+      const {auth,googleProvider,persistence,accountPersistence,browserSession}=await getSession();
       if(g!==generation)throw fail('identity-changed');
       await auth.signOut();
       if(g!==generation)throw fail('identity-changed');
-      await auth.setPersistence(persistence);
+      browserSession?.clear();
+      await auth.setPersistence(!['guest','google','owner'].includes(kind)?accountPersistence||persistence:persistence);
       if(g!==generation)throw fail('identity-changed');
       let credential;
       if(kind==='guest')credential=await auth.signInAnonymously();
@@ -142,11 +170,14 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         const name=String(account||'').trim().toLowerCase().replace(/@.*$/,'').replace(/\s+/g,'');
         const normalized=/^\d{3,12}$/.test(name)?'cgjh'+name:name;
         if(!/^cgjh\d{3,12}$/.test(normalized)||!password)throw fail('invalid-account');
-        // Keep the old login.js normalization, without changing SESSION persistence.
+        // 帳密正規化與 LOCAL＋瀏覽器 session cookie 沿用舊站。
         const text=String(password||'').trim(),match=text.match(/^cgjh([a-z][0-9a-d]\d{8})$/i);
         credential=await auth.signInWithEmailAndPassword(normalized+'@ybslab-edu.github.io',match?'cgjh'+match[1].toUpperCase():text);
       }
       if(g!==generation||savedSignal()!==signal){await auth.signOut();throw fail('identity-changed');}
+      if(!['guest','google','owner'].includes(kind)&&browserSession&&!browserSession.mark()){
+        await auth.signOut();throw fail('browser-cookie-required');
+      }
       profile={uid:credential.user.uid,kind,...(guest?{guest}:{})};
       const m=mark(), c=await claims(m,true);
       const provider=c.firebase?.sign_in_provider;
@@ -166,16 +197,17 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
           &&d.project===project&&d.course===course&&key===scopeKey(d.activity,d.round)&&int(d.activity,1)&&d.activity<=30
           &&int(d.round)&&d.round<=4&&(!d.pending||['start','answer','resume'].includes(d.pending.op)));
     for(const [,d] of entries)if(d.input&&(!Number.isFinite(d.input.savedAt)||now()-d.input.savedAt>=WORK_TTL||d.input.savedAt>now()))delete d.input;
-    return entries.length<=8?Object.fromEntries(entries):{};
+    const live=entries.filter(([,d])=>{if(workExpiresAt(d)<=now()){if(d.ticketMode)expiredTicket=timingOf(d,'expired');return false;}return true;});
+    return live.length<=8?Object.fromEntries(live):{};
   }
   async function restore() {
     const {auth}=await getSession();
-    if (!auth.currentUser) {clear();return null;}
+    if (!auth.currentUser) {workStore.retain(null);clear();return null;}
     let saved;
     try{saved=JSON.parse(storage?.getItem(storageKey)||'null');}catch{}
-    if(!saved){const local=workStore.read(auth.currentUser.uid);if(Object.keys(local).length)saved={uid:auth.currentUser.uid,signal,drafts:local};}
-    if(saved?.uid!==auth.currentUser.uid||saved.signal!==signal){clear();await auth.signOut();return null;}
-    // SESSION 只還原此分頁。持久草稿可含加密作答票，不含登入 token／私有題面。
+    if(!saved){const local=workStore.read(auth.currentUser.uid);if(Object.keys(local).length||firebaseSession.browserSession?.isAccount(auth.currentUser)&&firebaseSession.browserSession.has())saved={uid:auth.currentUser.uid,signal,drafts:local};}
+    if(saved?.uid!==auth.currentUser.uid||saved.signal!==signal){firebaseSession.browserSession?.clear();clear(auth.currentUser.uid);await auth.signOut();return null;}
+    // 帳密可跨分頁還原；Google／訪客仍限分頁。持久草稿僅含加密票及輸入。
     const g=generation;
     profile={uid:auth.currentUser.uid,kind:'student',owner:false};
     const m=mark(), c=await claims(m);
@@ -192,9 +224,9 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       if(saved?.uid===profile.uid&&saved.signal===signal&&saved.drafts) {
         drafts=restorable(saved.drafts);
       }
-    }catch{} progressCache.retain(profile);workStore.retain(profile.uid);save();emit('signed-in');return {...profile};
+    }catch{} progressCache.retain(profile);workStore.retain(profile.uid);save();emit('signed-in');checkTicketDeadline();return {...profile};
   }
-  function logout() {clear();broadcast();return serialAuth(async()=>{const {auth}=await getSession();await auth.signOut();});}
+  function logout() {firebaseSession?.browserSession?.clear();clear(profile?.uid||firebaseSession?.auth.currentUser?.uid);broadcast();return serialAuth(async()=>{const {auth,browserSession}=await getSession();browserSession?.clear();purgeUID(auth.currentUser?.uid);await auth.signOut();});}
   async function classHint(m,force=false) {
     const c=await claims(m,force), map=c.ybsClassKeys;
     if(c.firebase?.sign_in_provider!==profile.provider){clear();throw fail('identity-changed');}
@@ -249,7 +281,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     const pending=d.pending;if(!pending)throw fail('nothing-pending');
     if(d.blocked)throw fail('restart-required');
     if(d.retryAt>now())throw fail('retry-later');
-    active(m);delete d.issue;emit('sending');
+    active(m);if(d.ticketMode&&workExpiresAt(d)<=now()){checkTicketDeadline();throw fail('ticket-expired');}delete d.issue;emit('sending');
     let response;
     try {
       const body=JSON.stringify(pending.body);
@@ -283,6 +315,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
           delete drafts[scopeKey(d.activity,d.round)];save();emit('not-open');throw fail('not-open');
         }
         if(d.ticketMode&&ticketErrors.has(data?.error)){
+          if(data.error==='ticket_expired')expiredTicket=timingOf(d,'expired');
           d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');
           throw fail(data.error.replaceAll('_','-'));
         }
@@ -335,12 +368,13 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       save();
       if(value.completed&&!isGuestContext(d.context))applyProgressDelta(value,d);
       emit(guestCompletion(value)?'guest-pending':value.awaitingTeacher?'teacher-pending':value.completed?'confirmation-pending':'ready');
+      checkTicketDeadline(false);
       // 只有 Worker 已提交且 epoch 相符的 v2 投影可直接更新進度。
       return clone(output);
     } catch(error) {
       active(m);
       if(error?.code==='login-required'){clear();throw error;}
-      if(drafts[scopeKey(d.activity,d.round)]!==d)throw error;
+      if(drafts[scopeKey(d.activity,d.round)]!==d)throw expiredTicket?.activity===d.activity&&expiredTicket.round===d.round?fail('ticket-expired'):error;
       if(['invalid-answer','not-open','capacity-deferred'].includes(error.code))throw error;
       if(error.code?.startsWith('summary-')){save();emit('confirmation-pending');throw error;}
       if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
@@ -368,6 +402,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       const m={...mark(),startVersion:version};active(m);if(profile.owner)throw fail('demonstration-only');
       if(!['115-g9','115-df'].includes(course))throw fail('grading-not-supported');
       if(!int(activity,1)||activity>30||!int(round)||round>4)throw fail('invalid-scope');
+      expiredTicket=null;
       if(drafts[key]&&!restart){
         const d=drafts[key];
         // Older versions could restore several drafts; selecting one abandons the others too.
@@ -627,7 +662,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,cancelStart,progress,guestGrowth,history,cancelHistory:()=>historyController?.abort(),teacherQuestion,saveInput,loadInput,savedRound,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
-    state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,uploadIssue:uploadIssue(),startRetry:startRetry(),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});
+    state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,ticketTiming:ticketTiming(),uploadIssue:uploadIssue(),startRetry:startRetry(),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});
 }
 
 export async function createBrowserClient(config) {
@@ -643,8 +678,10 @@ export async function createBrowserClient(config) {
     const app=firebase.apps.find(a=>a.name==='ybs-fullrev')||firebase.initializeApp({...config.firebase,authDomain:project+'.firebaseapp.com'},'ybs-fullrev');
     const auth=app.auth();
     await new Promise((resolve,reject)=>{const off=auth.onAuthStateChanged(()=>{resolve();Promise.resolve().then(off);},reject);});
-    await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-    return {app,auth,db:app.firestore(),persistence:firebase.auth.Auth.Persistence.SESSION,
+    const browserSession=createAccountSession({document,location,project});
+    if(browserSession.isAccount(auth.currentUser)&&browserSession.has())await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    else if(!browserSession.isAccount(auth.currentUser))await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    return {app,auth,db:app.firestore(),persistence:firebase.auth.Auth.Persistence.SESSION,accountPersistence:firebase.auth.Auth.Persistence.LOCAL,browserSession,
       googleProvider:()=>{const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return p;}};
   })().catch(error=>{opening=null;throw error;});
   let readModel;
@@ -653,5 +690,5 @@ export async function createBrowserClient(config) {
     if(url.origin!==location.origin)throw fail('read-model-origin');
     readModel=await (await import(url.href)).createReadModel({session,project,course,workerOrigin:config.workerOrigin});
   }
-  return createClient({config,session,readModel,course});
+  const client=createClient({config,session,readModel,course});mountTicketNotice(client,document);return client;
 }

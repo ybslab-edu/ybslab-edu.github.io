@@ -26,7 +26,7 @@ export async function harness(options={}) {
     signOut:async()=>changed(null),signInWithEmailAndPassword:async()=>{provider='password';changed(user());return{user:auth.currentUser};},
     signInWithPopup:async()=>{provider='google.com';changed(user());return{user:auth.currentUser};},
     signInAnonymously:async()=>{provider='anonymous';changed(user());return{user:auth.currentUser};}};
-  const session={app:{options:{projectId:config.firebase.projectId}},auth,persistence:'session',googleProvider:()=>({}),
+  const session={app:{options:{projectId:config.firebase.projectId}},auth,persistence:'session',accountPersistence:'local',googleProvider:()=>({}),
     db:{doc:path=>({get:async()=>{reads.push(path);if(state.readErrors[path])throw state.readErrors[path];if(path.startsWith('ybsTeachers/'))return{exists:state.enabledTeacher,data:()=>({schemaVersion:1,enabled:state.enabledTeacher})};
       if(path==='ybsCourses/115-g9')return{exists:true,data:()=>({schemaVersion:1,ownerUid:state.owner?state.uid:'someone-else'})};throw Error('forbidden path');}}),
       collection:()=>{throw Error('list forbidden');}}};
@@ -38,6 +38,7 @@ export async function harness(options={}) {
   const clientOptions={requestTimeoutMs:options.requestTimeoutMs??20000,config:{...config,studentGoogleLogin:options.studentGoogleLogin===true,answerTickets:options.answerTickets===true},course:options.course||'115-g9',session:async()=>session,readModel:options.noModel?undefined:model,
     shared,storage,now:()=>clock,requestId:options.requestId||(()=>('synthetic-request-'+(++serial))),random:()=>0,
     events:options.events||{addEventListener:(key,fn)=>eventHandlers.set(key,fn)},schedule:(fn,ms)=>{timers.push({fn,ms});return timers.length;},cancel:()=>{},
+    ...(options.deadlineSchedule?{deadlineSchedule:options.deadlineSchedule,deadlineCancel:options.deadlineCancel||(()=>{})}:{}),
     fetcher:async(url,init)=>{requests.push({url,...init,body:JSON.parse(init.body)});return state.fetcher?state.fetcher(url,init):Response.json(response());}};
   const client=createClient(clientOptions);
   return {client,reopen:(overrides={})=>createClient({...clientOptions,...overrides}),state,session,auth,requests,reads,model,storage,shared,timers,events:eventHandlers,

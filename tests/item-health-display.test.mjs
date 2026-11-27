@@ -45,3 +45,40 @@ test('空名冊、讀取失敗、登出與遲到查詢不殘留健檢',async()=>
   await Promise.resolve();await h.logout();release();await pending;
   assert.equal(h.get('health-table').textContent,'');assert.equal(h.get('health-class').disabled,true);assert.equal(h.get('health-class').value,'');
 });
+test('掛載只查找三個節點一次，更新、篩班與清除不再查找 DOM',()=>{
+  const h=setup();
+  h.evaluate(`
+    const healthLookups=[];
+    const healthGet=document.getElementById;
+    document.getElementById=id=>{healthLookups.push(id);return healthGet(id)};
+    const healthUpdate=window.YBSItemHealth.mount({activities:{1:{title:'合成活動',rounds:['關一']}}});
+    healthUpdate({roster:[{email:'a',cls:999,seat:1}],records:[{email:'a',uid:'a',activity:1,round:0,tries:2,at:1}]});
+  `);
+  assert.deepEqual(cells(h),['合成活動','1・關一','1／1','100%','2','2','2','—']);
+  h.get('health-class').value='998';h.get('health-class').onchange();
+  assert.deepEqual(cells(h).slice(2),['0／0','—','—','—','—','—']);
+  h.evaluate('healthUpdate(null);healthUpdate(null)');
+  assert.equal(h.get('health-table').textContent,'');
+  assert.equal(h.get('health-class').disabled,true);
+  assert.equal(h.get('health-status').textContent,'請先登入並讀取雲端紀錄。');
+  assert.deepEqual(JSON.parse(h.evaluate('JSON.stringify(healthLookups)')),['health-class','health-table','health-status']);
+});
+test('任一健檢節點缺少時，掛載及後續更新安全略過且不改動其餘節點',()=>{
+  for(const missing of ['health-class','health-table','health-status']){
+    const h=setup();
+    h.get('health-class').value='999';
+    h.get('health-class').onchange=()=>{};
+    const snapshot=()=>['health-class','health-table','health-status'].map(id=>{
+      const el=h.get(id);
+      return {html:el.outerHTML,disabled:el.disabled,value:el.value,onchange:el.onchange};
+    });
+    const before=snapshot();
+    assert.doesNotThrow(()=>h.evaluate(`
+      const healthGet=document.getElementById;
+      document.getElementById=id=>id===${JSON.stringify(missing)}?null:healthGet(id);
+      const healthUpdate=window.YBSItemHealth.mount({activities:{}});
+      healthUpdate({roster:[],records:[]});healthUpdate(null);
+    `));
+    assert.deepEqual(snapshot(),before);
+  }
+});

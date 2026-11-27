@@ -179,3 +179,109 @@ test('工具：--check 不寫入、更新僅改指定版本、重跑不變、錯
     assert.equal(read('course/activity/index.html'), nested.replace('?v=old', '?v=new'));
   }
 });
+
+// 僅建立合成網站；所有檢查（含拋錯）都比對完整檔案內容，避免只驗證結束碼。
+function syntheticVersionSite(t, pages, assets = ['login.js']) {
+  const site = mkdtempSync(join(tmpdir(), 'ybs-asset-edges-'));
+  t.after(()=>rmSync(site, {recursive:true, force:true}));
+  for (const [path, content] of [
+    ...assets.map(name => [`assets/${name}`, '// synthetic']),
+    ...Object.entries(pages)
+  ]) {
+    mkdirSync(dirname(join(site, path)), {recursive:true});
+    writeFileSync(join(site, path), content);
+  }
+  const snapshot = (dir = site) => readdirSync(dir, {withFileTypes:true})
+    .sort((a,b)=>a.name.localeCompare(b.name)).flatMap(entry => {
+      const path = join(dir, entry.name);
+      return entry.isDirectory() ? snapshot(path) : [[relative(site, path), readFileSync(path)]];
+    });
+  const before = snapshot();
+  const readOnly = action => {
+    try { return action(); }
+    finally { assert.deepEqual(snapshot(), before, '檢查不得新增、刪除或改寫任何合成檔案'); }
+  };
+  return {
+    errors: () => readOnly(()=>versionErrors(site)),
+    check: (name = 'login.js', version = 'new') => readOnly(()=> {
+      const reports = [];
+      const status = setAssetVersion([name, version, '--check'], site, line=>reports.push(line));
+      return {status, reports};
+    })
+  };
+}
+
+test('重複引用：同版通過；同頁與跨頁的每筆異版均可定位且檢查唯讀', t => {
+  const same = syntheticVersionSite(t, {
+    'index.html': '<script src="assets/login.js?v=new"></script>'.repeat(2),
+    'nested/index.html': '<script src="../assets/login.js?v=new"></script>'
+  });
+  assert.deepEqual(same.errors(), []);
+  assert.deepEqual(same.check(), {status:0, reports:[]});
+  const mixed = syntheticVersionSite(t, {
+    'index.html': '<script src="assets/login.js?v=old"></script>'.repeat(2)
+      + '<script src="assets/login.js?v=new"></script>',
+    'nested/index.html': '<script src="../assets/login.js?v=older"></script>'
+  });
+  assert.deepEqual(mixed.errors(), [
+    'assets/login.js 版本不一致：\n  old: index.html, index.html\n  new: index.html\n  older: nested/index.html'
+  ]);
+  assert.deepEqual(mixed.check(), {status:1, reports:[
+    'index.html: assets/login.js?v=old → new',
+    'index.html: assets/login.js?v=old → new',
+    'nested/index.html: assets/login.js?v=older → new'
+  ]});
+});
+
+test('空版本與其他 query／fragment：準確擷取版本及定位，檢查唯讀', t => {
+  const site = syntheticVersionSite(t, {
+    'nested/index.html': [
+      '<script src="../assets/login.js?v="></script>',
+      '<script src="../assets/login.js?v=&amp;mode=test#empty"></script>',
+      '<script src="../assets/login.js?v=#empty"></script>',
+      '<script src="../assets/login.js?v=old&mode=test#raw"></script>',
+      '<script src="../assets/login.js?v=old&amp;mode=test#encoded"></script>',
+      '<script src="../assets/login.js?v=new#current"></script>'
+    ].join('\r\n')
+  });
+  assert.deepEqual(site.errors(), [
+    ...Array(3).fill('版本為空：nested/index.html: assets/login.js?v='),
+    'assets/login.js 版本不一致：\n  : nested/index.html, nested/index.html, nested/index.html\n  old: nested/index.html, nested/index.html\n  new: nested/index.html'
+  ]);
+  assert.deepEqual(site.check(), {status:1, reports:[
+    ...Array(3).fill('nested/index.html: assets/login.js?v= → new'),
+    ...Array(2).fill('nested/index.html: assets/login.js?v=old → new')
+  ]});
+});
+
+test('缺版本及 v 非首參數：重現目前略過引用的檢查盲點，且不改檔', t => {
+  // 現有介面只接受 ?v=；這些反例用於呈現限制，不代表缺版本應視為有效。
+  for (const suffix of ['', '?mode=test', '?mode=test&v=old', '?mode=test&amp;v=old']) {
+    const ignored = `<script src="assets/login.js${suffix}"></script>`;
+    const onlyIgnored = syntheticVersionSite(t, {'index.html':ignored});
+    assert.throws(()=>onlyIgnored.check(), {
+      message:'HTML 未引用 assets/login.js?v=，未修改任何檔案'
+    }, suffix || '完全缺版本');
+    const mixed = syntheticVersionSite(t, {
+      'index.html': '<script src="assets/login.js?v=new"></script>' + ignored
+    });
+    assert.deepEqual(mixed.errors(), [], `目前全站檢查漏報：${suffix}`);
+    assert.deepEqual(mixed.check(), {status:0, reports:[]}, `目前 --check 漏報：${suffix}`);
+  }
+});
+
+test('不存在資源與目錄：診斷含頁面及資源路徑，工具拒絕且唯讀', t => {
+  const site = syntheticVersionSite(t, {
+    'index.html': '<script src="assets/login.js?v=new"></script>',
+    'nested/index.html': '<script src="../assets/missing.js?v=ghost"></script>'
+      + '<link href="../assets/vendor?v=ghost">'
+  }, ['login.js', 'vendor/example.js']);
+  assert.deepEqual(site.errors(), [
+    '檔案不存在：nested/index.html: assets/missing.js?v=ghost',
+    '檔案不存在：nested/index.html: assets/vendor?v=ghost'
+  ]);
+  for (const name of ['missing.js', 'vendor']) {
+    assert.throws(()=>site.check(name), {message:`資源不存在：assets/${name}`});
+  }
+  assert.deepEqual(site.check(), {status:0, reports:[]});
+});

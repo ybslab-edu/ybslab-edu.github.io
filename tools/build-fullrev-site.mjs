@@ -18,13 +18,13 @@ const legacyDFSources={
  'assets/legacy-df/login.js':'assets/login.js','assets/teacher.js':'assets/teacher.js','assets/lock.js':'assets/lock.js','assets/df-teacher-cloud.js':'assets/df-teacher-cloud.js'
 };
 const legacyDFHashes={
- "115-df/a/index.html": "3ae2286c62355fd78938b93234f608042055667a4765f661af27a86e5980cc98",
+ "115-df/a/index.html": "1d209b8e1302e8c6a1eb567218a12090da84d1e02e483b4eede520429f157cb4",
  "115-df/index.html": "dda49c53adcf8913f8acf37766080302f9f2a456cfd56e26de8f30d6180615a4",
- "115-df/teacher/index.html": "a1daa75e426dad8cd3e4f6599469d27904ae65df9bcf2e349633d6203015127e",
- "assets/legacy-df/login.js": "89e401b710ed692dc8499db819a409c7d164f3ce953763b8a4a9694e436973d3",
+ "115-df/teacher/index.html": "77142454e9e5548112e45116d504819717c248bcf28ad1a74ad799a2497635b5",
+ "assets/legacy-df/login.js": "c45cd6a0ba7db67312f0fee3519f22956bbf86e76e38d6783bd5ed4d24f89882",
  "assets/teacher.js": "c18c458e687f884db51984a9b4ef32829af251eabe4623a07fb0b62055cb5108",
- "assets/lock.js": "c8b0c4e80c5f9e9bc3a0f1c5d3d9c8c3f0af9bdb30a8f12b56a8c2bdb170db7f",
- "assets/df-teacher-cloud.js": "697729063b7a38645e706eeb0eb50a5cdd714dfc2861909dd4e587d84d188088"
+ "assets/lock.js": "1de7d0d8ed42804600019a026cc50093c89e6cff858af5e1a3a5afefad0bf828",
+ "assets/df-teacher-cloud.js": "f0773cb1fb757491e2ccf0a9dd129c2d21a019ae97e8856be767998d11e8a217"
 };
 const legacyDFConfig="const YBS_FULLREV_CONFIG=Object.freeze({enabled:false});\n";
 const legacyDFPage=(s)=>s.replace(/((?:\.\.\/)*assets\/)fullrev-config\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/config.js').replace(/((?:\.\.\/)*assets\/)login\.js(?:\?[^" ]*)?/g,'/assets/legacy-df/login.js');
@@ -40,7 +40,7 @@ const extraPages=Object.keys(legacyDFSources).concat('assets/legacy-df/config.js
 export const releasePaths=()=>[...assets.map(a=>'assets/'+a),...copiedPages,...Object.keys(mountedPages),...extraPages,...new Set([...MANAGED_ACTIVITIES,...BATCH8].filter(a=>a.course!=='115-df').map(a=>a.file)),...Array.from({length:30},(_,i)=>`115-g9/w${String(i+1).padStart(2,'0')}/index.html`),'.nojekyll'].sort();
 const csp=(html,config)=>html.replace(/(http-equiv="Content-Security-Policy" content=")([^"]+)(")/,(_,a,value,z)=>a+fullrevCsp(value,config)+z);
 const shell=(policy,title,body)=>`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${policy}"><title>${title}｜YBS Lab</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/shell.css"></head><body>${body}</body></html>`;
-const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261127roundflow"></script>`).join('');
+const scripts=['curriculum.js','activities.js','fullrev-config.js','login.js','vendor/xlsx-0.20.3.full.min.js'].map(a=>`<script src="/assets/${a}?v=20261127b3"></script>`).join('');
 function releaseConfig(config){
  checkConfig(config);
  if(config.studentGoogleLogin!==undefined&&typeof config.studentGoogleLogin!=='boolean')throw Error('release_student_google_config_invalid');
@@ -140,8 +140,8 @@ export async function buildSite({output,config,workerSource,source=root}){
  // One release tag prevents mixing cached legacy scripts/config with the release tree.
  for(const path of releasePaths().filter(p=>!Object.hasOwn(legacyDFSources,p)&&p!=='assets/legacy-df/config.js'&&/\.(?:html|m?js|css)$/.test(p))){
   let value=await readFile(join(output,path),'utf8');
-    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261127roundflow');
-  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261127roundflow$3');
+    value=value.replace(/((?:assets\/)?[\w./-]+\.(?:m?js|css))\?v=[a-zA-Z0-9]+/g,'$1?v=20261127b3');
+  if(/\.m?js$/.test(path))value=value.replace(/((?:from\s+|import\s*\()\s*['"])(\.[^'"]+\.mjs)(?:\?[^'"]*)?(['"])/g,'$1$2?v=20261127b3$3');
   await write(path,value);
  }
  await write('.nojekyll','');

@@ -1,3 +1,4 @@
+import {workerSource,workerSkip} from './helpers/worker-source.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -10,7 +11,6 @@ import {MANAGED_ACTIVITIES} from '../assets/fullrev-activities.mjs';
 import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 let browser,server,base,dir,output,current,modules;
-const workerSource=process.env.YBS_WORKER_SOURCE;
 // 全關卡驗收固定在最後一堂課之後；只改瀏覽器 Date，保留真實計時器與正式週次鎖。
 const allActivitiesOpenAt=new Date('2027-07-01T00:00:00+08:00');
 before(async()=>{
@@ -103,7 +103,7 @@ async function fill(page,type,answer) {
   }
 }
 test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、重新整理 resume、下一組與可信過關', {timeout:420000},async t=>{
-  if(!workerSource){t.skip('跨 repo 驗收須指定本機 YBS_WORKER_SOURCE；不下載依賴');return;}
+  if(workerSkip){t.skip(workerSkip);return;}
   for(const a of MANAGED_ACTIVITIES)for(const round of a.managed) {
     if(process.env.YBS_PR6_SCOPE&&!process.env.YBS_PR6_SCOPE.split(',').includes(`${a.activity}:${round}`))continue;
     await t.test(`${a.activity}:${round}`,async()=>{
@@ -233,7 +233,7 @@ test('PR6 真實切換頁 × PR5 client × Worker：118 關均可錯答修正、
 });
 
 test('照片與排卡兩槽：第一槽後重整可自動續傳，第二槽回應遺失重送不重複採計、換人停止演出',async t=>{
-  if(!workerSource){t.skip('須指定本機 YBS_WORKER_SOURCE');return;}
+  if(workerSkip){t.skip(workerSkip);return;}
   for(const activity of [1,3])for(const mode of ['resume-first','lost-second'])await t.test(`${activity}:${mode}`,async()=>{
     const photo=activity===3,title=photo?'看清背號':'第 1 單';
     await reset();const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();

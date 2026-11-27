@@ -5,19 +5,28 @@ import {setup as teacher} from './fixtures/teacher-export.mjs';
 import {settle,error} from './fixtures/guest-firebase.mjs';
 const stamp={toMillis:()=>Date.UTC(2026,10,5)};
 const guest=(id,extra={})=>({id,data:()=>({cls:'999',seat:1,activity:1,round:0,level:1,tries:2,verified:false,passedAt:stamp,...extra})});
-function setup({owner='teacher1',guests=[guest('anon1_1_0'),guest('anon1_1_1',{round:1}),guest('anon2_1_0')],hold,fail=false,roster=[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}],attempts=[{id:'real1_1_0',data:()=>({uid:'real1',email:'student@example.invalid',activity:1,round:0,level:1,tries:3,passedAt:stamp})}]}={}){
-  const queries=[],observers=[];
+function setup({owner='teacher1',user={uid:'teacher1',isAnonymous:false},courseRead,collectionRead,guests=[guest('anon1_1_0'),guest('anon1_1_1',{round:1}),guest('anon2_1_0')],hold,fail=false,roster=[{id:'student@example.invalid',data:()=>({cls:999,seat:1})}],attempts=[{id:'real1_1_0',data:()=>({uid:'real1',email:'student@example.invalid',activity:1,round:0,level:1,tries:3,passedAt:stamp})}]}={}){
+  const queries=[],observers=[],authCalls=[];
+  const changeUser=value=>{auth.currentUser=value;observers.forEach(f=>f(value));};
   const auth={currentUser:null,onAuthStateChanged(fn){observers.push(fn);queueMicrotask(()=>fn(this.currentUser));return()=>{};},
-    async signInWithPopup(){auth.currentUser={uid:'teacher1'};observers.forEach(f=>f(auth.currentUser));},
-    async signOut(){auth.currentUser=null;observers.forEach(f=>f(null));}};
+    async signInWithPopup(){authCalls.push('popup');changeUser(user);},
+    async signOut(){authCalls.push('signOut');changeUser(null);}};
   const docs={guestAttempts:guests,roster,attempts};
-  const db={doc(path){return{async get(options){queries.push([path,options]);return{exists:true,data:()=>({ownerUid:owner})};}};},
-    collection(path){return{async get(options){queries.push([path,options]);if(hold)await hold;if(fail)throw error('unavailable');return{docs:docs[path.split('/').at(-1)]};}};}};
+  const db={doc(path){return{async get(options){queries.push([path,options]);return courseRead?courseRead():{exists:true,data:()=>({ownerUid:owner})};}};},
+    collection(path){return{async get(options){queries.push([path,options]);if(hold)await hold;if(fail)throw error('unavailable');const name=path.split('/').at(-1);return collectionRead?collectionRead(name,{docs:docs[name]}):{docs:docs[name]};}};}};
   function GoogleAuthProvider(){this.setCustomParameters=()=>{};}
   const h=teacher({cloud:{ybs:{firebaseSession:async()=>({auth,db})},firebase:{auth:{GoogleAuthProvider}}}});
-  return {...h,queries,auth,async login(){await h.get('cloud-login').onclick();await settle();},read:()=>h.get('cloud-read').onclick(),logout:()=>h.get('cloud-logout').onclick()};
+  return {...h,queries,auth,authCalls,changeUser,async login(){await h.get('cloud-login').onclick();await settle();},read:()=>h.get('cloud-read').onclick(),logout:()=>h.get('cloud-logout').onclick()};
 }
 const json=(h,source)=>JSON.parse(h.evaluate(`JSON.stringify(${source})`));
+function assertCleared(h){
+  assert.equal(h.get('cloud-table').textContent,'');
+  assert.equal(h.get('cloud-class').value,'');
+  assert.equal(h.get('cloud-class').disabled,true);
+  assert.equal(h.get('cloud-export').disabled,true);
+  assert.equal(h.get('health-table').textContent,'');
+  assert.equal(h.get('health-class').disabled,true);
+}
 test('owner 同時讀 attempts、guestAttempts 與 roster；未驗證明細完整保留',async()=>{
   const h=setup();await h.login();await h.read();
   assert.deepEqual(h.queries.map(x=>x[0]),['ybsCourses/115-g9','ybsCourses/115-g9/attempts','ybsCourses/115-g9/guestAttempts','ybsCourses/115-g9/roster']);
@@ -33,6 +42,62 @@ test('owner 同時讀 attempts、guestAttempts 與 roster；未驗證明細完�
 test('非 owner 拒絕列舉；無法讀到 guestAttempts',async()=>{
   const h=setup({owner:'other'});await h.login();await h.read();
   assert.equal(h.queries.length,1);assert.equal(h.get('cloud-export').disabled,true);assert.match(h.get('cloud-status').textContent,/只有此課程/);
+});
+for(const [label,options] of [
+  ['課程不存在',{courseRead:async()=>({exists:false})}],
+  ['課程未指定 owner',{courseRead:async()=>({exists:true,data:()=>({})})}],
+  ['匿名 UID 即使符合 owner',{user:{uid:'teacher1',isAnonymous:true}}],
+])test(label+'：拒絕列舉，表格、健檢與匯出維持清空',async()=>{
+  const h=setup(options);await h.login();await h.read();
+  assert.deepEqual(h.queries.map(q=>q[0]),['ybsCourses/115-g9']);
+  assert.match(h.get('cloud-status').textContent,/無權限/);assertCleared(h);
+});
+for(const code of ['permission-denied','unavailable'])test('課程查詢 '+code+'：不列舉學生資料，失敗後可重試',async()=>{
+  let failure=code;
+  const h=setup({courseRead:async()=>{if(failure)throw error(failure);return{exists:true,data:()=>({ownerUid:'teacher1'})};}});
+  await h.login();await h.read();
+  assert.deepEqual(h.queries.map(q=>q[0]),['ybsCourses/115-g9']);
+  assert.ok(h.queries.every(q=>q[1].source==='server'));
+  assert.match(h.get('cloud-status').textContent,code==='permission-denied'?/無權限/:/讀取失敗/);
+  assertCleared(h);assert.equal(h.get('cloud-read').disabled,false);
+  failure=null;await h.read();assert.match(h.get('cloud-status').textContent,/已讀取 3 列/);
+  assert.equal(h.get('cloud-export').disabled,false);
+});
+for(const denied of [false,true])test('學生帳號'+(denied?'查詢遭拒':'不是 owner')+'：不列舉教師資料，也不登出或改寫學生身分',async()=>{
+  const user={uid:'synthetic-student',isAnonymous:false};
+  const h=setup({user,...(denied?{courseRead:async()=>{throw error('permission-denied');}}:{})});
+  await h.login();await h.read();
+  assert.match(h.get('cloud-status').textContent,/無權限/);assertCleared(h);
+  assert.equal(h.queries.length,1);assert.equal(h.auth.currentUser,user);
+  assert.deepEqual(h.authCalls,['popup']);
+});
+for(const name of ['attempts','guestAttempts','roster'])test(name+' 無權限：清除前次表格與健檢，不以其他成功查詢顯示部分成績',async()=>{
+  let denied=false;
+  const h=setup({collectionRead:async(collection,result)=>{if(denied&&collection===name)throw error('permission-denied');return result;}});
+  await h.login();await h.read();h.get('cloud-class').value='999';h.get('cloud-class').onchange();
+  assert.ok(h.get('cloud-table').textContent);assert.ok(h.get('health-table').textContent);
+  denied=true;await h.read();assert.match(h.get('cloud-status').textContent,/無權限/);assertCleared(h);
+  h.get('cloud-export').onclick();assert.equal(h.downloads.length,0);
+  denied=false;await h.read();assert.match(h.get('cloud-status').textContent,/已讀取 3 列/);
+});
+for(const code of [null,'permission-denied'])test('課程查詢晚回'+(code?'無權限':'成功')+'：登出後不列舉，也不覆蓋登出狀態',async()=>{
+  let release;const hold=new Promise(r=>release=r);
+  const h=setup({courseRead:async()=>{await hold;if(code)throw error(code);return{exists:true,data:()=>({ownerUid:'teacher1'})};}});
+  await h.login();const reading=h.read();await settle();
+  try{await h.logout();}finally{release();}
+  await reading;assert.equal(h.queries.length,1);assertCleared(h);
+  assert.match(h.get('cloud-status').textContent,/已登出/);
+});
+test('讀取中換成學生，舊教師的無權限回應不得覆蓋新身分或清除登入',async()=>{
+  let release;const hold=new Promise(r=>release=r);
+  const h=setup({hold,collectionRead:async()=>{throw error('permission-denied');}});
+  await h.login();const reading=h.read();await settle();
+  const user={uid:'synthetic-student',isAnonymous:false};
+  try{h.changeUser(user);}finally{release();}
+  const status=h.get('cloud-status').textContent;await reading;
+  assert.equal(h.get('cloud-status').textContent,status);assertCleared(h);
+  assert.equal(h.auth.currentUser,user);assert.deepEqual(h.authCalls,['popup']);
+  assert.equal(h.get('cloud-read').disabled,false);
 });
 test('異常雲端欄位、班座型別、docId 與未驗證旗標不入表',async()=>{
   const h=setup({guests:[guest('bad'),guest('x_1_0',{verified:true}),guest('y_1_0',{cls:999}),guest('z_1_0',{round:6}),guest('html_1_0',{cls:'<script>'})]});

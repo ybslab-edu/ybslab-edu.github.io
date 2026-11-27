@@ -1,5 +1,12 @@
 // 短版題與原活動關卡分離；不引用過關、成績或上傳介面。
-const pick = (rnd, values) => values[Math.floor(rnd() * values.length)];
+export function warmupRandom(rnd) {
+  if (typeof rnd !== 'function') throw new TypeError('暖身 rnd 必須是函式');
+  const value = rnd();
+  if (!Number.isFinite(value) || value < 0 || value >= 1)
+    throw new RangeError('暖身亂數必須是 0（含）到 1（不含）的有限數字');
+  return value;
+}
+const pick = (rnd, values) => values[Math.floor(warmupRandom(rnd) * values.length)];
 const choice = (prompt, options, review) => ({prompt, options, answer: 0, review});
 const entry = (activity, id, gen) => ({course: '115-g9', activity, id: `${activity}:${id}`, gen});
 export const WARMUP_BANK = [

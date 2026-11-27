@@ -2,14 +2,16 @@
 const atom=v=>typeof v==='string'?v.normalize('NFKC').trim().replace(/\s+/g,' '):String(v);
 const normalized=v=>Array.isArray(v)?v.map(normalized):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,normalized(v[k])])):atom(v);
 const signature=v=>JSON.stringify(normalized(v));
-// Decode static template literals without executing release code. Interpolated
+// Decode quoted strings and static templates without executing release code. Interpolated
 // templates are not constant values and must not be treated as whole answers.
-function templateValue(raw){
+function stringValue(raw){
+ const template=raw[0]==='`';
  const body=raw.slice(1,-1).replace(/\r\n?/g,'\n');let value='';
  for(let i=0;i<body.length;i++){
-  if(body[i]==='$'&&body[i+1]==='{')throw Error();
+  if(template&&body[i]==='$'&&body[i+1]==='{')throw Error();
+  if(!template&&body[i]==='\n')throw Error();
   if(body[i]!=='\\'){value+=body[i];continue;}
-  const tail=body.slice(++i),hex=/^(?:u\{([\da-f]+)\}|u([\da-f]{4})|x([\da-f]{2}))/i.exec(tail);
+  const tail=body.slice(++i),hex=/^(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2}))/.exec(tail);
   if(hex){value+=String.fromCodePoint(parseInt(hex[1]||hex[2]||hex[3],16));i+=hex[0].length-1;continue;}
   if(body[i]==='\n')continue;
   value+=({n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0'})[body[i]]??body[i];
@@ -38,9 +40,9 @@ function htmlValues(text){
  return values;
 }
 function literals(text){
- const values=[];const pattern=/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[\[\]{},:]|[A-Za-z_$][\w$]*/gi;
+ const values=[];const pattern=/"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[\[\]{},:]|[A-Za-z_$][\w$]*/gi;
  const tokens=[...text.matchAll(pattern)].map(m=>({raw:m[0],at:m.index}));
- const scalar=raw=>{if(raw[0]==='`')return templateValue(raw);if(raw[0]==='"')return JSON.parse(raw);if(raw[0]==="'")return JSON.parse('"'+raw.slice(1,-1).replace(/\\'/g,"'").replace(/(?<!\\)"/g,'\\"')+'"');if(/^-?\d/.test(raw))return Number(raw);if(['true','false','null'].includes(raw))return JSON.parse(raw);throw Error();};
+ const scalar=raw=>{if(['`','"',"'"].includes(raw[0]))return stringValue(raw);if(/^-?\d/.test(raw))return Number(raw);if(['true','false','null'].includes(raw))return JSON.parse(raw);throw Error();};
  function object(i){const result=Object.create(null);let j=i+1;
   while(j<tokens.length){if(tokens[j].raw==='}')return {value:result,end:j};
    const key=/^[A-Za-z_$][\w$]*$/.test(tokens[j].raw)?tokens[j].raw:scalar(tokens[j].raw);

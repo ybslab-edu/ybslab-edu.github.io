@@ -48,7 +48,52 @@ export const BATCH6=Object.freeze([
 ]);
 export const BATCH7=Object.freeze([{activity:3,file:'115-g9/u2-01/index.html',title:'看台最後一排',unit:2,rounds:['看清背號','認出應援色','容量剛好夠','衛星數遊覽車'],managed:[0,1,2,3]}]);
 export const BATCH8=Object.freeze([{...BATCH1[0],managed:[0,1,2]},{course:'115-df',activity:1,file:'115-df/a/index.html',title:'資料偵探',unit:null,rounds:['提出 H1','完成結論','完成反思'],managed:[0,1,2]}]);
-export const MANAGED_ACTIVITIES=Object.freeze([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5,...BATCH6,...BATCH7]);
+const activityCourse=a=>a.course===undefined?'115-g9':a.course;
+const activityKey=a=>`${activityCourse(a)}:${a.activity}`;
+const nonblank=value=>typeof value==='string'&&value.trim().length>0;
+// 單份目錄的 ID 以課程區分；managed 是零起算索引，不能靠合併時去重掩蓋錯誤。
+export function validateActivityCatalog(activities) {
+  if(!Array.isArray(activities))throw Error('catalog_invalid');
+  const keys=new Set(),files=new Set();
+  for(const a of activities) {
+    if(!a||typeof a!=='object'||Array.isArray(a))throw Error('catalog_invalid_entry');
+    const course=activityCourse(a);
+    if(!nonblank(course)||course!==course.trim())throw Error('catalog_invalid_course');
+    if(!Number.isSafeInteger(a.activity)||a.activity<=0)throw Error('catalog_invalid_activity');
+    const key=activityKey(a);
+    if(keys.has(key))throw Error('catalog_duplicate_activity:'+key);
+    keys.add(key);
+    if(!nonblank(a.file)||!nonblank(a.title)||(a.unit!==null&&(!Number.isSafeInteger(a.unit)||a.unit<0)))throw Error('catalog_invalid_metadata:'+key);
+    if(files.has(a.file))throw Error('catalog_duplicate_file:'+a.file);
+    files.add(a.file);
+    if(!Array.isArray(a.rounds)||!a.rounds.length)throw Error('catalog_invalid_rounds:'+key);
+    for(const name of a.rounds)if(!nonblank(name))throw Error('catalog_invalid_rounds:'+key);
+    if(!Array.isArray(a.managed))throw Error('catalog_invalid_managed:'+key);
+    const managed=new Set();
+    for(const round of a.managed) {
+      if(!Number.isSafeInteger(round)||round<0||round>=a.rounds.length)throw Error('catalog_invalid_managed:'+key);
+      if(managed.has(round))throw Error('catalog_duplicate_managed:'+key);
+      managed.add(round);
+    }
+  }
+  return activities;
+}
+// 同一活動可由不同批次分管關卡，但公開資料與關卡順序必須一致，且不能重複納管。
+export function mergeActivityBatches(batches) {
+  if(!Array.isArray(batches))throw Error('catalog_invalid_batches');
+  const combined=new Map();
+  for(const batch of batches)for(const a of validateActivityCatalog(batch)) {
+    const key=activityKey(a),previous=combined.get(key);
+    if(previous) {
+      if(['file','title','unit'].some(field=>previous[field]!==a[field])||previous.rounds.length!==a.rounds.length||previous.rounds.some((name,r)=>name!==a.rounds[r]))throw Error('catalog_batch_mismatch:'+key);
+      if(a.managed.some(round=>previous.managed.includes(round)))throw Error('catalog_managed_overlap:'+key);
+    }
+    combined.set(key,{...a,rounds:[...a.rounds],managed:[...(previous?.managed||[]),...a.managed]});
+  }
+  return validateActivityCatalog([...combined.values()]);
+}
+export const MANAGED_ACTIVITIES=Object.freeze(validateActivityCatalog([...BATCH1,...BATCH2,...BATCH3,...BATCH4,...BATCH5,...BATCH6,...BATCH7]));
+const COMPLETE_ACTIVITIES=Object.freeze(mergeActivityBatches([MANAGED_ACTIVITIES,BATCH8]));
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function section(host,title,text) {
   if(!text)return;const box=node('section');box.className='panel';box.append(node('h3',title),node('p',Array.isArray(text)?text.join(''):text));host.append(box);
@@ -412,7 +457,6 @@ export function renderQuestion(q,host,api={changed(){}}) {
   highlightChangedNumbers(host,q);return handle;
 }
 export function activityConfig(cfg) {
-  let entry=MANAGED_ACTIVITIES.find(a=>a.activity===cfg.week&&cfg.course==='115-g9');
-  if(cfg.course==='115-g9'&&cfg.week===4)entry={...entry,managed:[0,1,2,3]};
+  const entry=COMPLETE_ACTIVITIES.find(a=>activityCourse(a)==='115-g9'&&a.activity===cfg.week&&cfg.course==='115-g9');
   return entry?{...cfg,rounds:entry.rounds.map((name,r)=>({...cfg.rounds?.[r],name,managed:entry.managed.includes(r)})),renderQuestion}:cfg;
 }

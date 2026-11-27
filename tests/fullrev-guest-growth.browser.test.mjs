@@ -45,6 +45,12 @@ async function complete(page){
   await page.getByRole('heading',{name:'已存待審，尚未採計',exact:true}).waitFor();
   await page.locator('#xp-total').getByText('15 XP',{exact:true}).waitFor();
 }
+async function growthXP(page,value){
+  // 手機版收起等級面板；等待可見摘要，再核對面板的同一份 XP。
+  await page.locator('#growth').waitFor();
+  await page.locator('#xp-total').getByText(value+' XP',{exact:true}).waitFor();
+  assert.equal(await page.locator('#total').textContent(),value+' XP');
+}
 test('班座 360／1280：Lv 1、0 XP，可由右上角進同版成長，探索與徽章從 0 開始且無雲端查詢',async t=>{
   for(const width of [360,1280])await t.test(String(width),async t=>{
     const page=await open(t,width);assert.match(await page.locator('#xp-level').textContent(),/Lv 1/);
@@ -67,22 +73,22 @@ test('班座兩組完成增本機 XP，跨頁及重整保留，待審狀態與�
   assert.deepEqual(await page.evaluate(()=>h.requests.map(r=>new URL(r.url).pathname)),['/guest/context','/guest/start','/guest/answer','/guest/answer']);
   assert.equal(await page.evaluate(()=>h.requests.every(r=>!Object.keys(r.body).some(k=>/xp|growth|subject|result/i.test(k)))),true);
   assert.deepEqual(await page.evaluate(()=>h.reads),[]);
-  await page.locator('#xp-header a').click();await page.locator('#total').getByText('15 XP',{exact:true}).waitFor();
+  await page.locator('#xp-header a').click();await growthXP(page,15);
   assert.equal(await page.locator('#completed').textContent(),'1');assert.equal(await page.evaluate(()=>h.requests.length),0);
-  await page.reload();await page.locator('#total').getByText('15 XP',{exact:true}).waitFor();
+  await page.reload();await growthXP(page,15);
   await page.getByRole('button',{name:'查閱歷史',exact:true}).click();assert.equal(await page.evaluate(()=>h.requests.length),0);
   assert.match(await page.locator('#status').textContent(),/已存待審，尚未採計/);
   await page.locator('#logout').click();await page.locator('#signin').waitFor();
   await page.getByText('登入不了？用班級＋座號',{exact:true}).click();await page.getByLabel('班級',{exact:true}).fill('901');
   await page.getByLabel('座號',{exact:true}).fill('1');await page.getByRole('button',{name:'用班級＋座號開始',exact:true}).click();
-  await page.locator('#total').getByText('0 XP',{exact:true}).waitFor();assert.equal(await page.locator('#completed').textContent(),'0');
+  await growthXP(page,0);assert.equal(await page.locator('#completed').textContent(),'0');
   assert.equal(await page.evaluate(()=>h.requests.length),0);
 });
 test('班座按「不是我？換人」歸零；新班座成長仍為 0 且不讀前一人的資料',async t=>{
   const page=await open(t);await complete(page);await page.locator('#b-swap').click();
   await page.locator('#g-gbtn').waitFor();assert.equal(await page.locator('#xp-header').isVisible(),false);
   await login(page,'902','2');assert.match(await page.locator('#who').textContent(),/902 班 2 號（待審）/);
-  await page.locator('#xp-header a').click();await page.locator('#total').getByText('0 XP',{exact:true}).waitFor();
+  await page.locator('#xp-header a').click();await growthXP(page,0);
   assert.equal(await page.locator('#level-number').textContent(),'Lv 1');assert.equal(await page.locator('#completed').textContent(),'0');
   assert.equal(await page.evaluate(()=>h.requests.length),0);assert.deepEqual(await page.evaluate(()=>h.reads),[]);
 });

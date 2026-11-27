@@ -588,6 +588,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}},{now});
  client.subscribe(state=>{
   if(!state.profile){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}guestStorageKey='';identity='';clear();checkSchedule();return;}
+  // 離頁通知先清畫面，不能讓舊外框先還原身分而啟動 context／start。
+  if(state.status==='stale'){clear();identity='';return;}
   if(checkSchedule())return;
   if(['binding-changed','context-changed'].includes(state.status)){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;
@@ -600,7 +602,6 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
     refresh();
    }
   }
-  if(state.status==='stale'){clear();identity='';return;}
   if(state.readingRetry){identityBox.querySelector('#g-whotext').textContent='載入中，請稍候…';say('載入中，請稍候…（'+Math.max(1,Math.ceil((state.readingRetry.retryAt-Date.now())/1000))+' 秒後自動重試）');}
   else{if(result&&!result.local)confirmIdentity();if(state.pending)say('上傳中，請稍候，答案已保留。');}
   if(['ready','confirmation-pending','teacher-pending','guest-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view).catch(problem);

@@ -136,14 +136,21 @@ test('傳送中與斷線待送時修改答案不會啟用送出或覆寫原請�
   assert.equal(await send.isEnabled(),true);assert.equal(await input.inputValue(),'8');
   await page.evaluate(()=>app.state.fetcher=async()=>{throw Error('synthetic-offline');});
   await send.click();await page.getByText('上傳中，請稍候，答案已保留。',{exact:true}).waitFor();
+  await page.waitForFunction(()=>app.client.state().status==='pending');
   const original=await page.evaluate(()=>app.requests.at(-1).body);
   await input.fill('9');assert.equal(await send.isEnabled(),false);
   await send.evaluate(button=>button.click());assert.equal(await page.evaluate(()=>app.requests.length),sent+1);
-  await page.evaluate(()=>{app.advance();app.state.fetcher=async()=>Response.json(response(0,{nextSeq:3,correct:false}));});
+  await page.evaluate(()=>{app.advance();app.state.fetcher=()=>new Promise(resolve=>window.releaseRetry=resolve);});
   await page.getByRole('button',{name:'重試上傳',exact:true}).click();
-  await page.getByText('修改答案後再送一次',{exact:true}).waitFor();
+  await page.waitForFunction(()=>typeof releaseRetry==='function');
+  // 舊錯答提示仍在，不能拿它當重送完成訊號；回應未到前仍不可重送。
   assert.deepEqual(await page.evaluate(()=>app.requests.at(-1).body),original);
-  await input.fill('10');assert.equal(await send.isEnabled(),true);
+  await input.fill('10');assert.equal(await send.isEnabled(),false);
+  await send.evaluate(button=>button.click());assert.equal(await page.evaluate(()=>app.requests.length),sent+2);
+  await page.evaluate(()=>releaseRetry(Response.json(response(0,{nextSeq:3,correct:false}))));
+  await page.waitForFunction(()=>app.client.state().status==='ready'&&!app.client.state().pending);
+  await page.getByText('修改答案後再送一次',{exact:true}).waitFor();
+  assert.equal(await input.inputValue(),'10');assert.equal(await send.isEnabled(),true);
 });
 test('Google 學生的教師文件被拒仍可登入作答；實際重新整理後還原同一草稿',async t=>{
   // 預設入口維持隱藏；只有此情境明確模擬老師開放 Google 學生登入。

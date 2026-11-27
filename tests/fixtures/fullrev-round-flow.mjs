@@ -2,7 +2,7 @@ import {harness,activities,response,snapshot,record,opened} from './fullrev.mjs'
 import {teacherPayload} from './fullrev-teacher.mjs';
 
 // 全部為合成題面、身分與過關紀錄；不呼叫外部服務。
-export async function roundFlow({passed=[],owner=false,startLimits=0,retryAfter=2,otherError=null,realTimers=false,guest=false}={}){
+export async function roundFlow({passed=[],owner=false,startLimits=0,retryAfter=2,otherError=null,realTimers=false,guest=false,events}={}){
  const h=await harness();h.state.owner=owner;h.state.snapshot=snapshot(passed.map(r=>record(r)));
  let clock=opened+864e5;const advance=h.advance;h.advance=(ms=60001)=>{clock+=ms;advance(ms);};h.now=realTimers?Date.now:()=>clock;
  h.state.startLimits=startLimits;h.state.otherError=otherError;
@@ -25,6 +25,7 @@ export async function roundFlow({passed=[],owner=false,startLimits=0,retryAfter=
   return Response.json(response());
  };
  if(realTimers)h.client=h.reopen({schedule:setTimeout,cancel:clearTimeout,now:Date.now,events:window});
+ else if(events)h.client=h.reopen({events});
  h.login=()=>guest?h.client.login('guest',{cls:'901',seat:1}):h.client.login('password','9990001','synthetic-password');
  const cfg={course:'115-g9',week:5,title:'合成關卡流程',rounds:activities[0].rounds.map((name,i)=>({name,learn:`你已完成第 ${i+1} 關的挑戰。`})),
   renderQuestion(question,host,{changed}){

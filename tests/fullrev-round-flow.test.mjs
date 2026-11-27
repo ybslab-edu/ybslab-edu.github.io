@@ -13,7 +13,7 @@ async function open(t,options={}){
  const h=await roundFlow(options),body=new Element('body'),events={};
  const xp=vm.createContext({});vm.runInContext(await readFile(new URL('../assets/xp.js',import.meta.url),'utf8'),xp);
  const roundStorage=store();if(options.savedRound!==undefined)roundStorage.setItem(`ybs:fullrev:round:${config.firebase.projectId}:115-g9:5:synthetic-student`,String(options.savedRound));
- for(const [key,value] of Object.entries({document:{body,head:new Element('head'),createElement:tag=>new Element(tag),addEventListener:(k,f)=>{events[k]=f;}},window:{addEventListener:(k,f)=>{events[k]=f;}},sessionStorage:roundStorage,localStorage:store(),ACTIVITIES:h.catalog,isActivityOpen:()=>true,YBSXP:vm.runInContext('YBSXP',xp)})){
+ for(const [key,value] of Object.entries({document:{body,head:new Element('head'),createElement:tag=>new Element(tag),addEventListener:(k,f)=>{events[k]=f;}},window:{addEventListener:(k,f)=>{events[k]=f;options.events?.addEventListener(k,f);}},sessionStorage:roundStorage,localStorage:store(),ACTIVITIES:h.catalog,isActivityOpen:()=>true,YBSXP:vm.runInContext('YBSXP',xp)})){
   const old=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,value});t.after(()=>old?Object.defineProperty(globalThis,key,old):delete globalThis[key]);
  }
  const $=id=>body.querySelector('#'+id);
@@ -105,6 +105,43 @@ async function finishGuest(h){
  for(let slot=0;slot<2;slot++){const input=h.$('stage').querySelector('input');input.value='合成答案';input.oninput();await h.$('b-send').onclick();if(slot===0)h.$('b-next-group').onclick();}
  assert.equal(h.round(1).disabled,false);assert.match(h.$('verdict').textContent,/已存待審，尚未採計/);
 }
+test('多次離頁含 client stale 通知，舊外框不得在身分初始化時多發 context',async t=>{
+ const events=new EventTarget(),h=await open(t,{guest:true,events});await finishGuest(h);
+ const remount=async()=>{
+  const count=h.requests.length;events.dispatchEvent(new Event('pagehide'));
+  h.client=h.reopen({events});
+  await mountActivity({client:Promise.resolve(h.client),cfg:h.cfg,now:h.now});return count;
+ };
+ const valid=await remount();await until(()=>!!h.$('b-redo'));
+ assert.equal(h.round(1).disabled,false);
+ assert.deepEqual(h.requests.slice(valid).map(r=>new URL(r.url).pathname),['/guest/context']);
+ h.state.guestVersions.roundEpoch++;h.state.guestVersions.controlVersions.classGateVersion++;
+ const reset=await remount();await until(()=>!!h.$('stage').querySelector('input'));
+ assert.equal(h.round(1).disabled,true);assert.equal(h.$('b-redo'),null);
+ assert.deepEqual(h.requests.slice(reset).map(r=>new URL(r.url).pathname),['/guest/context','/guest/context','/guest/start']);
+ assert.equal(h.requests.at(-1).body.roundEpoch,1);assert.equal(h.requests.at(-1).body.round,0);
+});
+test('傳送、斷線待送與重送途中改答案均不能再送，原請求確認後才恢復',async t=>{
+ const h=await open(t),input=h.$('stage').querySelector('input'),send=h.$('b-send');
+ const fill=value=>{input.value=value;input.oninput();};let release;
+ fill('原答案');h.state.fetcher=()=>new Promise(resolve=>{release=resolve;});
+ const sending=send.onclick();await until(()=>!!release);const sent=h.requests.length;
+ fill('第一次修改');assert.equal(send.disabled,true);await send.onclick();assert.equal(h.requests.length,sent);
+ assert.equal(h.requests.at(-1).body.answer,'原答案');
+ release(Response.json(response(0,{nextSeq:2,correct:false})));await sending;
+ assert.equal(send.disabled,false);assert.equal(input.value,'第一次修改');
+ h.state.fetcher=async()=>{throw Error('synthetic-offline');};await send.onclick();
+ assert.equal(h.client.state().status,'pending');const original=h.requests.at(-1).body;
+ fill('第二次修改');assert.equal(send.disabled,true);await send.onclick();assert.equal(h.requests.length,sent+1);
+ h.advance();release=null;h.state.fetcher=()=>new Promise(resolve=>{release=resolve;});
+ const retry=h.$('b-retry').onclick();await until(()=>!!release);
+ assert.match(h.$('verdict').textContent,/修改答案後再送一次/,'舊提示不能作為重送已完成的證據');
+ assert.deepEqual(h.requests.at(-1).body,original);
+ fill('第三次修改');assert.equal(send.disabled,true);await send.onclick();assert.equal(h.requests.length,sent+2);
+ release(Response.json(response(0,{nextSeq:3,correct:false})));await retry;
+ assert.equal(h.client.state().status,'ready');assert.equal(h.client.state().pending,false);
+ assert.equal(input.value,'第三次修改');assert.equal(send.disabled,false);
+});
 for(const [change,extra] of Object.entries({configVersion:{configVersion:2},unitEpoch:{unitEpoch:1},roundEpoch:{roundEpoch:1},classUnitEpoch:{classUnitEpoch:1},gateVersion:{controlVersions:{gateVersion:2,classGateVersion:1}},classGateVersion:{controlVersions:{gateVersion:1,classGateVersion:2}}}))test(`班座完成後教師重設 ${change}，重整不能沿用舊摘要或解鎖`,async t=>{
  const h=await open(t,{guest:true});await finishGuest(h);const count=h.requests.length;
  Object.assign(h.state.guestVersions,extra);h.events.pagehide();const restored=h.reopen();t.after(()=>restored.logout());

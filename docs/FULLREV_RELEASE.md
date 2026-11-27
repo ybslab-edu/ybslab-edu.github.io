@@ -21,7 +21,7 @@ Pages 建議改為 Actions 發布這份 artifact；也可由 Console 決定獨�
 
 `.github/workflows/ci.yml` 使用既有官方 `actions/checkout@v6` 讀取 `ybslab-edu/classscore`，固定 P3 版本 `d604038e58a1efaa937b27adebd5b6975ab11c66`，只 checkout `workers/ybs-grader`，移至 runner 暫存目錄後設定 `YBS_WORKER_SOURCE`。權限維持 `contents: read`，不保存 Git 憑證、不部署、不上傳 Worker artifact。更換 SHA 時須重新執行跨 repo 驗收。
 
-CI 在安裝瀏覽器前檢查 Worker 必要檔案；所有依賴 Worker 的核心測試也共用同一檢查。未設定來源、來源不存在或不完整均失敗，不能以 skip 換取綠燈。本機 `node --test tests/*.test.mjs` 未設定來源時可 skip，TAP 會列出設定方式；明確設定錯誤路徑則失敗。
+CI 在安裝瀏覽器前檢查 Worker 必要檔案；所有依賴 Worker 的核心測試也共用同一檢查。未設定來源、來源不存在或不完整均失敗，不能以 skip 換取綠燈。本機未設定來源時，answer-scan、fullrev-release、fullrev-csp 與 fullrev-df-teacher 四項必要驗收仍失敗；原本允許略過的 batch／legacy 測試維持 skip，TAP 會列出設定方式。明確設定錯誤路徑則失敗。
 
 老師需確認來源 repo 的可見性與上述 SHA 可讀（離線作業無法查證）：
 

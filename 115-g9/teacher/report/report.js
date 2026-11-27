@@ -32,9 +32,9 @@
     });
     controls();
   }
-  function render() {
+  function render(prepared) {
     if (!loaded) return;
-    report = YBSCurriculumReport.summarize({...loaded, activities, items, cls:el('report-class').value,
+    report = prepared || YBSCurriculumReport.summarize({...loaded, activities, items, cls:el('report-class').value,
       isOpen:a => isActivityOpen(a, loaded.at)});
     el('report-summary').textContent = '名冊 ' + report.total + ' 人；待核對 ' + report.conflicts + ' 人（保留分母、不計達成）。略過無效名冊 ' + report.invalidRoster
       + ' 筆、格式或名冊不符紀錄 ' + report.skipped + ' 筆。資料時間：' + new Date(loaded.at).toLocaleString('zh-TW') + '。';
@@ -78,17 +78,18 @@
       const [roster, attempts] = await Promise.all(['roster','attempts'].map(name => db.collection('ybsCourses/' + course + '/' + name).get({source:'server'})));
       if (!active()) return;
       loaded = {roster:roster.docs.map(d => ({...d.data(), email:d.id})), attempts:attempts.docs.map(d => {
-        const data = d.data(); return {...data, id:d.id, passedAt:data.passedAt?.toMillis?.()};
+        const data = d.data(), timestamp = data?.passedAt;
+        return {...data, id:d.id, passedAt:typeof timestamp?.toMillis === 'function' ? timestamp.toMillis() : undefined};
       }), at:Date.now()};
       const all = YBSCurriculumReport.summarize({...loaded, activities, items, isOpen:a => isActivityOpen(a, loaded.at)});
       const select = el('report-class'); select.replaceChildren();
       const option = (value, text) => { const n = node('option', text); n.value = value; select.appendChild(n); };
       option('', '全部班級'); for (const cls of all.classes) option(String(cls), cls + ' 班');
-      select.disabled = false; render(); status('已讀取；班級篩選與 Excel 均使用這次資料快照。');
+      select.disabled = false; render(all); status('已讀取；班級篩選與 Excel 均使用這次資料快照。');
     } catch (e) { if (active()) { clear(); status(error(e)); } }
     finally { busy = false; controls(); }
   };
-  el('report-class').onchange = render;
+  el('report-class').onchange = () => render();
   el('report-logout').onclick = async () => {
     generation++; clear(); status('正在登出…');
     YBS.endBrowserSession?.();

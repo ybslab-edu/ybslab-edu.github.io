@@ -3,6 +3,103 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+
+// 直接測提示控制器；合成節點只記錄可觀察的畫面狀態，不啟動登入或雲端。
+function hintState(round={tip:i=>'方向 '+i.n,steps:i=>'步驟 '+i.n,learn:'合成示範說明'}){
+ const nodes=new Map();
+ const node=()=>({innerHTML:'',hidden:false,disabled:false,
+  appendChild(child){this.innerHTML+=child.innerHTML;},querySelectorAll:()=>[],focus(){}});
+ const get=id=>{
+  if(!nodes.has(id))nodes.set(id,node());
+  return nodes.get(id);
+ };
+ const s={$:get,esc:String,R:[round],ri:0,inst:{n:7},teacher:false,handle:{}};
+ const c=vm.createContext({s,document:{createElement:node}});
+ vm.runInContext(read('assets/shell.js')+'\nglobalThis.hints=shellCreateHints(s);',c);
+ c.hints.resetHints();
+ const headings=()=>[...get('hint-content').innerHTML.matchAll(/<h3>(.*?)<\/h3>/g)].map(m=>m[1]);
+ return {s,get,hints:c.hints,headings};
+}
+
+test('提示狀態反覆渲染與成功送出不升層；連續錯答及直接重複呼叫停在第 3 層',()=>{
+ const h=hintState(),button=h.get('b-hint');
+ for(let n=0;n<3;n++){button.onclick();h.hints.renderHints();}
+ assert.deepEqual(h.headings(),[]);
+ assert.equal(button.disabled,true);
+ h.hints.hintSubmitted(false);
+ assert.deepEqual(h.headings(),[]);
+ assert.equal(button.disabled,false);
+ for(let level=1;level<=3;level++){
+  h.hints.hintSubmitted(true);
+  assert.deepEqual(h.headings(),['第 1 層：方向','第 2 層：拆步驟','第 3 層：看一題示範'].slice(0,level));
+  const html=h.get('hint-content').innerHTML;
+  for(let n=0;n<3;n++){h.hints.renderHints();h.hints.hintSubmitted(false);}
+  assert.equal(h.get('hint-content').innerHTML,html);
+  assert.equal(button.disabled,level===3);
+  assert.equal(h.get('b-demo').hidden,level<3);
+ }
+ const html=h.get('hint-content').innerHTML;
+ // 直接呼叫 handler，確認即使繞過 disabled，層級仍不會超出上限。
+ for(let n=0;n<5;n++){button.onclick();h.hints.hintSubmitted(true);}
+ assert.equal(h.get('hint-content').innerHTML,html);
+ assert.equal(button.disabled,true);
+ assert.match(button.title,/已解鎖全部提示/);
+});
+
+test('空方向與空 steps 字串跳過第 2 層；回傳空字串的 steps 仍保留第 2 層',()=>{
+ for(const steps of [undefined,null,'',()=>'']){
+  const h=hintState({tip:'',steps}),hasSteps=typeof steps==='function';
+  h.hints.hintSubmitted(true);
+  assert.equal(h.get('hint-content').innerHTML,'<h3>第 1 層：方向</h3><div></div>');
+  h.get('b-hint').onclick();
+  assert.deepEqual(h.headings(),hasSteps?['第 1 層：方向','第 2 層：拆步驟']:['第 1 層：方向','第 3 層：看一題示範']);
+  assert.equal(h.get('b-hint').disabled,!hasSteps);
+  if(hasSteps){
+   assert.match(h.get('hint-content').innerHTML,/<h3>第 2 層：拆步驟<\/h3><div><\/div>$/);
+   h.get('b-hint').onclick();
+  }
+  assert.equal(h.get('b-demo').hidden,false);
+  assert.equal(h.get('b-hint').disabled,true);
+  assert.doesNotMatch(h.get('hint-content').innerHTML,/undefined|null/);
+ }
+});
+
+test('達上限後重複重設會清空並鎖定提示，新題須重新送出且從第 1 層開始',()=>{
+ const h=hintState();
+ for(let n=0;n<3;n++)h.hints.hintSubmitted(true);
+ assert.equal(h.get('b-hint').disabled,true);
+ assert.equal(h.get('b-demo').hidden,false);
+ assert.equal(h.hints.isHintDemo(),false);
+ h.get('b-demo').onclick();
+ assert.equal(h.hints.isHintDemo(),true);
+ assert.match(h.get('demo-content').innerHTML,/合成示範說明/);
+ assert.equal(h.get('hint-demo').hidden,false);
+ assert.equal(h.get('original-work').hidden,true);
+ h.s.inst={n:11};
+ for(let n=0;n<2;n++){
+  h.hints.resetHints();
+  assert.equal(h.hints.isHintDemo(),false);
+  assert.equal(h.get('hint-content').innerHTML,'');
+  assert.equal(h.get('demo-content').innerHTML,'');
+  assert.equal(h.get('hint-demo').hidden,true);
+  assert.equal(h.get('original-work').hidden,false);
+  assert.equal(h.get('b-hint').disabled,true);
+  assert.match(h.get('b-hint').title,/先試著送出一次/);
+  assert.equal(h.get('b-demo').hidden,true);
+  h.get('b-hint').onclick();
+  assert.deepEqual(h.headings(),[]);
+ }
+ h.hints.hintSubmitted(false);
+ assert.equal(h.get('b-hint').disabled,false);
+ assert.deepEqual(h.headings(),[]);
+ h.get('b-hint').onclick();
+ assert.deepEqual(h.headings(),['第 1 層：方向']);
+ assert.match(h.get('hint-content').innerHTML,/方向 11/);
+ h.get('b-hint').onclick();
+ assert.match(h.get('hint-content').innerHTML,/步驟 11/);
+ assert.doesNotMatch(h.get('hint-content').innerHTML,/方向 7|步驟 7/);
+});
+
 for(const dir of ['u2-03','u2-04','u2-05','u2-06','u2-07'])test(dir+' 每關多種子拆步驟使用題目內容、保留資料且不列最終答案',()=>{
  const c=vm.createContext({SHELL:cfg=>cfg,console});
  vm.runInContext(read('assets/shell.js').slice(read('assets/shell.js').indexOf('const PICK ='))+'\n'+[...read('115-g9/'+dir+'/index.html').matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n')+'\nglobalThis.rounds=ROUNDS;',c);

@@ -14,8 +14,9 @@ const fake = `window.firebase=(()=>{
   s.changeUser=async uid=>{auth.currentUser=uid?{uid}:null;await callback(auth.currentUser)};
   function docs(items){return items.map((d,i)=>({id:d.id||String(i),ref:{id:d.id},data:()=>({...d,updatedAt:{toDate:()=>new Date('2026-10-21T12:34:00Z')}})}))}
   const db={doc:path=>({get:async opts=>{s.queries.push({path,opts});return{exists:true,data:()=>({ownerUid:'owner',open:false})}}}),
-    collection:path=>({get:async opts=>{s.queries.push({path,opts});return{docs:docs(s.roster)}},
+    collection:path=>({get:async opts=>{s.queries.push({path,opts});if(s.failRoster)throw {code:'unavailable'};return{docs:docs(s.roster)}},
       where:(field,op,n)=>({get:async opts=>{s.queries.push({path,field,op,n,opts});
+        if(s.failReports)throw {code:'permission-denied'};
         if(s.delay)await new Promise(r=>{s.release=r});return{docs:docs(s.reports.filter(d=>d.session===n))}}})}),
     batch:()=>{const pending=[];return{delete:ref=>pending.push(ref.id),commit:async()=>{s.deletes.push(...pending);s.reports=s.reports.filter(d=>!pending.includes(d.id))}}}};
   const app={name:'df-teacher',auth:()=>auth,firestore:()=>db};
@@ -73,6 +74,24 @@ try {
   const queries=await page.evaluate(()=>testState.queries);
   assert.deepEqual(queries.filter(q=>q.field).map(q=>[q.field,q.op,q.n,q.opts.source]),[['session','==',1,'server'],['session','==',2,'server']]);
   console.log('PASS owner 分堂單次讀取、伺服器時間、身分覆寫、解碼失敗、未交名單、衝突、XSS、本機匯入');
+  // 查詢失敗必須清除舊資料並顯示失敗；只允許老師手動重試。
+  for (const [flag,expected] of [['failReports',/無權限/],['failRoster',/雲端操作失敗/]]) {
+    const before=await page.evaluate(()=>testState.queries.length);
+    await page.evaluate(flag=>{testState[flag]=true},flag);
+    await page.click('#cloud-read');
+    await page.waitForFunction(()=>!document.getElementById('cloud-read').disabled);
+    assert.match(await page.textContent('#cloud-status'),expected);
+    assert.equal(await page.locator('tbody tr').count(),0);
+    assert.equal(await page.textContent('#cloud-roster'),'');
+    assert.equal(await page.evaluate(()=>testState.queries.length),before+3,'owner、reports 與 roster 各查詢一次，沒有自動重試');
+    assert.deepEqual(await page.evaluate(()=>testState.deletes),[]);
+    await page.evaluate(flag=>{testState[flag]=false},flag);
+    await page.click('#cloud-read');
+    await page.waitForFunction(()=>!document.getElementById('cloud-read').disabled);
+    assert.equal(await page.locator('tbody tr').count(),1);
+    assert.match(await page.textContent('#cloud-status'),/已讀取 1 份.*略過 0 份/);
+  }
+  console.log('PASS reports／roster 查詢失敗明確回報、清除舊結果、手動重試恢復且沒有寫入');
   let confirmation='';
   page.once('dialog',async d=>{confirmation=d.message();await d.dismiss()});
   await page.click('#cloud-delete');

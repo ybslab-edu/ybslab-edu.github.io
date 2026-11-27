@@ -503,6 +503,35 @@ const ACTIVITIES = [
   }
 ];
 
+// 在呼叫端 find / Object.fromEntries 建立索引前檢查，避免漏欄位或同課程活動序號被靜默覆蓋。
+function validateActivities(activities) {
+  const seen = new Map();
+  const text = value => typeof value === 'string' && value.trim().length > 0;
+  const textArray = value => {
+    if (!Array.isArray(value)) return false;
+    // 陣列迭代會讀取空槽為 undefined，不能用會略過空槽的 every()。
+    for (const item of value) if (!text(item)) return false;
+    return true;
+  };
+  for (const [index, a] of activities.entries()) {
+    const label = `ACTIVITIES[${index}] (${a?.course ?? '?'} / ${a?.week ?? '?'}) (href=${JSON.stringify(a?.href)}, title=${JSON.stringify(a?.title)})`;
+    const invalid = field => { throw new Error(`${label}：${field} 缺漏或格式錯誤`); };
+    if (!a || typeof a !== 'object') invalid('活動資料');
+    for (const field of ['course', 'title', 'track', 'date', 'href', 'node', 'topic', 'why', 'because', 'so']) {
+      if (!text(a[field])) invalid(field);
+    }
+    if (!Number.isSafeInteger(a.week) || a.week < 1) invalid('week');
+    if (!textArray(a.codes)) invalid('codes');
+    if (!textArray(a.rounds) || a.rounds.length < 1 || a.rounds.length > 6) invalid('rounds');
+    if (a.unit !== undefined && (!Number.isSafeInteger(a.unit) || a.unit < 0)) invalid('unit');
+    if (a.also !== undefined && !textArray(a.also)) invalid('also');
+    const key = JSON.stringify([a.course, a.week]);
+    if (seen.has(key)) throw new Error(`${label}：重複 course/week，與 ${seen.get(key)} 衝突`);
+    seen.set(key, label);
+  }
+}
+validateActivities(ACTIVITIES);
+
 // 學期第幾週：由活動的 date 和 curriculum.js 的 TERMS 算出（week 欄位只是第幾個活動）
 function termWeekOf(a) {
   if (typeof TERMS === 'undefined' || !a || !a.date) return null;

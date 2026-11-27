@@ -243,30 +243,36 @@ const YBS = (() => {
     if (!getQ().some(x => x.uid === profile.uid)) { onStatus('ok'); return; }
     if (!fb.auth.currentUser || fb.auth.currentUser.uid !== profile.uid) { onStatus('relogin'); return; }
     busy = true;
-    // 每筆在本次 flush 最多嘗試一次；失敗留給 60 秒／online 重試。
-    const attempted = new Set();
+    // 同一 UID／關卡失敗後本輪不再重送，包含途中被重新提交的物件；留給下次觸發重試。
+    const attempted = new Set(), attemptedObjects = new Set();
     try {
       onStatus('sending');
       while (enabled() && profile) {
-        const me = profile;
-        if (!fb.auth.currentUser || fb.auth.currentUser.uid !== me.uid) break;
-        const x = getQ().find(x => x.uid === me.uid && !attempted.has(x));
+        const me = profile, generation = accountGeneration;
+        // 同 UID 重新登入也屬新世代；舊鎖／讀寫回應不可繼續操作目前的佇列。
+        const sameSession = () => generation === accountGeneration && profile?.uid === me.uid;
+        const current = () => sameSession() && fb.auth.currentUser?.uid === me.uid;
+        if (!current()) break;
+        const x = getQ().find(x => x.uid === me.uid && !attemptedObjects.has(x)
+          && !attempted.has(generation + ':' + x.uid + ':' + x.key));
         if (!x) break;
-        attempted.add(x);
+        const key = generation + ':' + x.uid + ':' + x.key;
+        attempted.add(key);
+        attemptedObjects.add(x); // 重新登入仍保留的舊物件須等下一輪確認。
         let ref, done = false;
         try {
           ref = fb.db.doc('ybsCourses/' + courseId() + '/attempts/' + me.uid + '_' + x.activity + '_' + x.round);
           const data = { uid: me.uid, email: me.email, activity: x.activity, round: x.round, level: x.level, tries: x.tries, passedAt: firebase.firestore.FieldValue.serverTimestamp(), app: 'ybs' };
           if (x.termWeek) data.termWeek = x.termWeek;
           const write = async locked => {
-            if (profile?.uid !== me.uid || fb.auth.currentUser?.uid !== me.uid) return false;
+            if (!current()) return false;
             // window.open 可能複製 sessionStorage；同源分頁排隊，已存在就不重寫。
             if (locked) try { if ((await ref.get({source:'server'})).exists) return true; }
             catch (e) {
               // 既有 Rules 用 resource.data.uid 判斷本人；文件尚不存在時 get 也會被拒絕。
               if (e?.code !== 'permission-denied') throw e;
             }
-            if (profile?.uid !== me.uid || fb.auth.currentUser?.uid !== me.uid) return false;
+            if (!current()) return false;
             await ref.set(data); return true;
           };
           done = typeof navigator !== 'undefined' && navigator.locks?.request
@@ -274,10 +280,14 @@ const YBS = (() => {
             : await write(false); // 舊瀏覽器仍由固定 docId 與既有 Rules 防止重複紀錄。
         } catch (e) {
           // 一關只能有一筆：已經有紀錄（例如重做同一關）就算完成
-          if (ref && e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) { /* 無法確認既有紀錄，保留待送並回報 pending。 */ } }
+          if (current() && ref && e && e.code === 'permission-denied') { try { done = (await ref.get()).exists; } catch (e2) { /* 無法確認既有紀錄，保留待送並回報 pending。 */ } }
         }
         // 只刪除實際完成的物件，保留途中新增（包含同關重新提交）的項目。
-        if (done) setQ(getQ().filter(y => y !== x));
+        // 同世代已確認成功可清理原物件；Auth 暫時失聯不應讓成功項目復活。
+        if (done && sameSession()) {
+          setQ(getQ().filter(y => y !== x));
+          attempted.delete(key); // 成功後仍可接著送同關的新提交，不受失敗限制影響。
+        }
       }
     } finally {
       busy = false;
@@ -341,8 +351,12 @@ const YBS = (() => {
     if (!guestStorageFailed) try {
       const stored = JSON.parse(localStorage.getItem(GKEY) || '{"queue":[],"receipts":[]}');
       if (!Array.isArray(stored.queue) || !Array.isArray(stored.receipts)) throw new Error('invalid queue');
-      guestState = {queue: stored.queue.filter(validGuest), receipts: trimReceipts(stored.receipts)};
-      if (stored.receipts.length !== guestState.receipts.length) saveGuest(guestState);
+      const seen = new Set();
+      guestState = {queue: stored.queue.filter(x => {
+        if (!validGuest(x) || seen.has(guestKey(x))) return false;
+        seen.add(guestKey(x)); return true; // 舊佇列同班座同關也只留最早一筆。
+      }), receipts: trimReceipts(stored.receipts)};
+      if (stored.queue.length !== guestState.queue.length || stored.receipts.length !== guestState.receipts.length) saveGuest(guestState);
     } catch (e) { guestWarn(e); guestStorageFailed = true; }
     return guestState;
   }
@@ -435,28 +449,35 @@ const YBS = (() => {
         try {
           const uid = await ensureGuest(id, generation);
           if (!uid || generation !== guestGeneration || profile) break;
-          x.uid = uid;
-          const state = readGuest(), current = state.queue.find(y => guestKey(y) === guestKey(x));
-          if (!current) continue;
-          current.uid = uid;
-          // 送出前移至隊尾並保存；跨輪及重新開頁都讓後續項目輪到，不被持續失敗的前十筆擋住。
-          state.queue = state.queue.filter(y => y !== current);
-          state.queue.push(current); saveGuest(state);
-          const proof = receiptKey(x);
-          let done = state.receipts.includes(proof);
-          if (!done) try {
-            await fb.db.doc('ybsCourses/' + courseId() + '/guestAttempts/' + uid + '_' + x.activity + '_' + x.round).set(guestData(x));
-            done = true;
-          } catch (e) {
-            // 匿名者不能 get；permission-denied 也可能是關課，不能無證據當成功。
-            done = /^(?:firestore\/)?already-exists$/.test(e?.code || '') || readGuest().receipts.includes(proof);
-            if (!done) { failed = true; guestWarn(e); }
-          }
-          if (done) {
-            const latest = readGuest();
-            saveGuest({queue:latest.queue.filter(y => !(guestKey(y) === guestKey(x) && y.uid === uid)),
-              receipts:[...latest.receipts.filter(y => y !== proof), proof]});
-          }
+          const write = async () => {
+            // 等待其他分頁時可能換人或已送完；取得鎖後重查身分及最新佇列。
+            if (generation !== guestGeneration || profile || fb.auth.currentUser?.uid !== uid) return;
+            const state = readGuest(), current = state.queue.find(y => guestKey(y) === guestKey(x));
+            if (!current) return;
+            current.uid = uid;
+            // 送出前移至隊尾並保存；跨輪及重新開頁都讓後續項目輪到，不被持續失敗的前十筆擋住。
+            state.queue = state.queue.filter(y => y !== current);
+            state.queue.push(current); saveGuest(state);
+            const proof = receiptKey(current);
+            let done = state.receipts.includes(proof);
+            if (!done) try {
+              await fb.db.doc('ybsCourses/' + courseId() + '/guestAttempts/' + uid + '_' + current.activity + '_' + current.round).set(guestData(current));
+              done = true;
+            } catch (e) {
+              // 匿名者不能 get；permission-denied 也可能是關課，不能無證據當成功。
+              done = /^(?:firestore\/)?already-exists$/.test(e?.code || '') || readGuest().receipts.includes(proof);
+              if (!done) { failed = true; guestWarn(e); }
+            }
+            if (done) {
+              const latest = readGuest();
+              saveGuest({queue:latest.queue.filter(y => !(guestKey(y) === guestKey(current) && y.uid === uid)),
+                receipts:[...latest.receipts.filter(y => y !== proof), proof]});
+            }
+          };
+          // 佇列依班座與關卡去重；不同匿名 UID 的分頁也須共用同一把鎖。
+          if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+            await navigator.locks.request('ybslab:guest-attempt:' + courseId() + ':' + guestKey(x), write);
+          } else await write();
         } catch (e) { failed = true; guestWarn(e); break; }
       }
     } finally {
@@ -591,7 +612,7 @@ const YBS = (() => {
 function ybsFullrevFacade(config) {
   const ready = Promise.resolve().then(() => {
     if (!config || config.enabled !== true) throw Object.assign(new Error('configuration-pending'), {code:'configuration-pending'});
-    return import('./fullrev-client.mjs?v=20261120a');
+    return import('./fullrev-client.mjs?v=20261127ib');
   }).then(m => m.createBrowserClient(config));
   // 先掛失敗處理；設定未就緒不啟動舊專案。
   ready.catch(() => {});
@@ -601,12 +622,12 @@ function ybsFullrevFacade(config) {
     if(previousUid!==current?.uid)window.dispatchEvent(new CustomEvent('ybs-report-auth',{detail:{uid:current?.uid||null}}));
   })).catch(() => {});
   const call = name => (...args) => ready.then(client => client[name](...args));
-  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261120b1')
+  const mount = (name, args) => import('./fullrev-ui.mjs?v=20261127ib')
     .then(m => m[name]({client:ready, ...args}));
   return Object.freeze({fullrev:true, enabled:()=>true, profile:()=>current,
     firebaseSession:call('session'), logout:call('logout'), retry:call('retry'),
     hasPending:()=>pending, status:f=>{notify=f;},
-    mountActivity:cfg=>import('./fullrev-activities.mjs?v=20261120b1').then(m=>mount('mountActivity', {cfg:m.activityConfig(cfg)})),
+    mountActivity:cfg=>import('./fullrev-activities.mjs?v=20261127ib').then(m=>mount('mountActivity', {cfg:m.activityConfig(cfg)})),
     mountGrowth:()=>mount('mountGrowth', {}), mountTeacher:()=>mount('mountTeacher', {}),
     // 舊頁尚未轉換時拒絕自報／匿名補寫，正式答案只能經 Worker。
     submit:()=>false, submitGuest:()=>false, flush:()=>false, flushGuest:()=>false,
@@ -616,13 +637,13 @@ function ybsFullrevFacade(config) {
       const client=await ready;
       if(!client.state().profile){
         const host=document.createElement('section');document.body.append(host);
-        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261120b1')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
+        await new Promise(async(resolve,reject)=>{try{await (await import('./fullrev-ui.mjs?v=20261127ib')).mountLogin({client,host,onLogin:resolve});}catch(e){reject(e);}});host.remove();
       }
       const scripts=await client.dfContent();
       for(const key of ['pub','enc-b2','enc-rv'])document.getElementById(key).textContent=scripts[key];
     },
     button:async(el,ok,bad)=>{
-      try { await (await import('./fullrev-ui.mjs?v=20261120b1')).mountLogin({client:await ready,host:el,onLogin:ok}); }
+      try { await (await import('./fullrev-ui.mjs?v=20261127ib')).mountLogin({client:await ready,host:el,onLogin:ok}); }
       catch { bad?.('登入服務尚未就緒，請找老師。'); }
     },
     submitReport:call('submitReport')

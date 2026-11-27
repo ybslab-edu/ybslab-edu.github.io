@@ -36,12 +36,12 @@ body :focus-visible{outline:3px solid var(--text);outline-offset:3px}
 </head>
 <body>
 <script src="../../assets/teacher.js?v=20261031e"></script>
-<script src="../../assets/lock.js?v=20261120b1"></script>
-<script src="../../assets/fullrev-config.js?v=20261120a"></script>
-<script src="../../assets/login.js?v=20261121pr8"></script>
+<script src="../../assets/lock.js?v=20261127ib"></script>
+<script src="../../assets/fullrev-config.js?v=20261127ib"></script>
+<script src="../../assets/login.js?v=20261127ib"></script>
 <script src="../../assets/curriculum.js?v=20261110a"></script>
-<script src="../../assets/activities.js?v=20261122u205"></script>
-<script src="../../assets/shell.js?v=20261120a"></script>
+<script src="../../assets/activities.js?v=20261127ib"></script>
+<script src="../../assets/shell.js?v=20261127ib"></script>
 <script>
 const qEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const qTable=(caption,heads,rows)=>'<table class="quest-table"><caption>'+qEsc(caption)+'</caption><thead><tr>'+heads.map(h=>'<th scope="col">'+qEsc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((x,k)=>'<td data-label="'+qEsc(heads[k])+'">'+qEsc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';

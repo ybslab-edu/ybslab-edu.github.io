@@ -160,18 +160,23 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     if(d.blocked)throw fail('restart-required');
     if(d.retryAt>now())throw fail('retry-later');
     active(m);emit('sending');
+    let response;
     try {
       const body=JSON.stringify(pending.body);
       if(new TextEncoder().encode(body).length>8192)throw fail('answer-too-large');
-      let response;
       for(let refresh=0;refresh<2;refresh++) {
+        // 刷新後失聯時，不能把前一次 401 當成本次 HTTP 狀態。
+        response=null;
         const bearer=await token(m,refresh===1);
-        response=await fetcher(config.workerOrigin+'/'+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
-          redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body});active(m);
+        try {
+          response=await fetcher(config.workerOrigin+'/'+pending.op,{method:'POST',credentials:'omit',cache:'no-store',
+            redirect:'error',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body});
+        } catch(cause) {throw Object.assign(fail('pending'),{cause});}
+        active(m);
         if(response.status!==401)break;
       }
       if(!response.ok) {
-        if(response.status===401){clear();throw fail('login-required');}
+        if(response.status===401)throw fail('login-required');
         if(response.status===400&&pending.op==='answer'){
           const error=await response.clone().json().catch(()=>null);active(m);
           if(error?.error==='invalid_answer'){
@@ -186,8 +191,11 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         }
         d.blocked=true;delete drafts[scopeKey(d.activity,d.round)];save();emit('restart-required');throw fail('restart-required');
       }
-      const value=await response.json();active(m);
-      if(typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? !id(value.resultId)
+      let value;
+      try {value=await response.json();}
+      catch(cause) {throw Object.assign(fail('response-invalid'),{cause});}
+      active(m);
+      if(!value||typeof value.completed!=='boolean'||(value.awaitingTeacher===true?value.completed||! /^[\w-]{22}$/.test(value.sid):value.completed ? !id(value.resultId)
         : !/^[\w-]{22}$/.test(value.sid)||!int(value.nextSeq,1)||!value.question||![0,1].includes(value.question.slot)))throw fail('response-invalid');
       d.pending=null;d.failures=0;d.retryAt=0;
       d.sid=value.sid||d.sid;d.nextSeq=value.nextSeq;d.slot=value.question?.slot;
@@ -198,11 +206,15 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       return {activity:d.activity,round:d.round,...clone(value)};
     } catch(error) {
       active(m);
-      if(error.code==='invalid-answer')throw error;
-      if(d.blocked||error.code==='answer-too-large'){emit('restart-required');throw error;}
+      if(error?.code==='login-required'){clear();throw error;}
+      if(error?.code==='invalid-answer')throw error;
+      if(d.blocked||error?.code==='answer-too-large'){emit('restart-required');throw error;}
       d.failures=(d.failures||0)+1;
       if(!d.retryAt||d.retryAt<=now())d.retryAt=now()+Math.min(60000,1000*2**Math.min(d.failures-1,6))+Math.floor(random()*500);
-      save();emit('pending');arm(d);throw fail('pending');
+      save();emit('pending');arm(d);
+      const pendingError=error?.code==='pending'?error:Object.assign(fail('pending'),{cause:error});
+      if(response)pendingError.status=response.status;
+      throw pendingError;
     }
   }
   async function exclusive(key,fn) {

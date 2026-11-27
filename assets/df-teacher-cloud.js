@@ -62,7 +62,7 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
           ingest(d, { source: '雲端', uid: envelope.uid, session: n, cls: envelope.cls, seat: envelope.seat, at });
           const k = envelope.cls + '-' + envelope.seat;
           counts.set(k, (counts.get(k) || 0) + 1); good++;
-        } catch (e) { failed.push(doc.id + '：' + (e.message || '解碼失敗')); }
+        } catch (e) { failed.push(doc.id + '：' + (e?.message || '解碼失敗')); }
       }
       if (!active(token, uid, n)) return;
       const missing = [], conflicts = [];
@@ -82,7 +82,7 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
     if (busy || !owner) return;
     busy = true; controls();
     const token = ++generation, n = session(), uid = owner;
-    let deleted = 0;
+    let deleted = 0, pendingBatch = '';
     try {
       await checkOwner();
       if (!active(token, uid, n)) return;
@@ -94,13 +94,15 @@ window.DFTeacherCloud = function ({ ingest, reset, render }) {
       await checkOwner();
       for (let i = 0; i < total; i += 400) {
         if (!active(token, uid, n)) return;
+        pendingBatch = `第 ${i / 400 + 1} 批（第 ${i + 1}–${Math.min(i + 400, total)} 份）失敗。`;
         const batch = db.batch(), chunk = snapshot.docs.slice(i, i + 400);
         chunk.forEach(doc => batch.delete(doc.ref));
         await batch.commit(); deleted += chunk.length;
+        pendingBatch = '';
       }
       if (active(token, uid, n)) { clear(); message(`第 ${n} 堂：已刪除 ${deleted} 份雲端報告。請手動更新未交名單。`); }
     } catch (e) {
-      if (generation === token) { clear(); message(`已刪除 ${deleted} 份。` + error(e) + ' 可重新操作刪除剩餘報告。'); }
+      if (generation === token) { clear(); message(`已刪除 ${deleted} 份。` + error(e) + pendingBatch + ' 可重新操作刪除剩餘報告。'); }
     } finally { busy = false; controls(); }
   }
   function script(src) {

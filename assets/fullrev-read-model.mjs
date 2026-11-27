@@ -13,8 +13,11 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
    headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body)});}
   catch{throw fail('read-model-pending');}
   if(auth.currentUser!==user)throw fail('identity-changed');
-  const data=await response.json();
-  if(!response.ok)throw fail(data.error==='control_changed'?'control-changed':response.status===429?'retry-later':'read-model-pending');
+  let data,unreadable=false;
+  try{data=await response.json();}catch{unreadable=true;}
+  if(auth.currentUser!==user)throw fail('identity-changed');
+  if(!response.ok)throw fail(data?.error==='control_changed'?'control-changed':response.status===429?'retry-later':'read-model-pending');
+  if(unreadable)throw fail('read-model-pending');
   return data;
  }
  const scope=b=>{if(b.course!==course)throw fail('invalid-course');return {course,classKey:b.classKey};};

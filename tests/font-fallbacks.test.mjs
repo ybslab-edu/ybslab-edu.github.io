@@ -129,6 +129,54 @@ test('only unquoted generic names count, including quoted commas and escapes', (
   }
 });
 
+test('declaration parsing preserves quoted punctuation and escaped quotes', () => {
+  const css = String.raw`
+    a { font-family: "Example; {One}, serif", 'Example Two', sans-serif; }
+    b { font-family: 'Example\'s, monospace', fantasy; }
+    c { font-family: "Example\", serif"; }
+    d { font-family: 'Example One', "Example Two", 'sans-serif'; }
+  `;
+  const expected = [
+    ['font-family', `"Example; {One}, serif", 'Example Two', sans-serif`],
+    ['font-family', String.raw`'Example\'s, monospace', fantasy`],
+    ['font-family', String.raw`"Example\", serif"`],
+    ['font-family', `'Example One', "Example Two", 'sans-serif'`]
+  ];
+  for (const own of [declarations(css), declarations(`<style>${css}</style>`, true)]) {
+    assert.deepEqual(own, expected);
+    assert.deepEqual(fontErrors(own), expected.slice(2));
+  }
+  const inline = declarations(`<span style="font-family: 'Example, serif', monospace"></span>
+    <span style='font-family: "Example, monospace"'></span>`, true);
+  assert.deepEqual(inline, [
+    ['font-family', "'Example, serif', monospace"],
+    ['font-family', '"Example, monospace"']
+  ]);
+  assert.deepEqual(fontErrors(inline), [['font-family', '"Example, monospace"']]);
+});
+
+test('comments and whitespace cannot supply or hide a missing fallback', () => {
+  const css = `
+    /* font-family: Ignored; --f-ignored: Ignored; */
+    a { font-family /* property comment */ :\t'Example One', /* list comment */
+      "Example Two",\t SANS-SERIF  ; }
+    b { font-family: Example /* , serif */; }
+    c { font-family: Example, /* multiline comment
+      font-family: Ignored; */ 'monospace' }
+    d { font-family:\n\tExample One, Example Two\t }
+  `;
+  const expected = [
+    ['font-family', `'Example One', \n      "Example Two",\t SANS-SERIF`],
+    ['font-family', 'Example'],
+    ['font-family', "Example,  'monospace'"],
+    ['font-family', 'Example One, Example Two']
+  ];
+  for (const own of [declarations(css), declarations(`<style>${css}</style>`, true)]) {
+    assert.deepEqual(own, expected);
+    assert.deepEqual(fontErrors(own), expected.slice(1));
+  }
+});
+
 test('var references must resolve to a generic fallback', () => {
   const variables = new Map([
     ['--good', ['"Example", sans-serif']], ['--bad', ['"sans-serif"']],

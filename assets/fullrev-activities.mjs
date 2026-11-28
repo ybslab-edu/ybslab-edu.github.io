@@ -6,52 +6,102 @@ import {renderPhotos} from './fullrev-photos.mjs';
 import {renderPerformance} from './fullrev-performance.mjs';
 import {renderOutcome} from './fullrev-outcomes.mjs';
 import {renderVolunteerSheet,SHEET_MODE} from './fullrev-volunteer-sheet.mjs';
-export const BATCH1=Object.freeze([
-  {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場'],managed:[3]},
-  {activity:5,file:'115-g9/u2-03/index.html',title:'燈牌只有亮和暗',unit:2,rounds:['點亮生日','看燈猜數字','沒有標數字的燈牌','要幾顆燈才夠','燈牌要幾個位元組'],managed:[0,1,2,3,4]},
-  {activity:16,file:'115-g9/u5-01/index.html',title:'倒數一百天的 AI',unit:5,rounds:['是不是 AI','AI 在做哪一種事','資料出了什麼問題','一個 AI 怎麼做出來'],managed:[0,1,2,3]},
-  {activity:17,file:'115-g9/u5-02/index.html',title:'AI 說的就對嗎',unit:5,rounds:['哪裡出了問題','可以這樣用嗎','幫 AI 查證','這是真的嗎'],managed:[0,1,2,3]},
-  {activity:18,file:'115-g9/u5-03/index.html',title:'寫給學弟妹的繪本',unit:5,rounds:['是不是生成式 AI','提示詞少了什麼','選出最好的提示詞','猜下一個字'],managed:[0,1,2,3]},
-  {activity:26,file:'115-g9/u1-01/index.html',title:'開賣倒數十秒',unit:1,rounds:['這是哪一種電腦','拆成三層','新的電腦平台','哪一層出問題'],managed:[0,1,2,3]},
-  {activity:30,file:'115-g9/u0-01/index.html',title:'登入，出發',unit:0,rounds:['登入因材網','電腦教室規則','成績怎麼算','這學期的故事'],managed:[0,1,2,3]}
-]);
-export const BATCH2=Object.freeze([
-  {activity:6,file:'115-g9/u2-04/index.html',title:'傳給阿嬤的方塊',unit:2,rounds:['用編碼表解密','換成編碼','亂碼是怎麼來的','方塊還是亂碼'],managed:[0,1,2,3]},
-  {activity:10,file:'115-g9/u4-01/index.html',title:'馬祖斷線了',unit:4,rounds:['幫訊息找路','斷了會影響誰','選傳輸媒介','訊號要跑多久'],managed:[0,1,2,3]},
-  {activity:11,file:'115-g9/u4-02/index.html',title:'差一個字母的網站',unit:4,rounds:['把封包組回來','網址的真名','少了哪一包','名字換門牌'],managed:[0,1,2,3]},
-  {activity:12,file:'115-g9/u4-03/index.html',title:'Wi-Fi 死角在哪裡',unit:4,rounds:['選無線技術','收得到嗎','找出 Wi-Fi 死角','路由器放哪裡'],managed:[0,1,2,3]},
-  {activity:13,file:'115-g9/u4-04/index.html',title:'短影音怎麼猜中我',unit:4,rounds:['這是哪一種服務','猜下一支推薦','是不是物聯網','感測、連網、動作'],managed:[0,1,2,3]},
-  {activity:14,file:'115-g9/u4-05/index.html',title:'影片住在哪個國家',unit:4,rounds:['在手機上還是雲端','租哪一種雲','誰管哪一層','資料中心蓋在哪'],managed:[0,1,2,3]}
-]);
-export const BATCH3=Object.freeze([
-  {activity:15,file:'115-g9/u4-06/index.html',title:'問 AI 一個問題',unit:4,rounds:['一個問題的旅程','這一步是哪一單元','雲端版和手機版','雲端算還是手機算'],managed:[0,1,2,3]},
-  {activity:19,file:'115-g9/u5-04/index.html',title:'繪本需要插圖',unit:5,rounds:['哪一句提示詞','改一個詞','可以放進繪本嗎','排好繪本頁'],managed:[0,1,2,3]},
-  {activity:20,file:'115-g9/u5-05/index.html',title:'回收分類機',unit:5,rounds:['照著樹分類','哪一題分得最乾淨','自己蓋一棵樹','考考這棵樹'],managed:[0,1,2,3]},
-  {activity:21,file:'115-g9/u5-06/index.html',title:'跟誰最像',unit:5,rounds:['最近的鄰居','找 3 個鄰居投票','畫一條線來預測','感知器要不要開攤'],managed:[0,1,2,3]},
-  {activity:22,file:'115-g9/u5-07/index.html',title:'讓資料自己分組',unit:5,rounds:['有沒有標準答案','靠近哪一個中心','把中心搬到中間','跑到不動為止'],managed:[0,1,2,3]},
-  {activity:23,file:'115-g9/u5-08/index.html',title:'服務台放哪裡',unit:5,rounds:['去最近的服務台','搬到正中間','哪一種分得好','要放幾個服務台'],managed:[0,1,2,3]}
-]);
-export const BATCH4=Object.freeze([
-  {activity:24,file:'115-g9/u5-09/index.html',title:'教 AI 認手勢',unit:5,rounds:['這批照片夠好嗎','訓練和測試要分開','讀懂混淆矩陣','怎麼改進'],managed:[0,1,2,3]},
-  {activity:25,file:'115-g9/u5-10/index.html',title:'猜拳贏 AI',unit:5,rounds:['誰贏了','程式的順序','有把握才算數','讓 AI 會贏'],managed:[0,1,2,3]},
-  {activity:27,file:'115-g9/u1-02/index.html',title:'加場搶票被踢出來',unit:1,rounds:['輪流用 CPU','看懂工作管理員','有人插隊','記憶體不夠了'],managed:[0,1,2,3]},
-  {activity:28,file:'115-g9/u1-03/index.html',title:'為了演唱會換手機',unit:1,rounds:['倒帶時間軸','它是哪一代','晶片環遊世界','每兩年翻一倍'],managed:[0,1,2,3]},
-  {activity:29,file:'115-g9/u1-04/index.html',title:'演唱會倒數直播',unit:1,rounds:['收進來還是送出去','輸入、處理、輸出','幫小裝置挑零件','直播的一秒鐘'],managed:[0,1,2,3]}
-]);
-export const BATCH5=Object.freeze([
-  {activity:7,file:'115-g9/u2-05/index.html',title:'動漫／遊戲展志工招募',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查'],managed:[0,1,2,3]},
-  {activity:8,file:'115-g9/u2-06/index.html',title:'志工回覆整理所',unit:2,rounds:['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據'],managed:[0,1,2,3]},
-  {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容'],managed:[0,1,2,3]}
-]);
-export const BATCH6=Object.freeze([
-  {activity:1,file:'115-g9/u1-05/index.html',title:'深夜手搖店 CPU',unit:1,rounds:['第 1 單','第 2 單','錢夠不夠？','班級團購'],managed:[0,1,2,3]},
-  {activity:2,file:'115-g9/u1-06/index.html',title:'打王前記得存檔',unit:1,rounds:['開遊戲','打王前存檔','RAM 滿了','從開機到存檔'],managed:[0,1,2,3]}
-]);
-export const BATCH7=Object.freeze([{activity:3,file:'115-g9/u2-01/index.html',title:'看台最後一排',unit:2,rounds:['看清背號','認出應援色','容量剛好夠','衛星數遊覽車'],managed:[0,1,2,3]}]);
-export const BATCH8=Object.freeze([{...BATCH1[0],managed:[0,1,2]},{course:'115-df',activity:1,file:'115-df/a/index.html',title:'資料偵探',unit:null,rounds:['提出 H1','完成結論','完成反思'],managed:[0,1,2]}]);
 const activityCourse=a=>a.course===undefined?'115-g9':a.course;
 const activityKey=a=>`${activityCourse(a)}:${a.activity}`;
 const nonblank=value=>typeof value==='string'&&value.trim().length>0;
+// 活動公開資料只有這個來源；各批次只登記課程／ID 與納管關卡。
+const ACTIVITY_METADATA=[
+  {activity:4,file:'115-g9/u2-02/index.html',title:'錄滿一整場',unit:2,rounds:['聲音取樣','影像像素','影片組成','錄滿一整場']},
+  {activity:5,file:'115-g9/u2-03/index.html',title:'燈牌只有亮和暗',unit:2,rounds:['點亮生日','看燈猜數字','沒有標數字的燈牌','要幾顆燈才夠','燈牌要幾個位元組']},
+  {activity:16,file:'115-g9/u5-01/index.html',title:'倒數一百天的 AI',unit:5,rounds:['是不是 AI','AI 在做哪一種事','資料出了什麼問題','一個 AI 怎麼做出來']},
+  {activity:17,file:'115-g9/u5-02/index.html',title:'AI 說的就對嗎',unit:5,rounds:['哪裡出了問題','可以這樣用嗎','幫 AI 查證','這是真的嗎']},
+  {activity:18,file:'115-g9/u5-03/index.html',title:'寫給學弟妹的繪本',unit:5,rounds:['是不是生成式 AI','提示詞少了什麼','選出最好的提示詞','猜下一個字']},
+  {activity:26,file:'115-g9/u1-01/index.html',title:'開賣倒數十秒',unit:1,rounds:['這是哪一種電腦','拆成三層','新的電腦平台','哪一層出問題']},
+  {activity:30,file:'115-g9/u0-01/index.html',title:'登入，出發',unit:0,rounds:['登入因材網','電腦教室規則','成績怎麼算','這學期的故事']},
+  {activity:6,file:'115-g9/u2-04/index.html',title:'傳給阿嬤的方塊',unit:2,rounds:['用編碼表解密','換成編碼','亂碼是怎麼來的','方塊還是亂碼']},
+  {activity:10,file:'115-g9/u4-01/index.html',title:'馬祖斷線了',unit:4,rounds:['幫訊息找路','斷了會影響誰','選傳輸媒介','訊號要跑多久']},
+  {activity:11,file:'115-g9/u4-02/index.html',title:'差一個字母的網站',unit:4,rounds:['把封包組回來','網址的真名','少了哪一包','名字換門牌']},
+  {activity:12,file:'115-g9/u4-03/index.html',title:'Wi-Fi 死角在哪裡',unit:4,rounds:['選無線技術','收得到嗎','找出 Wi-Fi 死角','路由器放哪裡']},
+  {activity:13,file:'115-g9/u4-04/index.html',title:'短影音怎麼猜中我',unit:4,rounds:['這是哪一種服務','猜下一支推薦','是不是物聯網','感測、連網、動作']},
+  {activity:14,file:'115-g9/u4-05/index.html',title:'影片住在哪個國家',unit:4,rounds:['在手機上還是雲端','租哪一種雲','誰管哪一層','資料中心蓋在哪']},
+  {activity:15,file:'115-g9/u4-06/index.html',title:'問 AI 一個問題',unit:4,rounds:['一個問題的旅程','這一步是哪一單元','雲端版和手機版','雲端算還是手機算']},
+  {activity:19,file:'115-g9/u5-04/index.html',title:'繪本需要插圖',unit:5,rounds:['哪一句提示詞','改一個詞','可以放進繪本嗎','排好繪本頁']},
+  {activity:20,file:'115-g9/u5-05/index.html',title:'回收分類機',unit:5,rounds:['照著樹分類','哪一題分得最乾淨','自己蓋一棵樹','考考這棵樹']},
+  {activity:21,file:'115-g9/u5-06/index.html',title:'跟誰最像',unit:5,rounds:['最近的鄰居','找 3 個鄰居投票','畫一條線來預測','感知器要不要開攤']},
+  {activity:22,file:'115-g9/u5-07/index.html',title:'讓資料自己分組',unit:5,rounds:['有沒有標準答案','靠近哪一個中心','把中心搬到中間','跑到不動為止']},
+  {activity:23,file:'115-g9/u5-08/index.html',title:'服務台放哪裡',unit:5,rounds:['去最近的服務台','搬到正中間','哪一種分得好','要放幾個服務台']},
+  {activity:24,file:'115-g9/u5-09/index.html',title:'教 AI 認手勢',unit:5,rounds:['這批照片夠好嗎','訓練和測試要分開','讀懂混淆矩陣','怎麼改進']},
+  {activity:25,file:'115-g9/u5-10/index.html',title:'猜拳贏 AI',unit:5,rounds:['誰贏了','程式的順序','有把握才算數','讓 AI 會贏']},
+  {activity:27,file:'115-g9/u1-02/index.html',title:'加場搶票被踢出來',unit:1,rounds:['輪流用 CPU','看懂工作管理員','有人插隊','記憶體不夠了']},
+  {activity:28,file:'115-g9/u1-03/index.html',title:'為了演唱會換手機',unit:1,rounds:['倒帶時間軸','它是哪一代','晶片環遊世界','每兩年翻一倍']},
+  {activity:29,file:'115-g9/u1-04/index.html',title:'演唱會倒數直播',unit:1,rounds:['收進來還是送出去','輸入、處理、輸出','幫小裝置挑零件','直播的一秒鐘']},
+  {activity:7,file:'115-g9/u2-05/index.html',title:'動漫／遊戲展志工招募',unit:2,rounds:['報名回覆藏著什麼','志工資料只收必要的','讓每位報名者走對路','上線招募前最後檢查']},
+  {activity:8,file:'115-g9/u2-06/index.html',title:'志工回覆整理所',unit:2,rounds:['收件截止，先保住原始回覆','顏色只提醒，你決定哪些列留下','送出時間不同，也可能是同一份回覆','哪個職務缺回覆，圖表要有依據']},
+  {activity:9,file:'115-g9/u2-07/index.html',title:'影片傳到群組變糊',unit:2,rounds:['今天必做：把公告變成能修改的文字','今天必做：壓得短，還原得回來嗎','另排時間完成：少掉的細節還能接受嗎','另排時間完成：把素材打包，保住該保留的內容']},
+  {activity:1,file:'115-g9/u1-05/index.html',title:'深夜手搖店 CPU',unit:1,rounds:['第 1 單','第 2 單','錢夠不夠？','班級團購']},
+  {activity:2,file:'115-g9/u1-06/index.html',title:'打王前記得存檔',unit:1,rounds:['開遊戲','打王前存檔','RAM 滿了','從開機到存檔']},
+  {activity:3,file:'115-g9/u2-01/index.html',title:'看台最後一排',unit:2,rounds:['看清背號','認出應援色','容量剛好夠','衛星數遊覽車']},
+  {course:'115-df',activity:1,file:'115-df/a/index.html',title:'資料偵探',unit:null,rounds:['提出 H1','完成結論','完成反思']}
+];
+const metadata=new Map(validateActivityCatalog(ACTIVITY_METADATA.map(a=>({...a,managed:[]})))
+  .map(({managed,...a})=>[activityKey(a),a]));
+function activityBatch(registrations){
+  const activities=registrations.map(a=>{
+    if(Object.keys(a).some(key=>!['course','activity','managed'].includes(key)))throw Error('catalog_batch_metadata:'+activityKey(a));
+    const source=metadata.get(activityKey(a));
+    if(!source)throw Error('catalog_unknown_activity:'+activityKey(a));
+    return {...source,rounds:[...source.rounds],managed:[...a.managed]};
+  });
+  return Object.freeze(validateActivityCatalog(activities));
+}
+export const BATCH1=activityBatch([
+  {activity:4,managed:[3]},
+  {activity:5,managed:[0,1,2,3,4]},
+  {activity:16,managed:[0,1,2,3]},
+  {activity:17,managed:[0,1,2,3]},
+  {activity:18,managed:[0,1,2,3]},
+  {activity:26,managed:[0,1,2,3]},
+  {activity:30,managed:[0,1,2,3]}
+]);
+export const BATCH2=activityBatch([
+  {activity:6,managed:[0,1,2,3]},
+  {activity:10,managed:[0,1,2,3]},
+  {activity:11,managed:[0,1,2,3]},
+  {activity:12,managed:[0,1,2,3]},
+  {activity:13,managed:[0,1,2,3]},
+  {activity:14,managed:[0,1,2,3]}
+]);
+export const BATCH3=activityBatch([
+  {activity:15,managed:[0,1,2,3]},
+  {activity:19,managed:[0,1,2,3]},
+  {activity:20,managed:[0,1,2,3]},
+  {activity:21,managed:[0,1,2,3]},
+  {activity:22,managed:[0,1,2,3]},
+  {activity:23,managed:[0,1,2,3]}
+]);
+export const BATCH4=activityBatch([
+  {activity:24,managed:[0,1,2,3]},
+  {activity:25,managed:[0,1,2,3]},
+  {activity:27,managed:[0,1,2,3]},
+  {activity:28,managed:[0,1,2,3]},
+  {activity:29,managed:[0,1,2,3]}
+]);
+export const BATCH5=activityBatch([
+  {activity:7,managed:[0,1,2,3]},
+  {activity:8,managed:[0,1,2,3]},
+  {activity:9,managed:[0,1,2,3]}
+]);
+export const BATCH6=activityBatch([
+  {activity:1,managed:[0,1,2,3]},
+  {activity:2,managed:[0,1,2,3]}
+]);
+export const BATCH7=activityBatch([
+  {activity:3,managed:[0,1,2,3]}
+]);
+export const BATCH8=activityBatch([
+  {activity:4,managed:[0,1,2]},
+  {course:'115-df',activity:1,managed:[0,1,2]}
+]);
 // 單份目錄的 ID 以課程區分；managed 是零起算索引，不能靠合併時去重掩蓋錯誤。
 export function validateActivityCatalog(activities) {
   if(!Array.isArray(activities))throw Error('catalog_invalid');
@@ -123,11 +173,11 @@ function ordered(host,cards,changed,{ai=false}={}) {
   function draw(){
     pool.replaceChildren();slots.replaceChildren();
     cards.forEach((text,k)=>{if(values.includes(k))return;const b=node('button',text);b.type='button';b.className='pk';b.dataset.poolIndex=k;
-      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;values[next]=k;draw();changed();};pool.append(b);});
+      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;const focused=document.activeElement===b;values[next]=k;draw();changed();if(focused)(pool.querySelector('button')||slots.querySelector(`[data-slot-index="${next}"]`))?.focus();};pool.append(b);});
     if(values.every(v=>v!==null)){const done=node('p','都排好了，按「送出」。');done.className='small';pool.append(done);}
     values.forEach((k,j)=>{const row=node('div'),number=node('span',String(j+1));row.className='slot';number.className='n';row.append(number);
       if(k===null){const empty=node('span',ai&&j===0?'最先':ai&&j===cards.length-1?'最後':'　');empty.className='empty';row.append(empty);}
-      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{values[j]=null;draw();changed();};row.append(b);}slots.append(row);});
+      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{const focused=document.activeElement===b;values[j]=null;draw();changed();if(focused)pool.querySelector(`[data-pool-index="${k}"]`)?.focus();};row.append(b);}slots.append(row);});
   }draw();return {get:()=>[...values],ready:()=>values.every(v=>v!==null),fields:()=>[...slots.querySelectorAll('.slot')].map((target,k)=>({target,reason:values[k]===null?'請放入卡片':''})),draft:()=>[...values],
     restoreDraft(v){if(!indices(v,values.length,cards.length,{unique:true}))return false;values.splice(0,values.length,...v);draw();return true;}};
 }

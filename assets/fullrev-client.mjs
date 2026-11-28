@@ -498,31 +498,37 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
     return {...xp.calculate(activities,guestXP.map(r=>({...r,course}))),state:'local',local:true,records:[]};
   }
   // 分頁前後重查控制版；完整空頁也是確認後的空集合，查詢失敗絕不回傳 []。
-  async function progress({activities,classKey,activity,teacher=false}={}) {
+  async function progress({activities,classKey,activity,teacher=false,signal}={}) {
     if(profile?.provider==='anonymous')throw fail('guest-pending');
+    // A caller-owned query must not reuse an earlier, cancelled read of the same class.
+    if(signal)return readProgress({activities,classKey,activity,teacher,signal});
     const key=JSON.stringify([profile?.uid,teacher,classKey,activity]);
     if(progressWork.has(key))return progressWork.get(key);
     const work=readProgress({activities,classKey,activity,teacher});progressWork.set(key,work);
     try{return await work;}finally{if(progressWork.get(key)===work)progressWork.delete(key);}
   }
-  async function readProgress({activities,classKey,activity,teacher}) {
+  async function readProgress({activities,classKey,activity,teacher,signal}) {
     const m=mark(), request=++readVersion;snapshot=null;emit('confirmation-pending');
     const controller=new AbortController();aborters.add(controller);
+    const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});
+    if(signal?.aborted)abort();
+    const current=()=>{active(m);if(controller.signal.aborted||request!==readVersion)throw fail('read-superseded');};
     try {
+      current();
       if(!readModel?.page||!readModel?.controls)throw fail('read-model-pending');
       if(teacher)await assertOwner(m);else classKey=await classHint(m);
+      current();
       if(!/^[\w-]{1,40}$/.test(classKey||''))throw fail('invalid-class');
       const input={course,classKey,...(activity===undefined?{}:{activity}),limit:100,signal:controller.signal};
       if(!teacher&&course==='115-g9'){
         confirmBinding(m,classKey,undefined,controller);
         return await incrementalProgress({input,m,request,activities,activity,controller});
       }
-      const before=await readModel.controls(input);active(m);
+      const before=await readModel.controls(input);current();
       if(!versions(before))throw fail('control-unconfirmed');
       const records=[],people=[],guestPages=new Map();let cursor=null,subject,provider,seen=new Set();
       for(let pageNumber=0;pageNumber<100;pageNumber++) {
-        const page=await readModel.page({...input,cursor,controlVersions:before});active(m);
-        if(request!==readVersion)throw fail('read-superseded');
+        const page=await readModel.page({...input,cursor,controlVersions:before});current();
         if(page.schemaVersion!==1||page.sourceProject!==project||page.course!==course||page.classKey!==classKey
           ||page.state!=='confirmed'||!sameVersions(page.controlVersions,before)||!Array.isArray(page.records)
           ||page.records.length>121||typeof page.complete!=='boolean')throw fail('page-unconfirmed');
@@ -542,8 +548,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
         if(!page.nextCursor||seen.has(next))throw fail('cursor-invalid');seen.add(next);cursor=page.nextCursor;
       }
       if(cursor)throw fail('page-capacity');
-      const after=await readModel.controls(input);active(m);
-      if(request!==readVersion)throw fail('read-superseded');
+      const after=await readModel.controls(input);current();
       if(!sameVersions(before,after))throw fail('control-changed');
       for(const page of guestPages.values())records.push(...page.records);
       const result={schemaVersion:1,sourceProject:project,course,classKey,subject,provider,state:'confirmed',complete:true,
@@ -551,8 +556,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       const validity=effectiveRecords(result,{project,course,subject,activities});
       if(validity.state!=='confirmed')throw fail(validity.reason);
       snapshot=result;emit('confirmed');return clone(result);
-    }catch(error){active(m);if(request===readVersion){snapshot=null;if(error.code?.startsWith('summary-')){lastProgress=null;summaryIssue=error.code;}emit('confirmation-pending');}throw error;}
-    finally{aborters.delete(controller);}
+    }catch(error){active(m);if(request===readVersion&&!controller.signal.aborted){snapshot=null;if(error.code?.startsWith('summary-')){lastProgress=null;summaryIssue=error.code;}emit('confirmation-pending');}throw error;}
+    finally{aborters.delete(controller);signal?.removeEventListener('abort',abort);}
   }
   async function incrementalProgress({input,m,request,activities,activity,controller}){
     for(let attempt=0;attempt<3;attempt++)try{

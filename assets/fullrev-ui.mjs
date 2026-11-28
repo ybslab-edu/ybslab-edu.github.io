@@ -4,7 +4,8 @@ import {growth,exportRows} from './fullrev-progress.mjs?v=20261127b3';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
-const messages={'capacity-deferred':'目前暫時無法開始作答，請稍後重試或找老師確認開收狀態。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
+// 教師訊息沿用既有文案，不附加學生的答案保留狀態或作答指引。
+const teacherMessages={'capacity-deferred':'目前暫時無法開始作答，請稍後重試或找老師確認開收狀態。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
   'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
   'ticket-expired':'作答票已過期，請按「活動工具 → 重新開始」取得新題。',
   'ticket-invalid':'作答票驗證失敗，請按「活動工具 → 重新開始」。',
@@ -23,7 +24,63 @@ const messages={'capacity-deferred':'目前暫時無法開始作答，請稍後�
   'owner-required':'只有此課程擁有者可以使用。','configuration-pending':'新登入服務尚未就緒，請找老師。',
   'health-class-incomplete':'班級分組或名冊未完整確認，請找老師核對。','health-read-budget':'本次讀取已達上限，請稍後手動重試。','health-unconfirmed':'統計尚未確認，請稍後手動重試。',
   'guest-xp-policy-pending':'班座紀錄尚待老師確認。','guest-pending':'已存待審，尚未採計。','guest-seat-required':'請填三位數班級及 1–60 號座號。','guest-seat-unavailable':'查無這個班座，請確認或找老師。','not-open':'這個活動還沒開放。','xp-snapshot-missing':'準時 XP 尚待確認。'};
-const explain=e=>messages[e?.code||e?.reason]||'尚未完成，請重新讀取或找老師。';
+const explainTeacher=error=>{const code=error?.code||error?.reason;return Object.hasOwn(teacherMessages,code)?teacherMessages[code]:'尚未完成，請重新讀取或找老師。';};
+const messages={
+  'capacity-deferred':'目前暫時無法開始作答，請稍後重試或找老師確認開收狀態。',
+  'invalid-answer':'答案格式不符，請修改後再按「送出」。',
+  'answer-too-large':'答案太長，請縮短後再按「送出」。',
+  'ticket-expired':'作答票已過期，請按「{restart}」取得新題。',
+  'ticket-invalid':'作答票驗證失敗，請按「{restart}」。',
+  'ticket-not-owned':'作答票與目前帳號或關卡不符，請按「{restart}」。',
+  'ticket-out-of-order':'作答順序已變更，請按「{restart}」。',
+  'ticket-attempt-limit':'這次作答已達嘗試上限，請按「{restart}」。',
+  'ticket-stale':'老師已重置或調整授權，請按「{restart}」。',
+  'ticket-replayed':'這份作答已由另一份完成紀錄取代，請按「{restart}」並確認進度。',
+  'tickets-disabled':'老師已關閉作答票，請重新整理頁面後重新開始。',
+  'ticket-secret-required':'作答服務尚未設定完成，請找老師。',
+  'ticket-scope-not-supported':'這個身分或課程尚未開放作答，請找老師。',
+  'summary-unconfirmed':'進度待確認，目前暫停採計，請找老師。',
+  'summary-capacity':'進度待確認，目前暫停採計，請找老師。',
+  'storage-quota':'伺服器儲存額度不足，請找老師；稍後可按「{retry}」。',
+  'restart-required':'授權或作答版本已變更，請按「{restart}」。',
+  'binding-pending':'身分尚待核發，請找老師確認後按「老師已核發，重新確認」。',
+  'owner-required':'這項操作需要課程擁有者身分，請找老師。',
+  'configuration-pending':'作答服務尚未就緒，請找老師。',
+  'guest-xp-policy-pending':'班座紀錄尚待核定，請找老師確認。',
+  'guest-pending':'作答已存待審，尚未採計，請等老師確認後按「重新讀取」。',
+  'guest-seat-required':'請填三位數班級及 1–60 號座號，再按「用班級＋座號開始」。',
+  'guest-seat-unavailable':'查無這個班座，請確認班級座號後再登入，或找老師。',
+  'not-open':'這個活動還沒開放，請找老師確認後按「{restart}」。',
+  'xp-snapshot-missing':'準時 XP 尚待核定，請找老師確認後按「重新讀取」。',
+  'nothing-pending':'目前沒有待送作答，請按「重新讀取」確認進度。',
+  'report/rate-limited':'請在上一份交件滿 60 秒後重試。'
+};
+for(const code of ['pending','answer-pending','request-in-flight','retry-later','request-timeout','response-invalid','connection-failed','rate-limited'])
+  messages[code]='送出狀態尚未確認，請稍候按「{retry}」。';
+for(const code of ['read-model-pending','context-unconfirmed','control-unconfirmed','control-changed','read-superseded','page-unconfirmed','cursor-invalid','page-capacity','progress-unsupported','legacy-unconfirmed','history-unconfirmed'])
+  messages[code]='進度尚未確認，請按「重新讀取」；仍無法確認時請找老師。';
+for(const code of ['class-not-found','invalid-class','invalid-course','invalid-scope','grading-not-supported','wrong-project','read-model-origin','sdk-unavailable','demonstration-only'])
+  messages[code]='目前無法使用這項作答功能，請找老師確認。';
+for(const code of ['subject-mismatch','validity-unconfirmed','legacy-invalid','guest-invalid','result-invalid','completion-collision'])
+  messages[code]='進度尚未確認，目前暫停採計，請找老師。';
+for(const code of ['login-required','identity-changed','provider-invalid','auth/user-token-expired','auth/invalid-user-token'])
+  messages[code]='身分尚未確認，請重新登入；仍無法登入時請找老師。';
+messages['browser-cookie-required']='請允許此網站使用 Cookie，再重新登入；仍無法登入時請找老師。';
+for(const code of ['invalid-account','auth/invalid-credential','auth/invalid-login-credentials','auth/wrong-password','auth/user-not-found','auth/invalid-email'])
+  messages[code]='帳號或密碼不對，請確認後再登入；仍無法登入時請找老師。';
+messages['auth/user-disabled']='帳號目前無法使用，請找老師。';
+for(const code of ['auth/network-request-failed','auth/too-many-requests','auth/popup-closed-by-user','auth/cancelled-popup-request','auth/popup-blocked'])
+  messages[code]='登入尚未完成，請確認連線及登入視窗後再登入；仍無法登入時請找老師。';
+const cannotResume=new Set(['restart-required','not-open','capacity-deferred','ticket-expired','ticket-invalid','ticket-not-owned','ticket-out-of-order',
+  'ticket-attempt-limit','ticket-stale','ticket-replayed','tickets-disabled','ticket-secret-required','ticket-scope-not-supported']);
+// pending 只表示本機仍持有原請求，不代表伺服器已採計；讀取錯誤也不能推論草稿有保存。
+export function explain(error,{pending=false,answerState,retryLabel=pending?'重試上傳':'重新讀取',restartLabel='活動工具 → 重新開始'}={}) {
+  const code=error?.code||error?.reason;
+  const saved=cannotResume.has(code)?'lost':['invalid-answer','answer-too-large'].includes(code)?'page':answerState||(pending?'saved':'unknown');
+  const retention={saved:'你的答案已保留。',page:'你填的答案仍在本頁。',lost:'你的答案無法接續。',unknown:'你的答案是否保留尚未確認。'};
+  const fallback=saved==='lost'?'尚未完成，請按「{restart}」或找老師。':pending?'尚未完成，請稍候按「{retry}」或找老師。':'尚未完成，請按「重新讀取」或找老師。';
+  return (retention[saved]||retention.unknown)+(Object.hasOwn(messages,code)?messages[code]:fallback).replaceAll('{retry}',retryLabel).replaceAll('{restart}',restartLabel);
+}
 let activePage;
 function pageLife() {
   activePage?.dispose();
@@ -51,7 +108,7 @@ function layout(title) {
 }
 export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false,oldlook=false,active=()=>true}) {
   if(!active())return;
-  if(oldlook){const {mountStudentLogin}=await import('./fullrev-shell.mjs');if(active())return mountStudentLogin({client,host,onLogin,explain,active});return;}
+  if(oldlook){const {mountStudentLogin}=await import('./fullrev-shell.mjs');if(active())return mountStudentLogin({client,host,onLogin,explain,explainTeacher,active});return;}
   const form=node('form'), account=node('input'), password=node('input'), alert=node('p');
   form.style.cssText='display:grid;gap:8px;max-width:320px';
   for(const input of [account,password])input.style.cssText='display:block;box-sizing:border-box;width:100%;min-height:44px';
@@ -63,7 +120,7 @@ export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false,old
     if(!active())return;
     actions.forEach(b=>b.disabled=true);alert.textContent='登入中…';
     try{const value=await client.login(kind,guest||account.value,password.value);if(!active())return;password.value='';alert.textContent='已登入。';await onLogin(value);}
-    catch(e){if(active()){password.value='';alert.textContent=explain(e);}}
+    catch(e){if(active()){password.value='';alert.textContent=(kind==='owner'?explainTeacher:explain)(e);}}
     finally{if(active())actions.forEach(b=>b.disabled=false);}
   }
   if(!ownerOnly){form.append(label('帳號',account),label('密碼',password),submit);form.onsubmit=e=>{e.preventDefault();run('password');};actions.push(submit);host.append(form);}
@@ -75,24 +132,25 @@ export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false,old
 }
 async function setup(promise,title,{ownerOnly=false}={}) {
   const page=layout(title);
+  const explainPage=ownerOnly?explainTeacher:explain;
   try {
     const client=await promise;if(!page.active())return page;
-    const logout=button('登出／換人',async()=>{if(page.active())await client.logout().catch(e=>{if(page.active())page.status.textContent=explain(e);});});
+    const logout=button('登出／換人',async()=>{if(page.active())await client.logout().catch(e=>{if(page.active())page.status.textContent=explainPage(e);});});
     page.tools.append(logout);
     page.subscribe(client,state=>{
       if(!state.profile){page.content.replaceChildren();page.login.hidden=false;page.status.textContent='請先登入。';}
       else page.login.hidden=true;
       logout.hidden=!state.profile;
-      if(state.status==='pending')page.status.textContent=messages.pending;
-      if(state.status==='restart-required')page.status.textContent=messages['restart-required'];
+      if(state.status==='pending')page.status.textContent=explainPage({code:'pending'},state);
+      if(state.status==='restart-required')page.status.textContent=explainPage({code:'restart-required'},state);
       if(state.status==='stale'){page.content.replaceChildren();page.status.textContent='紀錄待重新確認。';}
     });
     await mountLogin({client,host:page.login,active:page.active,ownerOnly,onLogin:()=>page.refresh?.()});
     // 還原登入的暫時錯誤不應停用已建立的手動登入與訂閱。
-    if(!ownerOnly)try{await client.restore();}catch(e){if(page.active())page.status.textContent=explain(e);}
+    if(!ownerOnly)try{await client.restore();}catch(e){if(page.active())page.status.textContent=explainPage(e);}
     if(!page.active())return page;
     return {...page,client};
-  }catch(e){if(page.active())page.status.textContent=explain(e);page.dispose();return page;}
+  }catch(e){if(page.active())page.status.textContent=explainPage(e);page.dispose();return page;}
 }
 const pairAnswer=value=>value?.photoAnswer||value?.performanceOrder;
 const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course==='115-g9');
@@ -928,15 +986,16 @@ function eventsRefresh(p,refresh) {
   p.listen(document,'visibilitychange',()=>{if(p.active()&&document.visibilityState==='visible'&&p.client.state().profile)refresh();});
 }
 export async function mountActivity({client:promise,cfg,now}) {
-  if(cfg.course==='115-g9')return (await import('./fullrev-shell.mjs')).mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now});
+  if(cfg.course==='115-g9')return (await import('./fullrev-shell.mjs')).mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,explainTeacher,now});
   const p=await setup(promise,cfg.title);if(!p.client)return;
+  const activityError=e=>explain(e,{...p.client.state(),retryLabel:'重試送出',restartLabel:'重新開始',answerState:p.client.state().pending?undefined:handle?'page':undefined});
   const stage=node('section'),summary=node('section'),nav=node('nav');
   p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='',pairTimer=null,generation=0,renderVersion=0;
   const send=button('送出',async()=>{
     if(!p.active()||!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     const current=generation;
     try{const value=await p.client.answer(cfg.week,round,handle.get());if(current===generation)await receive(value);}
-    catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}finally{if(p.active()&&current===generation)send.disabled=!handle||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)
+    catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}finally{if(p.active()&&current===generation)send.disabled=!handle||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)
       ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{if(!p.active()||next.hidden||!lastView)return;next.hidden=true;return render(lastView);});next.hidden=true;
@@ -988,7 +1047,7 @@ export async function mountActivity({client:promise,cfg,now}) {
       pairTimer=null;
       if(!p.active()||current!==generation||lastView?.sid!==value.sid||lastView?.completed)return;
       try{const result=await p.client.answer(cfg.week,scopeRound,pairAnswer(value));if(current===generation)await receive(result);}
-      catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}
+      catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}
     },0);
   }
   function stopPair(){generation++;renderVersion++;read++;clearTimeout(pairTimer);pairTimer=null;}
@@ -997,19 +1056,19 @@ export async function mountActivity({client:promise,cfg,now}) {
     const n=++read;summary.replaceChildren();
     try{const snapshot=await p.client.progress({activities:catalog()});const xp=await xpCore();if(!p.active()||n!==read)return;
       showGrowth(summary,snapshot,p.client,xp);}
-    catch(e){if(p.active()&&n===read)p.status.textContent=explain(e);}
+    catch(e){if(p.active()&&n===read)p.status.textContent=activityError(e);}
   }
   const start=async(restart=false)=>{
     if(!p.active())return;
     stopPair();const current=generation;handle?.dispose?.();stage.replaceChildren();handle=null;lastView=null;viewKey='';next.hidden=true;send.disabled=true;
     if(cfg.rounds[round]?.managed===false){p.status.textContent='這一關尚待老師確認，請選其他關卡。';return;}
-    try{const value=await p.client.start(cfg.week,round,{restart});if(current===generation)await receive(value);}catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}
+    try{const value=await p.client.start(cfg.week,round,{restart});if(current===generation)await receive(value);}catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}
   };
   for(let i=0;i<cfg.rounds.length;i++)nav.append(button(cfg.rounds[i].name,()=>{if(!p.active())return;round=i;return start();}));
   const begin=button('開始這一關',()=>start());
   const restart=button('重新開始',()=>start(true));
-  const retry=button('重試送出',async()=>{if(!p.active())return;const current=generation;try{const values=await p.client.retry();if(p.active()&&current===generation&&values.length)await receive(values.at(-1));}catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}});
-  const refreshClaims=button('老師已核發，重新確認',async()=>{if(!p.active())return;const current=generation;try{await p.client.refreshClaims();if(p.active()&&current===generation)await start(true);}catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}});
+  const retry=button('重試送出',async()=>{if(!p.active())return;const current=generation;try{const values=await p.client.retry();if(p.active()&&current===generation&&values.length)await receive(values.at(-1));}catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}});
+  const refreshClaims=button('老師已核發，重新確認',async()=>{if(!p.active())return;const current=generation;try{await p.client.refreshClaims();if(p.active()&&current===generation)await start(true);}catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}});
   const practice=button('本機練習／示範',()=>{
     if(!p.active())return;
     stopPair();handle?.dispose?.();stage.replaceChildren();send.disabled=true;handle=null;lastView=null;viewKey='';next.hidden=true;
@@ -1036,7 +1095,7 @@ export async function mountActivity({client:promise,cfg,now}) {
   return p.dispose;
 }
 // Audit pages are requested explicitly and never enter the grading projection.
-export function mountHistory({client,host,scope,life}){
+export function mountHistory({client,host,scope,life,explainError=explain}){
   const box=node('section'),rows=node('div'),status=node('p'),kind=node('select');
   kind.setAttribute('aria-label','歷史來源');
   for(const [value,label] of [['formal','正式紀錄'],['legacy','舊站封存']]){const option=node('option',label);option.value=value;kind.append(option);}
@@ -1050,7 +1109,7 @@ export function mountHistory({client,host,scope,life}){
     try{const page=await client.history({...target,after:next});if(life&&!life.active()||n!==serial)return;
       for(const r of page.records)rows.append(node('p',`活動 ${r.activity}／第 ${r.round+1} 關 · ${r.completedAt||'時間未留存'} · ${page.local?'已存待審，尚未採計':r.validity?.state==='effective'?'目前有效':'封存紀錄'}`));
       next=page.next;more.hidden=next===null;status.textContent=page.local?'這裡只顯示你這次登入的紀錄，已存待審，尚未採計。':'歷史僅供查閱，不會新增採計。';
-    }catch(e){if((!life||life.active())&&n===serial)status.textContent=explain(e);}
+    }catch(e){if((!life||life.active())&&n===serial)status.textContent=explainError(e);}
   }
   const more=button('下一頁',()=>read(true));more.hidden=true;
   box.append(button('查閱歷史',()=>read()),kind,status,rows,more);host.append(box);kind.onchange=clear;
@@ -1060,13 +1119,16 @@ export function mountHistory({client,host,scope,life}){
 }
 export async function mountTeacher({client:promise}) {
   const p=await setup(promise,'教師紀錄與匯出',{ownerOnly:true});if(!p.client)return;
-  return mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistory,eventsRefresh,explain});
+  return mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistory:options=>mountHistory({...options,explainError:explainTeacher}),eventsRefresh,explain:explainTeacher});
 }
 
-export async function teacherSnapshots(client,classKey,activities) {
+export async function teacherSnapshots(client,classKey,activities,{signal}={}) {
+  const current=()=>{if(signal?.aborted)throw Object.assign(new Error('read-superseded'),{code:'read-superseded'});};
+  const read=async key=>{current();const value=await client.progress({teacher:true,classKey:key,activities,...(signal?{signal}:{})});current();return value;};
   // 班級代碼也可能是完整 gate；只有 owner 確認原 gate 不存在才展開分組。
-  try{return [await client.progress({teacher:true,classKey,activities})];}
+  try{return [await read(classKey)];}
   catch(e){
+    current();
     if(e.code!=='class-not-found'||client.course!=='115-g9'||!/^c[1-9][0-9]{2}$/.test(classKey)){
       if(/^c[1-9][0-9]{2}_[12]$/.test(classKey))throw Object.assign(new Error(e.message,{cause:e}),{code:e.code,classKey});
       throw e;
@@ -1074,7 +1136,7 @@ export async function teacherSnapshots(client,classKey,activities) {
   }
   const values=[];
   for(const key of [classKey+'_1',classKey+'_2']){
-    try{values.push(await client.progress({teacher:true,classKey:key,activities}));}
+    try{values.push(await read(key));}
     catch(e){throw Object.assign(new Error(e.message,{cause:e}),{code:e.code,classKey:key});}
   }
   return values;
@@ -1092,7 +1154,7 @@ async function mountTeacherGrowth({client:promise}) {
   p.$('signin-title').textContent='教師登入後查看學生成長';
   p.$('signin').querySelector('p').textContent='僅限課程擁有者查閱；這裡不提供學生作答操作。';
   const back=node('a','← 返回教師紀錄');back.href='/115-g9/teacher/';heading.after(back);
-  try{p.client=await promise;if(!p.active())return p.dispose;}catch(e){p.status.textContent=explain(e);return p.dispose;}
+  try{p.client=await promise;if(!p.active())return p.dispose;}catch(e){p.status.textContent=explainTeacher(e);return p.dispose;}
   async function refresh(){
     if(!p.active())return;const n=++reading;p.clear();p.status.textContent='正在確認學生的雲端紀錄…';
     try{
@@ -1106,11 +1168,11 @@ async function mountTeacherGrowth({client:promise}) {
       const result=growth(own,{project:p.client.project,course:p.client.course,subject:target.subject,provider:person.provider,activities},xp);
       if(result.state!=='confirmed'&&result.reason!=='guest-xp-policy-pending')throw result;
       p.render(activities,growthJourney(result,activities));p.status.textContent=result.totalXP===null?'訪客紀錄待老師確認；唯讀檢視。':'已確認學生的雲端紀錄；唯讀檢視。';
-    }catch(e){if(p.active()&&n===reading){p.clear();p.status.textContent=explain(e);}}
+    }catch(e){if(p.active()&&n===reading){p.clear();p.status.textContent=explainTeacher(e);}}
   }
   p.subscribe(p.client,state=>{const signed=!!state.profile;p.$('signin').hidden=signed;p.logout.hidden=!signed;p.retry.hidden=!signed;
     if(!signed||state.profile.uid!==shownUID||['stale','binding-changed','context-changed'].includes(state.status)){reading++;p.clear();p.status.textContent='請教師登入並重新確認紀錄。';}shownUID=state.profile?.uid;});
-  p.logout.onclick=async()=>{reading++;p.clear();try{await p.client.logout();}catch(e){if(p.active())p.status.textContent=explain(e);}};
+  p.logout.onclick=async()=>{reading++;p.clear();try{await p.client.logout();}catch(e){if(p.active())p.status.textContent=explainTeacher(e);}};
   p.retry.onclick=refresh;
   await mountLogin({client:p.client,host:p.login,ownerOnly:true,onLogin:refresh,active:p.active});
   eventsRefresh(p,()=>{reading++;p.clear();p.status.textContent='請重新確認學生紀錄。';});

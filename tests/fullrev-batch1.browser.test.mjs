@@ -10,11 +10,13 @@ import {buildSite} from '../tools/build-fullrev-site.mjs';
 import {MANAGED_ACTIVITIES,BATCH8,ROUND_COPY} from '../assets/fullrev-activities.mjs';
 import {config} from './fixtures/fullrev.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
-let browser,server,base,dir,output,current,modules;
+let browser,server,base,dir,output,current,modules,shots;
 // 全關卡驗收固定在最後一堂課之後；只改瀏覽器 Date，保留真實計時器與正式週次鎖。
 const allActivitiesOpenAt=new Date('2027-07-01T00:00:00+08:00');
 before(async()=>{
   if(!workerSource)return;
+  shots=process.env.YBS_TEST_SHOT_DIR?resolve(process.env.YBS_TEST_SHOT_DIR):await mkdtemp(join(tmpdir(),'ybs-release-shots-'));
+  await mkdir(shots,{recursive:true});
   const load=p=>import(pathToFileURL(resolve(workerSource,p)).href);
   const [{createFormalWorker},{MemoryFirestore},{readPath:formalPath},{batchData,privateAnswer},{ENV,CLASS_HINTS,password,paths},{EPOCH,ORIGIN}]=await Promise.all([
     load('src/formal/index.mjs'),load('src/memory-adapter.mjs'),load('src/formal/read-model.mjs'),load('tests/pr6-fixtures.mjs'),load('tests/formal-fixtures.mjs'),load('tests/fixtures.mjs')]);
@@ -331,7 +333,7 @@ async function shellportMetrics(page){
 }
 test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；帳號鍵盤／外點／登出及指定情境截圖',{timeout:420000},async t=>{
  if(workerSkip){t.skip(workerSkip);return;}
- const shots='/home/teacher/projects/console/tasks/batch-20261127-eve/shellport-shots';await mkdir(shots,{recursive:true});
+ t.diagnostic('截圖目錄：'+shots);
  for(const a of MANAGED_ACTIVITIES)for(const round of [...new Set([...a.managed,...BATCH8.filter(b=>b.course!=='115-df'&&b.activity===a.activity).flatMap(b=>b.managed)])]){
   await t.test(`${a.activity}:${round}`,async()=>{
    await reset(a.activity,round,{recording:true});const context=await browser.newContext({viewport:{width:360,height:900}}),page=await context.newPage();page.setDefaultTimeout(6000);
@@ -383,12 +385,13 @@ test('release：30 活動／121 關 360px 字級下限、B 版與同步頁首；
 });
 test('release：公開入口、成長與 DF 相容頁的 17px 與 360px 無水平捲動',async t=>{
  if(workerSkip){t.skip(workerSkip);return;}
+ t.diagnostic('截圖目錄：'+shots);
  for(const path of ['index.html','115-g9/index.html','map/index.html','about/index.html','404.html','115-g9/me/index.html','115-g9/teacher/index.html','115-df/index.html','115-df/a/index.html']){
   const context=await browser.newContext({viewport:{width:360,height:900}}),page=await context.newPage();await page.clock.setFixedTime(allActivitiesOpenAt);await page.route('**/*',route=>route.request().url().startsWith(base+'/')?route.continue():route.abort());
   try{await page.goto(base+'/'+path);await page.waitForTimeout(150);assert.deepEqual(await shellportMetrics(page),{small:[],overflow:false},path);
    if(path==='115-g9/teacher/index.html'){
     await page.getByRole('button',{name:'教師 Google 登入',exact:true}).waitFor();
-    await page.screenshot({path:'/home/teacher/projects/console/tasks/batch-20261127-eve/shellport-shots/teacher-logged-out-360.png'});
+    await page.screenshot({path:join(shots,'teacher-logged-out-360.png')});
    }
   }finally{await context.close();}
  }

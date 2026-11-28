@@ -28,13 +28,17 @@
 
 ## 部署
 
-網站位於 `ybslab-edu/ybslab-edu.github.io`，`main` 更新即由 GitHub Pages 發布至 <https://ybslab-edu.github.io/>。一個功能一個 Draft PR，合併與發布前須取得老師明確核准。
+網站位於 `ybslab-edu/ybslab-edu.github.io`，正式網址為 <https://ybslab-edu.github.io/>。`main` 保存原始碼，推送或合併 `main` 不會更新正式站；正式站由 `tools/build-fullrev-site.mjs` 建置白名單產物，再經 Console 發布器發布至 `gh-pages` 的根目錄。一個功能一個 Draft PR，合併與發布前須取得老師明確核准。
+
+發布前必跑的單一離線入口為 `node tools/release-offline-gate.mjs run`，輸出綁定前端／Worker 固定 commit 與程式指紋的證據。發布器在 dry-run 與 apply 都核對證據、完整紀錄及版本，缺漏即停止。公開 CI 可能略過私有 Worker 驗收，綠燈不能代替這個 gate。指令、答案掃描與檢查位置見 [正式發布文件](docs/FULLREV_RELEASE.md)，營運順序沿用 ClassScore 的 `docs/ybs-fullrev/cutover-runbook.md`。
+
+不可用 repo root 或 `build-fullrev-batch1.mjs` 的批次預覽取代整站產物。新站 g9 走新版登入與 Worker；DF 頁及指定 legacy 資源由 builder 精確固定並檢查相容性，與獨立的 `/ybs-old/` 舊站分開維護；發布器會檢查舊站路徑。本流程不更改 Pages 設定。
 
 ## 每週新增一課
 
 1. 在九年級課程資料夾依 `uU-NN/` 新增活動，例如 `u1-06/` 表示第 1 單元第 6 個活動；第 3 單元目前沒有活動，保留 `u3` 給之後的畢業影片。放入 `index.html` 並使用共用外框，不載入 `codec.js`。`WEEK`／activities.js 的 `week` 仍是雲端活動 ID，與資料夾的單元、單元內順序無關，不能因改名而改動（例如 `u1-06/` 仍為 `const WEEK=2;`、`week: 2`）。分頁標題寫學期週次（例如第 8 週），首頁與教師專區會依 `date` 自動換算週次。舊 wNN/ 是轉址頁，勿刪。
 2. 在 `assets/activities.js` 最前面加一筆（全站只登記這一處），再執行 `node tools/activities-json.mjs` 更新 `assets/activities.json`：課綱代碼 `codes`、上課日期 `date`、活動序號 `week`、關卡名稱 `rounds`、`track`（必修或選修；選修是進度落後的班級可以跳過的活動）。學習地圖、學期進度、教師專區都會自動更新。
-3. 每週開放活動時，更新 `assets/lock.js` 的 `OPEN` 並同步 `tools/dev/check-pages.py` 的開放預期。完成本機測試後開 Draft PR，經老師核准合併至 `main` 才會上線。
+3. 每週開放活動時，更新 `assets/lock.js` 的 `OPEN` 並同步 `tools/dev/check-pages.py` 的開放預期。完成本機測試後開 Draft PR，經老師核准合併至 `main` 後，仍須依正式發布流程建置、驗收並發布到 `gh-pages` 才會上線。
 
 ## 過關同步與備援
 

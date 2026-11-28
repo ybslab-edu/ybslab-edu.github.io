@@ -7,6 +7,8 @@ const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const source=await readFile(new URL('../assets/login.js',import.meta.url),'utf8');
 const base='http://127.0.0.1',path='/115-g9/u1-05/';
 const fake=`(() => {
+  // 合成 SDK 的成功寫入情境固定在線上，不依賴隔離網路的主機連線訊號。
+  Object.defineProperty(navigator,'onLine',{get:()=>true});
   window.YBS_FULLREV_CONFIG={enabled:false};
   const uid=new URLSearchParams(location.search).get('uid');
   sessionStorage.setItem('ybslab:guest-identity',JSON.stringify({cls:'999',seat:1,uid}));

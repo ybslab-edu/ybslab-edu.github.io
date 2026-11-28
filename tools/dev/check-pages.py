@@ -2,6 +2,8 @@
 用法：在 repo 根目錄 `python3 -m http.server 8765`，另開終端機
       `python3 tools/dev/check-pages.py`（需要 playwright + Chromium）。
 Firebase 用 tools/dev/firebase-mock.js 假的物件，不連正式專案。
+弱網測試驗證合成 onLine／offline／online 狀態下的應用重試，不驗證 Chromium 原生事件。
+測試端同時切換 Playwright 真實斷網與頁面狀態；Firebase mock 寫入不受真實斷網控制。
 測試帳號：cgjh1100123／cgjhA123456789（只存在於 mock 裡）；名單：917 班 5 號。
 教師解鎖需要通行碼：以環境變數 YBS_TEACHER_CODE 提供（不要寫進 repo）。
 """
@@ -71,6 +73,28 @@ def lock_expectations(b, now=TEST_NOW):
 
 def ctx_of(b):
     c = b.new_context()
+    # cookie 由 Python 統一更新，讓 init script 在重載／新分頁同步目前狀態。
+    # 不依賴 netns 是否有非 loopback 介面，也不把 onLine 固定為 true。
+    c.add_cookies([dict(name='__ybs_test_offline', value='0', url=BASE)])
+    c.add_init_script("""(() => {
+        if (location.protocol !== 'http:') return;
+        const value = document.cookie.split('; ').find(x => x.startsWith('__ybs_test_offline='));
+        if (!['__ybs_test_offline=0', '__ybs_test_offline=1'].includes(value))
+            throw new Error('缺少合成網路狀態');
+        let offline = value.endsWith('=1');
+        const events = [];
+        Object.defineProperty(navigator, 'onLine', {get: () => !offline});
+        for (const type of ['offline', 'online']) window.addEventListener(type, event => {
+            // 原生事件可能延後抵達；一律攔下，應用只收到一次合成狀態變更。
+            if (event.isTrusted) event.stopImmediatePropagation();
+            else events.push([event.type, navigator.onLine]);
+        }, true);
+        window.__ybsNetwork = {events, setOffline(next) {
+            if (next === offline) return;
+            offline = next;
+            window.dispatchEvent(new Event(offline ? 'offline' : 'online'));
+        }};
+    })()""")
     def rt(r):
         u = r.request.url
         if urlsplit(u).hostname == 'www.gstatic.com' and urlsplit(u).path.startswith('/firebasejs/'):
@@ -78,6 +102,51 @@ def ctx_of(b):
         return r.continue_() if u.startswith(BASE) else r.abort()
     c.route('**/*', rt)
     return c
+
+
+def set_offline(c, offline):
+    """唯一切換入口：保留真實斷網，另以一次合成事件通知應用，不直接呼叫 flush。"""
+    c.add_cookies([dict(name='__ybs_test_offline', value='1' if offline else '0', url=BASE)])
+    c.set_offline(offline)
+    for pg in c.pages:
+        if pg.url.startswith(BASE):
+            pg.evaluate('offline => window.__ybsNetwork.setOffline(offline)', offline)
+            assert pg.evaluate('navigator.onLine') is not offline, '頁面網路狀態未同步'
+
+
+def check_mock_network(b):
+    """驗證控制器的真實斷網、事件去重，以及離線／上線重載與新分頁狀態。"""
+    c = ctx_of(b)
+    try:
+        url = BASE + '__mock-network-probe'
+        # fulfil 在真實 offline 下仍可提供頁面，與 Firebase mock 相同；fetch('/') 則須真實傳輸。
+        c.route(url, lambda r: r.fulfill(content_type='text/html', body="""<!doctype html>
+            <script>window.networkEvents = [];
+            for (const type of ['offline', 'online']) window.addEventListener(type,
+                e => networkEvents.push([e.type, navigator.onLine]));</script>"""))
+        pg = page_of(c); pg.goto(url)
+        assert pg.evaluate('navigator.onLine && networkEvents.length === 0')
+        set_offline(c, True); set_offline(c, True)
+        pg.wait_for_timeout(100)
+        assert pg.evaluate('networkEvents') == [['offline', False]]
+        assert pg.evaluate("async () => { try { await fetch('/'); return false; } catch { return true; } }"), 'Playwright 真實斷網未生效'
+        pg.reload()
+        assert pg.evaluate('!navigator.onLine && networkEvents.length === 0'), '離線重載狀態未延續或多送事件'
+        other = page_of(c); other.goto(url)
+        assert other.evaluate('!navigator.onLine && networkEvents.length === 0'), '新分頁未繼承離線狀態'
+        set_offline(c, False); set_offline(c, False)
+        pg.wait_for_timeout(100)
+        for page in (pg, other):
+            assert page.evaluate('networkEvents') == [['online', True]]
+        assert pg.evaluate("async () => (await fetch('/')).ok"), 'Playwright 上線後本機 HTTP 未恢復'
+        pg.reload()
+        assert pg.evaluate('navigator.onLine && networkEvents.length === 0'), '上線重載狀態未延續或多送事件'
+        print('OK   mock-network/真實傳輸切換、合成事件去重、離線與上線重載、新分頁')
+        return 0
+    except Exception as e:
+        print('FAIL mock-network', str(e)[:300]); return 1
+    finally:
+        c.close()
 
 
 def login_student(pg):
@@ -184,18 +253,29 @@ def weaknet_retry(c, pg, trigger):
     pass_round(pg)
     wait_sync(pg, 'pending')
     wait_queue(pg, 1)
-    assert pg.evaluate('__writes.length === 0 && __firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
+    assert pg.evaluate('__writes.length === 0 && __firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed" && __firebaseMock.attempts[0].code === "unavailable" && __firebaseMock.plan.length === 0')
     if trigger == 'online':
-        # 觸發真實 Chromium 的 offline → online 事件；所有請求仍經 mock 攔截。
-        c.set_offline(True)
+        # 合成 offline → online 事件觸發原應用重試；mock 寫入本身不受斷網控制。
+        set_offline(c, True); set_offline(c, True)
         wait_evaluate(pg, '!navigator.onLine')
-        c.set_offline(False)
+        pg.wait_for_timeout(250)
+        assert pg.evaluate('__writes.length === 0 && __firebaseMock.attempts.length === 1'), '離線期間不應新增成功寫入或重試'
+        assert pg.evaluate('__ybsNetwork.events') == [['offline', False]]
+        set_offline(c, False); set_offline(c, False)
         wait_evaluate(pg, 'navigator.onLine')
     else:
         pg.evaluate('YBS.flush()')
     wait_evaluate(pg, '__writes.length === 1')
     check_records(pg, [0])
     assert pg.evaluate('__firebaseMock.attempts.length === 2')
+    if trigger == 'online':
+        assert pg.evaluate('__ybsNetwork.events') == [['offline', False], ['online', True]]
+        # 送完後再次離線／上線，不能因另一個上線事件重複寫入。
+        set_offline(c, True); set_offline(c, False)
+        pg.wait_for_timeout(250)
+        assert pg.evaluate('__writes.length === 1 && __firebaseMock.attempts.length === 2')
+        assert pg.evaluate('__ybsNetwork.events') == [['offline', False], ['online', True]] * 2
+        print('INFO weaknet/failure-online：離線零新增；合成 online 事件觸發重試；再次上線仍為 1 筆寫入／2 次嘗試')
 
 
 def weaknet_reload(c, pg):
@@ -281,21 +361,42 @@ def guest_cycle(b):
         assert pg.evaluate('APP.ri') == 1 and pg.locator('#streak .on').count() == 0 and pg.is_disabled('#b-send') and not pg.is_visible('#verdict'), f'{step}：下一關應重設累積計數、等待填答並隱藏判定'
     try:
         pg.goto(BASE + '115-g9/u2-02/'); manual(1)
+        assert pg.evaluate('navigator.onLine'), '首次送出前應為合成上線狀態'
         pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})'); pass_guest('999 班 1 號／首次寫入 unavailable')
         wait_evaluate(pg, "document.getElementById('sync').textContent.includes('紀錄暫存在本機')")
+        wait_evaluate(pg, '__firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "failed"')
+        assert pg.evaluate('__firebaseMock.attempts[0].code === "unavailable" && __firebaseMock.plan.length === 0 && __writes.length === 0'), '首次必須實際寫入並因 unavailable 失敗、消耗 plan'
+        assert pg.evaluate('__firebaseMock.attempts[0].path') == 'ybsCourses/115-g9/guestAttempts/guest1_4_0'
+        network_state = '({onLine:navigator.onLine, attempts:__firebaseMock.attempts.length, state:__firebaseMock.attempts[0].state, code:__firebaseMock.attempts[0].code || null, plan:__firebaseMock.plan.length, writes:__writes.length})'
+        first_submit = pg.evaluate(network_state)
         assert pg.evaluate("JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length") == 1, '首次寫入失敗：應保留一筆待送紀錄'
         assert pg.evaluate("JSON.parse(localStorage.getItem('it9:w4:999-1')).mask") == 1, '首次寫入失敗：第一關本機過關紀錄遺失'
         pg.reload()  # mock 重建；沿用 session UID，自動重送，不需要學生再登入。
+        assert pg.evaluate('navigator.onLine'), '重載後應延續合成上線狀態'
         wait_evaluate(pg, "JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length === 0")
+        assert pg.evaluate('__writes.length === 1 && __firebaseMock.attempts.length === 1 && __firebaseMock.attempts[0].state === "written" && __firebaseMock.plan.length === 0'), '重載後必須自動補送一次，不能只清空 queue'
+        after_reload = pg.evaluate(network_state)
         manual(1)
         assert pg.evaluate('__authCalls') == [], '同班座重新整理不重登'
         pg.click('#b-swap'); manual(2)
         wait_evaluate(pg, "JSON.parse(sessionStorage.getItem('ybslab:guest-identity')).seat === 2")
         assert pg.evaluate('__authCalls') == ['signOut', 'anonymous'], '換成 999 班 2 號：應先登出再匿名登入'
         pg.evaluate('__firebaseMock.plan.push({code:"unavailable"})')
+        set_offline(c, True)
         pass_guest('999 班 2 號／換班座後作答')
         wait_evaluate(pg, "document.getElementById('sync').textContent.includes('還沒上傳成功')")
+        pg.wait_for_timeout(250)
+        assert pg.evaluate('!navigator.onLine && __writes.length === 1 && __firebaseMock.attempts.length === 1 && __firebaseMock.plan.length === 1'), '離線作答須排隊，不得寫入或消耗 unavailable'
+        assert pg.evaluate("JSON.parse(localStorage.getItem('ybslab:guest:115-g9')).queue.length === 1")
+        set_offline(c, False)
+        wait_evaluate(pg, '__firebaseMock.attempts.length === 2 && __firebaseMock.attempts[1].state === "failed"')
+        assert pg.evaluate('navigator.onLine && __writes.length === 1 && __firebaseMock.attempts[1].code === "unavailable" && __firebaseMock.plan.length === 0'), '上線事件必須觸發應用送出並消耗 unavailable'
+        wait_evaluate(pg, "document.getElementById('sync').textContent.includes('還沒上傳成功')")
         pg.click('#b-retry'); wait_evaluate(pg, '__writes.length === 2')
+        set_offline(c, True); set_offline(c, False)
+        pg.wait_for_timeout(250)
+        assert pg.evaluate('__writes.length === 2 && __firebaseMock.attempts.length === 3 && __firebaseMock.attempts[2].state === "written"'), '成功後再次上線不得重複寫入'
+        assert pg.evaluate('__ybsNetwork.events') == [['offline', False], ['online', True]] * 2
         writes = pg.evaluate('__writes')
         assert [x[0] for x in writes] == ['ybsCourses/115-g9/guestAttempts/guest1_4_0', 'ybsCourses/115-g9/guestAttempts/guest2_4_0'], f'開頁重送／換班座：寫入路徑不符，{writes!r}'
         expected = {'activity', 'round', 'level', 'tries', 'termWeek', 'passedAt', 'app', 'cls', 'seat', 'verified'}
@@ -327,7 +428,8 @@ def guest_cycle(b):
         pg.click('#cloud-read'); wait_evaluate(pg, "document.getElementById('cloud-status').textContent.includes('無權限')")
         assert pg.inner_text('#cloud-table') == '', '非 owner 讀取遭拒後：雲端表應維持空白'
         assert not errors, f'guest/cycle：瀏覽器 JavaScript 錯誤，{errors!r}'
-        print('OK  guest/作答、斷網待送、開頁重送、換班座、owner 合併表／匯出與非 owner 拒絕')
+        print('INFO guest/cycle：首次送出', first_submit, '重載後', after_reload)
+        print('OK  guest/作答、斷網待送、開頁重送、換班座、owner 合併表／匯出與非 owner 拒絕；離線零新增、上線事件重試、無重複寫入')
         return 0
     except Exception as e:
         print('FAIL guest/cycle', str(e)[:300], errors[:1]); return 1
@@ -338,6 +440,7 @@ def guest_cycle(b):
 fail = 0
 with sync_playwright() as p:
     b = p.chromium.launch()
+    fail += check_mock_network(b)
     expected = lock_expectations(b)
     assert expected['115-g9/u0-01/'] is False, '過去活動應已開放'
     assert expected['115-g9/u2-03/'] is True, '未來活動應仍上鎖'

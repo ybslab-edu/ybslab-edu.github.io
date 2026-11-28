@@ -31,7 +31,7 @@ for(const guestActivity of [5,6])test(`活動 ${guestActivity} 訪客紀錄待�
   assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('b-send').disabled,true);
   assert.equal(h.$('xp-header').hidden,true,'訪客 XP 未核定，仍不顯示總 XP');
   assert.equal(h.button('下一關').hidden,false);
-  if(guestActivity===5)assert.match(h.$('rounds').textContent,/待老師確認/);
+  if(guestActivity===5)assert.match(h.$('rounds').querySelectorAll('button').map(b=>b.getAttribute('aria-label')).join(' '),/待老師確認/);
   const reads=h.state.progressReads;h.advance();await h.events.focus();assert.equal(h.state.progressReads,reads+1);
   assert.equal(h.$('verdict').querySelector('h3').textContent,'過關！');
   const requested=Promise.withResolvers(),release=Promise.withResolvers(),fetcher=h.state.fetcher;

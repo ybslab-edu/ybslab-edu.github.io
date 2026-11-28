@@ -53,7 +53,7 @@ test('教師授權題面與解答只在教師出現；學生不取題、登出�
   await page.locator('#tb-new').click();await page.waitForFunction(()=>h.requests.length===2&&document.querySelector('#tbar'));
   await page.locator('#rounds button').nth(1).click();await page.waitForFunction(()=>h.requests.at(-1).body.round===1&&document.querySelector('#tbar'));
   assert.equal(await page.evaluate(()=>h.requests.every(r=>r.url.endsWith('/teacher-question'))),true);
-  await page.locator('#b-swap').click();assert.equal(await page.locator('#tbar').count(),0);
+  await page.locator('#account-toggle').click();await page.locator('#b-swap').click();assert.equal(await page.locator('#tbar').count(),0);
   assert.equal(await page.locator('#stage').textContent(),'');assert.deepEqual(errors,[]);
   await page.close();
  }

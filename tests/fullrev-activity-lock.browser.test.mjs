@@ -41,5 +41,5 @@ test('日期鎖攔截作答；台灣週日邊界恢復開始；owner 示範與�
  assert.equal(await page.locator('[data-teacher-login]').evaluate(el=>el===document.activeElement),true);
  await page.evaluate(()=>teacher());await page.locator('#tbar').waitFor({state:'visible'});
  assert.equal(await lock.isVisible(),false);assert.deepEqual(await page.evaluate(()=>h.requests.map(r=>r.url.split('/').at(-1))),['teacher-question']);
- await page.locator('#b-swap').click();await lock.waitFor({state:'visible'});assert.equal(await page.locator('#stage').textContent(),'');assert.deepEqual(errors,[]);
+ await page.locator('#account-toggle').click();await page.locator('#b-swap').click();await lock.waitFor({state:'visible'});assert.equal(await page.locator('#stage').textContent(),'');assert.deepEqual(errors,[]);
 });

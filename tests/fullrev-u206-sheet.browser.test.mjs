@@ -116,3 +116,18 @@ test('作答票過期保留查閱狀態，明確重新開始清空舊操作與�
  await page.getByText('活動工具',{exact:true}).click();await page.getByRole('button',{name:'重新開始',exact:true}).click();await page.waitForFunction(()=>app.requests.at(-1).url.endsWith('/ticket/start'));
  assert.equal(await page.locator('.sheet-mark').count(),0);assert.equal(await page.getByLabel('選取原第 2 列',{exact:true}).count(),1);assert.equal(await page.getByLabel('套用範圍',{exact:true}).inputValue(),'');
 });
+
+test('D12：錯標題不製圖、舊圖與分析清空，改正後可重新製圖',async t=>{
+ const page=await open(t);await chart(page);assert.equal(await page.locator('canvas').count(),1);
+ const percent=page.getByLabel('入口引導占有效回覆百分之幾？四捨五入到小數 1 位。',{exact:true});
+ await percent.fill('28.6');await choose(page,'你會優先補招哪個職務？','0');await choose(page,'你採用什麼理由？','demandGap');
+ for(const title of ['0','2']){
+  await choose(page,'圖表標題',title);await page.getByRole('button',{name:'產生圓餅圖',exact:true}).click();
+  assert.equal(await page.locator('canvas').count(),0);assert.match(await page.locator('.sheet-status').innerText(),/標題須符合/);
+  assert.equal(await percent.inputValue(),'');assert.equal(await page.getByLabel('你會優先補招哪個職務？',{exact:true}).inputValue(),'');assert.equal(await page.getByLabel('你採用什麼理由？',{exact:true}).inputValue(),'');
+ }
+ await choose(page,'圖表標題','1');await page.getByRole('button',{name:'產生圓餅圖',exact:true}).click();assert.equal(await page.locator('canvas').count(),1);
+ await choose(page,'組別等於','遊戲組');await page.getByRole('button',{name:'套用篩選',exact:true}).click();
+ for(const job of ['入口引導','遊戲體驗','舞台支援'])await page.getByLabel(job+'有效回覆筆數',{exact:true}).fill('0');
+ await page.getByRole('button',{name:'記錄統計',exact:true}).click();await choose(page,'圖表標題','0');await page.getByRole('button',{name:'產生圓餅圖',exact:true}).click();assert.equal(await page.locator('canvas').count(),0);assert.match(await page.locator('.sheet-status').innerText(),/標題須符合/);
+});

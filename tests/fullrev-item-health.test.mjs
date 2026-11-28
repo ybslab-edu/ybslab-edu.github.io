@@ -6,7 +6,8 @@ import {harness,config} from './fixtures/fullrev.mjs';
 import {releasePaths} from '../tools/build-fullrev-site.mjs';
 const scope={classKey:'c901',activity:5},expected={...scope,course:'115-g9',project:config.firebase.projectId};
 test('health projection validates exact scope, numeric bounds and duplicates',()=>{
- assert.ok(releasePaths().includes('assets/fullrev-item-health.mjs'));
+ for(const asset of ['fullrev-item-health.mjs','fullrev-account-session.mjs','fullrev-ticket-notice.mjs'])
+  assert.ok(releasePaths().includes(`assets/${asset}`),`${asset} must ship in the integrated release`);
  assert.equal(validItemHealth(healthFixture(),expected),true);
  for(const change of [v=>v.sourceProject='other',v=>v.classKey='c902',v=>v.activity=6,v=>v.readCost=211,v=>v.rows.push(v.rows[0]),v=>v.rows[0].wrong=-1,v=>v.rows[0].firstPassRate=2,v=>v.population=61]){
   const v=healthFixture();change(v);assert.equal(validItemHealth(v,expected),false);

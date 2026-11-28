@@ -1,4 +1,5 @@
 import {growth,exportRows} from './fullrev-progress.mjs?v=20261127b3';
+import {mountItemHealth} from './fullrev-item-health.mjs';
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);return el;};
 const button=(text,run)=>{const el=node('button',text);el.type='button';el.className='btn';el.onclick=run;return el;};
 const time=value=>value?new Date(value).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):'時間未留存';
@@ -16,6 +17,9 @@ export const teacherCSS=`
 .teacher-page thead th:first-child{z-index:3}.teacher-page caption{text-align:left;padding:10px}
 .teacher-page summary{cursor:pointer;min-height:44px}.teacher-page details p{white-space:normal;min-width:220px}
 .teacher-page a{display:inline-flex;align-items:center;min-height:44px}
+.teacher-page .item-health{margin-top:32px;min-width:0}.teacher-page .item-health :is(th,td){min-width:110px}
+.teacher-page .item-health :is(tbody th,thead th:first-child){min-width:180px;max-width:220px}
+.teacher-page .item-health li{font-size:17px;overflow-wrap:anywhere}
 .teacher-page :focus-visible{outline:3px solid #7a4ea8;outline-offset:-3px}
 `;
 // Reuse the strict export validation and XP core; activity filtering is display-only.
@@ -57,12 +61,14 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
  let selected=String(ordered.find(a=>typeof isActivityOpen==='function'&&isActivityOpen(a))?.week||'');
  try{const saved=localStorage.getItem(filterKey);if(saved===''||ordered.some(a=>String(a.week)===saved))selected=saved;}catch{}
  activity.value=selected;
- const subject=node('select');subject.setAttribute('aria-label','查閱歷史的學生');
- p.tools.append(classLabel,classKey,help,activityLabel,activity,subject);
+ const subject=node('select');subject.id='teacher-student';subject.setAttribute('aria-label','查閱歷史的學生');
+ const subjectLabel=node('label','查閱單一學生');subjectLabel.htmlFor=subject.id;
+ p.tools.append(classLabel,classKey,help,activityLabel,activity,subjectLabel,subject);
+ const health=mountItemHealth(p,{classKey,activity,activities,explain});
  const history=mountHistory({client:p.client,host:p.tools,scope:()=>({classKey:subject.selectedOptions?.[0]?.dataset.classKey||classKey.value.trim(),subject:subject.value.trim()}),life:p});
  subject.oninput=history.clear;
  let reading=0,view=null,shownUID=p.client.state().profile?.uid;
- function clear(){reading++;view=null;history.clear();subject.replaceChildren();p.content.replaceChildren();}
+ function clear(){reading++;view=null;history.clear();subject.replaceChildren();p.content.replaceChildren();health.clear();}
  function render(){
   p.content.replaceChildren();if(!view)return;
   const table=node('table'),head=node('thead'),tr=node('tr');
@@ -107,7 +113,7 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
   }catch(e){if(p.active()&&n===reading){clear();p.status.textContent=(e.classKey?`${e.classKey} 讀取失敗；未顯示或匯出部分班級資料。`:'')+explain(e);}}
  }
  p.tools.append(button('讀取有效紀錄',()=>refresh()),button('重新確認並下載 Excel',()=>refresh(true)));
- activity.onchange=()=>{try{localStorage.setItem(filterKey,activity.value);}catch{}render();};
+ activity.onchange=()=>{try{localStorage.setItem(filterKey,activity.value);}catch{}render();health.clear();};
  classKey.oninput=()=>{clear();p.status.textContent='請重新讀取所選班級。';};
  p.subscribe(p.client,state=>{if(!state.profile||state.profile.uid!==shownUID||['stale','binding-changed','context-changed'].includes(state.status))clear();shownUID=state.profile?.uid;});
  p.cleanup(clear);eventsRefresh(p,()=>{clear();p.status.textContent='請重新確認紀錄後匯出。';});

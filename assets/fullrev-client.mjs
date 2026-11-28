@@ -3,6 +3,7 @@ import {guestScope,isGuestContext,guestFields,guestCompletion,readGuestContext} 
 import {createDFReports} from './fullrev-df.mjs';
 import {fail,id,int,time,versions,sameVersions,effectiveRecords} from './fullrev-progress.mjs?v=20261127b3';
 import {createProgressCache} from './fullrev-progress-cache.mjs';
+import {validItemHealth} from './fullrev-item-health.mjs';
 
 const scopeKey = (activity,round) => activity+':'+round;
 const epochKeys = ['configVersion','bindingVersion','unitEpoch','roundEpoch','classUnitEpoch'];
@@ -592,6 +593,22 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       return clone(page);
     }finally{aborters.delete(controller);if(historyController===controller)historyController=null;}
   }
+  async function itemHealth({classKey,activity=null}={}){
+    const m=mark();if(!profile.owner)throw fail('owner-required');
+    if(course!=='115-g9'||!/^[\w-]{1,40}$/.test(classKey||'')||activity!==null&&(!int(activity,1)||activity>30))throw fail('invalid-scope');
+    const controller=new AbortController();aborters.add(controller);let timeout;
+    try{
+      const bearer=await token(m);const deadline=new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(fail('read-model-pending'));},requestTimeoutMs);});
+      const value=await Promise.race([(async()=>{
+        const r=await fetcher(config.workerOrigin+'/item-health',{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',signal:controller.signal,
+          headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body:JSON.stringify({course,classKey,activity})});
+        const v=await r.json();active(m);
+        if(!r.ok)throw fail(r.status===403?'owner-required':v.error==='health_class_incomplete'?'health-class-incomplete':v.error==='read_budget'?'health-read-budget':v.error==='storage_quota'?'storage-quota':'health-unconfirmed');
+        return v;
+      })(),deadline]);active(m);
+      if(!validItemHealth(value,{project,course,classKey,activity}))throw fail('health-unconfirmed');return clone(value);
+    }finally{clearTimeout(timeout);aborters.delete(controller);}
+  }
   function saveInput(activity,round,value){
     mark();const d=drafts[scopeKey(activity,round)];
     if(!d||d.pending||d.blocked||!d.stamp||profile.owner||!view?.question||view.activity!==activity||view.round!==round||questionStamp(view)!==d.stamp||!(Date.parse(d.expiresAt)>now()))return false;
@@ -624,7 +641,7 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       ||!['pub','enc-b2','enc-rv'].every(k=>typeof value.scripts[k]==='string'))throw fail('context-unconfirmed');
     return clone(value.scripts);
   }
-  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,cancelStart,progress,guestGrowth,history,cancelHistory:()=>historyController?.abort(),teacherQuestion,saveInput,loadInput,savedRound,
+  return Object.freeze({project,course,studentGoogleLogin:config.studentGoogleLogin===true,session:getSession,whoami:reports.whoami,submitReport:reports.submitReport,submitManual,dfContent,login,restore,logout,context,start,answer,resume,retry,cancelStart,progress,guestGrowth,history,cancelHistory:()=>historyController?.abort(),teacherQuestion,itemHealth,saveInput,loadInput,savedRound,
     owner:()=>assertOwner(mark()),refreshClaims:async()=>{const m=mark();await claims(m,true);return classHint(m);},
     subscribe(f){listeners.add(f);emit(status);return()=>listeners.delete(f);},
     state:()=>({profile:profile&&{...profile},status,snapshot:clone(snapshot),readingRetry,uploadIssue:uploadIssue(),startRetry:startRetry(),pending:Object.values(drafts).some(d=>d.pending&&!d.blocked)})});

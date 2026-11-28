@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function publicAnswerRemainder(path,bytes){
  if(path==='115-df/a/index.html'){
-  if(digest(bytes)!=='677524882ef3247250f5d9e8d766c457213c7d883d5be812b382de65bd60d192')throw Error('release_public_answer_allowlist_changed:'+path);
+  if(digest(bytes)!=='0df6bb37a9936ab20f3c9543d8f8ab80d6324642e933034879ccb171d5e674c4')throw Error('release_public_answer_allowlist_changed:'+path);
   return Buffer.alloc(0);
  }
  if(path==='assets/fullrev-shell.mjs'){

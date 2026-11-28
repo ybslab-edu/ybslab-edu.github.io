@@ -104,10 +104,14 @@ export function createSheetModel(data){
    if(!controls.counts.every(count))return '請填三個 0～14 的整數，沒有回覆可填 0。';
    invalidate(['pie']);analysisReset();record('counts',{filterRev:latest('filter').rev,values:controls.counts.map(Number)});
   }else if(action==='pie'){
+   invalidate(['pie']);analysisReset();
    if(controls.sourceChoice==='originalSummary')return '本題沒有提供原始表單摘要，請選擇可用的統計表來源。';
    if(!latest('counts'))return '請先記錄目前篩選的三個統計值。';
    if(controls.sourceChoice!== 'filtered'||controls.titleChoice==='')return '請先選擇圖表來源與標題。';
-   analysisReset();record('pie',{filterRev:latest('filter').rev,countsRev:latest('counts').rev,sourceChoice:controls.sourceChoice,titleChoice:controls.titleChoice});
+   const filter=latest('filter'),title=d.options.titles[controls.titleChoice];
+   const expected=(group,slot)=>`${group} ${slot}場第一志願分布`;
+   if(!filter||title!==expected(d.task.group,d.task.slot)||title!==expected(filter.group,filter.slot))return '圖表標題須符合指定任務與已套用的組別、場次篩選，請重新核對。';
+   record('pie',{filterRev:latest('filter').rev,countsRev:latest('counts').rev,sourceChoice:controls.sourceChoice,titleChoice:controls.titleChoice});
   }else return '不支援的操作。';
   return '';
  }
@@ -141,7 +145,7 @@ export function createSheetModel(data){
    let previous=0;for(const o of v.ops){if(o.rev<=previous)return false;previous=o.rev;}
    const f=v.ops.find(o=>o.op==='filter'),c=v.ops.find(o=>o.op==='counts'),p=v.ops.find(o=>o.op==='pie');
    if(c&&(!f||c.filterRev!==f.rev||c.rev<=f.rev)||p&&(!c||p.filterRev!==f.rev||p.countsRev!==c.rev||p.rev<=c.rev))return false;
-   if(f&&(f.group!==v.controls.group||f.slot!==v.controls.slot)||c&&!equal(c.values,v.controls.counts.map(Number))||p&&(p.sourceChoice!==v.controls.sourceChoice||p.titleChoice!==v.controls.titleChoice))return false;
+   if(f&&(f.group!==v.controls.group||f.slot!==v.controls.slot)||c&&!equal(c.values,v.controls.counts.map(Number))||p&&(p.sourceChoice!==v.controls.sourceChoice||p.titleChoice!==v.controls.titleChoice||d.options.titles[p.titleChoice]!==`${d.task.group} ${d.task.slot}場第一志願分布`||d.options.titles[p.titleChoice]!==`${f.group} ${f.slot}場第一志願分布`))return false;
    controls=clone(v.controls);ops=clone(v.ops);revision=previous;return true;
   }catch{return false;}
  }
@@ -186,8 +190,7 @@ export function renderVolunteerSheet(host,data,api={changed(){}}){
  function check(parent,key,text,read,write){const l=node('label'),el=node('input');l.className='sheet-check';el.type='checkbox';el.id=prefix+key;l.append(el,node('span',text));parent.append(l);refs[key]=el;bindings.push(()=>{el.checked=read();});el.onchange=()=>{write(el.checked);update();};return el;}
  function action(parent,name,text,ids){return button(parent,name,text,()=>{const issue=model.execute(name,typeof ids==='function'?ids():[]);if(!issue)selected.clear();update();say(issue||'你已執行「'+text+'」。請核對工作副本與操作紀錄。');});}
  function targetText(t){const origin=id=>d.rows.findIndex(r=>r.id===id)+2;return t.length===3?`原第 ${origin(t[0])}、${origin(t[1])} 列（比較時間以外的內容）`:`${letters[t[1]]}${origin(t[0])}（${d.columns[t[1]]}）`;}
- const guide=section('你的整理任務','你協助星港策展團隊整理次元交會動漫／遊戲展的志工回覆。全部資料為虛構示意，四關各自使用獨立副本。');
- const rules=node('details');rules.append(node('summary','查看資料規格'),node('p','A～I 必填；J 熟悉度選填。期待程度是 1～5 整數。只有同意招募，且未滿 18 歲已取得家長同意的回覆才符合規格。有效重複先保留到去重階段。'));guide.append(rules);
+ const rules=node('details');rules.append(node('summary','查看共用資料規格與紀錄說明'),node('p','全部為虛構示意資料；你在 YBS 模擬操作，不需開啟其他工具；四關各自使用獨立副本。'),node('p','A～I 必填；J 熟悉度選填。期待程度是 1～5 整數。只有同意招募，且未滿 18 歲已取得家長同意的回覆才符合規格。有效重複先保留到去重階段。'));
  const status=node('p');status.className='sheet-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');root.append(status);
  function table(parent,title,rowIds,{selectable=false,marks=[],color='yellow'}={}){
   const wrap=node('div');wrap.className='sheet-scroll';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',title+'，可水平捲動');
@@ -202,7 +205,7 @@ export function renderVolunteerSheet(host,data,api={changed(){}}){
  }
  const allIds=d.rows.map(r=>r.id);
  if(d.round===0){
-  const s=section('A. 封存與辨識','收件已截止。你先核對原始回覆，再選流程、完整備份與四個指定案例的分類。');
+  const s=section('A. 封存與辨識');
   table(s,'原始回覆',allIds);
   select(s,'flowChoice','你會依哪個順序處理？',d.options.flows.map((v,k)=>[k,v]),()=>model.controls().flowChoice,v=>model.set('flowChoice',v===''?'':Number(v)));
   select(s,'backupChoice','哪份備份完整？其他欄位已核對，請比較筆數、首列 G 欄與末列 B 欄。',d.task.backups.map((v,k)=>[k,`${['甲','乙','丙'][k]}：${v[0]} 筆／首列 G：${v[1]||'空白'}／末列 B：${v[2]}`]),()=>model.controls().backupChoice,v=>model.set('backupChoice',v===''?'':Number(v)));
@@ -221,7 +224,8 @@ export function renderVolunteerSheet(host,data,api={changed(){}}){
   d.options.reasons.forEach((v,k)=>check(field,'reason'+k,v,()=>model.controls().reasonSelection.includes(v),on=>model.set('reasonSelection',d.options.reasons.filter(x=>x===v?on:model.controls().reasonSelection.includes(x)))));
  }
  if(d.round===2){
-  const a=section('A. 設定移除重複工具',`你拿到已清理的獨立副本。範圍 A1:J${d.rows.length+1}，每次執行從初始副本重算，保留相同鍵值的原順序第一筆。`);
+  const a=section('A. 設定移除重複工具');
+  const note=node('details');note.append(node('summary','查看去重範圍與保留規則'),node('p',`範圍 A1:J${d.rows.length+1}；每次執行從初始副本重算，保留相同鍵值的原順序第一筆。`));a.append(note);
   check(a,'hasHeader','資料包含欄名',()=>model.controls().hasHeader,v=>model.set('hasHeader',v));
   const field=node('fieldset');field.append(node('legend','你要比對哪些欄位？'));a.append(field);refs.columns=field;
   button(field,'allColumns','全選欄位',()=>{model.set('columns',letters);update();});button(field,'noColumns','取消全選',()=>{model.set('columns',[]);update();});
@@ -231,9 +235,9 @@ export function renderVolunteerSheet(host,data,api={changed(){}}){
   choose(b,'conflictChoice','同代號但內容不同的回覆，你會怎麼處理？',['reviewBoth','latest'],['兩筆暫留，交窗口核對','只保留最新一筆']);
  }
  if(d.round===3){
-  const a=section('A. 篩選指定的有效回覆',`你拿到已清理並去重的獨立副本。請找出 ${d.task.group}、可到 ${d.task.slot} 場的第一志願分布。兩個條件要同時符合，雙時段在本場只計一次；篩選只隱藏資料。`);
+  const a=section('A. 篩選指定的有效回覆',`指定條件：${d.task.group}、${d.task.slot}場；兩個條件須同時符合。`);
   choose(a,'group','組別等於',d.options.groups);choose(a,'slot','可到場時段包含',d.options.slots);action(a,'filter','套用篩選');action(a,'clearFilter','清除篩選');panels.counts=node('p');panels.work=node('div');a.append(panels.counts,panels.work);
-  const original=node('details');original.append(node('summary','查看完整的不可改寫副本'));table(original,'完整的有效回覆副本',allIds);a.append(original);
+  const original=node('details');original.append(node('summary','查看完整的不可改寫副本'),node('p','雙時段在本場只計一次；篩選只隱藏資料。'));table(original,'完整的有效回覆副本',allIds);a.append(original);
   const b=section('B. 建立你的統計表','你依目前顯示的回覆填寫職務筆數；沒有回覆可填 0。填好後按「記錄統計」。');
   d.options.jobs.forEach((j,k)=>numeric(b,'count'+k,j+'有效回覆筆數',()=>model.controls().counts[k],v=>{const c=model.controls().counts;c[k]=v;if(!model.set('counts',c)){c[k]='';model.set('counts',c);}}));action(b,'counts','記錄統計');panels.total=node('p');b.append(panels.total);
   const c=section('C. 產生圓餅圖','你用自己輸入的統計製圖。修改篩選、統計、來源或標題後，圖表與分析會失效，請重新製圖。');
@@ -280,7 +284,7 @@ export function renderVolunteerSheet(host,data,api={changed(){}}){
    if(!ok&&!out.some(f=>f.key===key))out.push({key,reason:key==='percent'?'請填 0～100 的百分比，最多小數一位。':'請填 0～14 的整數。'});
   }return out;
  }
- host.append(root);draw();
+ root.append(rules);host.append(root);draw();
  const handle={get:()=>model.get(),ready:()=>missing().length===0,readyReason:()=>missing()[0]?.reason||'',fields:()=>missing().map(({key,reason})=>({target:refs[key]||root,reason})),
   draft:()=>({...model.draft(),selectedRowIds:[...selected],inputValues:Object.fromEntries(Object.entries(refs).filter(([,el])=>el.type==='number').map(([k,el])=>[k,el.value]))}),
   restoreDraft(value){if(!keys(value,['version','datasetToken','controls','ops','inputValues','selectedRowIds']))return false;

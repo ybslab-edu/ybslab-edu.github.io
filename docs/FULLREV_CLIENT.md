@@ -13,20 +13,22 @@
 
 ## 身分與作答
 
-學生 Google／password／匿名 guest 使用新專案 SESSION Auth。Google owner 另須由 server
+學生帳密使用新專案 LOCAL Auth，另以不含身分或憑證的瀏覽器 session cookie 約束，沿用舊站政策：同瀏覽器新分頁、關頁再開可沿用登入；cookie 隨瀏覽器工作階段結束消失時，下次初始化先清除該生草稿並登出。瀏覽器若啟用工作階段還原而保留 session cookie，行為也與舊站一致。Google／匿名 guest 維持 SESSION Auth。cookie 無法寫入時拒絕保留帳密登入。Google owner 另須由 server
 單筆讀取確認 `ybsTeachers/{uid}.enabled`、已驗證 Google provider 與課程 ownerUid。
 只有教師文件查詢的 `permission-denied` 視為非教師，學生登入／還原繼續；其他查詢錯誤仍失敗，教師入口仍須 owner。
 教師示範不寫過關或 XP。學生 Google 登入預設隱藏；帳密登入不了可輸入班級與座號，匿名登入後交由 Worker 核對名冊與時段。
 帳號 claim 只讀 `ybsClassKeys[course]`；subject／版本由受控讀取 adapter 提供。訪客不需 claim，依 cutover 的公開分片規則 `c{cls}_{ceil(seat/30)}` 找班級 gate，班座有效性仍由 Worker 驗證。
 
-`fullrev-client.mjs` 帳號流程使用 PR2 精確 `/start`、`/answer`、`/resume` JSON 與 8KiB 上限。訪客透過 `fullrev-guest.mjs` 接入 `/guest/context`、`/guest/start`、`/guest/answer`、`/guest/resume`，附 cls（三位字串）與 seat（整數），不送 subject 或 bindingVersion；四個啟動版本直接取 context。SESSION 草稿另保留該 UID 的班座與原 context，重整續作沿原 sid／requestId。只有 completed:true,status:pending,verified:false,counted:false,attemptId 回條顯示「已存待審，尚未採計」；不讀正式進度、不增加 XP／排名。
+`fullrev-client.mjs` 帳號流程使用 PR2 精確 `/start`、`/answer`、`/resume` JSON 與 8KiB 上限。訪客透過 `fullrev-guest.mjs` 接入 `/guest/context`、`/guest/start`、`/guest/answer`、`/guest/resume`，附 cls（三位字串）與 seat（整數），不送 subject 或 bindingVersion；四個啟動版本直接取 context。分頁草稿另保留該 UID 的班座與原 context，重整續作沿原 sid／requestId。只有 completed:true,status:pending,verified:false,counted:false,attemptId 回條顯示「已存待審，尚未採計」；不讀正式進度、不增加 XP／排名。
 原 requestId、sid、seq、slot、epochs 與答案保存在以 project／course／UID／subject 分隔的
 分頁草稿；題面只在記憶體，沒有 token、私有答案或舊 attempts 的寫入旁路。
 網斷、429／503 依 Retry-After 與有界退避重試；401 只強制刷新一次。
 完成回條或 403／409／410 等不可重試回應會清除原草稿；作廢後要求重新開始，不搬用舊答案或替舊請求換版本。
 八份上限只計進行中／待送草稿，還原時先剔除舊完成／作廢草稿；完成回條仍不直接新增進度或 XP。
 換人同步清空畫面／草稿並廣播身分標記；舊分頁、慢登入及遲到回應不能套用到新身分。
-還原也須同 UID 與同標記，題面經 resume 重新授權。pagehide 清除題面及進度投影。
+還原草稿須同 UID 與同標記；帳密登入即使沒有草稿也可在新分頁還原身分。題面經 resume 重新授權。pagehide 清除題面及進度投影。
+
+作答票最長 20 分鐘，實際期限由 Worker 回傳的 expiresAt 決定，活動／授權／課堂窗口可能使期限提早。到期前 2 分鐘顯示 18px 第二人稱提醒，到期清除記憶體、分頁及持久草稿中的輸入、待送內容與加密票，停止重送並要求重新開始。本機持久草稿最多暫存 20 分鐘且不超過 expiresAt；重整、續票及儲存輸入不延長票效期。登入不會保存 token、私有題面或題解至草稿。登出／換人同步撤除 cookie、清除該 UID 各課程草稿並通知其他分頁；遲到回應不得復活草稿。
 
 PR6 以 `cfg.renderQuestion(question, host, api)` 提供純題面 renderer，回傳 `{get()}`。
 本前端不呼叫既有活動的 `gen/check/fill` 當正式判題；沒有 renderer 就不開正式開始按鈕。

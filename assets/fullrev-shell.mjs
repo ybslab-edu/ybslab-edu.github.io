@@ -181,12 +181,6 @@ function mountWarmup({cfg, main}) {
 const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const text=value=>Array.isArray(value)?value.join(''):value||'';
 const para=(host,value)=>{if(value){const p=node('p',text(value));host.append(p);return p;}};
-// 舊活動公開說明的版面副本；不含題庫、答案或判題。
-const outcomeNotes={
- "7": "<div class=\"quest-note\"><p>星港策展團隊委託你設計「次元交會動漫／遊戲展」志工報名表。你要讀懂招募需求，修好蒐集內容、表單結構與發布設定；本組委託附件就在任務下方。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
- "8": "<div class=\"quest-note\"><p>小洛委託你整理星港策展團隊「次元交會動漫／遊戲展」的志工回覆，找出可供排班參考的資訊。你在本頁讀取附件並作答。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p></div>",
- "9": "<div class=\"quest-note\"><p>你協助虛構音樂活動團隊整理素材。全部為示意資料，不填你或別人的真實個資。本組委託附件就在任務下方，所有作答都在 YBS 網站完成。</p><p>每關答對兩組不同資料才完成；答錯可修正，不扣分。答對後按「下一組」繼續。</p><p>既有紀錄如何對應：原燈牌解壓縮、燈牌壓縮、失真判斷、格式選擇的第 1～4 關紀錄，仍保留在相同索引；舊紀錄不代表做過新版題目。</p><p><strong>今天必做第 1、2 關；第 3、4 關另排時間完成。兩支影片 2-19（6:57）、2-20（8:26）都在課內完整播放。第 33 分開始獨立後測，停止教材、e 度與同儕協助。文字轉語音由影片與配對涵蓋。</strong></p></div>"
-};
 // 原生燈牌／容量題面沒有 hint、guide；保留舊站公開教學提示，不含特定題目的解答。
 export function questionHints(question) {
  const d=question?.data||{},type=question?.type||'';
@@ -226,26 +220,33 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  // OPEN 由舊站共用清單提供；日期與台灣週日邊界沿用 activities.js。
  const scheduleLocked=()=>courseClosed()||!activity||typeof isActivityOpen!=='function'||!isActivityOpen(activity);
  const week=cfg.termWeek??(activity&&typeof termWeekOf==='function'?termWeekOf(activity):null);
- const title=week?`第 ${week} 週｜${cfg.title}`:cfg.title;
  const info=()=>cfg.rounds[round];
- const gate=node('section');gate.className='gate fullrev-activity';gate.id='gate';gate.append(node('h1',title));
+ const gate=node('section');gate.className='gate fullrev-activity';gate.id='gate';
  const login=node('div');login.id='g-gbtn';gate.append(login);
  const identityBox=node('div');identityBox.id='g-who';identityBox.hidden=true;identityBox.innerHTML='<p id="g-whotext" aria-live="polite"></p><div class="btns" style="justify-content:center"><button type="button" class="btn" id="g-notme">不是我</button><button type="button" class="btn primary" id="g-isme" hidden>對，開始</button></div>';gate.append(identityBox);
  const main=node('div');main.className='wrap fullrev-activity'+(cfg.course==='115-g9'&&cfg.week===8?' fullrev-sheet-activity':'');main.id='main';main.hidden=true;
- main.innerHTML=`<header class="top"><div class="activity-heading"><div class="title-rounds"><h1 id="activity-title"></h1><nav class="rounds" id="rounds" aria-label="關卡"></nav></div><div class="who-bar"><a href="../../" class="linkbtn">← YBS Lab</a><span><b id="who"></b></span><button class="linkbtn" id="b-swap" type="button">不是我？換人</button><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">活動工具</summary></details></div></div><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-mono" id="xp-total">載入中…</span><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next">等待雲端紀錄</span></a></aside></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><p id="draft-notice" class="small" role="status" aria-live="polite"></p><div id="stage"></div><div class="btns"><span id="send-control" class="send-control" role="group" aria-label="送出"><button class="btn primary" id="b-send" type="button" aria-describedby="send-hint" disabled>送出</button></span><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint" role="status" aria-live="polite" aria-atomic="true"></span><a id="quota-old" class="linkbtn" href="/ybs-old/" hidden>改用舊站</a></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><p class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></p>`;
+ main.innerHTML=`<header class="top" id="activity-header"><div class="header-bar"><a href="../../" class="header-back">← YBS Lab</a><div class="header-account"><aside class="xp-header" id="xp-header" hidden aria-live="polite"><a href="../me/" title="查看我的成長紀錄"><b id="xp-level">成長紀錄</b><span class="xp-wide xp-separator" aria-hidden="true"> · </span><span class="xp-wide xp-mono" id="xp-total"></span></a></aside><details class="account" id="account"><summary id="account-toggle" aria-label="帳號選單"><span class="account-avatar" id="account-avatar" aria-hidden="true">生</span><span class="account-name" id="account-name">尚未登入</span></summary><div class="account-menu"><div class="account-info"><b id="who">尚未登入</b><p id="account-info">請先登入或填班級座號。</p></div><div id="xp-detail"><progress id="xp-progress" max="1" value="0" aria-label="升級進度" hidden></progress><span class="small" id="xp-next"></span></div><a class="account-action" id="account-growth" href="../me/">成長紀錄</a><button class="account-action" id="b-swap" type="button">不是我？換人</button><button class="account-action" id="b-logout" type="button">登出</button></div></details></div></div><div class="activity-week" id="activity-week"></div><h1 id="activity-title"></h1><p class="activity-subtitle" id="activity-subtitle" aria-live="polite"></p><nav class="rounds" id="rounds" aria-label="關卡"></nav><p id="round-unlock-hint" class="small" hidden>完成目前關卡後解鎖下一關</p><span class="upload-status" aria-live="polite"><span class="sync" id="sync" hidden></span><button class="sync warn" id="b-retry" type="button" hidden>重試上傳</button></span><details id="activity-tools"><summary class="linkbtn">活動工具</summary></details></header><section class="sec" id="task-instructions"><h2 class="sec-h"><span class="num">1</span>任務說明</h2><div class="order" id="says" aria-live="polite"></div></section><section class="sec"><div id="original-work"><p class="round-status" id="round-status" aria-live="polite" aria-atomic="true"></p><div class="work-heading"><h2 class="sec-h"><span class="num">2</span>動手做</h2><button class="btn" id="b-hint" type="button" title="先試著送出一次，就能看提示。" disabled>我需要提示</button></div><p id="draft-notice" class="small" role="status" aria-live="polite"></p><div id="stage"></div><p id="unsent-notice" class="small" role="status" aria-live="polite" style="font-size:17px" hidden>這題還沒送出，換電腦前先按送出</p><div class="btns"><span id="send-control" class="send-control" role="group" aria-label="送出"><button class="btn primary" id="b-send" type="button" aria-describedby="send-hint" disabled>送出</button></span><span class="small" id="answer-status" aria-live="polite" aria-atomic="true">作答中</span><span class="streak" id="streak"></span><span class="small" id="send-hint" role="status" aria-live="polite" aria-atomic="true"></span><a id="quota-old" class="linkbtn" href="/ybs-old/" hidden>改用舊站</a></div><section class="verdict" id="verdict" hidden aria-live="polite"></section></div><aside class="hint-ladder" id="hint-ladder" aria-label="提示階梯"><div id="hint-content" aria-live="polite" aria-atomic="true"></div></aside></section><footer class="foot">© 2026 YBS Lab　<a href="../../about/#h-rights" style="color:inherit">保留所有權利，未經同意請勿轉載或改作</a></footer>`;
  // 與 origin/main 的公開暖身題庫、抽題及選擇題回顧相同；不上傳、不參與過關。
  const clientWarmupReset=mountWarmup({cfg,main})||(()=>{});
  const lock=node('div');lock.id='activity-lock';lock.hidden=true;
  lock.innerHTML=`<div><h1>這個活動還沒開放</h1><p>請回到 YBS Lab 首頁，做老師這週指定的活動。</p><p><a href="/">← 回 YBS Lab 首頁</a></p><p class="activity-unlock"><button type="button" class="linkbtn">教師解鎖</button></p></div>`;
  lock.querySelector('h1').textContent=courseClosed()?'本學年未開設這門課':'這個活動還沒開放';
  lock.hidden=!scheduleLocked();gate.hidden=!lock.hidden;
- document.body.replaceChildren(gate,main,lock);
- const $=id=>main.querySelector('#'+id),status=$('sync'),send=$('b-send'),verdict=$('verdict'),stage=$('stage'),nav=$('rounds');
- $('activity-title').textContent=title;
- para($('task-instructions'),'你要先完成這一關，再前往下一關。你可以回看已完成的關卡；想重做時，請按「再做一次」。').className='small';
+ const header=main.querySelector('header'),headerWrap=node('div');headerWrap.className='wrap shell-header-wrap fullrev-activity';headerWrap.append(header);
+ document.body.replaceChildren(headerWrap,gate,main,lock);
+ const $=id=>header.querySelector('#'+id)||main.querySelector('#'+id),status=$('sync'),send=$('b-send'),verdict=$('verdict'),stage=$('stage'),nav=$('rounds');
+ $('activity-title').textContent=cfg.title;
+ $('activity-week').textContent=week?`第 ${week} 週`:'';
+ $('activity-subtitle').textContent=`第 1 關　${cfg.rounds[0].name}`;
+ const account=$('account'),toggle=$('account-toggle');
+ const closeAccount=(focus=false)=>{account.open=false;if(focus)toggle.focus();};
+ document.body.addEventListener('keydown',e=>{if(e.key==='Escape'&&account.open){e.preventDefault();closeAccount(true);}});
+ document.body.addEventListener('click',e=>{if(!account.contains(e.target))closeAccount();});
+ para(main.querySelector('.foot'),'你要先完成這一關，再前往下一關。你可以回看已完成的關卡；想重做時，請按「再做一次」。').className='small';
  let client;try{client=await promise;}catch(e){para(login,explain(e));return;}
  let round=0,handle=null,last=null,key='',mode='loading',sentValue='',submitted=false,hint=0,identity='',revision=0,read=0,starting=false,reading=false,snapshot=null,result=null,before=null,lastLearning='',pairTimer=null,refreshWork=null,roundWork=Promise.resolve();
- let teacherLogin=false,scheduleBlocked=false,loadProblem='',validation=null,restoringInput=false;
+ let teacherLogin=false,scheduleBlocked=false,loadProblem='',validation=null,restoringInput=false,confirmedInput='',sentInput='';
+ const inputValue=()=>JSON.stringify(handle?.draft?.()??handle?.get?.());
  let waitTimer=null,waitMessage='',guestStorageKey='',guestRestore=null;const guestCompleted=new Map();
  const guestEpochs=['configVersion','unitEpoch','roundEpoch','classUnitEpoch'];
  const validGuestSummary=c=>versions(c?.controlVersions)&&guestEpochs.every((k,i)=>int(c[k],i===0?1:0));
@@ -344,6 +345,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  function controls(){
   const state=client.state(),changed=handle?.get&&JSON.stringify(handle.get())!==sentValue;
   const teacher=!!state.profile?.owner;send.hidden=teacher;$('send-control').hidden=teacher;$('send-hint').hidden=teacher;$('answer-status').hidden=teacher;$('streak').hidden=teacher;$('b-hint').hidden=teacher;
+  // 只提醒尚未獲確認的輸入；草稿仍留在原瀏覽器，不承諾跨裝置恢復。
+  $('unsent-notice').hidden=teacher||mode!=='working'||!handle||!state.pending&&state.status!=='sending'&&inputValue()===confirmedInput;
   const modeReason={loading:loadProblem||'題目載入中，請稍候。',review:'你正在回看這一關；想重做時，請按「再做一次」。',closed:'這個活動還沒開放。',practice:'目前是本機練習，不送出成績。',teacher:'目前是教師示範。',unmanaged:'這一關尚待老師確認，請選其他關卡。','binding-pending':'身分尚待老師確認，請告訴老師。','teacher-pending':'已送出，等待老師確認。','guest-pending':GUEST_PENDING,confirming:loadProblem||'正在確認雲端紀錄，請稍候。',correct:'這組已答對，請按「下一組」。',passed:'這關已過關，可選下一關。'};
   const reason=state.status==='restart-required'?'作答狀態已變更，請按「活動工具 → 重新開始」。'
    :state.status==='stale'?'請重新登入，再繼續作答。'
@@ -363,6 +366,11 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   practice.hidden=!state.profile?.owner&&state.profile?.provider!=='anonymous'&&mode!=='binding-pending';
   $('b-retry').hidden=!state.pending;
   $('b-retry').disabled=!!state.startRetry&&state.startRetry.retryAt>now();
+  const profile=state.profile;
+  $('account-name').textContent=$('who').textContent||'尚未登入';
+  $('account-avatar').textContent=teacher?'師':profile?.provider==='anonymous'?'訪':'生';
+  $('account-info').textContent=teacher?'教師示範：不送出成績':profile?.provider==='anonymous'?'班座訪客：作答需老師審核':profile?'已登入':'請先登入或填班級座號。';
+  $('b-swap').hidden=$('b-logout').hidden=!profile;$('account-growth').hidden=!profile||teacher;
   $('activity-tools').hidden=[restart,claims,practice,reread].every(b=>b.hidden);
  }
  // 原生 disabled 不會收到 click；外層承接滑鼠／觸控及鍵盤提示。
@@ -378,11 +386,17 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  // 補接選單 change、輸入法組字結束與失焦；重算時讀取現值，不靠事件累計。
  for(const event of ['input','change','compositionend','focusout'])stage.addEventListener(event,changed);
  function rounds(){
+  nav.style.cssText=`--round-count:${cfg.rounds.length}`;nav.dataset.count=cfg.rounds.length;
+  $('activity-subtitle').textContent=`第 ${round+1} 關　${info().name}`;
+  $('round-unlock-hint').hidden=!cfg.rounds.some((_,i)=>access(i).locked);
   nav.replaceChildren();cfg.rounds.forEach((r,i)=>{
    const pending=guestCompleted.has(i)||result?.pendingRecords?.some(r=>r.activity===cfg.week&&r.round===i),passed=completedRounds().includes(i),{locked,reason}=access(i);
-   const b=node('button',r.name+(locked?' 🔒':pending?'（待老師確認）':passed?' ✓':''));b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.disabled=locked;b.title=reason;b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);
-   if(cfg.course==='115-g9'&&cfg.week===8){const depth=node('span');depth.className='round-depth';depth.setAttribute('aria-hidden','true');b.append(depth);}
-   if(locked){const item=node('span'),why=node('small',reason);item.className='round-locked';why.id='round-lock-'+i;b.setAttribute('aria-describedby',why.id);item.append(b,why);nav.append(item);}else nav.append(b);
+   const label=`第 ${i+1} 關：${r.name}`+(locked?'（尚未解鎖）':pending?'（待老師確認）':passed?'（已過關）':'');
+   const b=node('button',`第 ${i+1} 關`);b.type='button';b.className=passed?'passed':'';b.dataset.i=i;b.disabled=locked;b.title=label+(reason?'；'+reason:'');b.setAttribute('aria-label',b.title);b.setAttribute('aria-pressed',String(i===round));b.onclick=()=>start(i);
+   {const depth=node('span');depth.className='round-depth';depth.setAttribute('aria-hidden','true');b.append(depth);}
+   b.onpointerdown=e=>{if(b.disabled||e.button!==0)return;b.classList.add('is-pressing');b.setPointerCapture?.(e.pointerId);};
+   const release=()=>b.classList.remove('is-pressing');b.onpointerup=b.onpointercancel=b.onpointerleave=b.onlostpointercapture=release;
+   nav.append(b);
   });
  }
  function redo(host){const b=node('button','再做一次');b.id='b-redo';b.type='button';b.className='btn';b.onclick=()=>start(round,true);host.append(b);}
@@ -413,9 +427,9 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  $('b-hint').onclick=()=>{if(submitted){hint=Math.min(3,hint+1);hints();}};
  function instructions(){
-  const d=last?.question?.data,sheet=d?.mode==='form-volunteer-sheet-v2';
-  const now=sheet?['收件截止了，你先保住原始回覆，再辨識資料問題。','你拿到原始回覆副本，要判斷哪些資料可以留下。','你拿到已清理副本，要找出內容完全重複的回覆。','你拿到已清理並去重的副本，要分析指定組別與場次。'][d.round]:info().now||last?.question?.instruction||info().name;
-  const goal=sheet?['核對流程、完整備份與四個指定案例。','實際套用格式、排除無效回覆並確認原因。','執行去重並核對結果，判斷衝突回覆的處理方式。','篩選、記錄統計、製圖，再提出補招初步建議。'][d.round]:info().goal||(typeof d?.task==='string'?d.task:'完成兩組不同資料。');
+  const d=last?.question?.data;
+  const now=info().now||last?.question?.instruction||info().name;
+  const goal=info().goal||(typeof d?.task==='string'?d.task:'完成兩組不同資料。');
   $('says').replaceChildren();['現在','要做到'].forEach((label,k)=>{const span=node('span');span.className='tk';span.append(node('b',label),node('span',[now,goal][k]));$('says').append(span);});
  }
  function layoutOutcome(d){
@@ -424,8 +438,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   stage.classList.add('quest-outcome');
   const intro=stage.querySelector('.panel'),work=node('div');work.className='quest-work panel';
   if(intro){
-   if(outcomeNotes[cfg.week]){const fragment=node('div');fragment.innerHTML=outcomeNotes[cfg.week];intro.replaceChildren(...fragment.firstChild.childNodes);}
-   else{const heading=intro.querySelector('h3');if(heading)heading.hidden=true;}
+   const heading=intro.querySelector('h3');if(heading)heading.hidden=true;
    intro.className='quest-note';
   }
   const tables=stage.querySelectorAll('.fullrev-outcome-table');
@@ -473,7 +486,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const carry=handle?.carry?.();handle?.dispose?.();stage.replaceChildren();handle=null;
   if(typeof cfg.renderQuestion!=='function')throw Error('renderer-pending');
   validation=null;$('draft-notice').textContent='';
-  handle=cfg.renderQuestion(value.question,stage,{changed,carry:value.photoAnswer||value.performanceOrder||carry,demonstration:false,shell:true});layoutOutcome(value.question.data);validation=answerValidation(handle,stage);mode='working';loadProblem='';sentValue='';submitted=false;verdict.hidden=true;count(value.question.slot);instructions();hints();controls();
+  handle=cfg.renderQuestion(value.question,stage,{changed,carry:value.photoAnswer||value.performanceOrder||carry,demonstration:false,shell:true});layoutOutcome(value.question.data);validation=answerValidation(handle,stage);confirmedInput=inputValue();mode='working';loadProblem='';sentValue='';submitted=false;verdict.hidden=true;count(value.question.slot);instructions();hints();controls();
   const draft=client.loadInput?.(cfg.week,round);
   if(draft!==undefined&&handle.restoreDraft){restoringInput=true;try{if(handle.restoreDraft(draft))$('draft-notice').textContent='已恢復上次未送出的作答';}finally{restoringInput=false;}controls();}
  }
@@ -503,6 +516,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    mode='correct';count(1);verdict.className='verdict mid';verdict.replaceChildren(node('h3','答對了！累積答對 1/2'));para(verdict,'按「下一組」挑戰不同資料，累積答對 2/2 就過關。');
    const btns=node('div'),b=node('button','下一組');btns.className='btns';b.type='button';b.className='btn primary';b.id='b-next-group';b.onclick=()=>{if(mode==='correct'){showQuestion(last);$('task-instructions').scrollIntoView?.({block:'start'});}};btns.append(b);verdict.append(btns);verdict.hidden=false;say('');
   }else if(value.correct===false&&handle&&old?.sid===value.sid&&old.question?.slot===value.question.slot){
+   confirmedInput=sentInput;
    mode='working';submitted=true;hint=Math.min(3,hint+1);verdict.className='verdict no';verdict.replaceChildren(node('h3','還不對'));para(verdict,value.feedback||'請再核對這一組的題目與資料。');para(verdict,'修改答案後再送一次').className='small';verdict.hidden=false;hints();say('');
   }else{showQuestion(value);say('');}controls();
  }
@@ -529,7 +543,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const work=renderProgress(fresh);refreshWork=work;try{return await work;}finally{if(refreshWork===work)refreshWork=null;}
  }
  function renderXP(){
-  $('xp-header').hidden=result.totalXP===null;$('xp-level').textContent='Lv '+result.level+' '+result.title;$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
+  $('xp-header').hidden=result.totalXP===null;$('xp-level').textContent='Lv '+result.level+' ';const xpTitle=node('span',result.title);xpTitle.className='xp-wide';$('xp-level').append(xpTitle);$('xp-total').textContent=result.totalXP+' XP';$('xp-progress').hidden=false;$('xp-progress').value=result.progress;$('xp-next').textContent=result.next===null?'已達最高等級':'下一級還差 '+result.remaining+' XP';
  }
  async function renderProgress(fresh){
   reading=true;const n=++read,g=revision;
@@ -590,23 +604,30 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   catch(e){if(g===revision){startWait();problem(e);}}finally{if(g===revision){starting=false;controls();}}
  }
  send.onclick=async()=>{
-  controls();if(send.disabled||!handle){explainDisabled();return;}if(validation?.show())return;sentValue=JSON.stringify(handle.get());submitted=true;const g=revision;send.disabled=true;controls();
+  controls();if(send.disabled||!handle){explainDisabled();return;}if(validation?.show())return;sentValue=JSON.stringify(handle.get());sentInput=inputValue();submitted=true;const g=revision;send.disabled=true;controls();
   try{const value=await client.answer(cfg.week,round,handle.get());if(g===revision)await receive(value);}
   catch(e){if(g===revision){if(!client.state().pending&&!['invalid-answer','answer-too-large'].includes(e.code))submitted=false;problem(e);}}finally{if(g===revision)controls();}
  };
  $('b-retry').onclick=async()=>{try{const values=await client.retry();if(values.length)await receive(values.at(-1));else if(client.state().pending){say(pendingMessage());controls();}}catch(e){problem(e);}};
- $('b-swap').onclick=()=>client.logout().catch(problem);
+ $('b-swap').onclick=$('b-logout').onclick=()=>{closeAccount();return client.logout().catch(problem);};
  identityBox.querySelector('#g-notme').onclick=$('b-swap').onclick;
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round);};
  lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  let focusRefresh;
- function clear(){clearTimeout(waitTimer);waitTimer=null;waitMessage='';guestCompleted.clear();focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';identityBox.querySelector('#g-isme').hidden=true;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');}
+ function clear(){clearTimeout(waitTimer);waitTimer=null;waitMessage='';guestCompleted.clear();focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';identityBox.querySelector('#g-isme').hidden=true;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');closeAccount();controls();}
  focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}},{now});
  client.subscribe(state=>{
   if(!state.profile){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}guestStorageKey='';identity='';clear();checkSchedule();return;}
   // 離頁通知先清畫面，不能讓舊外框先還原身分而啟動 context／start。
   if(state.status==='stale'){clear();identity='';return;}
   if(checkSchedule())return;
+  if(state.status==='restart-required'&&state.ticketTiming?.state==='expired'&&!state.view){
+   // 期限已由 client 清空題面；同步卸載輸入及回呼，避免舊操作留在活動畫面。
+   revision++;starting=false;clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();handle=null;validation=null;
+   hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;sentValue='';last=null;key='';lastLearning='';mode='loading';
+   stage.replaceChildren();verdict.replaceChildren();verdict.hidden=true;$('draft-notice').textContent='';
+   loadProblem='你的作答票已過期，請按「活動工具 → 重新開始」。';instructions();hints();count(0);say(loadProblem);
+  }
   if(['binding-changed','context-changed'].includes(state.status)){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;
   if(id!==identity){identity=id;restoreRound();
@@ -624,6 +645,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   startWait();
   controls();
  });
+ rounds();controls();
  await mountLogin({client,host:login,oldlook:true});
  try{await client.restore();}catch(e){para(login,explain(e));}
  const focus=()=>focusRefresh().catch(problem);

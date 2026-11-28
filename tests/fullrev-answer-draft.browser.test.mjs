@@ -13,7 +13,7 @@ app.state.owner=false;
 app.state.snapshot=snapshot([]);app.state.fetcher=async()=>Response.json(response(0,{question:{type:'minimum-bits-v1',slot:0,data:{n:15}}}));
 await mountActivity({client:Promise.resolve(app.client),cfg:{course:'115-g9',week:5,title:'合成活動',rounds:[{name:'合成關卡'}],renderQuestion}});window.ready=true;
 </script></body>`;
-async function open(t,{tickets=false}={}){
+async function open(t,{tickets=false,clock=false}={}){
  const browser=await chromium.launch({headless:true});t.after(()=>browser.close());const context=await browser.newContext({viewport:{width:390,height:700},serviceWorkers:'block'});t.after(()=>context.close());
  await context.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin!=='http://127.0.0.1:8765')return route.abort();
   if(route.request().isNavigationRequest())return route.fulfill({contentType:'text/html',body:tickets?html
@@ -21,7 +21,7 @@ async function open(t,{tickets=false}={}){
    .replace('response(0,{question:','response(0,{ticketVersion:1,ticket:"ybs-answer-v1.synthetic-browser-fixture",question:'):html});
   if(!/^\/(?:assets\/[\w.-]+\.(?:m?js|css)|tests\/fixtures\/fullrev.mjs)$/.test(url.pathname))return route.abort();
   return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+url.pathname,import.meta.url))});});
- const page=await context.newPage();page.setDefaultTimeout(6000);await page.goto('http://127.0.0.1:8765/synthetic/');await page.waitForFunction(()=>window.ready);
+ const page=await context.newPage();page.setDefaultTimeout(6000);if(clock){await page.clock.install();await page.clock.pauseAt(new Date());}await page.goto('http://127.0.0.1:8765/synthetic/');await page.waitForFunction(()=>window.ready);
  await page.evaluate(()=>app.login());await page.locator('#g-isme').click();await page.locator('#stage input').first().waitFor();return page;
 }
 test('實際點擊停用送出鈕與鍵盤操作：所有欄位紅框、最上方聚焦、即時清除、深色可讀',async t=>{
@@ -54,5 +54,36 @@ test('跨重整保留未完成原文與同關題面，提示恢復；不是我�
  const page=await open(t);await page.locator('#stage input').first().fill('４');await page.reload();await page.waitForFunction(()=>window.ready);await page.locator('#g-isme').click();
  await page.locator('#draft-notice').filter({hasText:'已恢復上次未送出的作答'}).waitFor();assert.equal(await page.locator('#stage input').first().inputValue(),'４');assert.equal(await page.locator('#stage input').nth(1).inputValue(),'');
  assert.deepEqual(await page.evaluate(()=>app.requests.map(r=>new URL(r.url).pathname)),['/resume']);
- await page.locator('#b-swap').click();assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('ybs:fullrev:work:')).length),0);assert.equal(await page.locator('#stage').innerText(),'');
+ await page.locator('#account-toggle').click();await page.locator('#b-swap').click();assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('ybs:fullrev:work:')).length),0);assert.equal(await page.locator('#stage').innerText(),'');
+});
+
+for(const trigger of ['focus','timer'])test(`作答票期限到時清除活動畫面與輸入，保留登入且可重新開始（${trigger}）`,async t=>{
+ const page=await open(t,{tickets:true,clock:true});
+ await page.evaluate(async()=>{
+  const {response,opened}=await import('/tests/fixtures/fullrev.mjs');
+  app.state.fetcher=async()=>Response.json(response(0,{sid:'d'.repeat(22),expiresAt:new Date(opened+864e5+20*60000).toISOString(),
+   ticketVersion:1,ticket:'ybs-answer-v1.synthetic-deadline-screen',question:{type:'minimum-bits-v1',slot:0,data:{n:15}}}));
+  await app.client.start(5,0,{restart:true});
+ });
+ await page.locator('#stage input').first().fill('4');await page.locator('#stage input').nth(1).fill('15');
+ await page.evaluate(()=>{window.oldDeadlineInput=document.querySelector('#stage input');app.advance(20*60000);});
+ if(trigger==='focus')await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+ else await page.clock.fastForward(20*60000);
+ assert.equal(await page.evaluate(()=>app.client.state().status),'restart-required');
+ assert.equal(await page.locator('#stage input').count(),0);
+ assert.equal(await page.locator('#stage').innerText(),'');
+ assert.equal(await page.evaluate(()=>oldDeadlineInput.isConnected),false);
+ assert.equal(await page.locator('#b-send').isDisabled(),true);
+ assert.equal(await page.locator('#draft-notice').innerText(),'');
+ assert.equal(await page.evaluate(()=>app.client.state().profile.uid),'synthetic-student');
+ assert.equal(await page.evaluate(()=>JSON.stringify([Object.values(localStorage),Object.values(sessionStorage)]).includes('synthetic-deadline-screen')),false);
+ await page.evaluate(async()=>{
+  const {response,opened}=await import('/tests/fixtures/fullrev.mjs');
+  app.state.fetcher=async()=>Response.json(response(0,{expiresAt:new Date(opened+864e5+40*60000).toISOString(),
+   ticketVersion:1,ticket:'ybs-answer-v1.synthetic-restarted-screen',question:{type:'minimum-bits-v1',slot:0,data:{n:15}}}));
+ });
+ await page.getByText('活動工具',{exact:true}).click();await page.getByRole('button',{name:'重新開始',exact:true}).click();
+ await page.locator('#stage input').first().waitFor();
+ assert.deepEqual(await page.locator('#stage input').evaluateAll(inputs=>inputs.map(input=>input.value)),['','']);
+ assert.equal(await page.evaluate(()=>app.client.state().ticketTiming.state),'active');
 });

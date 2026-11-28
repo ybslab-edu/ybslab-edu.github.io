@@ -93,12 +93,15 @@ test('成長頁 390／1280 恢復原視圖、範圍切換、路線、XP 與登�
     assert.equal(p.$('growth').hidden,true);assert.equal(p.$('route').textContent,'');assert.equal(p.$('total').textContent,'');
   });
 });
-test('成長頁沿用 origin/main 原版 HTML 與 CSS，資料未確認時不顯示零分',async t=>{
+test('成長頁保留 origin/main 原版 HTML 與非字級 CSS，套用核准 17px 下限；資料未確認時不顯示零分',async t=>{
   const source=await read('assets/fullrev-ui.mjs');
   const markup=source.match(/const growthMarkup=String.raw`([\s\S]*?)`;/)[1];
   const css=source.match(/const growthCSS=String.raw`([\s\S]*?)`;/)[1];
   assert.equal(markup,(await old('115-g9/me/index.html')).split('<body>')[1].split('</body>')[0]);
-  assert.equal(css,await old('115-g9/me/me.css'));
+  const expectedCSS=(await old('115-g9/me/me.css'))
+    .replace(/font-size:(\d+(?:\.\d+)?)px/g,(match,size)=>Number(size)<17?'font-size:var(--text-min,17px)':match)
+    .replace('font:15px/1.7 var(--body)','font:var(--text-body,18px)/1.7 var(--body)');
+  assert.equal(css,expectedCSS);
   const p=await page(t);p.set(snapshot([],{complete:false}));await p.$('retry').onclick();
   assert.equal(p.$('growth').hidden,true);assert.equal(p.$('total').textContent,'');
 });

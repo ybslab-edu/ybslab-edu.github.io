@@ -68,7 +68,7 @@ test('篩選與圖表依賴、統計不預填、來源／標題改回也失效�
   const a=syntheticSolution(q);assert.equal(m.applyTeacherSolution(a),true);const original=m.controls()[key];m.set(key,value);m.set(key,original);assert.equal(m.get().state.chart,null);assert.equal(m.controls().percent,'');assert.equal(m.controls().priorityJob,'');assert.equal(m.controls().priorityReason,'');
  }
  m.set('sourceChoice','originalSummary');assert.match(m.execute('pie'),/沒有提供/);m.execute('clearFilter');assert.equal(m.results().visibleRowIds.length,10);
- m.set('counts',['0','0','0']);m.execute('counts');m.set('sourceChoice','filtered');m.set('titleChoice',1);assert.equal(m.execute('pie'),'');assert.equal(percentTenths([0,0,0],1),0);
+ m.set('group',q.data.task.group);m.set('slot',q.data.task.slot);m.execute('filter');m.set('counts',['0','0','0']);m.execute('counts');m.set('sourceChoice','filtered');m.set('titleChoice',1);assert.equal(m.execute('pie'),'');assert.equal(percentTenths([0,0,0],1),0);
  assert.equal(percentTenths([1,1,1],0),333);assert.deepEqual(demandGaps([1,2,1],[2,2,0]),[0,0,1]);
  const host=new Element('div'),h=renderQuestion(q,host,{changed(){},demonstration:true});const a=syntheticSolution(q);a.ops[1].values=[0,0,0];a.state.counts=[0,0,0];a.state.chart.counts=[0,0,0];a.state.percentTenths=0;assert.equal(h.applyTeacherSolution(a),true);assert.match(host.textContent,/合計 0 筆/);assert.equal(host.querySelectorAll('canvas').length,0);
 });
@@ -109,4 +109,28 @@ test('release allowlist 含公開模組與樣式，掃描新版私有答案、�
  for(const leak of [JSON.stringify(a),JSON.stringify(key),'function deriveSheet(){}','const flowOrder=[0,1,2];','const titleOrder=[0,1,2];','import x from "./volunteer-sheet-generator.mjs";']){
   await writeFile(file,original+'\nconst leak='+leak+';');await assert.rejects(scanRelease({output,workerSource}),/private_answer_object|private_version|forbidden_content/);
  }await writeFile(file,original);assert.deepEqual(await scanRelease({output,workerSource}),built.scan);console.log('u206 release scan:',JSON.stringify(built.scan));
+});
+
+test('D12：錯標題與錯篩選均不製圖，清除舊圖及分析並拒收舊的錯標題草稿',t=>{
+ dom(t);const q=sheetQuestion(3),m=createSheetModel(q.data),answer=syntheticSolution(q);
+ for(const titleChoice of [0,2]){
+  assert.equal(m.applyTeacherSolution(answer),true);m.set('titleChoice',titleChoice);
+  m.set('percent','20.0');m.set('priorityJob',0);m.set('priorityReason','demandGap');
+  assert.match(m.execute('pie'),/標題須符合/);assert.equal(m.get().state.chart,null);assert.equal(m.operation('pie'),null);
+  assert.equal(m.controls().percent,'');assert.equal(m.controls().priorityJob,'');assert.equal(m.controls().priorityReason,'');
+ }
+ // 標題符合目前篩選，卻不符合任務，仍須阻擋。
+ m.set('group','遊戲組');m.set('slot','下午');m.execute('filter');m.set('counts',['1','2','3']);m.execute('counts');m.set('titleChoice',0);
+ assert.match(m.execute('pie'),/標題須符合/);assert.equal(m.get().state.chart,null);
+ // 標題符合任務，卻不符合實際套用的篩選，也須阻擋。
+ m.set('titleChoice',1);assert.match(m.execute('pie'),/標題須符合/);assert.equal(m.get().state.chart,null);
+ const old=createSheetModel(q.data);old.applyTeacherSolution(answer);const draft=old.draft();draft.controls.titleChoice=0;draft.ops[2].titleChoice=0;
+ assert.equal(m.restoreDraft(draft),false);
+ // 實際 UI 先有圖，改錯標題後圖與分析欄位清空，按製圖仍不畫圖。
+ const host=new Element('div'),h=renderQuestion(q,host,{changed(){},shell:true,demonstration:true});h.applyTeacherSolution(answer);
+ assert.equal(host.querySelectorAll('canvas').length,1);
+ const field=host.querySelectorAll('select').find(e=>e.id.endsWith('titleChoice'));field.value='0';field.oninput();
+ host.querySelector('[data-sheet-action="pie"]').click();assert.equal(host.querySelectorAll('canvas').length,0);assert.match(host.querySelector('.sheet-status').textContent,/標題須符合/);
+ assert.equal(h.get().state.percentTenths,null);assert.equal(h.get().state.priorityJob,'');assert.equal(h.get().state.priorityReason,'');
+ field.value='1';field.oninput();host.querySelector('[data-sheet-action="pie"]').click();assert.equal(host.querySelectorAll('canvas').length,1);
 });

@@ -5,10 +5,14 @@ import {mkdtemp,readFile,writeFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import vm from 'node:vm';
+import {writeSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {activitiesJSON} from '../tools/activities-json.mjs';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
+import {readAcceptedHits} from '../tools/scan-private-answers.mjs';
+import {runGate,verifyEvidence,workerPaths} from '../tools/release-offline-gate.mjs';
 const config={...fixtureConfig,answerTickets:true,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
 test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups remain unchanged',async t=>{
  if(workerCISkip){t.skip(workerCISkip);return;}
@@ -20,13 +24,16 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
  await assert.rejects(buildSite({output,config:{...config,answerTickets:'true'},workerSource}),/release_answer_tickets_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ assert.equal(built.scan.knownAcceptedHits,9);
+ assert.deepEqual(built.scan.knownAcceptedGroups.map(g=>[g.id,g.hits]),[['risk-accepted',4],['public-baseline-a',5]]);
+ assert.equal(built.scan.acceptedHitsSha256,createHash('sha256').update(await readAcceptedHits()).digest('hex'));
  const catalogPath=join(output,'assets/activities.json'),catalog=await readFile(catalogPath,'utf8');
  assert.equal(catalog,activitiesJSON(await readFile(new URL('../assets/activities.js',import.meta.url),'utf8')));
  assert.deepEqual(JSON.parse(catalog),JSON.parse(await readFile(new URL('../assets/activities.json',import.meta.url),'utf8')));
  await rm(catalogPath);await assert.rejects(scanRelease({output,workerSource}),/release_allowlist_mismatch/);await writeFile(catalogPath,catalog);
  await writeFile(catalogPath,catalog+'\n'+JSON.stringify({answer:'synthetic',qThreeExpected:[]}));
  await assert.rejects(scanRelease({output,workerSource}),/release_forbidden_content/);await writeFile(catalogPath,catalog);
- t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}`);
+ t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}; knownAcceptedHits=${built.scan.knownAcceptedHits}`);
  // Every new release page, including all w01–w30 redirects, shares popup CSP.
  // The three pinned legacy DF pages retain their separate, byte-checked policy.
  for(const p of releasePaths().filter(p=>p.endsWith('.html')&&!p.startsWith('115-df/'))){
@@ -120,4 +127,27 @@ test('DF 60-second cooldown preserves changed draft, identical receipt is idempo
  await api.submitReport(1,encoded);await api.submitReport(1,encoded);assert.equal(writes,1);
  const changed={...encoded,payload:'{"synthetic":true}'};await assert.rejects(api.submitReport(1,changed),{code:'report/rate-limited'});assert.equal(writes,1);
  clock+=60000;await api.submitReport(1,changed);assert.equal(writes,2);assert.equal(docs.values().next().value.payload,changed.payload);
+});
+
+test('synthetic changed acceptance list invalidates prior offline evidence through existing source binding',async()=>{
+ const dir=await mkdtemp('/tmp/ybs-list-evidence-'),front=join(dir,'front'),worker=join(dir,'worker');
+ const put=async(base,path,bytes='synthetic')=>{const file=join(base,path);await mkdir(join(file,'..'),{recursive:true});await writeFile(file,bytes);};
+ for(const path of ['assets','115-g9','115-df','map','about','tests','tools','scripts'])await put(front,path+'/fixture.mjs');
+ for(const path of ['index.html','404.html'])await put(front,path);
+ for(const name of ['fullrev-answer-scan.test.mjs','fullrev-release.test.mjs','fullrev-csp.browser.test.mjs','fullrev-df-teacher.browser.test.mjs'])await put(front,'tests/'+name);
+ for(const path of workerPaths)await put(worker,path==='package.json'?path:path+'/fixture.mjs');
+ await put(worker,'tests/fixture.test.mjs');
+ const listPath='tools/scan-accepted-hits.json',original=await readAcceptedHits();await put(front,listPath,original);
+ const options={front,worker,frontCommit:'a'.repeat(40),workerCommit:'b'.repeat(40),out:join(dir,'evidence')};
+ // Synthetic runner tests evidence validation only; it does not claim full-gate acceptance.
+ const evidence=runGate(options,(_command,args,opts)=>{
+  if(!opts.stdio)return {status:0,stdout:'',stderr:''};
+  writeSync(opts.stdio[1],args.includes('python3')?'OK   synthetic mock\nSKIP teacher unlock（沒有設定 YBS_TEACHER_CODE）\n':'# tests 1\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n');
+  return {status:0};
+ });
+ assert.equal(verifyEvidence({...options,evidence}).status,'passed');
+ // Even a whitespace-only replacement must invalidate old evidence: raw list bytes matter.
+ await put(front,listPath,Buffer.concat([original,Buffer.from('\n')]));
+ assert.notDeepEqual(await readAcceptedHits(join(front,listPath)),original);
+ assert.throws(()=>verifyEvidence({...options,evidence}),/gate_source_version_mismatch/);
 });

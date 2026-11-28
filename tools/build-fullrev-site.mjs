@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {activitiesJSON} from './activities-json.mjs';
 import {buildBatches,PUBLIC_ACTIVITY_ASSETS} from './build-fullrev-batch1.mjs';
 import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
-import {scanPrivateAnswers} from './scan-private-answers.mjs';
+import {readAcceptedHits,scanPrivateAnswerFiles} from './scan-private-answers.mjs';
 import {publicAnswerRemainder} from './public-answer-allowlist.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 import {fullrevCsp,assertFullrevCsp} from './fullrev-csp.mjs';
@@ -60,6 +60,7 @@ function releaseConfig(config){
 }
 export async function scanRelease({output,workerSource}){
  if(!workerSource)throw Error('worker_source_required_for_release_scan');
+ const acceptedHits=await readAcceptedHits();
  const found=[],text=[];output=resolve(output);
  async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true})){
   const p=join(dir,e.name),s=await lstat(p);if(s.isSymbolicLink()||!s.isFile()&&!s.isDirectory())throw Error('release_nonregular_file');
@@ -118,10 +119,10 @@ export async function scanRelease({output,workerSource}){
   scan(materials);
  }
  if(!cases)throw Error('release_cases_missing');
- for(const f of scanned){try{scanPrivateAnswers(f.bytes.toString('utf8'),answers);}catch(e){throw Error(e.message+':'+f.path);}}
+ const accepted=scanPrivateAnswerFiles(scanned,answers,acceptedHits);
  const sha256=createHash('sha256');for(const f of text.sort((a,b)=>a.path.localeCompare(b.path))){sha256.update(f.path+'\0');sha256.update(f.bytes);}
  const resources=releaseResources(text,{releaseId,readModelModule:config.readModelModule,pinned});
- return {files:found.length,privateCases:cases,hits:0,sha256:sha256.digest('hex'),releaseId,resources};
+ return {files:found.length,privateCases:cases,hits:0,...accepted,sha256:sha256.digest('hex'),releaseId,resources};
 }
 export async function buildSite({output,config,workerSource,source=root}){
  releaseConfig(config);

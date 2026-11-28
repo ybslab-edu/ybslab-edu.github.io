@@ -195,7 +195,7 @@ export function questionHints(question) {
  else if(type==='recording-capacity-v1'){direction='1 GB＝1000 MB；所需容量＝分鐘 × 每分鐘 MB。';steps='先把卡片容量換成 MB，再比較每種畫質能否錄完整場；最多分鐘用容量除以每分鐘 MB，取整數部分。';}
  return {direction:d.hint||direction,steps:d.guide||steps};
 }
-export async function mountStudentLogin({client,host,onLogin,explain,active=()=>true}){
+export async function mountStudentLogin({client,host,onLogin,explain,explainTeacher=explain,active=()=>true}){
  const form=node('form');form.className='ybs-login';form.autocomplete='off';
  form.innerHTML=`<label>帳號<input name="account" inputmode="text" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號"></label><div><label for="activity-password">密碼</label><div class="ybs-password"><input id="activity-password" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號"><input type="button" class="ybs-password-toggle" value="顯示" aria-label="顯示密碼" aria-pressed="false" aria-controls="activity-password"><svg class="ybs-password-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></div></div><button type="submit" class="btn primary">登入</button>`;
  const account=form.querySelector('[name="account"]'),password=form.querySelector('[name="password"]'),submit=form.querySelector('button'),toggle=form.querySelector('.ybs-password-toggle');
@@ -205,7 +205,7 @@ export async function mountStudentLogin({client,host,onLogin,explain,active=()=>
  async function run(kind,guest){
   if(!active()||submit.disabled)return;actions.forEach(b=>b.disabled=true);submit.textContent='登入中…';error.textContent='';
   try{const p=await client.login(kind,guest||account.value,password.value);if(!active())return;password.value='';await onLogin(p);}
-  catch(e){if(!active())return;password.value='';error.textContent=/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
+  catch(e){if(!active())return;password.value='';error.textContent=kind==='owner'?explainTeacher(e):/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
   finally{if(active()){actions.forEach(b=>b.disabled=false);submit.textContent='登入';}}
  }
  form.onsubmit=e=>{e.preventDefault();return run('password');};
@@ -213,7 +213,7 @@ export async function mountStudentLogin({client,host,onLogin,explain,active=()=>
  host.append(form,error,secondary);
  if(client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
 }
-export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now=Date.now}){
+export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,explainTeacher=explain,now=Date.now}){
  const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261127sheet';document.head.append(css);
  const activity=typeof ACTIVITIES==='undefined'?null:ACTIVITIES.find(a=>a.course===cfg.course&&a.week===cfg.week);
  const courseClosed=()=>typeof COURSES!=='undefined'&&COURSES.some(c=>c.id===cfg.course&&!c.open);
@@ -304,7 +304,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course)
   .map(a=>({...a,openedAt:typeof activityOpenAt==='function'?activityOpenAt(a):a.openedAt}));
- const explainProblem=e=>{const state=client.state();return explain(e,{...state,answerState:state.pending?undefined:handle?'page':undefined});};
+ const explainProblem=e=>{const state=client.state();return state.profile?.owner?explainTeacher(e):explain(e,{...state,answerState:state.pending?undefined:handle?'page':undefined});};
  const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，你的答案已保留。':state.uploadIssue?.startsWith('summary-')||state.uploadIssue==='storage-quota'?explainProblem({code:state.uploadIssue}):state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；你可以稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；你可以稍候按「重試上傳」。':'上傳中，請稍候，你的答案已保留。';};
  // 頁首沿用待送摘要；按鈕旁另列連線、流量或額度的具體原因。
  const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result&&!result.local?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};

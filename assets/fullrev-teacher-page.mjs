@@ -61,8 +61,16 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
  p.tools.append(classLabel,classKey,help,activityLabel,activity,subject);
  const history=mountHistory({client:p.client,host:p.tools,scope:()=>({classKey:subject.selectedOptions?.[0]?.dataset.classKey||classKey.value.trim(),subject:subject.value.trim()}),life:p});
  subject.oninput=history.clear;
- let reading=0,view=null,shownUID=p.client.state().profile?.uid;
- function clear(){reading++;view=null;history.clear();subject.replaceChildren();p.content.replaceChildren();}
+ let reading=0,view=null,query=null,retry=null,retryTimer=null,shownUID=p.client.state().profile?.uid;
+ const later=button('稍後重查',()=>{clear();p.status.textContent='已停止這次讀取。老師方便時，請按「讀取有效紀錄」重新查詢。';});later.hidden=true;
+ function stopRetry(){clearInterval(retryTimer);retryTimer=null;retry=null;}
+ function showRetry(){
+  if(!query||!retry||!p.active())return;
+  const seconds=Math.max(0,Math.ceil((retry.retryAt-Date.now())/1000)),minutes=Math.floor(seconds/60),rest=seconds%60;
+  const wait=seconds===0?'即將':minutes?`${minutes} 分鐘${rest?' '+rest+' 秒':''}後`:`${seconds} 秒後`;
+  p.status.textContent=`伺服器忙，第 ${retry.attempt} 次重試；預計${wait}再查詢。老師可按「稍後重查」停止這次讀取。`;
+ }
+ function clear(){reading++;const old=query;query=null;stopRetry();later.hidden=true;old?.abort();view=null;history.clear();subject.replaceChildren();p.content.replaceChildren();}
  function render(){
   p.content.replaceChildren();if(!view)return;
   const table=node('table'),head=node('thead'),tr=node('tr');
@@ -90,9 +98,9 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
   table.append(body);const scroll=node('div');scroll.className='teacher-scroll';scroll.tabIndex=0;scroll.setAttribute('role','region');scroll.setAttribute('aria-label','有效紀錄表');scroll.append(table);p.content.append(scroll);
  }
  async function refresh(download=false){
-  if(!p.active())return;clear();const n=reading;p.status.textContent='正在確認班級有效紀錄…';
+  if(!p.active())return;clear();const n=reading,controller=new AbortController();query=controller;later.hidden=false;p.status.textContent='正在確認班級有效紀錄…';
   try{
-   const snapshots=await teacherSnapshots(p.client,classKey.value.trim(),activities);
+   const snapshots=await teacherSnapshots(p.client,classKey.value.trim(),activities,{signal:controller.signal});
    if(!p.active()||n!==reading||!p.client.state().profile)return;
    const xp=await xpCore();if(!p.active()||n!==reading||!p.client.state().profile)return;
    view=teacherOverview(snapshots,{project:p.client.project,course:p.client.course,activities},xp);
@@ -105,11 +113,20 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
     const a=node('a');a.href=url;a.download='YBS_有效紀錄.xlsx';a.click();let revoked=false;const revoke=()=>{if(!revoked){revoked=true;URL.revokeObjectURL(url);}};const timer=setTimeout(revoke,1000);p.cleanup(()=>{clearTimeout(timer);revoke();});
    }
   }catch(e){if(p.active()&&n===reading){clear();p.status.textContent=(e.classKey?`${e.classKey} 讀取失敗；未顯示或匯出部分班級資料。`:'')+explain(e);}}
+  finally{if(n===reading){query=null;stopRetry();later.hidden=true;}}
  }
- p.tools.append(button('讀取有效紀錄',()=>refresh()),button('重新確認並下載 Excel',()=>refresh(true)));
+ p.tools.append(button('讀取有效紀錄',()=>refresh()),button('重新確認並下載 Excel',()=>refresh(true)),later);
  activity.onchange=()=>{try{localStorage.setItem(filterKey,activity.value);}catch{}render();};
  classKey.oninput=()=>{clear();p.status.textContent='請重新讀取所選班級。';};
- p.subscribe(p.client,state=>{if(!state.profile||state.profile.uid!==shownUID||['stale','binding-changed','context-changed'].includes(state.status))clear();shownUID=state.profile?.uid;});
+ p.subscribe(p.client,state=>{
+  if(!state.profile||state.profile.uid!==shownUID||['stale','binding-changed','context-changed'].includes(state.status))clear();shownUID=state.profile?.uid;
+  if(!query)return;
+  const waiting=state.readingRetry,key=classKey.value.trim();
+  const matches=waiting&&(waiting.classKey===key||/^c[1-9][0-9]{2}$/.test(key)&&[key+'_1',key+'_2'].includes(waiting.classKey));
+  if(matches&&['controls','progress'].includes(waiting.operation)){
+   retry=waiting;showRetry();if(retryTimer===null)retryTimer=setInterval(showRetry,1000);
+  }else if(retry){stopRetry();p.status.textContent='正在確認班級有效紀錄…';}
+ });
  p.cleanup(clear);eventsRefresh(p,()=>{clear();p.status.textContent='請重新確認紀錄後匯出。';});
  return p.dispose;
 }

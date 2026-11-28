@@ -15,7 +15,7 @@ export function htmlFiles(dir) {
 }
 
 // 逐個讀取 HTML 標籤，略過註解與 raw text；不可將腳本內的範例當標籤。
-function* resourceAttributes(html) {
+export function* resourceAttributes(html) {
   const tags = /<!--[\s\S]*?(?:-->|$)|<![^>]*>|<\/?([a-z][a-z\d:-]*)(?=[\s/>])(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi;
   const urlAttributes = {script:'src', link:'href', img:'src', source:'src', audio:'src', video:'src', track:'src', input:'src', embed:'src', object:'data', iframe:'src'};
   for (let tag; (tag = tags.exec(html));) {

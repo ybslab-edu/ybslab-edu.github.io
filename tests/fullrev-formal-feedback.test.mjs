@@ -25,13 +25,13 @@ async function setup(t,options) {
   }
   return {...h,$,button,events};
 }
-for(const guestActivity of [5,6])test(`活動 ${guestActivity} 訪客紀錄待確認仍顯示另一正式關卡過關、XP 明細及下一關`,async t=>{
+for(const guestActivity of [5,6])test(`活動 ${guestActivity} 已核可訪客與正式關卡共同顯示過關、XP 明細及下一關`,async t=>{
   const h=await setup(t,{guestActivity});await until(()=>h.$('verdict').querySelector('h3')?.textContent==='過關！');
   assert.match(h.$('verdict').textContent,/本關 XP：\+10 過關、\+5 準時/);
   assert.equal(h.$('sync').textContent,'✓ 紀錄已上傳給老師');assert.equal(h.$('b-send').disabled,true);
-  assert.equal(h.$('xp-header').hidden,true,'訪客 XP 未核定，仍不顯示總 XP');
+  assert.equal(h.$('xp-header').hidden,false);assert.equal(h.$('xp-total').textContent,'30 XP');
   assert.equal(h.button('下一關').hidden,false);
-  if(guestActivity===5)assert.match(h.$('rounds').textContent,/待老師確認/);
+  if(guestActivity===5)assert.doesNotMatch(h.$('rounds').textContent,/待老師確認/);
   const reads=h.state.progressReads;h.advance();await h.events.focus();assert.equal(h.state.progressReads,reads+1);
   assert.equal(h.$('verdict').querySelector('h3').textContent,'過關！');
   const requested=Promise.withResolvers(),release=Promise.withResolvers(),fetcher=h.state.fetcher;
@@ -45,9 +45,9 @@ for(const guestActivity of [5,6])test(`活動 ${guestActivity} 訪客紀錄待�
   release.resolve();await next;assert.ok(h.$('stage').querySelector('input'));
   await h.client.logout();assert.equal(h.$('main').hidden,true);
 });
-test('同關只有訪客待確認紀錄時，不得當成正式過關證明',async t=>{
+test('同關已核可訪客可顯示 XP，仍不得偽造新正式作答的完成回條',async t=>{
   const h=await setup(t,{guestRound:0,confirmFormal:false});
   assert.notEqual(h.$('verdict').querySelector('h3')?.textContent,'過關！');
-  assert.equal(h.button('下一關'),undefined);assert.equal(h.$('xp-header').hidden,true);
+  assert.equal(h.button('下一關'),undefined);assert.equal(h.$('xp-header').hidden,false);assert.equal(h.$('xp-total').textContent,'15 XP');
   assert.match(h.$('sync').textContent,/正在確認雲端紀錄/);await h.client.logout();
 });

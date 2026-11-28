@@ -1,3 +1,4 @@
+import {preferCredit} from './fullrev-credit.mjs';
 // PR3 不開放 list；本模組只消費受控服務已核對的最小投影，不讀私有 gate。
 export const fail = code => Object.assign(new Error(code), {code});
 export const int = (n, min = 0) => Number.isSafeInteger(n) && n >= min && n <= 1e9;
@@ -33,7 +34,9 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
           || r.completedAt !== null && !Number.isFinite(time(r.completedAt))
           || !Number.isFinite(time(r.xpPolicySnapshot?.openedAt))) return unknown('legacy-invalid');
     } else if (r.source==='worker-guest-approved') {
-      if(!id(r.approvalId)||!a||!int(r.round)||r.round>=a.rounds.length||!Number.isFinite(time(r.completedAt)))return unknown('guest-invalid');
+      if(!id(r.approvalId)||!a||!int(r.round)||r.round>=a.rounds.length||!Number.isFinite(time(r.completedAt))
+        || Object.hasOwn(r,'xpPolicySnapshot') && (!r.xpPolicySnapshot || !Number.isFinite(time(r.xpPolicySnapshot.openedAt))
+          || !id(r.xpPolicySnapshot.classKey) || !['configVersion','gateVersion','classGateVersion'].every(k=>int(r.xpPolicySnapshot[k],1))))return unknown('guest-invalid');
     } else if (r.schemaVersion !== 1 || r.source !== 'worker-validated' || !id(r.resultId) || !id(r.uid)
         || !['google.com','password','anonymous'].includes(r.provider) || !id(r.sid) || !id(r.classKeyAtPass)
         || !int(r.bindingVersion,1) || !a
@@ -48,12 +51,7 @@ export function effectiveRecords(snapshot, {project,course,subject,activities}) 
       validatedIds.set(key,r.resultId);
     }
     const old = selected.get(key);
-    if (old && (legacy || old.source === 'legacy-unverified'||r.source==='worker-guest-approved'||old.source==='worker-guest-approved')) {
-      const previous = time(old.completedAt), next = time(r.completedAt);
-      // Old XP oracle: unknown first-pass time wins; otherwise choose the earliest.
-      if (!(Number.isFinite(previous) && (!Number.isFinite(next) || next < previous)
-          || Object.is(next,previous) && legacy)) continue;
-    }
+    if (!preferCredit(r,old)) continue;
     selected.set(key,{...r,...(r.source==='worker-guest-approved'?{provider:'anonymous'}:{}),course});
   }
   return {state:'confirmed',records:[...selected.values()],exclusions};
@@ -64,11 +62,11 @@ export function growth(snapshot, options, xp) {
   if (valid.state !== 'confirmed') return {...valid,totalXP:null};
   return confirmedGrowth(valid,options,xp);
 }
-function confirmedGrowth(valid, options, xp) {
-  // guest 帳號 XP 尚待核定；不能因 binding 成功就補發。
-  if (options.provider === 'anonymous' || valid.records.some(r=>r.provider==='anonymous')) {
-    const pendingRecords=valid.records.filter(r=>r.provider==='anonymous');
-    const result=xp.calculate(options.activities,valid.records.filter(r=>r.provider!=='anonymous'),{worker:true});
+function confirmedGrowth(valid, options, xp, accountProjection = false) {
+  // 只有已核可事件可計入匿名來源成果；匿名登入本身仍不能取得永久 XP。
+  if (options.provider === 'anonymous' && !accountProjection || valid.records.some(r=>r.provider==='anonymous'&&r.source!=='worker-guest-approved')) {
+    const pendingRecords=valid.records.filter(r=>r.provider==='anonymous'&&r.source!=='worker-guest-approved');
+    const result=xp.calculate(options.activities,valid.records.filter(r=>r.provider!=='anonymous'||r.source==='worker-guest-approved'),{worker:true});
     for(const a of result.activities)for(const r of a.rounds)r.teacherPending=pendingRecords.some(p=>p.activity===a.activity&&p.round===a.rounds.indexOf(r));
     return {...valid,...result,state:'unknown',reason:'guest-xp-policy-pending',totalXP:null,pendingRecords};
   }
@@ -100,13 +98,13 @@ export function exportRows(snapshot, options, xp) {
   for (const person of snapshot.people) {
     const records = bySubject.get(person.subject) || [];
     const progress = confirmedGrowth({state:'confirmed',records,exclusions:[]},
-      {...options,subject:person.subject,provider:person.provider},xp);
+      {...options,subject:person.subject,provider:person.provider},xp,true);
     if (progress.state !== 'confirmed' && progress.reason !== 'guest-xp-policy-pending') throw fail('xp-unconfirmed');
     for (const a of options.activities) for (let round=0;round<a.rounds.length;round++) {
       const record = records.find(r => r.activity === a.week && r.round === round);
       const detail = progress.activities?.find(v => v.activity === a.week)?.rounds[round];
       rows.push([person.cls,person.seat,a.title,a.rounds[round],record?(record.source==='legacy-unverified'?'舊紀錄過關（未驗證）':'已確認過關'):'尚未過關',
-        record?.completedAt || '',progress.totalXP === null ? '待確認' : detail?.totalXP || 0,record?.resultId || '']);
+        record?.completedAt || '',progress.totalXP === null ? '待確認' : detail?.totalXP || 0,record?.resultId || record?.approvalId || '']);
     }
     rows.push([person.cls,person.seat,'合計','','','',progress.totalXP === null?'待確認':progress.totalXP,'']);
   }

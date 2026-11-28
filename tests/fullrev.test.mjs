@@ -626,14 +626,12 @@ test('上一人的請求持續無回應也不會卡住新身分同一關',async(
   assert.equal(h.client.state().profile.uid,'synthetic-new');
 });
 
-test('未核定訪客 XP 保留其餘正式進度，訪客關標待老師確認，不發 XP',()=>{
+test('已核可訪客成果保留匿名來源並發永久 XP，與正式成果共同成長',()=>{
   const guest=record(1,{source:'worker-guest-approved',approvalId:'synthetic-approval',provider:'anonymous'});
   const value=growth(snapshot([record(0),guest]),options,xp);
-  const formal=growth(snapshot([record(0)]),options,xp);
-  assert.equal(value.totalXP,null);assert.equal(value.reason,'guest-xp-policy-pending');
-  assert.deepEqual(value.activities.map(a=>a.totalXP),formal.activities.map(a=>a.totalXP));
+  assert.equal(value.totalXP,30);assert.equal(value.state,'confirmed');
   assert.equal(value.activities[0].rounds[0].passed,true);
-  assert.equal(value.activities[0].rounds[1].teacherPending,true);
-  assert.equal(value.activities[0].rounds[1].passed,false);
+  assert.equal(value.activities[0].rounds[1].passed,true);
+  assert.equal(value.records.find(r=>r.source==='worker-guest-approved').provider,'anonymous');
   assert.equal(value.records.length,2);
 });

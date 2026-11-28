@@ -63,6 +63,9 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
  subject.oninput=history.clear;
  let reading=0,view=null,query=null,retry=null,retryTimer=null,shownUID=p.client.state().profile?.uid;
  const later=button('稍後重查',()=>{clear();p.status.textContent='已停止這次讀取。老師方便時，請按「讀取有效紀錄」重新查詢。';});later.hidden=true;
+ const load=button('讀取有效紀錄',()=>refresh()),download=button('重新確認並下載 Excel',()=>refresh(true));
+ function busy(value){load.disabled=value;download.disabled=value;p.content.setAttribute('aria-busy',String(value));}
+ busy(false);
  function stopRetry(){clearInterval(retryTimer);retryTimer=null;retry=null;}
  function showRetry(){
   if(!query||!retry||!p.active())return;
@@ -70,7 +73,7 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
   const wait=seconds===0?'即將':minutes?`${minutes} 分鐘${rest?' '+rest+' 秒':''}後`:`${seconds} 秒後`;
   p.status.textContent=`伺服器忙，第 ${retry.attempt} 次重試；預計${wait}再查詢。老師可按「稍後重查」停止這次讀取。`;
  }
- function clear(){reading++;const old=query;query=null;stopRetry();later.hidden=true;old?.abort();view=null;history.clear();subject.replaceChildren();p.content.replaceChildren();}
+ function clear(){reading++;const old=query;query=null;stopRetry();later.hidden=true;old?.controller.abort();busy(false);view=null;history.clear();subject.replaceChildren();p.content.replaceChildren();}
  function render(){
   p.content.replaceChildren();if(!view)return;
   const table=node('table'),head=node('thead'),tr=node('tr');
@@ -84,21 +87,25 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
     const detail=person.result.activities.find(v=>v.activity===a.week),cell=node('td'),box=node('details');
     const pending=detail.rounds.filter(r=>r.teacherPending).length;
     box.append(node('summary',`${detail.passed}／${detail.rounds.length} 關${pending?'（'+pending+' 關待老師確認）':''} · ${person.result.totalXP===null?'XP 待確認':detail.totalXP+' XP'}`));
-    // Keep source/legacy labels and completion times from the validated projection.
     const offset=activities.slice(0,activities.indexOf(a)).reduce((n,a)=>n+a.rounds.length,0);
     for(const [i,r] of detail.rounds.entries()){
      const source=person.rows[offset+i];
      box.append(node('p',`${r.name}：${r.teacherPending?'訪客紀錄待老師確認':source[4]} · ${source[5]?time(source[5]):r.passed?'時間未留存':'尚無完成時間'} · ${source[6]} XP`));
     }
-    box.append(node('p',`活動全過加成：${person.result.totalXP===null?'待確認':detail.completeXP+' XP'}`));cell.append(box);row.append(cell);
+    box.append(node('p',`活動全過加成：${person.result.totalXP===null?'待確認':detail.completeXP+' XP'}`));
+    cell.append(box);row.append(cell);
    }
    row.append(node('td',person.result.totalXP===null?'待老師確認':`Lv ${person.result.level} · ${person.result.totalXP} XP`));
    const cell=node('td'),link=node('a','唯讀成長紀錄');link.href=teacherGrowthURL(person);link.setAttribute('aria-label',`${person.cls} 班 ${person.seat} 號唯讀成長紀錄`);cell.append(link);row.append(cell);body.append(row);
   }
   table.append(body);const scroll=node('div');scroll.className='teacher-scroll';scroll.tabIndex=0;scroll.setAttribute('role','region');scroll.setAttribute('aria-label','有效紀錄表');scroll.append(table);p.content.append(scroll);
  }
- async function refresh(download=false){
-  if(!p.active())return;clear();const n=reading,controller=new AbortController();query=controller;later.hidden=false;p.status.textContent='正在確認班級有效紀錄…';
+ function refresh(download=false){
+  if(!p.active())return;
+  if(query){query.download ||= download;return query.promise;}
+  clear();const n=reading,controller=new AbortController(),request={controller,download,promise:null};query=request;
+  busy(true);later.hidden=false;p.status.textContent='正在確認班級有效紀錄…';
+  request.promise=(async()=>{
   try{
    const snapshots=await teacherSnapshots(p.client,classKey.value.trim(),activities,{signal:controller.signal});
    if(!p.active()||n!==reading||!p.client.state().profile)return;
@@ -106,16 +113,18 @@ export function mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistor
    view=teacherOverview(snapshots,{project:p.client.project,course:p.client.course,activities},xp);
    for(const person of view.people){const option=node('option',`${person.cls} 班 ${person.seat} 號（${person.classKey}）`);option.value=person.subject;option.dataset.classKey=person.classKey;subject.append(option);}
    render();p.status.textContent=view.people.length?'已確認目前有效紀錄。':'已確認班級，目前沒有學生紀錄。';
-   if(download){
+   if(request.download){
     if(typeof XLSX==='undefined')throw Error('xlsx-unavailable');
     const book=XLSX.utils.book_new();XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(view.rows),'有效紀錄');
     const url=URL.createObjectURL(new Blob([XLSX.write(book,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     const a=node('a');a.href=url;a.download='YBS_有效紀錄.xlsx';a.click();let revoked=false;const revoke=()=>{if(!revoked){revoked=true;URL.revokeObjectURL(url);}};const timer=setTimeout(revoke,1000);p.cleanup(()=>{clearTimeout(timer);revoke();});
    }
   }catch(e){if(p.active()&&n===reading){clear();p.status.textContent=(e.classKey?`${e.classKey} 讀取失敗；未顯示或匯出部分班級資料。`:'')+explain(e);}}
-  finally{if(n===reading){query=null;stopRetry();later.hidden=true;}}
+  finally{if(n===reading){query=null;stopRetry();later.hidden=true;busy(false);}}
+  })();
+  return request.promise;
  }
- p.tools.append(button('讀取有效紀錄',()=>refresh()),button('重新確認並下載 Excel',()=>refresh(true)),later);
+ p.tools.append(load,download,later);
  activity.onchange=()=>{try{localStorage.setItem(filterKey,activity.value);}catch{}render();};
  classKey.oninput=()=>{clear();p.status.textContent='請重新讀取所選班級。';};
  p.subscribe(p.client,state=>{

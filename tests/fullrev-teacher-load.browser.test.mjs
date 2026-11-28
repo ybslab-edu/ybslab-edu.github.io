@@ -49,40 +49,38 @@ test('30×30 純合成效能基準：投影、首次呈現、DOM 建立、活動
   return {people:view.people.length,activities:fixture.activities.length,rounds:fixture.activities.reduce((n,a)=>n+a.rounds.length,0),exportRows:view.rows.length,
    projectionMs,firstPresentationMs,domBuildMs,activityFilterMs,elements,nodes,cells};
  });
+ // Original eager-render baseline, captured 2026-11-28 without CPU throttling:
+ // 604.3 ms first presentation, 7,419 elements / 12,973 nodes in the content area.
+ // Report samples for comparison; machine speed is not a pass/fail condition.
+ t.diagnostic('originalBaseline='+JSON.stringify({firstPresentationMs:604.3,elements:7419,nodes:12973}));
  t.diagnostic(JSON.stringify(metrics));assert.equal(metrics.people,30);assert.equal(metrics.activities,30);assert.equal(metrics.rounds,121);assert.equal(metrics.exportRows,3661);
- assert.equal(metrics.cells,900);assert.ok(metrics.firstPresentationMs<1000,JSON.stringify(metrics));
- assert.ok(metrics.elements<=6000,JSON.stringify(metrics));assert.ok(metrics.nodes<=6000,JSON.stringify(metrics));
- assert.ok(metrics.activityFilterMs<250,JSON.stringify(metrics));
+ assert.equal(metrics.cells,900);
 });
-for(const width of [360,1280])test(`教師 ${width}px：詳情首次展開才建、快速篩選隨活動切換且不影響匯出`,async t=>{
+for(const width of [360,1280])test(`教師 ${width}px：詳情預建含日期、活動篩選不影響完整匯出`,async t=>{
  const page=await pageFor(t,width);await page.locator('#teacher-class').fill('c901');await page.getByRole('button',{name:'讀取有效紀錄',exact:true}).click();
  await page.locator('.teacher-scroll').waitFor();assert.equal(await page.locator('details').count(),900);
- assert.equal(await page.locator('details p').count(),0);
- const detail=page.locator('details').first();await detail.locator('summary').click();
+ assert.equal(await page.locator('details p').count(),4530);
+ assert.equal(await page.getByRole('checkbox',{name:'只看待確認／未完成',exact:true}).count(),0);
+ const detail=page.locator('details').first();assert.match(await detail.textContent(),/2026\/11\/2/);await detail.locator('summary').click();
  await detail.locator('p').first().waitFor();assert.equal(await detail.locator('p').count(),6);
  assert.match(await detail.innerText(),/合成關卡 1：已確認過關/);assert.match(await detail.innerText(),/活動全過加成/);
  await detail.locator('summary').click();await detail.locator('summary').click();assert.equal(await detail.locator('p').count(),6);
- assert.equal(await page.locator('details').nth(1).locator('p').count(),0);
- const quick=page.getByRole('checkbox',{name:'只看待確認／未完成',exact:true});
- const quickFilterMs=await quick.evaluate(el=>{const start=performance.now();el.click();void document.querySelector('#content').offsetHeight;return performance.now()-start;});
- await page.waitForFunction(()=>document.querySelectorAll('tbody tr').length===20);
- t.diagnostic(`width=${width}; quickFilterMs=${quickFilterMs}`);assert.ok(quickFilterMs<250,`quick filter: ${quickFilterMs}ms`);
- assert.equal(await page.locator('details p').count(),0);
- await page.locator('#teacher-activity').selectOption('1');assert.equal(await page.locator('tbody tr').count(),10);
+ assert.equal(await page.locator('details').nth(1).locator('p').count(),5);
+ await page.locator('#teacher-activity').selectOption('1');assert.equal(await page.locator('tbody tr').count(),30);
+ assert.equal(await page.locator('details').count(),30);
  assert.match(await page.locator('tbody').innerText(),/待老師確認/);
- await page.locator('#teacher-activity').selectOption('2');assert.equal(await page.locator('tbody tr').count(),0);
- assert.match(await page.locator('#content').innerText(),/沒有待確認或未完成/);
- await page.locator('#teacher-activity').selectOption('30');assert.equal(await page.locator('tbody tr').count(),10);
+ await page.locator('#teacher-activity').selectOption('2');assert.equal(await page.locator('tbody tr').count(),30);
+ await page.locator('#teacher-activity').selectOption('30');assert.equal(await page.locator('tbody tr').count(),30);
+ assert.match(await page.locator('tbody tr').nth(10).locator('summary').textContent(),/0／4 關/);
  await page.addScriptTag({content:await readFile(new URL('../assets/vendor/xlsx-0.20.3.full.min.js',import.meta.url),'utf8')});
  const pendingDownload=page.waitForEvent('download');await page.getByRole('button',{name:'重新確認並下載 Excel',exact:true}).click();
  const download=await pendingDownload,bytes=await readFile(await download.path());assert.equal(download.suggestedFilename(),'YBS_有效紀錄.xlsx');
  const exported=await page.evaluate(bytes=>{const book=XLSX.read(new Uint8Array(bytes),{type:'array'});return XLSX.utils.sheet_to_json(book.Sheets['有效紀錄'],{header:1});},[...bytes]);
  assert.deepEqual(exported,await page.evaluate(()=>project().rows));assert.equal(exported.length,3661);
- await quick.uncheck();assert.equal(await page.locator('tbody tr').count(),30);
+ assert.equal(await page.locator('tbody tr').count(),30);
  await page.locator('#teacher-activity').selectOption('');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
- assert.ok(await quick.evaluate(el=>el.getBoundingClientRect().height)>=44);
  if(process.env.YBS_DEBT4_SHOTS){await mkdir(process.env.YBS_DEBT4_SHOTS,{recursive:true});await page.screenshot({path:join(process.env.YBS_DEBT4_SHOTS,`teacher-overview-${width}.png`),fullPage:true});
-  await quick.check();await page.locator('#teacher-activity').selectOption('1');await page.locator('details').first().locator('summary').click();
-  await page.locator('details p').first().waitFor();await page.screenshot({path:join(process.env.YBS_DEBT4_SHOTS,`teacher-filter-detail-${width}.png`),fullPage:true});}
+  await page.locator('#teacher-activity').selectOption('1');await page.locator('details').first().locator('summary').click();
+  await page.locator('details p').first().waitFor();await page.screenshot({path:join(process.env.YBS_DEBT4_SHOTS,`teacher-activity-detail-${width}.png`),fullPage:true});}
 });

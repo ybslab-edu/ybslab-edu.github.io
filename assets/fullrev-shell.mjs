@@ -511,9 +511,11 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    if(!pairTimer)pairTimer=setTimeout(async()=>{pairTimer=null;if(g!==revision)return;try{await receive(await client.answer(cfg.week,round,value.photoAnswer||value.performanceOrder));}catch(e){problem(e);}},0);
   }else if(value.correct===true&&value.question.slot===1){
    mode='correct';count(1);verdict.className='verdict mid';verdict.replaceChildren(node('h3','答對了！累積答對 1/2'));para(verdict,'按「下一組」挑戰不同資料，累積答對 2/2 就過關。');
-   const btns=node('div'),b=node('button','下一組');btns.className='btns';b.type='button';b.className='btn primary';b.id='b-next-group';b.onclick=()=>{if(mode==='correct'){showQuestion(last);$('task-instructions').scrollIntoView?.({block:'start'});}};btns.append(b);verdict.append(btns);verdict.hidden=false;say('');
+   const btns=node('div'),b=node('button','下一組');btns.className='btns';b.type='button';b.className='btn primary';b.id='b-next-group';b.onclick=()=>{if(mode==='correct'){showQuestion(last);stage.querySelector('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled)')?.focus();}};btns.append(b);verdict.append(btns);verdict.hidden=false;say('');
   }else if(value.correct===false&&handle&&old?.sid===value.sid&&old.question?.slot===value.question.slot){
    mode='working';submitted=true;hint=Math.min(3,hint+1);verdict.className='verdict no';verdict.replaceChildren(node('h3','還不對'));para(verdict,value.feedback||'請再核對這一組的題目與資料。');para(verdict,'修改答案後再送一次').className='small';verdict.hidden=false;hints();say('');
+   // 送出鈕隨狀態停用；把焦點交給可讀的錯誤提示，讓鍵盤與讀屏接續訂正。
+   verdict.tabIndex=-1;verdict.focus();
   }else{showQuestion(value);say('');}controls();
  }
  function passed(){

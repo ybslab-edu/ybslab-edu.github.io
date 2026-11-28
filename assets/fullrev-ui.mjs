@@ -4,25 +4,62 @@ import {growth,exportRows} from './fullrev-progress.mjs?v=20261127b3';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
 const button=(text,run)=>{const b=node('button',text);b.type='button';b.className='btn';b.style.cssText='min-height:44px;margin:4px';b.onclick=run;return b;};
-const messages={'capacity-deferred':'目前暫時無法開始作答，請稍後重試或找老師確認開收狀態。','request-timeout':'連線逾時，請重新讀取或稍後重試。','report/rate-limited':'報告已保留，請在上一份交件滿 60 秒後重試。',pending:'尚未確認，答案已保留，稍後可重試。','retry-later':'請稍候再重試。',
-  'invalid-answer':'答案格式不符，已保留同一題與填寫內容，請修改後再送出。',
-  'ticket-expired':'作答票已過期，請按「活動工具 → 重新開始」取得新題。',
-  'ticket-invalid':'作答票驗證失敗，請按「活動工具 → 重新開始」。',
-  'ticket-not-owned':'作答票與目前帳號或關卡不符，請重新開始。',
-  'ticket-out-of-order':'作答順序已變更，請重新開始。',
-  'ticket-attempt-limit':'這次作答已達嘗試上限，請重新開始。',
-  'ticket-stale':'老師已重置、調整授權或你已切換關卡，這次作答無法採計，請重新開始。',
-  'ticket-replayed':'這份作答已由另一份完成紀錄取代，請重新開始並確認進度。',
+const messages={
+  'capacity-deferred':'暫時無法開始作答，請稍後按「{restart}」或找老師。',
+  'invalid-answer':'答案格式不符，請修改後再按「送出」。',
+  'answer-too-large':'答案太長，請縮短後再按「送出」。',
+  'ticket-expired':'作答票已過期，請按「{restart}」取得新題。',
+  'ticket-invalid':'作答票驗證失敗，請按「{restart}」。',
+  'ticket-not-owned':'作答票與目前帳號或關卡不符，請按「{restart}」。',
+  'ticket-out-of-order':'作答順序已變更，請按「{restart}」。',
+  'ticket-attempt-limit':'這次作答已達嘗試上限，請按「{restart}」。',
+  'ticket-stale':'老師已重置或調整授權，請按「{restart}」。',
+  'ticket-replayed':'這份作答已由另一份完成紀錄取代，請按「{restart}」並確認進度。',
   'tickets-disabled':'老師已關閉作答票，請重新整理頁面後重新開始。',
-  'ticket-secret-required':'作答票服務尚未設定完成，請告訴老師。',
-  'ticket-scope-not-supported':'這個身分或課程尚未開放作答票，請告訴老師。',
-  'summary-unconfirmed':'進度待確認，請告訴老師；目前暫停採計。','summary-capacity':'進度待確認，請告訴老師；目前暫停採計。',
-  'storage-quota':'伺服器儲存額度不足，請告訴老師或改用舊站。',
-  'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
-  'binding-pending':'尚待老師核發身分；目前只能本機練習。','read-model-pending':'雲端紀錄尚未確認，請稍後重新讀取。',
-  'owner-required':'只有此課程擁有者可以使用。','configuration-pending':'新登入服務尚未就緒，請找老師。',
-  'guest-xp-policy-pending':'班座紀錄尚待老師確認。','guest-pending':'已存待審，尚未採計。','guest-seat-required':'請填三位數班級及 1–60 號座號。','guest-seat-unavailable':'查無這個班座，請確認或找老師。','not-open':'這個活動還沒開放。','xp-snapshot-missing':'準時 XP 尚待確認。'};
-const explain=e=>messages[e?.code||e?.reason]||'尚未完成，請重新讀取或找老師。';
+  'ticket-secret-required':'作答服務尚未設定完成，請找老師。',
+  'ticket-scope-not-supported':'這個身分或課程尚未開放作答，請找老師。',
+  'summary-unconfirmed':'進度待確認，目前暫停採計，請找老師。',
+  'summary-capacity':'進度待確認，目前暫停採計，請找老師。',
+  'storage-quota':'伺服器儲存額度不足，請找老師；稍後可按「{retry}」。',
+  'restart-required':'授權或作答版本已變更，請按「{restart}」。',
+  'binding-pending':'身分尚待核發，請找老師確認後按「老師已核發，重新確認」。',
+  'owner-required':'這項操作需要課程擁有者身分，請找老師。',
+  'configuration-pending':'作答服務尚未就緒，請找老師。',
+  'guest-xp-policy-pending':'班座紀錄尚待核定，請找老師確認。',
+  'guest-pending':'作答已存待審，尚未採計，請等老師確認後按「重新讀取」。',
+  'guest-seat-required':'請填三位數班級及 1–60 號座號，再按「用班級＋座號開始」。',
+  'guest-seat-unavailable':'查無這個班座，請確認班級座號後再登入，或找老師。',
+  'not-open':'這個活動還沒開放，請找老師確認後按「{restart}」。',
+  'xp-snapshot-missing':'準時 XP 尚待核定，請找老師確認後按「重新讀取」。',
+  'nothing-pending':'目前沒有待送作答，請按「重新讀取」確認進度。',
+  'report/rate-limited':'請在上一份交件滿 60 秒後重試。'
+};
+for(const code of ['pending','answer-pending','request-in-flight','retry-later','request-timeout','response-invalid','connection-failed','rate-limited'])
+  messages[code]='送出狀態尚未確認，請稍候按「{retry}」。';
+for(const code of ['read-model-pending','context-unconfirmed','control-unconfirmed','control-changed','read-superseded','page-unconfirmed','cursor-invalid','page-capacity','progress-unsupported','legacy-unconfirmed','history-unconfirmed'])
+  messages[code]='進度尚未確認，請按「重新讀取」；仍無法確認時請找老師。';
+for(const code of ['class-not-found','invalid-class','invalid-course','invalid-scope','grading-not-supported','wrong-project','read-model-origin','sdk-unavailable','demonstration-only'])
+  messages[code]='目前無法使用這項作答功能，請找老師確認。';
+for(const code of ['subject-mismatch','validity-unconfirmed','legacy-invalid','guest-invalid','result-invalid','completion-collision'])
+  messages[code]='進度尚未確認，目前暫停採計，請找老師。';
+for(const code of ['login-required','identity-changed','provider-invalid','auth/user-token-expired','auth/invalid-user-token'])
+  messages[code]='身分尚未確認，請重新登入；仍無法登入時請找老師。';
+messages['browser-cookie-required']='請允許此網站使用 Cookie，再重新登入；仍無法登入時請找老師。';
+for(const code of ['invalid-account','auth/invalid-credential','auth/invalid-login-credentials','auth/wrong-password','auth/user-not-found','auth/invalid-email'])
+  messages[code]='帳號或密碼不對，請確認後再登入；仍無法登入時請找老師。';
+messages['auth/user-disabled']='帳號目前無法使用，請找老師。';
+for(const code of ['auth/network-request-failed','auth/too-many-requests','auth/popup-closed-by-user','auth/cancelled-popup-request','auth/popup-blocked'])
+  messages[code]='登入尚未完成，請確認連線及登入視窗後再登入；仍無法登入時請找老師。';
+const cannotResume=new Set(['restart-required','not-open','capacity-deferred','ticket-expired','ticket-invalid','ticket-not-owned','ticket-out-of-order',
+  'ticket-attempt-limit','ticket-stale','ticket-replayed','tickets-disabled','ticket-secret-required','ticket-scope-not-supported']);
+// pending 只表示本機仍持有原請求，不代表伺服器已採計；讀取錯誤也不能推論草稿有保存。
+export function explain(error,{pending=false,answerState,retryLabel=pending?'重試上傳':'重新讀取',restartLabel='活動工具 → 重新開始'}={}) {
+  const code=error?.code||error?.reason;
+  const saved=cannotResume.has(code)?'lost':['invalid-answer','answer-too-large'].includes(code)?'page':answerState||(pending?'saved':'unknown');
+  const retention={saved:'你的答案已保留。',page:'你填的答案仍在本頁。',lost:'你的答案無法接續。',unknown:'你的答案是否保留尚未確認。'};
+  const fallback=saved==='lost'?'尚未完成，請按「{restart}」或找老師。':pending?'尚未完成，請稍候按「{retry}」或找老師。':'尚未完成，請按「重新讀取」或找老師。';
+  return (retention[saved]||retention.unknown)+(Object.hasOwn(messages,code)?messages[code]:fallback).replaceAll('{retry}',retryLabel).replaceAll('{restart}',restartLabel);
+}
 let activePage;
 function pageLife() {
   activePage?.dispose();
@@ -82,8 +119,8 @@ async function setup(promise,title,{ownerOnly=false}={}) {
       if(!state.profile){page.content.replaceChildren();page.login.hidden=false;page.status.textContent='請先登入。';}
       else page.login.hidden=true;
       logout.hidden=!state.profile;
-      if(state.status==='pending')page.status.textContent=messages.pending;
-      if(state.status==='restart-required')page.status.textContent=messages['restart-required'];
+      if(state.status==='pending')page.status.textContent=explain({code:'pending'},state);
+      if(state.status==='restart-required')page.status.textContent=explain({code:'restart-required'},state);
       if(state.status==='stale'){page.content.replaceChildren();page.status.textContent='紀錄待重新確認。';}
     });
     await mountLogin({client,host:page.login,active:page.active,ownerOnly,onLogin:()=>page.refresh?.()});
@@ -929,13 +966,14 @@ function eventsRefresh(p,refresh) {
 export async function mountActivity({client:promise,cfg,now}) {
   if(cfg.course==='115-g9')return (await import('./fullrev-shell.mjs')).mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now});
   const p=await setup(promise,cfg.title);if(!p.client)return;
+  const activityError=e=>explain(e,{...p.client.state(),retryLabel:'重試送出',restartLabel:'重新開始',answerState:p.client.state().pending?undefined:handle?'page':undefined});
   const stage=node('section'),summary=node('section'),nav=node('nav');
   p.tools.append(nav);let round=0,handle=null,lastView=null,read=0,viewKey='',pairTimer=null,generation=0,renderVersion=0;
   const send=button('送出',async()=>{
     if(!p.active()||!handle||send.disabled||handle.ready&&!handle.ready())return;send.disabled=true;
     const current=generation;
     try{const value=await p.client.answer(cfg.week,round,handle.get());if(current===generation)await receive(value);}
-    catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}finally{if(p.active()&&current===generation)send.disabled=!handle||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)
+    catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}finally{if(p.active()&&current===generation)send.disabled=!handle||!next.hidden||(!!lastView?.completed||!!lastView?.awaitingTeacher)
       ||!!pairAnswer(lastView)&&lastView?.question?.slot===1||p.client.state().pending||p.client.state().status==='restart-required'||!!handle?.ready&&!handle.ready();}
   });
   const next=button('下一組',()=>{if(!p.active()||next.hidden||!lastView)return;next.hidden=true;return render(lastView);});next.hidden=true;
@@ -987,7 +1025,7 @@ export async function mountActivity({client:promise,cfg,now}) {
       pairTimer=null;
       if(!p.active()||current!==generation||lastView?.sid!==value.sid||lastView?.completed)return;
       try{const result=await p.client.answer(cfg.week,scopeRound,pairAnswer(value));if(current===generation)await receive(result);}
-      catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}
+      catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}
     },0);
   }
   function stopPair(){generation++;renderVersion++;read++;clearTimeout(pairTimer);pairTimer=null;}
@@ -996,19 +1034,19 @@ export async function mountActivity({client:promise,cfg,now}) {
     const n=++read;summary.replaceChildren();
     try{const snapshot=await p.client.progress({activities:catalog()});const xp=await xpCore();if(!p.active()||n!==read)return;
       showGrowth(summary,snapshot,p.client,xp);}
-    catch(e){if(p.active()&&n===read)p.status.textContent=explain(e);}
+    catch(e){if(p.active()&&n===read)p.status.textContent=activityError(e);}
   }
   const start=async(restart=false)=>{
     if(!p.active())return;
     stopPair();const current=generation;handle?.dispose?.();stage.replaceChildren();handle=null;lastView=null;viewKey='';next.hidden=true;send.disabled=true;
     if(cfg.rounds[round]?.managed===false){p.status.textContent='這一關尚待老師確認，請選其他關卡。';return;}
-    try{const value=await p.client.start(cfg.week,round,{restart});if(current===generation)await receive(value);}catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}
+    try{const value=await p.client.start(cfg.week,round,{restart});if(current===generation)await receive(value);}catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}
   };
   for(let i=0;i<cfg.rounds.length;i++)nav.append(button(cfg.rounds[i].name,()=>{if(!p.active())return;round=i;return start();}));
   const begin=button('開始這一關',()=>start());
   const restart=button('重新開始',()=>start(true));
-  const retry=button('重試送出',async()=>{if(!p.active())return;const current=generation;try{const values=await p.client.retry();if(p.active()&&current===generation&&values.length)await receive(values.at(-1));}catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}});
-  const refreshClaims=button('老師已核發，重新確認',async()=>{if(!p.active())return;const current=generation;try{await p.client.refreshClaims();if(p.active()&&current===generation)await start(true);}catch(e){if(p.active()&&current===generation)p.status.textContent=explain(e);}});
+  const retry=button('重試送出',async()=>{if(!p.active())return;const current=generation;try{const values=await p.client.retry();if(p.active()&&current===generation&&values.length)await receive(values.at(-1));}catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}});
+  const refreshClaims=button('老師已核發，重新確認',async()=>{if(!p.active())return;const current=generation;try{await p.client.refreshClaims();if(p.active()&&current===generation)await start(true);}catch(e){if(p.active()&&current===generation)p.status.textContent=activityError(e);}});
   const practice=button('本機練習／示範',()=>{
     if(!p.active())return;
     stopPair();handle?.dispose?.();stage.replaceChildren();send.disabled=true;handle=null;lastView=null;viewKey='';next.hidden=true;

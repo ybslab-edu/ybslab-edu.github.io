@@ -304,7 +304,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course)
   .map(a=>({...a,openedAt:typeof activityOpenAt==='function'?activityOpenAt(a):a.openedAt}));
- const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，答案已保留。':state.uploadIssue?.startsWith('summary-')?'進度待確認，請告訴老師；答案已保留，目前暫停採計。':state.uploadIssue==='storage-quota'?'伺服器儲存額度不足，請告訴老師或改用舊站。':state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；稍候按「重試上傳」。':'上傳中，請稍候，答案已保留。';};
+ const explainProblem=e=>{const state=client.state();return explain(e,{...state,answerState:state.pending?undefined:handle?'page':undefined});};
+ const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，你的答案已保留。':state.uploadIssue?.startsWith('summary-')||state.uploadIssue==='storage-quota'?explainProblem({code:state.uploadIssue}):state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；你可以稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；你可以稍候按「重試上傳」。':'上傳中，請稍候，你的答案已保留。';};
  // 頁首沿用待送摘要；按鈕旁另列連線、流量或額度的具體原因。
  const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result&&!result.local?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
@@ -345,7 +346,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   const state=client.state(),changed=handle?.get&&JSON.stringify(handle.get())!==sentValue;
   const teacher=!!state.profile?.owner;send.hidden=teacher;$('send-control').hidden=teacher;$('send-hint').hidden=teacher;$('answer-status').hidden=teacher;$('streak').hidden=teacher;$('b-hint').hidden=teacher;
   const modeReason={loading:loadProblem||'題目載入中，請稍候。',review:'你正在回看這一關；想重做時，請按「再做一次」。',closed:'這個活動還沒開放。',practice:'目前是本機練習，不送出成績。',teacher:'目前是教師示範。',unmanaged:'這一關尚待老師確認，請選其他關卡。','binding-pending':'身分尚待老師確認，請告訴老師。','teacher-pending':'已送出，等待老師確認。','guest-pending':GUEST_PENDING,confirming:loadProblem||'正在確認雲端紀錄，請稍候。',correct:'這組已答對，請按「下一組」。',passed:'這關已過關，可選下一關。'};
-  const reason=state.status==='restart-required'?'作答狀態已變更，請按「活動工具 → 重新開始」。'
+  const reason=state.status==='restart-required'?loadProblem||explainProblem({code:'restart-required'})
    :state.status==='stale'?'請重新登入，再繼續作答。'
    :waitMessage?waitMessage
    :state.pending||state.status==='sending'?pendingMessage()
@@ -489,10 +490,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  function problem(e){
   if(e.code==='identity-changed'||!client.state().profile)return;
-  loadProblem=explain(e);
+  loadProblem=explainProblem(e);
   if(!handle&&mode==='loading')reread.hidden=false;
   if(e.code==='not-open'){lock.hidden=false;main.hidden=true;gate.hidden=true;mode='closed';}
-  else{if(e.code==='binding-pending')mode='binding-pending';say(e.code==='pending'?'上傳中，請稍候，答案已保留。':explain(e));if(['retry-later','read-model-pending'].includes(e.code))reread.hidden=false;}
+  else{if(e.code==='binding-pending')mode='binding-pending';say(e.code==='pending'?pendingMessage():loadProblem);if(['retry-later','read-model-pending'].includes(e.code))reread.hidden=false;}
   controls();
  }
  async function receive(value){
@@ -622,7 +623,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    revision++;starting=false;clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();handle=null;validation=null;
    hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;sentValue='';last=null;key='';lastLearning='';mode='loading';
    stage.replaceChildren();verdict.replaceChildren();verdict.hidden=true;$('draft-notice').textContent='';
-   loadProblem='你的作答票已過期，請按「活動工具 → 重新開始」。';instructions();hints();count(0);say(loadProblem);
+   loadProblem=explainProblem({code:'ticket-expired'});instructions();hints();count(0);say(loadProblem);
   }
   if(['binding-changed','context-changed'].includes(state.status)){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;

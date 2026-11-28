@@ -3,7 +3,7 @@
 ## 專案與入口
 - 本檔是唯一 AI 入口；以繁體中文簡潔回覆，不在 repo 維護交接快照、進度或待辦。
 - `ybslab-edu/ybslab-edu.github.io` 是教學靜態網站，提供課堂活動、雲端過關紀錄與報告交件。
-- 網站：<https://ybslab-edu.github.io/>；HTML、CSS、JavaScript 直接提供服務，無建置步驟或套件安裝需求。
+- 網站：<https://ybslab-edu.github.io/>；原始碼以 HTML、CSS、JavaScript 為主；正式站必須以 `tools/build-fullrev-site.mjs` 建置白名單產物，不直接發布 repo root，也不為驗收新增套件。
 - ClassScore 位於 `ybslab-edu/class-score`；新站使用獨立 Firebase 專案 `ybs-lab`，與 ClassScore 隔離，跨站資料規格見該 repo 的 `docs/YBS_FIRESTORE.md`。
 
 ## 主要目錄
@@ -46,7 +46,9 @@
 - 每週開放活動須修改 `assets/lock.js` 的 `OPEN`，並同步 `tools/dev/check-pages.py` 的開放預期；前端鎖不具授權保護能力。
 - 新增外部字型、CDN、iframe 或 API 時，須同步檢查各頁 CSP；更換教師通行碼雜湊時同步更新引用的快取版本。
 - 一個功能一個 Draft PR；合併與發布須先取得老師明確核准。
-- 本 repo 的 `main` 更新即由 GitHub Pages 上線（純文件也會）；ClassScore 的 Hosting 由 main 的相關變更自動觸發 Actions 發布。
+- 本 repo 的 `main` 是來源，推送或合併不會上線；正式站由 Console 將整站白名單產物發布至 `gh-pages /`。不用 `build-fullrev-batch1.mjs` 取代正式建置，不自行更改 Pages 來源。ClassScore 的 Hosting 仍依該 repo 的既有流程。
+- 發布前執行 `node tools/release-offline-gate.mjs run`，綁定前端／Worker 固定 commit 與來源指紋；發布器 dry-run／apply 必須核對 `--offline-evidence`。缺來源、必要測項 skip、版本漂移或紀錄不完整即停止；公開 CI 綠燈不能代替此驗收。指令與發布器位置見 `docs/FULLREV_RELEASE.md`，營運手冊沿用 ClassScore `docs/ybs-fullrev/cutover-runbook.md`。
+- g9 新站走新版產物；DF 頁與指定 legacy 資源由 builder 精確固定並掃描，不擅改相容來源。`/ybs-old/` 是分開維護的舊站，發布後須依發布器確認舊站路徑。
 - 新站名冊採差異核對＋教師確認；預覽異動後逐筆確認，不自動覆寫。新站 Rules 與舊站分開維護，ClassScore 的 `firestore.rules` 自動部署僅影響 ClassScore／舊站。
 - commit 用中文短句，結尾依工作階段附正確的 `Co-Authored-By` 署名。
 

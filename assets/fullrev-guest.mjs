@@ -1,6 +1,17 @@
 import {fail,int,versions} from './fullrev-progress.mjs?v=20261127b3';
 
 export const GUEST_PENDING = '已存待審，尚未採計';
+// 只清登入容器內的身分欄位與訊息，讓共用電腦的下一位從遮蔽密碼開始。
+export function resetLoginForms(host) {
+  for(const input of host.querySelectorAll('input')) {
+    if(['account','password','cls','seat'].includes(input.name))input.value='';
+    if(input.name==='password')input.type='password';
+  }
+  for(const toggle of host.querySelectorAll('.ybs-password-toggle')) {
+    toggle.value='顯示';toggle.setAttribute('aria-label','顯示密碼');toggle.setAttribute('aria-pressed','false');
+  }
+  for(const error of host.querySelectorAll('[role="alert"]'))error.textContent='';
+}
 export function guestScope(value) {
   const cls=String(value?.cls||'').trim(), text=String(value?.seat||'').trim(), seat=Number(text);
   if(!/^[1-9][0-9]{2}$/.test(cls)||!/^\d{1,2}$/.test(text)||!int(seat,1)||seat>60)throw fail('guest-seat-required');

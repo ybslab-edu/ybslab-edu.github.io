@@ -3,6 +3,7 @@
 // remain unsupported. Never execute release code or repeatedly decode text.
 import {createHash} from 'node:crypto';
 import {lstat,readFile} from 'node:fs/promises';
+import {scanPrivateAnswers as scanLegacyPrivateAnswers} from './scan-private-answers-legacy.mjs';
 const atom=v=>typeof v==='string'?v.normalize('NFKC').trim().replace(/\s+/g,' '):String(v);
 const normalized=v=>Array.isArray(v)?v.map(normalized):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,normalized(v[k])])):atom(v);
 const signature=v=>JSON.stringify(normalized(v));
@@ -193,7 +194,7 @@ export async function readAcceptedHits(file=new URL('./scan-accepted-hits.json',
 // offset in the public file. Hash bytes directly, without decoding/normalizing.
 // The reviewed range must contain a complete public function or declaration.
 // Changes outside that range are not covered by its digest and are still scanned.
-export function scanPrivateAnswerFiles(files,answers,listBytes){
+function scanCurrentAnswerFiles(files,answers,listBytes,result){
  const list=parseAcceptedHits(listBytes),byPath=new Map(),entries=new Map();
  for(const file of files){if(byPath.has(file.path))invalid('duplicate_file');byPath.set(file.path,file.bytes);}
  for(const group of list.groups)for(const entry of group.entries){
@@ -204,14 +205,64 @@ export function scanPrivateAnswerFiles(files,answers,listBytes){
   if(bytes.indexOf(section)!==startByte||bytes.indexOf(section,startByte+1)!==-1)invalid('ambiguous_section');
   entries.set(entry.path+'\0'+entry.hitByteOffset,{entry,group,count:0});
  }
- let knownAcceptedHits=0;
  const counts=Object.fromEntries(list.groups.map(group=>[group.id,0]));
- for(const file of files)for(const hit of privateAnswerHits(file.bytes.toString('utf8'),answers,file.path.endsWith('.html')?'html':'script')){
-  const match=entries.get(file.path+'\0'+hit.byteOffset);
-  if(!match||hit.type!==match.entry.type)throw Error(hitError(hit).message+':'+file.path);
-  if(++match.count>match.entry.expectedHits)invalid('duplicate_hit');
-  knownAcceptedHits++;counts[match.group.id]++;
+ result.acceptedHitsSha256=sha256(listBytes);
+ result.knownAcceptedGroups=list.groups.map(group=>({id:group.id,label:group.label,hits:0}));
+ result.knownAcceptedStatus='已知放行';
+ for(const file of files){
+  for(const hit of privateAnswerHits(file.bytes.toString('utf8'),answers,file.path.endsWith('.html')?'html':'script')){
+   result.detectedHits++;
+   const match=entries.get(file.path+'\0'+hit.byteOffset);
+   if(!match||hit.type!==match.entry.type){result.blockingHits.push({path:file.path,...hit});result.hits++;continue;}
+   if(++match.count>match.entry.expectedHits)invalid('duplicate_hit');
+   result.knownAcceptedHits++;counts[match.group.id]++;
+  }
+  result.files++;
  }
- for(const {entry,count} of entries.values())if(count!==entry.expectedHits)invalid('count_mismatch');
- return {knownAcceptedHits,acceptedHitsSha256:sha256(listBytes),knownAcceptedGroups:list.groups.map(group=>({id:group.id,label:group.label,hits:counts[group.id]})),knownAcceptedStatus:'已知放行'};
+ result.knownAcceptedGroups.forEach(group=>group.hits=counts[group.id]);
+ if(!result.hits)for(const {entry,count} of entries.values())if(count!==entry.expectedHits)invalid('count_mismatch');
+}
+
+// The vendored legacy scanner throws on its first match in each complete file.
+// Count those blocking files, without slicing input or applying current acceptances.
+const legacyHit=/^release_private_(answer_object|answer_array|text_answer|numeric_answer)(?:@(\d+))?$/;
+function scanLegacyAnswerFiles(files,answers,result){
+ for(const file of files){
+  try{
+   if(scanLegacyPrivateAnswers(file.bytes.toString('utf8'),answers)!==undefined)throw Error();
+  }catch(error){
+   const match=legacyHit.exec(error?.message);
+   if(!match)throw Error('release_answer_scanner_legacy_failed');
+   const hit={path:file.path,type:match[1]};
+   if(match[2]!==undefined)hit.at=Number(match[2]);
+   result.blockingHits.push(hit);result.hits++;result.detectedHits++;
+  }
+  result.files++;
+ }
+}
+
+// Both scanners always receive all the same files and answers. Completion and
+// errors are independent; neither a hit nor an acceptance may skip the other run.
+export function scanPrivateAnswerFiles(files,answers,listBytes){
+ const report=()=>({completed:false,files:0,hits:0,detectedHits:0,knownAcceptedHits:0,blockingHits:[]});
+ const legacy={...report(),hitReporting:'first-per-file'},current=report();
+ const run=(name,result,scan)=>{
+  try{scan();result.completed=result.files===files.length;}
+  catch(error){
+   // Only scanner-generated metadata may escape; arbitrary exception messages
+   // can contain private input. Never copy them into reports or error output.
+   const message=error?.message;
+   result.error=name==='current'&&/^release_accepted_hits_[a-z_]+$/.test(message)?message:'release_answer_scanner_'+name+'_failed';
+  }
+  if(!result.completed&&!result.error)result.error='release_answer_scanner_'+name+'_incomplete';
+ };
+ run('legacy',legacy,()=>scanLegacyAnswerFiles(files,answers,legacy));
+ run('current',current,()=>scanCurrentAnswerFiles(files,answers,listBytes,current));
+ const result={hits:legacy.hits+current.hits,knownAcceptedHits:current.knownAcceptedHits,
+  acceptedHitsSha256:current.acceptedHitsSha256,knownAcceptedGroups:current.knownAcceptedGroups,
+  knownAcceptedStatus:current.knownAcceptedStatus,scanners:{legacy,current}};
+ const failed=legacy.error||current.error;
+ const first=legacy.blockingHits[0]||current.blockingHits[0];
+ if(failed||first)throw Object.assign(Error(failed||hitError(first).message+':'+first.path),{scan:result});
+ return result;
 }

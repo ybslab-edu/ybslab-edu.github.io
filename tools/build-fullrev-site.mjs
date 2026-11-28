@@ -119,10 +119,12 @@ export async function scanRelease({output,workerSource}){
   scan(materials);
  }
  if(!cases)throw Error('release_cases_missing');
- const accepted=scanPrivateAnswerFiles(scanned,answers,acceptedHits);
+ let answerScan;
+ try{answerScan=scanPrivateAnswerFiles(scanned,answers,acceptedHits);}
+ catch(error){if(error.scan)error.scan={files:found.length,privateCases:cases,releaseId,...error.scan};throw error;}
  const sha256=createHash('sha256');for(const f of text.sort((a,b)=>a.path.localeCompare(b.path))){sha256.update(f.path+'\0');sha256.update(f.bytes);}
  const resources=releaseResources(text,{releaseId,readModelModule:config.readModelModule,pinned});
- return {files:found.length,privateCases:cases,hits:0,...accepted,sha256:sha256.digest('hex'),releaseId,resources};
+ return {files:found.length,privateCases:cases,...answerScan,sha256:sha256.digest('hex'),releaseId,resources};
 }
 export async function buildSite({output,config,workerSource,source=root}){
  releaseConfig(config);
@@ -171,5 +173,10 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  for(let i=0;i<args.length;i+=2){if(!['--out','--worker-source','--config','--source'].includes(args[i])||parsed[args[i]]||!args[i+1])throw Error('invalid_arguments');parsed[args[i]]=args[i+1];}
  if(!parsed['--out'])throw Error('output_required');
  const options={output:parsed['--out'],workerSource:parsed['--worker-source'],source:parsed['--source']||root};
- console.log(JSON.stringify(mode==='scan'?await scanRelease(options):await buildSite({...options,config:JSON.parse(await readFile(parsed['--config'],'utf8'))}),null,2));
+ try{console.log(JSON.stringify(mode==='scan'?await scanRelease(options):await buildSite({...options,config:JSON.parse(await readFile(parsed['--config'],'utf8'))}),null,2));}
+ catch(error){
+  // Keep both scanner reports in redirected scan.json even when release fails.
+  if(!error.scan)throw error;
+  console.log(JSON.stringify(error.scan,null,2));process.exitCode=1;
+ }
 }

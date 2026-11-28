@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import vm from 'node:vm';
 import {writeSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {activitiesJSON} from '../tools/activities-json.mjs';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
@@ -25,6 +26,9 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
  assert.equal(built.scan.knownAcceptedHits,9);
+ for(const scanner of Object.values(built.scan.scanners)){assert.equal(scanner.completed,true);assert.equal(scanner.files,built.scan.files);assert.equal(scanner.hits,0);}
+ assert.equal(built.scan.scanners.legacy.knownAcceptedHits,0);
+ assert.equal(built.scan.scanners.current.knownAcceptedHits,9);assert.equal(built.scan.scanners.current.detectedHits,9);
  assert.deepEqual(built.scan.knownAcceptedGroups.map(g=>[g.id,g.hits]),[['risk-accepted',4],['public-baseline-a',5]]);
  assert.equal(built.scan.acceptedHitsSha256,createHash('sha256').update(await readAcceptedHits()).digest('hex'));
  const catalogPath=join(output,'assets/activities.json'),catalog=await readFile(catalogPath,'utf8');
@@ -106,6 +110,60 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
   vm.runInContext(login+';globalThis.api=YBS;',c);await new Promise(r=>setImmediate(r));
   assert.equal(c.api.fullrev,true);assert.equal(c.api.submit(),false);assert.equal(c.api.flushGuest(),false);await assert.rejects(c.api.firebaseSession(),/configuration-pending/);
  }
+});
+test('synthetic builder and CLI record both scanners in scan.json and reject either-only hits',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'ybs-dual-scan-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const scannerURL=new URL('../tools/scan-private-answers.mjs',import.meta.url).href;
+ const builderURL=new URL('../tools/build-fullrev-site.mjs',import.meta.url).href;
+ // Substitute only the acceptance-list reader in an isolated test process. The
+ // builder, both scanners, public files and source/exemption checks remain real.
+ const script=`
+ import assert from 'node:assert/strict';
+ import {mock} from 'node:test';
+ import {mkdir,readFile,writeFile} from 'node:fs/promises';
+ import {join} from 'node:path';
+ import {fileURLToPath} from 'node:url';
+ import {scanPrivateAnswerFiles} from ${JSON.stringify(scannerURL)};
+ const [dir,configJSON]=process.argv.slice(1),worker=join(dir,'worker'),output=join(dir,'site');
+ const list={schemaVersion:1,groups:[
+  {id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},
+  {id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}
+ ]};
+ mock.module(${JSON.stringify(scannerURL)},{namedExports:{readAcceptedHits:async()=>Buffer.from(JSON.stringify(list)),scanPrivateAnswerFiles}});
+ const {buildSite,scanRelease}=await import(${JSON.stringify(builderURL)});
+ const bankDir=join(worker,'src/formal/banks');await mkdir(bankDir,{recursive:true});
+ const cases=[{answer:987654321701},{answer:[987654321701,987654321907]}];
+ const banks={'synthetic:release-test':{rounds:{first:{cases}}}};
+ for(const name of [...Array.from({length:8},(_,i)=>'pr6-batch'+(i+1)+'.mjs'),'u206-sheet-v2.mjs'])await writeFile(join(bankDir,name),'export default '+JSON.stringify(banks));
+ for(const name of ['pr6-batch5-materials.mjs','pr6-batch7-materials.mjs'])await writeFile(join(bankDir,name),'export default {}');
+ const clean=await buildSite({output,workerSource:worker,config:JSON.parse(configJSON)});
+ const reportPath=join(dir,'scan.json');await writeFile(reportPath,JSON.stringify(clean.scan));
+ const recorded=JSON.parse(await readFile(reportPath,'utf8'));
+ for(const scanner of Object.values(recorded.scanners)){assert.equal(scanner.completed,true);assert.equal(scanner.files,recorded.files);assert.equal(scanner.hits,0);assert.equal(scanner.knownAcceptedHits,0);}
+ const victim=join(output,'index.html'),original=await readFile(victim);
+ for(const [payload,oldHits,newHits] of [
+  ['<input data-answer="987654321701">',1,0],
+  ['<script>const value=[987654321701,987654321907];</script>',0,1]
+ ]){
+  await writeFile(victim,Buffer.concat([original,Buffer.from(payload)]));
+  let blocked;try{await scanRelease({output,workerSource:worker});}catch(error){blocked=error;}
+  assert.ok(blocked?.scan);await writeFile(reportPath,JSON.stringify(blocked.scan));
+  const record=JSON.parse(await readFile(reportPath,'utf8'));
+  assert.equal(record.scanners.legacy.hits,oldHits);assert.equal(record.scanners.current.hits,newHits);
+  assert.equal(record.files,clean.scan.files);assert.equal(record.privateCases,18);assert.equal(record.releaseId,clean.releaseId);
+  for(const scanner of Object.values(record.scanners))assert.equal(scanner.completed,true);
+ }
+ // Exercise the actual CLI error path: JSON must still be emitted with exit 1.
+ process.argv=[process.execPath,fileURLToPath(${JSON.stringify(builderURL)}),'scan','--out',output,'--worker-source',worker];
+ await import(${JSON.stringify(builderURL+'?synthetic-cli')});
+ `;
+ const child=spawnSync(process.execPath,['--experimental-test-module-mocks','--input-type=module','-e',script,dir,JSON.stringify(config)],{encoding:'utf8',timeout:60000});
+ assert.equal(child.status,1,child.stderr);assert.equal(child.error,undefined);
+ await writeFile(join(dir,'cli-scan.json'),child.stdout);
+ const report=JSON.parse(await readFile(join(dir,'cli-scan.json'),'utf8'));
+ assert.equal(report.hits,1);assert.equal(report.scanners.legacy.hits,0);assert.equal(report.scanners.current.hits,1);
+ assert.equal(report.scanners.legacy.knownAcceptedHits,0);assert.equal(report.scanners.current.knownAcceptedHits,0);
+ assert.equal(report.scanners.legacy.completed,true);assert.equal(report.scanners.current.completed,true);
 });
 test('PR8 read adapter authenticates fresh identity, never lists Firestore or falls back on 503',async()=>{
  let user={getIdToken:async()=> 'synthetic'},requests=[];

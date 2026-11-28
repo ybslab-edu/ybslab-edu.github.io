@@ -111,32 +111,60 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
   assert.equal(c.api.fullrev,true);assert.equal(c.api.submit(),false);assert.equal(c.api.flushGuest(),false);await assert.rejects(c.api.firebaseSession(),/configuration-pending/);
  }
 });
-test('synthetic builder and CLI record both scanners in scan.json and reject either-only hits',async t=>{
+test('synthetic module list injection preserves both scanners and cannot override release CLI defaults',async t=>{
  const dir=await mkdtemp(join(tmpdir(),'ybs-dual-scan-'));t.after(()=>rm(dir,{recursive:true,force:true}));
- const scannerURL=new URL('../tools/scan-private-answers.mjs',import.meta.url).href;
  const builderURL=new URL('../tools/build-fullrev-site.mjs',import.meta.url).href;
- // Substitute only the acceptance-list reader in an isolated test process. The
- // builder, both scanners, public files and source/exemption checks remain real.
+ const officialListSha256=createHash('sha256').update(await readAcceptedHits()).digest('hex');
+ // The CLI uses the real checked-in list, while direct calls explicitly supply
+ // the schema-valid empty list required by this synthetic Worker.
  const script=`
  import assert from 'node:assert/strict';
- import {mock} from 'node:test';
  import {mkdir,readFile,writeFile} from 'node:fs/promises';
  import {join} from 'node:path';
  import {fileURLToPath} from 'node:url';
- import {scanPrivateAnswerFiles} from ${JSON.stringify(scannerURL)};
+ import {spawnSync} from 'node:child_process';
  const [dir,configJSON]=process.argv.slice(1),worker=join(dir,'worker'),output=join(dir,'site');
  const list={schemaVersion:1,groups:[
   {id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},
   {id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}
  ]};
- mock.module(${JSON.stringify(scannerURL)},{namedExports:{readAcceptedHits:async()=>Buffer.from(JSON.stringify(list)),scanPrivateAnswerFiles}});
+ const acceptedHits=Buffer.from(JSON.stringify(list));
  const {buildSite,scanRelease}=await import(${JSON.stringify(builderURL)});
  const bankDir=join(worker,'src/formal/banks');await mkdir(bankDir,{recursive:true});
  const cases=[{answer:987654321701},{answer:[987654321701,987654321907]}];
  const banks={'synthetic:release-test':{rounds:{first:{cases}}}};
  for(const name of [...Array.from({length:8},(_,i)=>'pr6-batch'+(i+1)+'.mjs'),'u206-sheet-v2.mjs'])await writeFile(join(bankDir,name),'export default '+JSON.stringify(banks));
  for(const name of ['pr6-batch5-materials.mjs','pr6-batch7-materials.mjs'])await writeFile(join(bankDir,name),'export default {}');
- const clean=await buildSite({output,workerSource:worker,config:JSON.parse(configJSON)});
+ const options={output,workerSource:worker,config:JSON.parse(configJSON)};
+ const clean=await buildSite(options,acceptedHits);
+ assert.deepEqual(await scanRelease(options,acceptedHits),clean.scan);
+ // A synthetic Worker cannot satisfy the official nine entries. Neither the
+ // main options object nor public config may replace the separate test argument.
+ await assert.rejects(scanRelease({...options,acceptedHits}),error=>{
+  assert.equal(error.message,'release_accepted_hits_count_mismatch');
+  assert.equal(error.scan.hits,0);assert.equal(error.scan.knownAcceptedHits,0);
+  assert.equal(error.scan.acceptedHitsSha256,${JSON.stringify(officialListSha256)});return true;
+ });
+ await assert.rejects(buildSite({...options,output:join(dir,'default-site'),acceptedHits}),error=>{
+  assert.equal(error.message,'release_accepted_hits_count_mismatch');
+  assert.equal(error.scan.releaseId,clean.releaseId);return true;
+ });
+ await assert.rejects(buildSite({...options,config:{...options.config,acceptedHits:list}},acceptedHits),/public_config_invalid/);
+ for(const invalid of [Buffer.from('[]'),null])await assert.rejects(scanRelease(options,invalid),/release_accepted_hits_format/);
+ const configPath=join(dir,'config.json'),listPath=join(dir,'empty-list.json');
+ await writeFile(configPath,configJSON);await writeFile(listPath,acceptedHits);
+ const cliArgs=mode=>[fileURLToPath(${JSON.stringify(builderURL)}),mode,'--out',output,'--worker-source',worker,...(mode==='scan'?[]:['--config',configPath])];
+ for(const mode of ['build','dry-run','scan']){
+  const attempt=spawnSync(process.execPath,[...cliArgs(mode),'--accepted-hits',listPath],{encoding:'utf8',timeout:10000});
+  assert.equal(attempt.error,undefined);assert.equal(attempt.status,1);assert.match(attempt.stderr,/invalid_arguments/);assert.equal(attempt.stdout,'');
+ }
+ const cliDefault=spawnSync(process.execPath,cliArgs('scan'),{encoding:'utf8',timeout:30000});
+ assert.equal(cliDefault.error,undefined);assert.equal(cliDefault.status,1,cliDefault.stderr);
+ const defaultReport=JSON.parse(cliDefault.stdout);
+ assert.equal(defaultReport.hits,0);assert.equal(defaultReport.knownAcceptedHits,0);
+ assert.equal(defaultReport.scanners.current.error,'release_accepted_hits_count_mismatch');
+ assert.equal(defaultReport.acceptedHitsSha256,${JSON.stringify(officialListSha256)});
+ assert.notEqual(defaultReport.acceptedHitsSha256,clean.scan.acceptedHitsSha256);
  const reportPath=join(dir,'scan.json');await writeFile(reportPath,JSON.stringify(clean.scan));
  const recorded=JSON.parse(await readFile(reportPath,'utf8'));
  for(const scanner of Object.values(recorded.scanners)){assert.equal(scanner.completed,true);assert.equal(scanner.files,recorded.files);assert.equal(scanner.hits,0);assert.equal(scanner.knownAcceptedHits,0);}
@@ -146,7 +174,7 @@ test('synthetic builder and CLI record both scanners in scan.json and reject eit
   ['<script>const value=[987654321701,987654321907];</script>',0,1]
  ]){
   await writeFile(victim,Buffer.concat([original,Buffer.from(payload)]));
-  let blocked;try{await scanRelease({output,workerSource:worker});}catch(error){blocked=error;}
+  let blocked;try{await scanRelease({output,workerSource:worker},acceptedHits);}catch(error){blocked=error;}
   assert.ok(blocked?.scan);await writeFile(reportPath,JSON.stringify(blocked.scan));
   const record=JSON.parse(await readFile(reportPath,'utf8'));
   assert.equal(record.scanners.legacy.hits,oldHits);assert.equal(record.scanners.current.hits,newHits);
@@ -157,7 +185,7 @@ test('synthetic builder and CLI record both scanners in scan.json and reject eit
  process.argv=[process.execPath,fileURLToPath(${JSON.stringify(builderURL)}),'scan','--out',output,'--worker-source',worker];
  await import(${JSON.stringify(builderURL+'?synthetic-cli')});
  `;
- const child=spawnSync(process.execPath,['--experimental-test-module-mocks','--input-type=module','-e',script,dir,JSON.stringify(config)],{encoding:'utf8',timeout:60000});
+ const child=spawnSync(process.execPath,['--input-type=module','-e',script,dir,JSON.stringify(config)],{encoding:'utf8',timeout:180000});
  assert.equal(child.status,1,child.stderr);assert.equal(child.error,undefined);
  await writeFile(join(dir,'cli-scan.json'),child.stdout);
  const report=JSON.parse(await readFile(join(dir,'cli-scan.json'),'utf8'));

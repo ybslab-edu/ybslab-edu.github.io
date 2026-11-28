@@ -106,13 +106,17 @@ test('ASCII 編解碼依題型填入文字，觸發預覽且 renderer 可讀回�
 test('完整建置僅豁免既有 DF／暖身固定內容；新增答案或教師教材副本皆拒絕',async t=>{
  const dir=await mkdtemp(join(tmpdir(),'ybs-teacher-scan-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const workerSource=join(dir,'synthetic-worker'),banks=join(workerSource,'src/formal/banks'),output=join(dir,'site');
+ const acceptedHits=Buffer.from(JSON.stringify({schemaVersion:1,groups:[
+  {id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},
+  {id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}
+ ]}));
  await mkdir(banks,{recursive:true});
  for(let n=1;n<=8;n++)await writeFile(join(banks,`pr6-batch${n}.mjs`),'export default '+JSON.stringify({['1:synthetic-private-version-'+n]:{rounds:{0:{cases:[{facts:{},answer:'synthetic-private-answer-unique-'+n}]}}}}));
  await writeFile(join(banks,'u206-sheet-v2.mjs'),'export default '+JSON.stringify({'8:synthetic-private-sheet-version':{rounds:{0:{cases:[{facts:{mode:'synthetic-private-sheet'},answer:{syntheticSheet:'private-only'}}]}}}}));
  for(const name of ['pr6-batch5-materials.mjs','pr6-batch7-materials.mjs'])await writeFile(join(banks,name),'export default {};');
- const result=await buildSite({output,workerSource,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'}});
+ const result=await buildSite({output,workerSource,config:{...config,readModelModule:'/assets/fullrev-read-model.mjs'}},acceptedHits);
  assert.equal(await readFile(join(output,'assets/activities.json'),'utf8'),await readFile(new URL('../assets/activities.json',import.meta.url),'utf8'));
- assert.equal(result.rounds,121);assert.equal(result.activities,30);assert.equal(result.scan.hits,0);assert.ok(!releasePaths().some(p=>p.includes('teacher-reference')));
+ assert.equal(result.rounds,121);assert.equal(result.activities,30);assert.equal(result.scan.hits,0);assert.equal(result.scan.knownAcceptedHits,0);assert.ok(!releasePaths().some(p=>p.includes('teacher-reference')));
  const earlyOpen=vm.runInNewContext((await readFile(join(output,'assets/fullrev-config.js'),'utf8'))+'; JSON.stringify(OPEN)');
  const oldOpen=vm.runInNewContext((await readFile(new URL('../assets/lock.js',import.meta.url),'utf8')).split('(() =>')[0]+'; JSON.stringify(OPEN)');
  assert.equal(earlyOpen,oldOpen,'發布產物沿用舊 OPEN 清單');
@@ -122,7 +126,7 @@ test('完整建置僅豁免既有 DF／暖身固定內容；新增答案或教�
  assert.equal(vm.runInContext("ACTIVITIES.filter(a=>a.course==='115-g9').length",released),30);
  assert.equal(vm.runInContext("ACTIVITIES.filter(a=>a.course==='115-g9').every(a=>isActivityOpen(a,Date.parse('2027-07-01T00:00:00+08:00')))",released),true,'全關卡瀏覽器驗收日期涵蓋實際發布目錄');
  await writeFile(configFile,configSource.replace('u2-02','synthetic-early-open'));
- await assert.rejects(scanRelease({output,workerSource}),/release_config_missing/);
+ await assert.rejects(scanRelease({output,workerSource},acceptedHits),/release_config_missing/);
  await writeFile(configFile,configSource);
  const shell=await readFile(join(output,'assets/fullrev-shell.mjs'),'utf8');assert.match(shell,/WARMUP_BANK/);assert.match(shell,/function mountWarmup/);
  const {publicAnswerRemainder}=await import('../tools/public-answer-allowlist.mjs');assert.doesNotMatch(publicAnswerRemainder('assets/fullrev-shell.mjs',Buffer.from(shell)).toString(),/WARMUP_BANK|firstOption|checkWarmup/);
@@ -131,17 +135,18 @@ test('完整建置僅豁免既有 DF／暖身固定內容；新增答案或教�
   const original=await readFile(target);
   for(const injected of ['page.clock.setFixedTime(new Date(0));','page.clock.install({time:new Date(0)});','page.clock.setSystemTime(new Date(0));','Date.now=()=>1800000000000;','window.Date=class extends Date {};','globalThis.Date=class extends Date {};','globalThis.__YBS_TEST_CLOCK__=true;']){
    await writeFile(target,Buffer.concat([original,Buffer.from('\n'+injected)]));
-   await assert.rejects(scanRelease({output,workerSource}),/release_test_clock/);
+   await assert.rejects(scanRelease({output,workerSource},acceptedHits),/release_test_clock/);
   }
   await writeFile(target,original);
  }
  await writeFile(file,Buffer.concat([clean,Buffer.from('\nconst leaked="synthetic-private-answer-unique-1";')]));
- await assert.rejects(scanRelease({output,workerSource}),/release_private_text_answer/);await writeFile(file,clean);
+ await assert.rejects(scanRelease({output,workerSource},acceptedHits),/release_private_text_answer/);await writeFile(file,clean);
+ assert.deepEqual(await scanRelease({output,workerSource},acceptedHits),result.scan);
  const dfFile=join(output,'115-df/a/index.html'),df=await readFile(dfFile,'utf8');assert.match(df,/assets\/legacy-df\/login.js/);assert.match(df,/id="ans"/);
  await writeFile(dfFile,df+'<script id="ans" type="application/json">{}</script>');
- await assert.rejects(scanRelease({output,workerSource}),/release_legacy_df_changed/);await writeFile(dfFile,df);
+ await assert.rejects(scanRelease({output,workerSource},acceptedHits),/release_legacy_df_changed/);await writeFile(dfFile,df);
  await mkdir(join(output,'assets/teacher-reference'));await writeFile(join(output,'assets/teacher-reference/8.mjs'),'export const answer="synthetic-private-answer-unique-1";');
- await assert.rejects(scanRelease({output,workerSource}),/release_allowlist_mismatch/);
+ await assert.rejects(scanRelease({output,workerSource},acceptedHits),/release_allowlist_mismatch/);
 });
 
 test('Worker 授權後的 30 活動／121 關逐關掛載、填入解答欄位非空並銷毀',{skip:!process.env.YBS_WORKER_SOURCE},async t=>{

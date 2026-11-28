@@ -58,9 +58,10 @@ function releaseConfig(config){
   ||config.firebase.messagingSenderId!==undefined&&typeof config.firebase.messagingSenderId!=='string'
   ||config.readModelModule!=='/assets/fullrev-read-model.mjs')throw Error('release_read_model_or_public_config_invalid');
 }
-export async function scanRelease({output,workerSource}){
+// Only direct module tests may supply list bytes; the CLI always reads the pinned list.
+export async function scanRelease({output,workerSource},testAcceptedHits){
  if(!workerSource)throw Error('worker_source_required_for_release_scan');
- const acceptedHits=await readAcceptedHits();
+ const acceptedHits=testAcceptedHits===undefined?await readAcceptedHits():testAcceptedHits;
  const found=[],text=[];output=resolve(output);
  async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true})){
   const p=join(dir,e.name),s=await lstat(p);if(s.isSymbolicLink()||!s.isFile()&&!s.isDirectory())throw Error('release_nonregular_file');
@@ -126,7 +127,7 @@ export async function scanRelease({output,workerSource}){
  const resources=releaseResources(text,{releaseId,readModelModule:config.readModelModule,pinned});
  return {files:found.length,privateCases:cases,...answerScan,sha256:sha256.digest('hex'),releaseId,resources};
 }
-export async function buildSite({output,config,workerSource,source=root}){
+export async function buildSite({output,config,workerSource,source=root},testAcceptedHits){
  releaseConfig(config);
  // Validate mandatory private-source dependency before writing anything.
  if(!workerSource)throw Error('worker_source_required_for_release_scan');
@@ -163,7 +164,7 @@ export async function buildSite({output,config,workerSource,source=root}){
  }
  const releaseId=releaseHash.digest('hex');
  for(const path of releasePaths().filter(p=>/\.(?:html|m?js|css)$/.test(p)))await write(path,versionResources(path,await readFile(join(output,path),'utf8'),releaseId,pinned));
- return {...result,releaseId,scan:await scanRelease({output,workerSource})};
+ return {...result,releaseId,scan:await scanRelease({output,workerSource},testAcceptedHits)};
  async function write(file,value){await mkdir(dirname(join(output,file)),{recursive:true});await writeFile(join(output,file),value);}
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){

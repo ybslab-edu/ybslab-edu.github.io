@@ -43,7 +43,11 @@ async function complete(page){
     if(slot===0){assert.equal(await page.locator('#xp-total').textContent(),'0 XP');await page.locator('#b-next-group').click();}
   }
   await page.getByRole('heading',{name:'已存待審，尚未採計',exact:true}).waitFor();
+  const promise=page.locator('#verdict p').filter({hasText:'老師核可後會存到你的帳號'});
+  assert.equal(await promise.isVisible(),true);assert.ok(await promise.evaluate(e=>parseFloat(getComputedStyle(e).fontSize))>=17);
   await page.locator('#xp-total').getByText('15 XP',{exact:true}).waitFor({state:'attached'});
+  assert.equal(await page.locator('#xp-header').isVisible(),true);
+  assert.equal(await page.locator('#xp-total').textContent(),'15 XP');
 }
 async function growthXP(page,value){
   // 手機版收起等級面板；等待可見摘要，再核對面板的同一份 XP。

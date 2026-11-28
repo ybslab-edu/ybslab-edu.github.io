@@ -5,10 +5,11 @@ export function teacherLoadFixture(){
   date:`2026-11-${String(i%28+1).padStart(2,'0')}`,openedAt:opened,rounds:Array.from({length:i===0?5:4},(_,r)=>`合成關卡 ${r+1}`),codes:[]}));
  const people=Array.from({length:30},(_,i)=>({subject:`synthetic-seat-${i+1}`,cls:901,seat:i+1,provider:'password'}));
  const records=people.flatMap((person,i)=>activities.flatMap(a=>a.rounds.flatMap((_,round)=>{
-  // Seats 1–10 complete, 11–20 lack the last activity, 21–30 await guest approval in activity 1.
+  // Seats 1–10 complete, 11–20 lack the last activity; activity 1 is pending for 21–25, approved for 26–30.
   if(i>=10&&i<20&&a.week===30)return [];
   return [record(round,{subject:person.subject,uid:person.subject,activity:a.week,unit:a.unit,resultId:`synthetic-${i+1}-${a.week}-${round}`,
-   ...(i>=20&&a.week===1?{source:'worker-guest-approved',approvalId:`synthetic-approval-${i+1}-${round}`}:{})})];
+   ...(i>=20&&a.week===1?{provider:'anonymous'}:{}),
+   ...(i>=25&&a.week===1?{source:'worker-guest-approved',approvalId:`synthetic-approval-${i+1}-${round}`}:{})})];
  })));
  return {activities,snapshots:[snapshot(records,{people})]};
 }

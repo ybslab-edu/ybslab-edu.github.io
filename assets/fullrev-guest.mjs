@@ -1,6 +1,17 @@
 import {fail,int,versions} from './fullrev-progress.mjs?v=20261127b3';
 
 export const GUEST_PENDING = '已存待審，尚未採計';
+// 只清登入容器內的身分欄位與訊息，讓共用電腦的下一位從遮蔽密碼開始。
+export function resetLoginForms(host) {
+  for(const input of host.querySelectorAll('input')) {
+    if(['account','password','cls','seat'].includes(input.name))input.value='';
+    if(input.name==='password')input.type='password';
+  }
+  for(const toggle of host.querySelectorAll('.ybs-password-toggle')) {
+    toggle.value='顯示';toggle.setAttribute('aria-label','顯示密碼');toggle.setAttribute('aria-pressed','false');
+  }
+  for(const error of host.querySelectorAll('[role="alert"]'))error.textContent='';
+}
 export function guestScope(value) {
   const cls=String(value?.cls||'').trim(), text=String(value?.seat||'').trim(), seat=Number(text);
   if(!/^[1-9][0-9]{2}$/.test(cls)||!/^\d{1,2}$/.test(text)||!int(seat,1)||seat>60)throw fail('guest-seat-required');
@@ -39,7 +50,7 @@ export function mountGuestLogin({host,login,document:doc=globalThis.document,dis
     input.pattern=name==='cls'?'[1-9][0-9]{2}':'[0-9]{1,2}';input.placeholder=placeholder;
     label.append(input);form.append(label);
   }
-  const note=doc.createElement('p');note.textContent='請確認班級與座號；完成後先存待審，由老師確認採計。';
+  const note=doc.createElement('p');note.textContent='請確認你的班級與座號；老師核可後會存到你的帳號，請用老師連結或新建的正式帳號查看。';note.style.fontSize='17px';
   const button=doc.createElement('button');button.type='submit';button.className='btn primary';button.textContent='用班級＋座號開始';
   const error=doc.createElement('p');error.setAttribute('role','alert');
   form.append(button);form.onsubmit=async event=>{
@@ -56,6 +67,7 @@ export function showGuestPending({value,host,next,document:doc=globalThis.docume
   if(!guestCompletion(value))return false;
   host.className='verdict';host.replaceChildren();
   const title=doc.createElement('h3');title.textContent=GUEST_PENDING;host.append(title);
+  const note=doc.createElement('p');note.textContent='老師核可後會存到你的帳號；請用老師連結或新建的正式帳號查看。';note.style.fontSize='17px';host.append(note);
   if(next){const b=doc.createElement('button');b.type='button';b.className='btn primary';b.textContent='下一關';b.onclick=next;host.append(b);}
   host.hidden=false;return true;
 }

@@ -22,10 +22,16 @@ test('分組失敗保留實際組別與錯誤碼，不回傳半班',async()=>{
  await assert.rejects(teacherSnapshots(client,bad,activities),{classKey:bad,code:'request-timeout'});
  }
 });
-test('訪客 XP 維持待確認，舊紀錄標示未驗證；不把 XP 當技能分數',()=>{
+test('已核可訪客顯示永久 XP，未核可仍待確認，舊紀錄保留未驗證標示',()=>{
  const guest=record(0,{source:'worker-guest-approved',approvalId:'synthetic-approval'});
  const data=teacherOverview([snapshot([guest])],options,context.xp);
- assert.equal(data.people[0].result.totalXP,null);assert.equal(data.people[0].result.activities[0].rounds[0].teacherPending,true);
+ assert.equal(data.people[0].result.state,'confirmed');assert.equal(data.people[0].result.totalXP,15);
+ assert.equal(data.people[0].result.activities[0].rounds[0].passed,true);
+ assert.equal(data.people[0].result.activities[0].rounds[0].teacherPending,undefined);
+ assert.equal(data.people[0].result.records[0].provider,'anonymous');assert.equal(data.rows[1][6],15);assert.equal(data.rows.at(-1)[6],15);
+ const pending=teacherOverview([snapshot([record(0,{provider:'anonymous'})])],options,context.xp);
+ assert.equal(pending.people[0].result.totalXP,null);assert.equal(pending.people[0].result.activities[0].rounds[0].teacherPending,true);
+ assert.equal(pending.rows[1][6],'待確認');assert.equal(pending.rows.at(-1)[6],'待確認');
  const legacy=record(0,{source:'legacy-unverified',resultId:'l_'+'b'.repeat(64),displayPolicy:'migration-initial-epochs-v1',completedAt:null});
  const old=teacherOverview([snapshot([legacy])],options,context.xp);
  assert.equal(old.rows[1][4],'舊紀錄過關（未驗證）');assert.equal(old.people[0].result.totalXP,10);

@@ -6,7 +6,7 @@ export const activities=[{course:'115-g9',week:5,unit:2,title:'合成活動',rou
 export const record=(round=0,extra={})=>({schemaVersion:1,source:'worker-validated',resultId:'c_synthetic_'+round,
   uid:'synthetic-student',subject:'synthetic-subject',provider:'password',classKeyAtPass:'c901',sid:'synthetic-sid',
   activity:5,round,unit:2,configVersion:1,contentVersion:'v1',contentHash:'a'.repeat(64),graderVersion:'synthetic-v1',bindingVersion:1,
-  unitEpoch:0,roundEpoch:0,completedAt:new Date(opened+864e5).toISOString(),xpPolicySnapshot:{openedAt:new Date(opened).toISOString()},
+  unitEpoch:0,roundEpoch:0,completedAt:new Date(opened+864e5).toISOString(),xpPolicySnapshot:{openedAt:new Date(opened).toISOString(),classKey:'c901',configVersion:1,gateVersion:1,classGateVersion:1},
   validity:{state:'effective',controlVersions:{...controls}},...extra});
 export const snapshot=(records=[0,1,2,3].map(r=>record(r)),extra={})=>({schemaVersion:1,sourceProject:config.firebase.projectId,course:'115-g9',
   classKey:'c901',subject:'synthetic-subject',provider:'password',state:'confirmed',complete:true,controlVersions:{...controls},records,

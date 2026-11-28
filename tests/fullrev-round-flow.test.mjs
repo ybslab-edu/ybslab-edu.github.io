@@ -50,6 +50,18 @@ test('登入既有過關結果直接回看，換人即清畫面',async t=>{
  await h.round(1).onclick();assert.equal(h.requests.length,0);assert.match(h.$('stage').textContent,/第 2 關/);
  await h.client.logout();assert.equal(h.$('stage').textContent,'');assert.equal(h.$('main').hidden,true);
 });
+test('換電腦提示以目前答案與已確認輸入比較；待確認保留、已確認隱藏',async t=>{
+ const h=await open(t),notice=h.$('unsent-notice'),input=h.$('stage').querySelector('input');
+ assert.equal(notice.hidden,true);input.value='合成未送答案';input.oninput();
+ assert.equal(notice.hidden,false);assert.equal(notice.textContent,'這題還沒送出，換電腦前先按送出');assert.equal(h.$('b-send').disabled,false);
+ let release;h.state.fetcher=()=>new Promise(resolve=>{release=()=>resolve(Response.json(response(0,{correct:false,nextSeq:2})));});
+ const sending=h.$('b-send').onclick();await until(()=>h.client.state().pending);assert.equal(notice.hidden,false);
+ // 回應到達前又修改答案，收到舊答案的判定也不能隱藏新答案的提示。
+ input.value='送出後的新答案';input.oninput();await until(()=>!!release);release();await sending;assert.equal(notice.hidden,false);
+ input.value='合成未送答案';input.oninput();assert.equal(notice.hidden,true);
+ input.value='再修改';input.oninput();assert.equal(notice.hidden,false);
+ await h.client.logout();assert.equal(notice.hidden,true);
+});
 test('舊選擇未解鎖時回第一關；教師可直接選第四關且不發學生 start',async t=>{
  const h=await open(t,{savedRound:3,owner:true});assert.equal(h.requests.at(-1).body.round,0);assert.equal(h.round(3).disabled,true);
  await h.client.login('owner');await until(()=>h.$('stage').querySelector('#tbar'));

@@ -31,47 +31,59 @@ const htmlText=value=>value.replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp)
  return {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:'\u00a0'}[name.toLowerCase()];
 });
 function htmlValues(text){
- const values=[],tags=/<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][\w:-]*(?:[^<>"']|"[^"]*"|'[^']*')*>/gi;
- const add=(value,at)=>{values.push({value,at});const decoded=htmlText(value);if(decoded!==value)values.push({value:decoded,at});};
- let end=0,rawTag='';
- for(const tag of text.matchAll(tags)){
-  if(rawTag){if(new RegExp('^</'+rawTag+'\\s*>$','i').test(tag[0])){rawTag='';end=tag.index+tag[0].length;}continue;}
-  if(tag.index>end)add(text.slice(end,tag.index),end);
+ const values=[],regions=[],tags=/<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][\w:-]*(?:[^<>"']|"[^"]*"|'[^']*')*>/gi;
+ const add=(value,at,attribute=false)=>{values.push({value,at,attribute});const decoded=htmlText(value);if(decoded!==value)values.push({value:decoded,at,attribute});};
+ const content=(end,javascript=false)=>{if(end>at){regions.push({text:text.slice(at,end),at,javascript});if(!javascript)add(text.slice(at,end),at);}};
+ let at=0,tag;
+ while((tag=tags.exec(text))){
+  content(tag.index);
+  // Comments remain public source: preserve literal-answer detection within them.
+  if(tag[0].startsWith('<!--'))regions.push({text:tag[0],at:tag.index,javascript:false});
   const attrs=/[^\s=<>/]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
-  if(!tag[0].startsWith('<!'))for(const attr of tag[0].matchAll(attrs))add(attr[1]??attr[2]??attr[3],tag.index+attr.index);
-  end=tag.index+tag[0].length;
-  const raw=/^<(script|style)\b/i.exec(tag[0]);if(raw)rawTag=raw[1];
+  if(!tag[0].startsWith('<!'))for(const attr of tag[0].matchAll(attrs))add(attr[1]??attr[2]??attr[3],tag.index+attr.index,true);
+  at=tags.lastIndex;
+  const raw=/^<(script|style)(?=[\s/>])/i.exec(tag[0]);
+  if(raw){
+   // HTML raw-text elements end at their closing tag, even inside a JS comment.
+   // Do not parse tag-like strings or comparisons inside script/style as markup.
+   const close=new RegExp('</'+raw[1]+String.raw`(?=[\s/>])(?:[^<>"']|"[^"]*"|'[^']*')*>`,'gi');close.lastIndex=at;
+   const end=close.exec(text);content(end?.index??text.length,raw[1].toLowerCase()==='script');
+   at=end?close.lastIndex:text.length;tags.lastIndex=at;
+  }
  }
- if(!rawTag&&end<text.length)add(text.slice(end),end);
- return values;
+ content(text.length);
+ return {values,regions};
 }
 // Keep regex character classes and comments out of string parsing. In particular,
 // /["']/ must not consume the opening quote of a later answer literal.
-function literalTokens(text){
- const tokens=[],pattern=/\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\\r\n])*"|'(?:\\[\s\S]|[^'\\\r\n])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[A-Za-z_$][\w$]*|\+\+|--|[^\s]/giy;
+function literalTokens(text,javascript=true){
+ const tokens=[],pattern=/"(?:\\[\s\S]|[^"\\\r\n])*"|'(?:\\[\s\S]|[^'\\\r\n])*'|`(?:\\[\s\S]|[^`\\])*`|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[A-Za-z_$][\w$]*|\+\+|--|[^\s]/giy;
+ const comments=/\/\/[^\r\n]*|\/\*[\s\S]*?\*\//gy;
  const regexp=/\/(?:\\[^\r\n]|\[(?:\\[^\r\n]|[^\]\\\r\n])*\]|[^/\\[\r\n])+\/[a-z]*/giy;
- const parens=[];let expression=true,previous='';
+ const parens=[];let expression=true,previous='',control=false;
  for(let at=0;at<text.length;){
   if(/\s/.test(text[at])){at++;continue;}
+  if(javascript){comments.lastIndex=at;const comment=comments.exec(text);if(comment){at=comments.lastIndex;continue;}}
   pattern.lastIndex=at;const match=pattern.exec(text);if(!match){at++;continue;}
   const raw=match[0];at=pattern.lastIndex;
-  if(raw.startsWith('//')||raw.startsWith('/*'))continue;
-  if(raw==='/'&&expression){
+  if(javascript&&raw==='/'&&expression){
    regexp.lastIndex=match.index;const regex=regexp.exec(text);
-   if(regex){tokens.push({raw:'/',at:match.index});at=regexp.lastIndex;expression=false;previous='/';continue;}
+   if(regex){tokens.push({raw:'/',at:match.index});at=regexp.lastIndex;expression=false;previous='/';control=false;continue;}
   }
   tokens.push({raw,at:match.index});
-  if(raw==='('){parens.push(/^(?:if|while|for|with|switch|catch)$/.test(previous));expression=true;}
+  if(raw==='('){parens.push(control);expression=true;}
   else if(raw===')')expression=parens.pop()??false;
   else if(raw===']'||raw==='}'||raw==='++'||raw==='--'||/^["'`\d]/.test(raw)||/^-\d/.test(raw))expression=false;
   else if(/^[A-Za-z_$]/.test(raw))expression=previous!=='.'&&/^(?:return|throw|yield|await|case|delete|void|typeof|instanceof|in|of|else|do)$/.test(raw);
   else expression=true;
+  // A keyword after property access is a name: obj.if(x) ends an expression.
+  control=previous!=='.'&&/^(?:if|while|for|with|switch|catch)$/.test(raw);
   previous=raw;
  }
  return tokens;
 }
-function literals(text){
- const values=[],tokens=literalTokens(text);
+function literals(text,javascript=true){
+ const values=[],tokens=literalTokens(text,javascript);
  const scalar=raw=>{if(['`','"',"'"].includes(raw[0]))return stringValue(raw);if(/^-?\d/.test(raw))return Number(raw);if(['true','false','null'].includes(raw))return JSON.parse(raw);throw Error();};
  function object(i){const result=Object.create(null);let j=i+1;
   while(j<tokens.length){if(tokens[j].raw==='}')return {value:result,end:j};
@@ -97,11 +109,23 @@ function literals(text){
  }catch{}}
  return values;
 }
-export function privateAnswerHits(text,answers){
+export function privateAnswerHits(text,answers,sourceType=/^\s*</.test(text)?'html':'script'){
  const hits=[];
  const arrays=new Set(),objects=new Set(),strings=new Set(),numbers=new Set();
  for(const answer of answers){if(Array.isArray(answer))arrays.add(signature(answer));else if(answer&&typeof answer==='object')objects.add(signature(answer));else if(typeof answer==='string')strings.add(atom(answer));else if(typeof answer==='number')numbers.add(atom(answer));}
- for(const {value,at} of [...literals(text),...htmlValues(text)]){
+ // Release files supply their type explicitly. Source-only callers infer fragments
+ // beginning with markup. HTML text/attributes never share JS comment state.
+ const html=htmlValues(text),values=sourceType==='html'
+  ?html.regions.flatMap(region=>literals(region.text,region.javascript).map(value=>({...value,at:value.at+region.at})))
+  :literals(text);
+ if(sourceType==='html')for(const {value,at,attribute} of html.values){
+  // Preserve complete serialized arrays/objects in attributes. Text regions are
+  // already tokenized above, so do not count their literal values a second time.
+  if(attribute&&/^\s*[\[{]/.test(value))try{
+   const visit=value=>{if(value&&typeof value==='object'){values.push({value,at});Object.values(value).forEach(visit);}};visit(JSON.parse(value));
+  }catch{}
+ }
+ for(const {value,at} of [...values,...html.values]){
   const context=text.slice(Math.max(0,at-80),at),label=/(?:answer|solution|correct|答案|解答)[\w\s"':=,[\]-]*$/i.test(context);
   let type;
   if(value&&typeof value==='object'&&!Array.isArray(value)&&objects.has(signature(value)))type='answer_object';
@@ -117,8 +141,8 @@ export function privateAnswerHits(text,answers){
  return hits;
 }
 const hitError=hit=>Error('release_private_'+hit.type+(/^answer_array/.test(hit.type)?'@'+hit.at:''));
-export function scanPrivateAnswers(text,answers){
- const hit=privateAnswerHits(text,answers)[0];if(hit)throw hitError(hit);
+export function scanPrivateAnswers(text,answers,sourceType){
+ const hit=privateAnswerHits(text,answers,sourceType)[0];if(hit)throw hitError(hit);
 }
 
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -182,7 +206,7 @@ export function scanPrivateAnswerFiles(files,answers,listBytes){
  }
  let knownAcceptedHits=0;
  const counts=Object.fromEntries(list.groups.map(group=>[group.id,0]));
- for(const file of files)for(const hit of privateAnswerHits(file.bytes.toString('utf8'),answers)){
+ for(const file of files)for(const hit of privateAnswerHits(file.bytes.toString('utf8'),answers,file.path.endsWith('.html')?'html':'script')){
   const match=entries.get(file.path+'\0'+hit.byteOffset);
   if(!match||hit.type!==match.entry.type)throw Error(hitError(hit).message+':'+file.path);
   if(++match.count>match.entry.expectedHits)invalid('duplicate_hit');

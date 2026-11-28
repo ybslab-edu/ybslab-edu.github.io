@@ -269,6 +269,107 @@ test('synthetic regex ranges remain allowed and cannot hide subsequent answer li
   assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_text_answer/);
  }
 });
+const slashContextCases=[
+ // name, public synthetic source, expected old result, expected new result.
+ ['HTTPS in HTML text','<p>https://example.invalid</p><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTP in HTML text','<p>http://example.invalid</p><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTP in unquoted attribute','<a href=http://example.invalid>公開</a><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTPS in double-quoted attribute','<a href="https://example.invalid">公開</a><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTP in single-quoted attribute',"<a href='http://example.invalid'>公開</a><script>const value=\"SYNTH-ANSWER\";</script>",'block','block'],
+ ['block-comment marker in HTML text','<p>/* 公開提示</p><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['URL in style content','<style>p{background:url(https://example.invalid/image)}</style><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['line comment ends at script boundary','<script>// public comment</script><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['script end tag with ignored attribute','<script>// public comment</script ignored><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['custom element is not a script','<script-label>https://example.invalid</script-label><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['script comparison and tag-like string','<p>https://example.invalid</p><script>if(a<b) log("<p>");const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTML comment literal remains public','<!-- https://example.invalid "SYNTH-ANSWER" -->','block','block'],
+ ['property if call division','const value=obj.if(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property while call division','const value=obj.while(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property for call division','const value=obj.for(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property switch call division','const value=obj.switch(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property catch call division','const value=obj.catch(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property return call division','const value=obj.return(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['optional property if call division','const value=obj?.if(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['commented property call division','const value=obj /* public */ . if /* public */ (x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['nested property call division','const value=obj.if(check(x))/"SYNTH-ANSWER"/scale;','block','block'],
+ ['closing parenthesis division','const value=(total)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['closing bracket division','const value=items[0]/"SYNTH-ANSWER"/scale;','block','block'],
+ ['identifier division','const value=total/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property return division','const value=obj.return/"SYNTH-ANSWER"/scale;','block','block'],
+ ['plain string','const value="SYNTH-ANSWER";','block','block'],
+ ['Unicode escape',String.raw`const value="\u0053YNTH-ANSWER";`,'block','block'],
+ ['code point escape',String.raw`const value="\u{53}YNTH-ANSWER";`,'block','block'],
+ ['hexadecimal escape',String.raw`const value="\x53YNTH-ANSWER";`,'block','block'],
+ ['HTML decimal entity','<p>&#83;YNTH-ANSWER</p>','block','block'],
+ ['HTML hexadecimal entity','<input value="&#x53;YNTH-ANSWER">','block','block'],
+ ['similar HTML text','<p>https://example.invalid</p><script>const value="SYNTH-ANSWERS";</script>','allow','allow'],
+ ['similar division operand','const value=obj.if(x)/"SYNTH-ANSWERS"/scale;','allow','allow'],
+ ['control statement regex','if(visible) /SYNTH-ANSWER/.test(input);','allow','allow'],
+ ['control statement regex before leak','if(visible) /public/.test(input);const value="SYNTH-ANSWER";','block','block'],
+ ['regex character range','const range=/[SYNTH-ANSWER]/;','allow','allow'],
+ ['literal backslash',String.raw`const value="\\u0053YNTH-ANSWER";`,'allow','allow'],
+ ['double HTML encoding','<p>&amp;#83;YNTH-ANSWER</p>','allow','allow'],
+ ['partial concatenation','const value="SYNTH-"+"ANSWER";','allow','allow']
+];
+test('HTML URL cannot hide a complete answer in a later script on the same line',()=>{
+ assert.throws(()=>scanPrivateAnswers(slashContextCases[0][1],['SYNTH-ANSWER']),/release_private_text_answer/);
+});
+test('property if call division cannot hide its complete string operand',()=>{
+ assert.throws(()=>scanPrivateAnswers('const value=obj.if(x)/"SYNTH-ANSWER"/scale;',['SYNTH-ANSWER']),/release_private_text_answer/);
+});
+test('slash contexts meet every explicit new-scanner expectation',async t=>{
+ for(const [name,source,,expected] of slashContextCases)await t.test(`${name}: expected ${expected}`,()=>{
+  if(expected==='block')assert.throws(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']),/release_private_text_answer/);
+  else assert.doesNotThrow(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']));
+ });
+});
+test('fixed old scanner and new scanner compare the same synthetic slash contexts',async t=>{
+ const file=process.env.YBS_OLD_ANSWER_SCANNER;
+ if(!file){t.skip('需 Console 固定的舊版唯讀 scanner，設定 YBS_OLD_ANSWER_SCANNER');return;}
+ assert.equal(createHash('sha256').update(await readFile(file)).digest('hex'),'cceee2f19e8d8cb1928c4c04297fba6d4f1901c4ad207da2e300adae1bc120db','fixed origin/main f5aaa39 scanner bytes');
+ const {scanPrivateAnswers:oldScan}=await import(pathToFileURL(resolve(file)).href);
+ const outcome=(scan,source)=>{try{scan(source,['SYNTH-ANSWER']);return 'allow';}catch(error){assert.match(error.message,/^release_private_/);return 'block';}};
+ let regressions=0;
+ for(const [name,source,expectedOld,expectedNew] of slashContextCases)await t.test(`${name}: old=${expectedOld}, new=${expectedNew}`,()=>{
+  const old=outcome(oldScan,source),current=outcome(scanPrivateAnswers,source);
+  if(old==='block'&&current==='allow')regressions++;
+  assert.equal(old,expectedOld,'fixed old scanner');assert.equal(current,expectedNew,'new scanner');
+ });
+ t.diagnostic(`cases=${slashContextCases.length}; old-block/new-miss=${regressions}`);
+ assert.equal(regressions,0);
+});
+test('HTML regions preserve complete container values and original UTF-8 script offsets',()=>{
+ const answers=[[17,29,43,61],{rate:173,levels:29}];
+ for(const source of [
+  '<input value="[17,29,43,61]">',
+  "<input value='{\"rate\":173,\"levels\":29}'>",
+  '<p>[17,29,43,61]</p>',
+  '<p>{rate:173,levels:29}</p>'
+ ])assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_(?:array|object)/);
+ assert.equal(privateAnswerHits('<p>[17,29,43,61]</p>',answers).length,1,'one source array is one hit');
+ const source='<p>合成 https://example.invalid</p><script>const value="SYNTH-ANSWER";</script>';
+ const at=source.indexOf('"SYNTH-ANSWER"');
+ assert.deepEqual(privateAnswerHits(source,['SYNTH-ANSWER']),[{type:'text_answer',at,byteOffset:Buffer.byteLength(source.slice(0,at))}]);
+});
+test('release HTML files use HTML context even when their first text node is a URL',()=>{
+ const list={schemaVersion:1,groups:[{id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},{id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}]};
+ const files=[{path:'assets/synthetic.html',bytes:Buffer.from('https://example.invalid<script>const value="SYNTH-ANSWER";</script>')}];
+ assert.throws(()=>scanPrivateAnswerFiles(files,['SYNTH-ANSWER'],Buffer.from(JSON.stringify(list))),/release_private_text_answer/);
+});
+test('comments and regex literals are recognized within each script context',()=>{
+ for(const source of [
+  '// "SYNTH-ANSWER"\nconst publicValue="next";',
+  '/* "SYNTH-ANSWER" */ const publicValue="next";',
+  '<p>https://example.invalid</p><script>// "SYNTH-ANSWER"\nconst publicValue="next";</script>',
+  '<input value="http://example.invalid"><script>if(visible) /("SYNTH-ANSWER")/.test(input);</script>',
+  'const markup="<script>";const publicValue="next";'
+ ])assert.doesNotThrow(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']));
+ for(const source of [
+  'const markup="<script>";const value="SYNTH-ANSWER";',
+  '<script>/* public "quote */ const value="SYNTH-ANSWER";</script>',
+  '<script>if(visible) /["\']/.test(input);const value="SYNTH-ANSWER";</script>'
+ ])assert.throws(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']),/release_private_text_answer/);
+});
 test('synthetic literal backslashes and double encodings are allowed without recursive decoding',()=>{
  const cases=[
   String.raw`const value="\\u0053YNTH-ANSWER";`,

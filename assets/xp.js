@@ -54,10 +54,11 @@ const YBSXP = (() => {
         const record = first.get(key + ':' + round), passed = !!record;
         const at = recordTime(record), open = timestamp(worker ? record?.xpPolicySnapshot?.openedAt : a.openedAt);
         const passXP = passed ? RULES.pass : 0;
-        const onTimeXP = passed && at >= open && at <= open + RULES.windowMs ? RULES.onTime : 0;
+        const oldGuest = worker && record?.source === 'worker-guest-approved' && !Object.hasOwn(record, 'xpPolicySnapshot');
+        const onTimeXP = passed && !oldGuest && at >= open && at <= open + RULES.windowMs ? RULES.onTime : 0;
         const result = {round, name, passed, passXP, onTimeXP, totalXP:passXP + onTimeXP};
         // Legacy unknown time earned pass XP only in the old app; it is not an unknown new result.
-        if (worker) result.onTimeState = passed && ((!Number.isFinite(at) && record.source !== 'legacy-unverified')
+        if (worker) result.onTimeState = passed && !oldGuest && ((!Number.isFinite(at) && record.source !== 'legacy-unverified')
           || !Number.isFinite(open)) ? 'unknown' : 'confirmed';
         return result;
       });

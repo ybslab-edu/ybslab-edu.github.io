@@ -49,10 +49,11 @@ test('all 121 formal rounds confirm in one page and persist originals before emi
 
 const guest=(round=0,extra={})=>({source:'worker-guest-approved',subject:'synthetic-subject',activity:5,round,
  approvalId:'guest_'+String(round).padEnd(43,'g'),completedAt:'2026-11-01T12:00:00.000Z',validity:{state:'effective',controlVersions:{gateVersion:1,classGateVersion:1}},...extra});
-test('approved guests are complete independent projections, respect validity and first pass, and clear when omitted by new full set',async()=>{
+test('approved guests are complete independent projections, respect validity and formal precedence, and clear when omitted by new full set',async()=>{
  const h=await setup(page([record()],{guestVersion:'g'.repeat(43),guestRecords:[guest(),guest(1)]}));
  let d=await h.read();let valid=effectiveRecords(d,{project:config.firebase.projectId,course:'115-g9',subject:d.subject,activities});
- assert.equal(valid.state,'confirmed');assert.equal(valid.records.length,2);assert.equal(valid.records[0].source,'worker-guest-approved');
+ assert.equal(valid.state,'confirmed');assert.equal(valid.records.length,2);assert.equal(valid.records.find(r=>r.round===0).source,'worker-validated');
+ assert.equal(valid.records.find(r=>r.round===1).source,'worker-guest-approved');
  assert.equal(d.resultVersions.a5_r0,record().resultId);assert.equal(Object.keys(d.resultVersions).length,1);
  await h.client.start(5,2);const r=record(2);h.state.fetcher=async()=>Response.json(response(0,{completed:true,resultId:r.resultId,progressDelta:{progressVersion:2,epoch,resultVersions:{a5_r2:r.resultId},records:[r]}}));
  await h.client.answer(5,2,7);assert.equal(h.calls.length,1);assert.equal(h.client.state().snapshot.guestRecords.length,2);

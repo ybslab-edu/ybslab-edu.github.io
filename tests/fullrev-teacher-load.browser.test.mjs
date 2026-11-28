@@ -68,7 +68,14 @@ for(const width of [360,1280])test(`教師 ${width}px：詳情預建含日期、
  assert.equal(await page.locator('details').nth(1).locator('p').count(),5);
  await page.locator('#teacher-activity').selectOption('1');assert.equal(await page.locator('tbody tr').count(),30);
  assert.equal(await page.locator('details').count(),30);
- assert.match(await page.locator('tbody').innerText(),/待老師確認/);
+ // guestxp-design.md §4: only approved guest records earn permanent XP; unapproved records still await review.
+ const pending=page.locator('tbody tr').nth(20);
+ assert.equal(await pending.locator('summary').textContent(),'0／5 關（5 關待老師確認） · XP 待確認');
+ await pending.locator('summary').click();assert.match(await pending.locator('p').first().innerText(),/合成關卡 1：訪客紀錄待老師確認/);
+ const approved=page.locator('tbody tr').nth(25);
+ assert.equal(await approved.locator('summary').textContent(),'5／5 關 · 95 XP');
+ await approved.locator('summary').click();assert.match(await approved.locator('p').first().innerText(),/合成關卡 1：已確認過關.*15 XP/);
+ assert.match(await approved.innerText(),/Lv 10 · 2415 XP/);
  await page.locator('#teacher-activity').selectOption('2');assert.equal(await page.locator('tbody tr').count(),30);
  await page.locator('#teacher-activity').selectOption('30');assert.equal(await page.locator('tbody tr').count(),30);
  assert.match(await page.locator('tbody tr').nth(10).locator('summary').textContent(),/0／4 關/);

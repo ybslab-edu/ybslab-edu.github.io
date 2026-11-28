@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 
-test('手機正式過關不受同活動或其他活動的訪客待確認紀錄阻斷',async t=>{
+test('手機正式過關不受同活動或其他活動的已核可訪客紀錄阻斷',async t=>{
   const browser=await chromium.launch({headless:true});t.after(()=>browser.close());
   for(const [width,guestActivity,confirmFormal,guestRound] of [[390,5,true,1],[1280,6,true,1],[390,5,false,0]]) {
     const context=await browser.newContext({viewport:{width,height:844},serviceWorkers:'block'});t.after(()=>context.close());
@@ -29,8 +29,11 @@ test('手機正式過關不受同活動或其他活動的訪客待確認紀錄�
       await page.getByRole('heading',{name:'過關！',exact:true}).waitFor();
       assert.match(await page.locator('#verdict').textContent(),/本關 XP：\+10 過關、\+5 準時/);
       assert.equal(await page.locator('#sync').textContent(),'✓ 紀錄已上傳給老師');
-      assert.equal(await page.locator('#xp-header').isVisible(),false);
-      if(guestActivity===5)assert.match(await page.locator('#rounds button').evaluateAll(bs=>bs.map(b=>b.getAttribute('aria-label')).join(' ')),/待老師確認/);
+      assert.equal(await page.locator('#xp-header').isVisible(),true);
+      if(guestActivity===5){
+        assert.doesNotMatch(await page.locator('#rounds').textContent(),/待老師確認/);
+        assert.doesNotMatch(await page.locator('#rounds button').evaluateAll(bs=>bs.map(b=>b.getAttribute('aria-label')).join(' ')),/待老師確認/);
+      }
       const reads=await page.evaluate(()=>h.state.progressReads);
       await page.evaluate(()=>{h.advance();dispatchEvent(new Event('focus'));});
       await page.waitForFunction(reads=>h.state.progressReads===reads+1,reads);
@@ -58,7 +61,7 @@ test('手機正式過關不受同活動或其他活動的訪客待確認紀錄�
       await page.locator('#sync').filter({hasText:'正在確認雲端紀錄'}).waitFor();
       assert.equal(await page.getByRole('heading',{name:'過關！',exact:true}).count(),0);
       assert.equal(await page.getByRole('button',{name:'下一關',exact:true}).count(),0);
-      assert.equal(await page.locator('#xp-header').isVisible(),false);
+      assert.equal(await page.locator('#xp-header').isVisible(),true);
       assert.match(await page.locator('#sync').textContent(),/正在確認雲端紀錄/);
     }
     assert.deepEqual(errors,[]);await context.close();

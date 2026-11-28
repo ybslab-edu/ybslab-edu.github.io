@@ -32,7 +32,7 @@ function fixture(t){
   const client={studentGoogleLogin:true,state:()=>state,subscribe(fn){listeners.add(fn);fn(state);return()=>listeners.delete(fn);},restore:async()=>{},
     progress:async()=>{calls.progress++;return {state:'unknown'};},start:async()=>view(),answer:async()=>{calls.answer++;return view();},retry:async()=>[],refreshClaims:async()=>{}};
   const cfg={week:5,title:'合成活動',rounds:[{name:'關卡一'},{name:'關卡二'}],renderQuestion(question,host,api){
-    const render={api,disposed:0,ready:true};renders.push(render);host.append(new DOM('input'));
+    const render={api,host,disposed:0,ready:true};renders.push(render);host.append(new DOM('input'));
     return {get:()=>7,ready:()=>render.ready,dispose(){render.disposed++;}};
   }};
   const mount=async(kind=mountActivity,source=client)=>{dispose=await kind({client:source,cfg});return dispose;};
@@ -150,4 +150,14 @@ for(const kind of [mountActivity,mountGrowth])test(`${kind.name} 還原登入暫
   assert.equal(logins,1);assert.equal(f.calls.progress,1);assert.equal((kind===mountActivity?f.button('登出／換人'):f.document.body.querySelector('#logout')).hidden,false);
   if(kind===mountActivity){await f.button('開始這一關').onclick();assert.equal(f.renders.length,1);}
   dispose();assert.equal(f.listeners.size,0);assert.equal(f.window.count(),0);assert.equal(f.document.count(),0);
+});
+
+test('活動票期限到時清除 renderer 與輸入，舊 changed 回呼不能啟用送出',async t=>{
+  const f=fixture(t);await f.mount();await f.button('開始這一關').onclick();const renderer=f.renders[0];
+  assert.equal(renderer.host.querySelectorAll('input').length,1);
+  f.emit({status:'restart-required',view:null,ticketTiming:{state:'expired',activity:5,round:0}});
+  assert.equal(renderer.disposed,1);
+  assert.equal(renderer.host.querySelectorAll('input').length,0);
+  renderer.api.changed();assert.equal(f.button('送出').disabled,true);
+  assert.equal(f.client.state().profile.uid,'synthetic');
 });

@@ -36,7 +36,8 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   if(!['115-g9','115-df'].includes(course))throw fail('invalid-course');
   const storageKey = 'ybs:fullrev:'+project+':'+course, signalKey = storageKey+':identity';
   const workStore=createWorkStore({shared,project,course,now});
-  const progressCache=createProgressCache({storage:shared,project,course}),progressWork=new Map(),aborters=new Set();
+  const progressWork=new Map(),aborters=new Set();
+  let progressCache=createProgressCache({storage:shared,project,course});
   let progressActivities=null,binding=null,summaryIssue=null,legacyControlsFirst=false,legacyProgressBody=false,historyController=null;
   const abortRequests=(keep=null)=>{readModel?.cancel?.();for(const c of aborters)if(c!==keep){c.abort();aborters.delete(c);}progressWork.clear();};
   function confirmBinding(m,classKey,subject,keep){
@@ -85,7 +86,9 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   function purgeUID(uid){if(uid){workStore.purge(uid);
     try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===uid)storage.removeItem(k);}catch{}}}catch{}
     }}
-  function clear(uid=profile?.uid) {abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;progressCache.purge();progressActivities=null;binding=null;summaryIssue=null;purgeUID(uid);
+  function clear(uid=profile?.uid,{preserveShared=false}={}) {abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;
+    if(preserveShared)progressCache=createProgressCache({storage:shared,project,course});else progressCache.purge();
+    progressActivities=null;binding=null;summaryIssue=null;purgeUID(uid);
     cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};guestXP=[];snapshot=null;lastProgress=null;view=null;readingRetry=null;profile=null;
     try{storage?.removeItem(storageKey);}catch{} emit('signed-out');}
   function broadcast() {signal=requestId();try{shared?.setItem(signalKey,signal);}catch{}}
@@ -203,10 +206,15 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   async function restore() {
     const {auth}=await getSession();
     if (!auth.currentUser) {workStore.retain(null);clear();return null;}
+    signal=savedSignal();
     let saved;
     try{saved=JSON.parse(storage?.getItem(storageKey)||'null');}catch{}
     if(!saved){const local=workStore.read(auth.currentUser.uid);if(Object.keys(local).length||firebaseSession.browserSession?.isAccount(auth.currentUser)&&firebaseSession.browserSession.has())saved={uid:auth.currentUser.uid,signal,drafts:local};}
-    if(saved?.uid!==auth.currentUser.uid||saved.signal!==signal){firebaseSession.browserSession?.clear();clear(auth.currentUser.uid);await auth.signOut();return null;}
+    if(saved?.uid!==auth.currentUser.uid||saved.signal!==signal){
+      // 舊分頁只丟棄自己的快照；目前的 LOCAL 登入、cookie 與新草稿屬於其他分頁。
+      const previousUID=saved?.uid||profile?.uid;
+      clear(previousUID&&previousUID!==auth.currentUser.uid?previousUID:null,{preserveShared:true});return null;
+    }
     // 帳密可跨分頁還原；Google／訪客仍限分頁。持久草稿僅含加密票及輸入。
     const g=generation;
     profile={uid:auth.currentUser.uid,kind:'student',owner:false};

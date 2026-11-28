@@ -90,3 +90,23 @@ test('warning appears at 18 minutes, is at least 17px, and expiry stops retries 
  assert.equal(await page.evaluate(()=>client.state().status),'restart-required');assert.equal(await page.evaluate(()=>client.savedRound(5)),undefined);
  assert.equal(await page.evaluate(()=>JSON.stringify([Object.values(localStorage),Object.values(sessionStorage)]).includes('合成到期草稿')),false);
 });
+
+test('restoring an old tab snapshot preserves the new student Auth, cookie and encrypted draft',async t=>{
+ const context=await contextFor(t),a=await open(t,context);await login(a);
+ await a.evaluate(async()=>{await client.start(5,0);client.saveInput(5,0,['合成舊分頁草稿']);});
+ const stale=await a.evaluate(()=>sessionStorage.getItem('ybs:fullrev:synthetic-fullrev-login:115-g9'));
+ const b=await open(t,context);await login(b,'9990002');
+ await b.evaluate(async()=>{await client.start(5,0);client.saveInput(5,0,['合成目前學生草稿']);});
+ const work=await b.evaluate(()=>Object.entries(localStorage).filter(([key])=>key.startsWith('ybs:fullrev:work:')));
+ // A suspended page can resume with its old sessionStorage after the shared Auth changed.
+ await a.evaluate(stale=>sessionStorage.setItem('ybs:fullrev:synthetic-fullrev-login:115-g9',stale),stale);
+ await a.reload();await a.waitForFunction(()=>window.ready);
+ assert.equal(await a.evaluate(()=>restored),null);
+ assert.equal(await a.evaluate(()=>__sessionMock.auth.currentUser?.uid),'session-two');
+ assert.equal((await context.cookies()).some(c=>c.name===cookie&&c.value==='1'),true);
+ assert.deepEqual(await a.evaluate(()=>Object.entries(localStorage).filter(([key])=>key.startsWith('ybs:fullrev:work:'))),work);
+ assert.equal(await a.evaluate(()=>sessionStorage.getItem('ybs:fullrev:synthetic-fullrev-login:115-g9')),null);
+ assert.equal(await b.evaluate(()=>client.state().profile?.uid),'session-two');
+ assert.deepEqual(await b.evaluate(()=>client.loadInput(5,0)),['合成目前學生草稿']);
+ const next=await open(t,context);assert.equal(await next.evaluate(()=>restored.uid),'session-two');
+});

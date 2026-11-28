@@ -22,6 +22,7 @@ const teacherMessages={'capacity-deferred':'目前暫時無法開始作答，請
   'restart-required':'授權或作答版本已變更，請重新開始這一關。','identity-changed':'身分已變更，請重新登入。',
   'binding-pending':'尚待老師核發身分；目前只能本機練習。','read-model-pending':'雲端紀錄尚未確認，請稍後重新讀取。',
   'owner-required':'只有此課程擁有者可以使用。','configuration-pending':'新登入服務尚未就緒，請找老師。',
+  'health-class-incomplete':'班級分組或名冊未完整確認，請找老師核對。','health-read-budget':'本次讀取已達上限，請稍後手動重試。','health-unconfirmed':'統計尚未確認，請稍後手動重試。',
   'guest-xp-policy-pending':'班座紀錄尚待老師確認。','guest-pending':'已存待審，尚未採計。','guest-seat-required':'請填三位數班級及 1–60 號座號。','guest-seat-unavailable':'查無這個班座，請確認或找老師。','not-open':'這個活動還沒開放。','xp-snapshot-missing':'準時 XP 尚待確認。'};
 const explainTeacher=error=>{const code=error?.code||error?.reason;return Object.hasOwn(teacherMessages,code)?teacherMessages[code]:'尚未完成，請重新讀取或找老師。';};
 const messages={

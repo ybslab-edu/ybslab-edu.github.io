@@ -84,7 +84,18 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
   function save() {try{storage?.setItem(storageKey,JSON.stringify({uid:profile?.uid,signal,drafts,guest:profile?.guest,
     ...(profile?.provider==='anonymous'?{guestXP}:{})}));}catch{emit('storage-pending');}return workStore.write(profile?.uid,drafts);}
   function purgeUID(uid){if(uid){workStore.purge(uid);
-    try{const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i));for(const k of keys)if(k?.startsWith('ybs:fullrev:'+project+':')){try{if(JSON.parse(storage.getItem(k))?.uid===uid)storage.removeItem(k);}catch{}}}catch{}
+    try{
+      const keys=Array.from({length:storage?.length||0},(_,i)=>storage.key(i)),roundPrefix='ybs:fullrev:round:'+project+':';
+      for(const k of keys){
+        if(k?.startsWith(roundPrefix)){
+          // 外框值可能是關卡數字或過期摘要；以 key 的完整 UID 清理所有活動。
+          const scope=k.slice(roundPrefix.length).match(/^(115-g9|115-df):([1-9]\d*):(.+)$/);
+          if(scope&&(scope[3]===uid||scope[3]===uid+':guest-completed'))storage.removeItem(k);
+        }else if(k?.startsWith('ybs:fullrev:'+project+':')){
+          try{if(JSON.parse(storage.getItem(k))?.uid===uid)storage.removeItem(k);}catch{}
+        }
+      }
+    }catch{}
     }}
   function clear(uid=profile?.uid,{preserveShared=false}={}) {abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;
     if(preserveShared)progressCache=createProgressCache({storage:shared,project,course});else progressCache.purge();

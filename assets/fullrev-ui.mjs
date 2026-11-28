@@ -1023,7 +1023,7 @@ export async function mountActivity({client:promise,cfg,now}) {
     p.content.replaceChildren(stage,send,next,summary);
     begin.disabled=restart.disabled=!!state.profile.owner||typeof cfg.renderQuestion!=='function';
     refreshClaims.hidden=!!state.profile.owner;
-    if(state.status==='stale')clearView();
+    if(state.status==='stale'||state.status==='restart-required'&&state.ticketTiming?.state==='expired'&&!state.view)clearView();
     if(['ready','confirmation-pending','teacher-pending'].includes(state.status)&&state.view?.activity===cfg.week&&state.view.round===round)receive(state.view);
   });
   p.login.replaceChildren();await mountLogin({client:p.client,host:p.login,active:p.active,onLogin:profile=>{

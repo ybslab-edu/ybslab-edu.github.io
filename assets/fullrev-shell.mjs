@@ -617,6 +617,13 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   // 離頁通知先清畫面，不能讓舊外框先還原身分而啟動 context／start。
   if(state.status==='stale'){clear();identity='';return;}
   if(checkSchedule())return;
+  if(state.status==='restart-required'&&state.ticketTiming?.state==='expired'&&!state.view){
+   // 期限已由 client 清空題面；同步卸載輸入及回呼，避免舊操作留在活動畫面。
+   revision++;starting=false;clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();handle=null;validation=null;
+   hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;sentValue='';last=null;key='';lastLearning='';mode='loading';
+   stage.replaceChildren();verdict.replaceChildren();verdict.hidden=true;$('draft-notice').textContent='';
+   loadProblem='你的作答票已過期，請按「活動工具 → 重新開始」。';instructions();hints();count(0);say(loadProblem);
+  }
   if(['binding-changed','context-changed'].includes(state.status)){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;
   if(id!==identity){identity=id;restoreRound();

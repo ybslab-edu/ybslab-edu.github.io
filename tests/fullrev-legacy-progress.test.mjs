@@ -77,7 +77,7 @@ test('多人混合投影匯出與 frozen oracle 全欄一致，含準時邊界�
  assert.deepEqual(exportRows(projection,{...options,subject:undefined},xp),expected);
  assert.equal(JSON.stringify(projection),before);
 });
-test('login matches original login.js account/password normalization and retains SESSION',async()=>{
+test('login matches original login.js account/password normalization and uses LOCAL',async()=>{
  const source=read('assets/login.js');
  const accountLine=source.match(/const normAccount = .*;/)[0],passwordLine=source.match(/const normPassword = .*;/)[0];
  const normalize=vm.runInNewContext(accountLine+'\n'+passwordLine+';({normAccount,normPassword})');
@@ -89,7 +89,7 @@ test('login matches original login.js account/password normalization and retains
   await h.client.login('password',account,password);
   assert.deepEqual(calls.at(-1),[normalize.normAccount(account)+'@ybslab-edu.github.io',normalize.normPassword(password)]);
  }
- assert.ok(persist.every(v=>v==='session'));assert.doesNotMatch([...h.storage.map.values()].join(),/Synthetic-Pass|cgjhA/);
+ assert.ok(persist.every(v=>v==='local'));assert.doesNotMatch([...h.storage.map.values()].join(),/Synthetic-Pass|cgjhA/);
 });
 // YBS_WORKER_SOURCE is the Worker PACKAGE, e.g. classscore-wt-legacy/workers/ybs-grader.
 test('Worker matches frozen oracle for undefined activity/round and production activity distribution', {skip:workerSkip},async()=>{

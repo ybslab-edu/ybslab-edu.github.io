@@ -71,3 +71,11 @@ test('等待時換人即停止，不用舊憑證送下一次讀取；not_open �
  await assert.rejects(h.model.context(input),{code:'identity-changed'});assert.equal(calls,1);assert.equal(h.events.at(-1),null);
  const closed=setup(async()=>Response.json({error:'not_open'},{status:403}));await assert.rejects(closed.model.context(input),{code:'not-open'});assert.deepEqual(closed.waits,[]);
 });
+test('等待通知提供班級、重試次數與預計時間，最多三次且總等待仍為三分鐘',async()=>{
+ const h=setup(async()=>Response.json({error:'storage_busy'},{status:503,headers:{'retry-after':'60'}}));
+ await assert.rejects(h.model.controls(input),{code:'read-model-pending'});
+ const waiting=h.events.filter(Boolean);
+ assert.deepEqual(waiting.map(v=>({operation:v.operation,classKey:v.classKey,attempt:v.attempt})),[1,2,3].map(attempt=>({operation:'controls',classKey:'c901',attempt})));
+ assert.deepEqual(waiting.map(v=>v.retryAt),[60,120,180].map(s=>Date.parse('2026-11-22T00:00:00Z')+s*1000));
+ assert.deepEqual(h.waits,[60000,60000,60000]);assert.equal(h.events.at(-1),null);
+});

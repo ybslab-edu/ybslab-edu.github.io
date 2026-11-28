@@ -141,17 +141,26 @@ test('activityConfig 維持全部九年級活動映射，活動 4 由合法合�
   }
 });
 
-test('模組載入即拒絕基礎目錄重複、越界 managed 及第八批合併漂移',async()=>{
+test('模組載入即拒絕基礎目錄重複、越界／重複納管及批次 metadata 覆寫',async()=>{
   const url=new URL('../assets/fullrev-activities.mjs',import.meta.url);
   const source=(await readFile(url,'utf8')).replace(/from '(\.\/[^']+)'/g,(_,path)=>`from '${new URL(path,url).href}'`);
   for(const [from,to,error] of [
-    ['export const BATCH2=Object.freeze([','export const BATCH2=Object.freeze([{...BATCH1[0]},',/catalog_duplicate_activity:115-g9:4/],
-    ['...BATCH1[0],managed:[0,1,2]','...BATCH1[0],managed:[0,1,4]',/catalog_invalid_managed:115-g9:4/],
-    ['...BATCH1[0],managed:[0,1,2]',"...BATCH1[0],title:'合成漂移',managed:[0,1,2]",/catalog_batch_mismatch:115-g9:4/],
-    ['...BATCH1[0],managed:[0,1,2]','...BATCH1[0],managed:[0,1,2,3]',/catalog_managed_overlap:115-g9:4/]
+    ['export const BATCH2=activityBatch([','export const BATCH2=activityBatch([{activity:4,managed:[3]},',/catalog_duplicate_activity:115-g9:4/],
+    ['activity:4,managed:[0,1,2]','activity:4,managed:[0,1,4]',/catalog_invalid_managed:115-g9:4/],
+    ['activity:4,managed:[0,1,2]',"activity:4,title:'合成漂移',managed:[0,1,2]",/catalog_batch_metadata:115-g9:4/],
+    ['activity:4,managed:[0,1,2]','activity:999,managed:[0,1,2]',/catalog_unknown_activity:115-g9:999/],
+    ['activity:4,managed:[0,1,2]','activity:4,managed:[0,1,2,3]',/catalog_managed_overlap:115-g9:4/]
   ]){
     assert.ok(source.includes(from),'載入用目錄 fixture 必須命中替換位置');
     const fixtureSource=source.replace(from,to);
     await assert.rejects(import('data:text/javascript;base64,'+Buffer.from(fixtureSource).toString('base64')),error);
   }
+});
+
+test('重構前固定目錄：八批、30 活動基礎目錄與完整目錄逐欄不變',async()=>{
+  const before=JSON.parse(await readFile(new URL('./fixtures/fullrev-catalog-before-debt12.json',import.meta.url),'utf8'));
+  assert.equal(before.managed.length,30);
+  assert.deepEqual(batches,before.batches);
+  assert.deepEqual(MANAGED_ACTIVITIES,before.managed);
+  assert.deepEqual(mergeActivityBatches(batches),before.complete);
 });

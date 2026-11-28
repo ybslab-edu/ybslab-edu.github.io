@@ -1,7 +1,13 @@
 // Only authenticated Worker projections; no direct list or private-control reads.
 import {fail} from './fullrev-progress.mjs';
+function retryWait(ms,signal){
+ return new Promise(resolve=>{
+  const done=()=>{clearTimeout(timer);signal.removeEventListener('abort',done);resolve();},timer=setTimeout(done,ms);
+  signal.addEventListener('abort',done,{once:true});if(signal.aborted)done();
+ });
+}
 export function createReadModel({session,project,course,workerOrigin,fetcher=globalThis.fetch,
- now=Date.now,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),requestTimeoutMs=20000}){
+ now=Date.now,wait=retryWait,requestTimeoutMs=20000}){
  const origin=new URL(workerOrigin);
  if(origin.protocol!=='https:'||!origin.hostname.endsWith('.workers.dev')||origin.origin!==workerOrigin)throw fail('configuration-pending');
  const listeners=new Set(),waiting=new Map(),controllers=new Set();let generation=0,quotaUntil=0;
@@ -43,8 +49,8 @@ export function createReadModel({session,project,course,workerOrigin,fetcher=glo
     const ms=Number.isFinite(delay)?Math.max(0,delay):1000*2**attempt;
     // 最多重試三次、總等待三分鐘；較長窗口交回手動讀取，不提早打擾服務。
     if(waited+ms<=180000){
-     waited+=ms;waiting.set(key,{operation,retryAt:now()+ms});notify();
-     await Promise.race([wait(ms),aborted]);active();waiting.delete(key);notify();continue;
+     waited+=ms;waiting.set(key,{operation,classKey:body.classKey,attempt:attempt+1,retryAt:now()+ms});notify();
+     await Promise.race([wait(ms,controller.signal),aborted]);active();waiting.delete(key);notify();continue;
     }
    }
    if(!response.ok)throw fail(data?.error==='not_open'?'not-open':data?.error==='control_changed'?'control-changed':response.status===429?'retry-later':'read-model-pending');

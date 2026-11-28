@@ -97,7 +97,9 @@ export function createClient({config,session,readModel,course='115-g9',fetcher=g
       }
     }catch{}
     }}
-  function clear(uid=profile?.uid,{preserveShared=false}={}) {abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;
+  function storedUID(){try{const uid=JSON.parse(storage?.getItem(storageKey)||'null')?.uid;return typeof uid==='string'?uid:undefined;}catch{}}
+  // 尚未還原身分的舊分頁也只清自己的 session 快照；明傳 null 仍保留其他分頁的目前身分。
+  function clear(uid=profile?.uid||storedUID(),{preserveShared=false}={}) {abortRequests();deadlineCancel(ticketTimer);ticketTimer=null;expiredTicket=null;
     if(preserveShared)progressCache=createProgressCache({storage:shared,project,course});else progressCache.purge();
     progressActivities=null;binding=null;summaryIssue=null;purgeUID(uid);
     cancel(timer);timer=null;generation++;readVersion++;running.clear();gradingWork=Promise.resolve();drafts={};guestXP=[];snapshot=null;lastProgress=null;view=null;readingRetry=null;profile=null;

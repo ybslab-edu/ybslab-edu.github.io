@@ -356,6 +356,12 @@ test('教師唯讀成長：既有 owner 投影、查對班座主體、沒有作�
   if(process.env.TEACHER_SHOTS_DIR)await page.screenshot({path:process.env.TEACHER_SHOTS_DIR+`/teacher-growth-${width}.png`,fullPage:true});
  }
  await page.getByRole('button',{name:'登出',exact:true}).click();assert.equal(await page.locator('#growth').isHidden(),true);assert.equal(await page.locator('#total').textContent(),'');
- await page.evaluate(()=>app.state.snapshot=snapshot([],{people:[{subject:'somebody-else',cls:901,seat:1,provider:'password'}]}));
+ assert.equal(await page.locator('.page-heading h1').textContent(),'學生成長紀錄（唯讀）');
+ for(const key of ['classKey','subject','cls','seat'])assert.equal(new URL(page.url()).searchParams.has(key),false);
+ await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByText('請返回教師紀錄重新選擇學生。',{exact:true}).waitFor();
+ assert.equal(await page.locator('#growth').isHidden(),true);
+ // 重新開啟明確的查閱目標，仍須驗錯誤主體不會顯示成績。
+ await page.goto(base+'/115-g9/synthetic/?growth&classKey=c901&subject=synthetic-subject&cls=901&seat=1');await page.waitForFunction(()=>window.ready);
+ await page.evaluate(()=>{app.state.owner=true;app.state.snapshot=snapshot([],{people:[{subject:'somebody-else',cls:901,seat:1,provider:'password'}]});});
  await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.getByText('尚未完成，請重新讀取或找老師。',{exact:true}).waitFor();assert.equal(await page.locator('#growth').isHidden(),true);
 });

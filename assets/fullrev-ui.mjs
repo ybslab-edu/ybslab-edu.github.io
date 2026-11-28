@@ -1116,7 +1116,7 @@ async function mountTeacherGrowth({client:promise}) {
       const result=growth(own,{project:p.client.project,course:p.client.course,subject:target.subject,provider:person.provider,activities},xp);
       if(result.state!=='confirmed'&&result.reason!=='guest-xp-policy-pending')throw result;
       p.render(activities,growthJourney(result,activities));p.status.textContent=result.totalXP===null?'訪客紀錄待老師確認；唯讀檢視。':'已確認學生的雲端紀錄；唯讀檢視。';
-    }catch(e){if(p.active()&&n===reading){p.clear();p.status.textContent=explain(e);}}
+    }catch(e){if(p.active()&&n===reading){p.clear();if(['owner-required','reauth-required','login-required','identity-changed'].includes(e.code))forgetTarget();p.status.textContent=explain(e);}}
   }
   p.subscribe(p.client,state=>{const signed=!!state.profile;p.$('signin').hidden=signed;p.logout.hidden=!signed;p.retry.hidden=!signed;
     if(shownUID&&state.profile?.uid!==shownUID)forgetTarget();

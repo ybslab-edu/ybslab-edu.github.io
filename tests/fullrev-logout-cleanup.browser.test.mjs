@@ -62,13 +62,24 @@ for(const path of ['/activity/','/generic/'])test(`${path} 合成帳號顯示密
  await page.locator('[name=account]').fill('9990002');await page.locator('[name=password]').fill('synthetic-next-password');
  await page.locator('form').first().locator('button[type=submit]').click();await page.waitForFunction(()=>h.client.state().profile?.uid==='synthetic-next');await assertClean(page);
 });
-test('另一分頁登出後，活動登入表單與所有活動 round key 同步清除',async t=>{
- const context=await contextFor(t),a=await open(t,context);await a.evaluate(()=>h.client.login('password','9990001','synthetic-password'));
+for(const path of ['/activity/','/generic/'])for(const guest of [false,true])test(`${path} ${guest?'訪客':'帳密'}另一分頁登出後，登入表單與所有活動 round key 同步清除`,async t=>{
+ const context=await contextFor(t),a=await open(t,context,path);await a.evaluate(guest=>guest?h.client.login('guest',{cls:'901',seat:1}):h.client.login('password','9990001','synthetic-password'),guest);
  await a.evaluate(()=>{const prefix='ybs:fullrev:round:'+h.client.project+':115-g9:';
   sessionStorage.setItem(prefix+'6:synthetic-student:guest-completed','{"savedAt":1}');
-  document.querySelector('[name=account]').value='9990001';document.querySelector('[name=password]').type='text';});
+  for(const el of document.querySelectorAll('input[name]'))el.value='synthetic-leftover';
+  document.querySelector('[name=password]').type='text';for(const el of document.querySelectorAll('[role=alert]'))el.textContent='合成舊錯誤';});
  const b=await open(t,context);await b.evaluate(()=>h.client.logout());await a.waitForFunction(()=>h.client.state().profile===null);
  await assertClean(a);assert.equal(await a.evaluate(()=>Object.keys(sessionStorage).some(k=>k.startsWith('ybs:fullrev:round:'))),false);
+});
+test('帳密登入失敗→顯示密碼→成功：錯誤、帳密、班座與 toggle aria 全部重設',async t=>{
+ const page=await open(t,await contextFor(t));
+ await page.locator('[name=account]').fill('invalid-synthetic-account');await page.locator('[name=password]').fill('synthetic-password');
+ await page.locator('form').first().locator('button[type=submit]').click();
+ await page.waitForFunction(()=>document.querySelector('[role=alert]').textContent.includes('帳號或密碼不對'));
+ await page.locator('[name=account]').fill('9990001');await page.locator('[name=password]').fill('synthetic-password');
+ await page.getByRole('button',{name:'顯示密碼',exact:true}).click();
+ await page.evaluate(()=>{document.querySelector('[name=cls]').value='901';document.querySelector('[name=seat]').value='1';});
+ await page.locator('form').first().locator('button[type=submit]').click();await page.waitForFunction(()=>h.client.state().profile);await assertClean(page);
 });
 test('訪客完成多活動→登出：其他活動及過期摘要全清，舊站與相似 UID 保留',async t=>{
  const page=await open(t,await contextFor(t),'/activity/?guest&activity=5');
@@ -89,17 +100,31 @@ test('訪客完成多活動→登出：其他活動及過期摘要全清，舊�
  assert.deepEqual(await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('ybs:fullrev:round:'))),['ybs:fullrev:round:synthetic-ybs-pr5:115-g9:5:synthetic-student-other']);
  assert.equal(await page.evaluate(()=>sessionStorage.getItem('ybs-old:round')),'synthetic-old');assert.equal(await page.evaluate(()=>localStorage.getItem('ybs-old:progress')),'synthetic-old');
 });
-for(const remote of [false,true])test(`老師查閱→${remote?'身分失效':'登出'}：清頁首班座與 URL 查閱參數，保留其他 query／hash／history state`,async t=>{
- const page=await open(t,await contextFor(t),'/115-g9/me/?classKey=c901&subject=synthetic-subject&cls=901&seat=1&keep=1#safe');
+for(const reason of ['登出','身分失效','跨分頁登出'])test(`老師查閱→${reason}：清頁首班座與 URL 查閱參數，保留其他 query／hash／history state`,async t=>{
+ const context=await contextFor(t),page=await open(t,context,'/115-g9/me/?classKey=c901&subject=synthetic-subject&cls=901&seat=1&keep=1#safe');
  await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.locator('#growth').waitFor();
  assert.match(await page.locator('.page-heading h1').textContent(),/901 班 1 號/);
  const length=await page.evaluate(()=>history.length);
- if(remote)await page.evaluate(()=>h.changed(null));else await page.locator('#logout').click();
+ if(reason==='身分失效')await page.evaluate(()=>h.changed(null));
+ else if(reason==='跨分頁登出'){const other=await open(t,context);await other.evaluate(()=>h.client.logout());}
+ else await page.locator('#logout').click();
  await page.locator('#signin').waitFor();assert.doesNotMatch(await page.locator('.page-heading h1').textContent(),/901|1 號/);
  const url=new URL(page.url());assert.equal(url.search,'?keep=1');assert.equal(url.hash,'#safe');
  assert.equal(await page.evaluate(()=>history.length),length);assert.deepEqual(await page.evaluate(()=>history.state),{synthetic:'keep'});
  assert.equal(await page.locator('#growth').isVisible(),false);
  await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();
  assert.equal(await page.evaluate(()=>h.reads.filter(p=>p.includes('/validated')).length),0);
+ assert.match(await page.locator('#status').textContent(),/重新選擇學生/);
+});
+test('教師授權失效：重新查閱拒絕後清頁首與 URL，重新登入也不能沿用舊目標',async t=>{
+ const page=await open(t,await contextFor(t),'/115-g9/me/?classKey=c901&subject=synthetic-subject&cls=901&seat=1&keep=1#safe');
+ await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();await page.locator('#growth').waitFor();
+ await page.evaluate(()=>{h.state.owner=false;});await page.locator('#retry').click();
+ await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('只有此課程擁有者'));
+ assert.equal(await page.locator('.page-heading h1').textContent(),'學生成長紀錄（唯讀）');
+ assert.equal(new URL(page.url()).search,'?keep=1');assert.equal(await page.locator('#growth').isVisible(),false);
+ await page.evaluate(()=>{h.state.owner=true;});await page.locator('#retry').click();
+ assert.match(await page.locator('#status').textContent(),/重新選擇學生/);
+ await page.locator('#logout').click();await page.getByRole('button',{name:'教師 Google 登入',exact:true}).click();
  assert.match(await page.locator('#status').textContent(),/重新選擇學生/);
 });

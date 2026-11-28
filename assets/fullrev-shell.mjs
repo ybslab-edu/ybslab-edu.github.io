@@ -1,5 +1,5 @@
 import {answerValidation} from './fullrev-answer-ui.mjs';
-import {mountGuestLogin,showGuestPending,guestCompletion,GUEST_PENDING} from './fullrev-guest.mjs';
+import {mountGuestLogin,resetLoginForms,showGuestPending,guestCompletion,GUEST_PENDING} from './fullrev-guest.mjs';
 import {mountHintExample} from './fullrev-student-support.mjs';
 // 共用活動外框：正式題庫與判分由 Worker 管理；公開暖身只供不上傳的複習。
 import {growth,int,versions,sameVersions} from './fullrev-progress.mjs';
@@ -204,7 +204,7 @@ export async function mountStudentLogin({client,host,onLogin,explain,explainTeac
  const secondary=node('div');secondary.className='tlogin';secondary.setAttribute('role','group');secondary.setAttribute('aria-label','其他登入方式');const actions=[submit];
  async function run(kind,guest){
   if(!active()||submit.disabled)return;actions.forEach(b=>b.disabled=true);submit.textContent='登入中…';error.textContent='';
-  try{const p=await client.login(kind,guest||account.value,password.value);if(!active())return;password.value='';await onLogin(p);}
+  try{const p=await client.login(kind,guest||account.value,password.value);if(!active())return;resetLoginForms(host);await onLogin(p);}
   catch(e){if(!active())return;password.value='';error.textContent=kind==='owner'?explainTeacher(e):/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
   finally{if(active()){actions.forEach(b=>b.disabled=false);submit.textContent='登入';}}
  }
@@ -617,7 +617,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  identityBox.querySelector('#g-isme').onclick=()=>{gate.hidden=true;main.hidden=false;return start(round);};
  lock.querySelector('button').onclick=()=>{teacherLogin=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;login.querySelector('[data-teacher-login]')?.focus();};
  let focusRefresh;
- function clear(){clearTimeout(waitTimer);waitTimer=null;waitMessage='';guestCompleted.clear();focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';identityBox.querySelector('#g-isme').hidden=true;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');closeAccount();controls();}
+ function clear(){resetLoginForms(login);clearTimeout(waitTimer);waitTimer=null;waitMessage='';guestCompleted.clear();focusRefresh?.reset();refreshWork=null;hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;$('hint-content').replaceChildren();$('original-work').hidden=false;clientWarmupReset();clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();validation=null;$('draft-notice').textContent='';revision++;read++;reading=false;starting=false;roundWork=Promise.resolve();handle=null;last=null;key='';mode='loading';result=null;snapshot=null;person=null;personKey='';$('who').textContent='';identityBox.querySelector('#g-whotext').textContent='';identityBox.querySelector('#g-isme').hidden=true;before=null;stage.replaceChildren();verdict.hidden=true;$('xp-header').hidden=true;lock.hidden=true;main.hidden=true;gate.hidden=false;login.hidden=false;identityBox.hidden=true;say('');closeAccount();controls();}
  focusRefresh=createFocusRefresh(()=>{if(checkSchedule())return;if(scheduleBlocked){scheduleBlocked=false;identity='';lock.hidden=true;gate.hidden=false;return client.restore().catch(problem);}if(client.state().profile){if(client.state().profile.owner){if(!starting)return start(round,true);return;}if(mode==='closed'){lock.hidden=true;main.hidden=false;return start(round,true).then(()=>refresh());}else if(!starting)return refresh();}else{lock.hidden=true;gate.hidden=false;}},{now});
  client.subscribe(state=>{
   if(!state.profile){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}guestStorageKey='';identity='';clear();checkSchedule();return;}

@@ -1,5 +1,5 @@
 import {mountTeacherPanel,teacherTarget} from './fullrev-teacher-page.mjs';
-import {mountGuestLogin} from './fullrev-guest.mjs';
+import {mountGuestLogin,resetLoginForms} from './fullrev-guest.mjs';
 import {growth,exportRows} from './fullrev-progress.mjs?v=20261127b3';
 
 const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
@@ -119,7 +119,7 @@ export async function mountLogin({client,host,onLogin=()=>{},ownerOnly=false,old
   async function run(kind,guest) {
     if(!active())return;
     actions.forEach(b=>b.disabled=true);alert.textContent='登入中…';
-    try{const value=await client.login(kind,guest||account.value,password.value);if(!active())return;password.value='';alert.textContent='已登入。';await onLogin(value);}
+    try{const value=await client.login(kind,guest||account.value,password.value);if(!active())return;resetLoginForms(host);await onLogin(value);}
     catch(e){if(active()){password.value='';alert.textContent=(kind==='owner'?explainTeacher:explain)(e);}}
     finally{if(active())actions.forEach(b=>b.disabled=false);}
   }
@@ -138,7 +138,7 @@ async function setup(promise,title,{ownerOnly=false}={}) {
     const logout=button('登出／換人',async()=>{if(page.active())await client.logout().catch(e=>{if(page.active())page.status.textContent=explainPage(e);});});
     page.tools.append(logout);
     page.subscribe(client,state=>{
-      if(!state.profile){page.content.replaceChildren();page.login.hidden=false;page.status.textContent='請先登入。';}
+      if(!state.profile){resetLoginForms(page.login);page.content.replaceChildren();page.login.hidden=false;page.status.textContent='請先登入。';}
       else page.login.hidden=true;
       logout.hidden=!state.profile;
       if(state.status==='pending')page.status.textContent=explainPage({code:'pending'},state);
@@ -965,6 +965,7 @@ export async function mountGrowth({client:promise}) {
   };
   p.subscribe(p.client,state=>{
     const signedIn=!!state.profile;p.$('signin').hidden=signedIn;p.logout.hidden=!signedIn;
+    if(!signedIn)resetLoginForms(p.login);
     document.body.querySelector('.page-heading h1').textContent='我的成長紀錄'+(state.profile?.provider==='anonymous'?'（待審）':'');
     if(!signedIn||state.profile.uid!==shownUID||state.status==='stale'){
       reading++;p.clear();p.retry.hidden=!signedIn;
@@ -1151,12 +1152,19 @@ async function mountTeacherGrowth({client:promise}) {
   p.cleanup(()=>{document.body.classList.remove('teacher-growth');teacherStyle.remove();});
   const heading=document.body.querySelector('.page-heading h1');
   heading.textContent=`${target.cls} 班 ${target.seat} 號成長紀錄（唯讀）`;
+  function forgetTarget(){
+    target=null;heading.textContent='學生成長紀錄（唯讀）';resetLoginForms(p.login);
+    const url=new URL(location.href);
+    for(const key of ['classKey','subject','cls','seat'])url.searchParams.delete(key);
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }
   p.$('signin-title').textContent='教師登入後查看學生成長';
   p.$('signin').querySelector('p').textContent='僅限課程擁有者查閱；這裡不提供學生作答操作。';
   const back=node('a','← 返回教師紀錄');back.href='/115-g9/teacher/';heading.after(back);
   try{p.client=await promise;if(!p.active())return p.dispose;}catch(e){p.status.textContent=explainTeacher(e);return p.dispose;}
   async function refresh(){
     if(!p.active())return;const n=++reading;p.clear();p.status.textContent='正在確認學生的雲端紀錄…';
+    if(!target){p.status.textContent='請返回教師紀錄重新選擇學生。';return;}
     try{
       const activities=growthActivities(),snapshots=await teacherSnapshots(p.client,target.classKey,activities),xp=await xpCore();
       if(!p.active()||n!==reading||!p.client.state().profile)return;
@@ -1168,11 +1176,12 @@ async function mountTeacherGrowth({client:promise}) {
       const result=growth(own,{project:p.client.project,course:p.client.course,subject:target.subject,provider:person.provider,activities},xp);
       if(result.state!=='confirmed'&&result.reason!=='guest-xp-policy-pending')throw result;
       p.render(activities,growthJourney(result,activities));p.status.textContent=result.totalXP===null?'訪客紀錄待老師確認；唯讀檢視。':'已確認學生的雲端紀錄；唯讀檢視。';
-    }catch(e){if(p.active()&&n===reading){p.clear();p.status.textContent=explainTeacher(e);}}
+    }catch(e){if(p.active()&&n===reading){p.clear();if(['owner-required','reauth-required','login-required','identity-changed'].includes(e.code))forgetTarget();p.status.textContent=explainTeacher(e);}}
   }
   p.subscribe(p.client,state=>{const signed=!!state.profile;p.$('signin').hidden=signed;p.logout.hidden=!signed;p.retry.hidden=!signed;
+    if(shownUID&&state.profile?.uid!==shownUID)forgetTarget();
     if(!signed||state.profile.uid!==shownUID||['stale','binding-changed','context-changed'].includes(state.status)){reading++;p.clear();p.status.textContent='請教師登入並重新確認紀錄。';}shownUID=state.profile?.uid;});
-  p.logout.onclick=async()=>{reading++;p.clear();try{await p.client.logout();}catch(e){if(p.active())p.status.textContent=explainTeacher(e);}};
+  p.logout.onclick=async()=>{reading++;p.clear();forgetTarget();try{await p.client.logout();}catch(e){if(p.active())p.status.textContent=explainTeacher(e);}};
   p.retry.onclick=refresh;
   await mountLogin({client:p.client,host:p.login,ownerOnly:true,onLogin:refresh,active:p.active});
   eventsRefresh(p,()=>{reading++;p.clear();p.status.textContent='請重新確認學生紀錄。';});

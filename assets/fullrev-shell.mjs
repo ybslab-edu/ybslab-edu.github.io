@@ -195,7 +195,7 @@ export function questionHints(question) {
  else if(type==='recording-capacity-v1'){direction='1 GB＝1000 MB；所需容量＝分鐘 × 每分鐘 MB。';steps='先把卡片容量換成 MB，再比較每種畫質能否錄完整場；最多分鐘用容量除以每分鐘 MB，取整數部分。';}
  return {direction:d.hint||direction,steps:d.guide||steps};
 }
-export async function mountStudentLogin({client,host,onLogin,explain,active=()=>true}){
+export async function mountStudentLogin({client,host,onLogin,explain,explainTeacher=explain,active=()=>true}){
  const form=node('form');form.className='ybs-login';form.autocomplete='off';
  form.innerHTML=`<label>帳號<input name="account" inputmode="text" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="cgjh＋學號"></label><div><label for="activity-password">密碼</label><div class="ybs-password"><input id="activity-password" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="cgjh＋身分證字號"><input type="button" class="ybs-password-toggle" value="顯示" aria-label="顯示密碼" aria-pressed="false" aria-controls="activity-password"><svg class="ybs-password-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></div></div><button type="submit" class="btn primary">登入</button>`;
  const account=form.querySelector('[name="account"]'),password=form.querySelector('[name="password"]'),submit=form.querySelector('button'),toggle=form.querySelector('.ybs-password-toggle');
@@ -205,7 +205,7 @@ export async function mountStudentLogin({client,host,onLogin,explain,active=()=>
  async function run(kind,guest){
   if(!active()||submit.disabled)return;actions.forEach(b=>b.disabled=true);submit.textContent='登入中…';error.textContent='';
   try{const p=await client.login(kind,guest||account.value,password.value);if(!active())return;password.value='';await onLogin(p);}
-  catch(e){if(!active())return;password.value='';error.textContent=/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
+  catch(e){if(!active())return;password.value='';error.textContent=kind==='owner'?explainTeacher(e):/invalid-account|auth\/(?:invalid|wrong|user-not)/.test(e.code||'')?'帳號或密碼不對，請再確認；還是不行請告訴老師。':explain(e);}
   finally{if(active()){actions.forEach(b=>b.disabled=false);submit.textContent='登入';}}
  }
  form.onsubmit=e=>{e.preventDefault();return run('password');};
@@ -213,7 +213,7 @@ export async function mountStudentLogin({client,host,onLogin,explain,active=()=>
  host.append(form,error,secondary);
  if(client.course==='115-g9')mountGuestLogin({host,login:value=>run('guest',value),disabled:()=>submit.disabled});
 }
-export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,now=Date.now}){
+export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,explain,explainTeacher=explain,now=Date.now}){
  const css=node('link');css.rel='stylesheet';css.href='/assets/fullrev-shell.css?v=20261127sheet';document.head.append(css);
  const activity=typeof ACTIVITIES==='undefined'?null:ACTIVITIES.find(a=>a.course===cfg.course&&a.week===cfg.week);
  const courseClosed=()=>typeof COURSES!=='undefined'&&COURSES.some(c=>c.id===cfg.course&&!c.open);
@@ -305,7 +305,8 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  const catalog=()=>typeof ACTIVITIES==='undefined'?[]:ACTIVITIES.filter(a=>a.course===cfg.course)
   .map(a=>({...a,openedAt:typeof activityOpenAt==='function'?activityOpenAt(a):a.openedAt}));
- const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，答案已保留。':state.uploadIssue?.startsWith('summary-')?'進度待確認，請告訴老師；答案已保留，目前暫停採計。':state.uploadIssue==='storage-quota'?'伺服器儲存額度不足，請告訴老師或改用舊站。':state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；稍候按「重試上傳」。':'上傳中，請稍候，答案已保留。';};
+ const explainProblem=e=>{const state=client.state();return state.profile?.owner?explainTeacher(e):explain(e,{...state,answerState:state.pending?undefined:handle?'page':undefined});};
+ const pendingMessage=()=>{const state=client.state();return state.status==='sending'?'上傳中，請稍候，你的答案已保留。':state.uploadIssue?.startsWith('summary-')||state.uploadIssue==='storage-quota'?explainProblem({code:state.uploadIssue}):state.uploadIssue==='rate-limited'?'送出太密集，答案已保留；你可以稍候按「重試上傳」。':state.uploadIssue?'連線失敗，答案已保留；你可以稍候按「重試上傳」。':'上傳中，請稍候，你的答案已保留。';};
  // 頁首沿用待送摘要；按鈕旁另列連線、流量或額度的具體原因。
  const say=value=>{const label=client.state().pending?'上傳中，請稍候，答案已保留。':value||(guestCompletion(last)?GUEST_PENDING:'')||(last?.completed&&mode!=='passed'?'上傳中，正在確認雲端紀錄…':result&&!result.local?'✓ 紀錄已上傳給老師':'');status.textContent=label;status.hidden=!label;status.className='sync'+(label.startsWith('✓')?' ok':'');};
  const tool=(label,run)=>{const b=node('button',label);b.type='button';b.className='linkbtn';b.onclick=run;$('activity-tools').append(b);return b;};
@@ -348,7 +349,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
   // 只提醒尚未獲確認的輸入；草稿仍留在原瀏覽器，不承諾跨裝置恢復。
   $('unsent-notice').hidden=teacher||mode!=='working'||!handle||!state.pending&&state.status!=='sending'&&inputValue()===confirmedInput;
   const modeReason={loading:loadProblem||'題目載入中，請稍候。',review:'你正在回看這一關；想重做時，請按「再做一次」。',closed:'這個活動還沒開放。',practice:'目前是本機練習，不送出成績。',teacher:'目前是教師示範。',unmanaged:'這一關尚待老師確認，請選其他關卡。','binding-pending':'身分尚待老師確認，請告訴老師。','teacher-pending':'已送出，等待老師確認。','guest-pending':GUEST_PENDING,confirming:loadProblem||'正在確認雲端紀錄，請稍候。',correct:'這組已答對，請按「下一組」。',passed:'這關已過關，可選下一關。'};
-  const reason=state.status==='restart-required'?'作答狀態已變更，請按「活動工具 → 重新開始」。'
+  const reason=state.status==='restart-required'?loadProblem||explainProblem({code:'restart-required'})
    :state.status==='stale'?'請重新登入，再繼續作答。'
    :waitMessage?waitMessage
    :state.pending||state.status==='sending'?pendingMessage()
@@ -492,10 +493,10 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
  }
  function problem(e){
   if(e.code==='identity-changed'||!client.state().profile)return;
-  loadProblem=explain(e);
+  loadProblem=explainProblem(e);
   if(!handle&&mode==='loading')reread.hidden=false;
   if(e.code==='not-open'){lock.hidden=false;main.hidden=true;gate.hidden=true;mode='closed';}
-  else{if(e.code==='binding-pending')mode='binding-pending';say(e.code==='pending'?'上傳中，請稍候，答案已保留。':explain(e));if(['retry-later','read-model-pending'].includes(e.code))reread.hidden=false;}
+  else{if(e.code==='binding-pending')mode='binding-pending';say(e.code==='pending'?pendingMessage():loadProblem);if(['retry-later','read-model-pending'].includes(e.code))reread.hidden=false;}
   controls();
  }
  async function receive(value){
@@ -514,10 +515,12 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    if(!pairTimer)pairTimer=setTimeout(async()=>{pairTimer=null;if(g!==revision)return;try{await receive(await client.answer(cfg.week,round,value.photoAnswer||value.performanceOrder));}catch(e){problem(e);}},0);
   }else if(value.correct===true&&value.question.slot===1){
    mode='correct';count(1);verdict.className='verdict mid';verdict.replaceChildren(node('h3','答對了！累積答對 1/2'));para(verdict,'按「下一組」挑戰不同資料，累積答對 2/2 就過關。');
-   const btns=node('div'),b=node('button','下一組');btns.className='btns';b.type='button';b.className='btn primary';b.id='b-next-group';b.onclick=()=>{if(mode==='correct'){showQuestion(last);$('task-instructions').scrollIntoView?.({block:'start'});}};btns.append(b);verdict.append(btns);verdict.hidden=false;say('');
+   const btns=node('div'),b=node('button','下一組');btns.className='btns';b.type='button';b.className='btn primary';b.id='b-next-group';b.onclick=()=>{if(mode==='correct'){showQuestion(last);stage.querySelector('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled)')?.focus();}};btns.append(b);verdict.append(btns);verdict.hidden=false;say('');
   }else if(value.correct===false&&handle&&old?.sid===value.sid&&old.question?.slot===value.question.slot){
    confirmedInput=sentInput;
    mode='working';submitted=true;hint=Math.min(3,hint+1);verdict.className='verdict no';verdict.replaceChildren(node('h3','還不對'));para(verdict,value.feedback||'請再核對這一組的題目與資料。');para(verdict,'修改答案後再送一次').className='small';verdict.hidden=false;hints();say('');
+   // 送出鈕隨狀態停用；把焦點交給可讀的錯誤提示，讓鍵盤與讀屏接續訂正。
+   verdict.tabIndex=-1;verdict.focus();
   }else{showQuestion(value);say('');}controls();
  }
  function passed(){
@@ -626,7 +629,7 @@ export async function mountActivityShell({client:promise,cfg,mountLogin,xpCore,e
    revision++;starting=false;clearTimeout(pairTimer);pairTimer=null;handle?.dispose?.();handle=null;validation=null;
    hintDemo?.dispose();hintDemo=null;hint=0;submitted=false;sentValue='';last=null;key='';lastLearning='';mode='loading';
    stage.replaceChildren();verdict.replaceChildren();verdict.hidden=true;$('draft-notice').textContent='';
-   loadProblem='你的作答票已過期，請按「活動工具 → 重新開始」。';instructions();hints();count(0);say(loadProblem);
+   loadProblem=explainProblem({code:'ticket-expired'});instructions();hints();count(0);say(loadProblem);
   }
   if(['binding-changed','context-changed'].includes(state.status)){try{if(guestStorageKey)sessionStorage.removeItem(guestStorageKey);}catch{}clear();identity='';}
   const id=state.profile.uid+':'+state.profile.owner;

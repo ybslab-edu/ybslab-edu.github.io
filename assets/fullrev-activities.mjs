@@ -173,11 +173,11 @@ function ordered(host,cards,changed,{ai=false}={}) {
   function draw(){
     pool.replaceChildren();slots.replaceChildren();
     cards.forEach((text,k)=>{if(values.includes(k))return;const b=node('button',text);b.type='button';b.className='pk';b.dataset.poolIndex=k;
-      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;values[next]=k;draw();changed();};pool.append(b);});
+      b.onclick=()=>{const next=values.indexOf(null);if(next<0)return;const focused=document.activeElement===b;values[next]=k;draw();changed();if(focused)(pool.querySelector('button')||slots.querySelector(`[data-slot-index="${next}"]`))?.focus();};pool.append(b);});
     if(values.every(v=>v!==null)){const done=node('p','都排好了，按「送出」。');done.className='small';pool.append(done);}
     values.forEach((k,j)=>{const row=node('div'),number=node('span',String(j+1));row.className='slot';number.className='n';row.append(number);
       if(k===null){const empty=node('span',ai&&j===0?'最先':ai&&j===cards.length-1?'最後':'　');empty.className='empty';row.append(empty);}
-      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{values[j]=null;draw();changed();};row.append(b);}slots.append(row);});
+      else{const b=node('button',cards[k]);b.type='button';b.className='pk';b.dataset.slotIndex=j;b.onclick=()=>{const focused=document.activeElement===b;values[j]=null;draw();changed();if(focused)pool.querySelector(`[data-pool-index="${k}"]`)?.focus();};row.append(b);}slots.append(row);});
   }draw();return {get:()=>[...values],ready:()=>values.every(v=>v!==null),fields:()=>[...slots.querySelectorAll('.slot')].map((target,k)=>({target,reason:values[k]===null?'請放入卡片':''})),draft:()=>[...values],
     restoreDraft(v){if(!indices(v,values.length,cards.length,{unique:true}))return false;values.splice(0,values.length,...v);draw();return true;}};
 }

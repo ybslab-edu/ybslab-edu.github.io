@@ -1100,10 +1100,13 @@ export async function mountTeacher({client:promise}) {
   return mountTeacherPanel(p,{catalog,xpCore,teacherSnapshots,mountHistory,eventsRefresh,explain});
 }
 
-export async function teacherSnapshots(client,classKey,activities) {
+export async function teacherSnapshots(client,classKey,activities,{signal}={}) {
+  const current=()=>{if(signal?.aborted)throw Object.assign(new Error('read-superseded'),{code:'read-superseded'});};
+  const read=async key=>{current();const value=await client.progress({teacher:true,classKey:key,activities,...(signal?{signal}:{})});current();return value;};
   // 班級代碼也可能是完整 gate；只有 owner 確認原 gate 不存在才展開分組。
-  try{return [await client.progress({teacher:true,classKey,activities})];}
+  try{return [await read(classKey)];}
   catch(e){
+    current();
     if(e.code!=='class-not-found'||client.course!=='115-g9'||!/^c[1-9][0-9]{2}$/.test(classKey)){
       if(/^c[1-9][0-9]{2}_[12]$/.test(classKey))throw Object.assign(new Error(e.message,{cause:e}),{code:e.code,classKey});
       throw e;
@@ -1111,7 +1114,7 @@ export async function teacherSnapshots(client,classKey,activities) {
   }
   const values=[];
   for(const key of [classKey+'_1',classKey+'_2']){
-    try{values.push(await client.progress({teacher:true,classKey:key,activities}));}
+    try{values.push(await read(key));}
     catch(e){throw Object.assign(new Error(e.message,{cause:e}),{code:e.code,classKey:key});}
   }
   return values;

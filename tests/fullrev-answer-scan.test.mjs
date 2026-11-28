@@ -3,7 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {scanPrivateAnswers} from '../tools/scan-private-answers.mjs';
+import {readFile,mkdtemp,writeFile,symlink} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {scanPrivateAnswers,privateAnswerHits,parseAcceptedHits,readAcceptedHits,scanPrivateAnswerFiles} from '../tools/scan-private-answers.mjs';
+import {scanPrivateAnswers as scanLegacyPrivateAnswers} from '../tools/scan-private-answers-legacy.mjs';
 import {buildSite} from '../tools/build-fullrev-site.mjs';
 import {config} from './fixtures/fullrev.mjs';
 test('release command always requires private sources even when CI acceptance is skipped',async()=>{
@@ -14,7 +17,8 @@ test('normalized private arrays catch numeric/string elements, whitespace and se
  for(const value of ['const leaked=[17,29,43,61]','const leaked=["17", "29", "43", "61"]',"const leaked=['17', '29', '43', '61']",'const leaked="[17,29,43,61]"','const answers=[7,19]','const leaked="短答案"','const answer=37']){
   assert.throws(()=>scanPrivateAnswers(value,answers),/release_private/);
  }
- assert.doesNotThrow(()=>scanPrivateAnswers('const size=[7,19]; const seats=[1,2,3]; const title="第 37 題"; const label="短";',answers));
+ assert.throws(()=>scanPrivateAnswers('const size=[7,19]; const seats=[1,2,3]; const title="第 37 題"; const label="短";',answers),/release_private_answer_array_pending/);
+ assert.doesNotThrow(()=>scanPrivateAnswers('const size=[7,23]; const seats=[1,2,3]; const title="第 37 題"; const label="短";',answers));
 });
 test('static template literals decode escapes and serialized arrays without evaluating interpolation',()=>{
  const answers=['合成短答案', '含`反引號${文字}',[17,29,43,61]];
@@ -173,12 +177,15 @@ test('escaped and serialized arrays compare the complete ordered answer',()=>{
  ];
  for(const [name,source] of allowed)assert.doesNotThrow(()=>scanPrivateAnswers(source,answers),name);
 });
-test('public dimensions and index arrays keep their exceptions until answer evidence is present',()=>{
+test('unlabelled matching dimensions and index arrays remain pending and block release',()=>{
  const answers=[[7,19],[11,23],[0,1,2,3],[1,2,3,4],37];
- const allowed=[
+ const pending=[
   ['one dimension array','const size=[7,19];'],
   ['same dimension array twice','const width=[7,19]; const height=["7","19"];'],
-  ['both index conventions','const zeroBased=[0,1,2,3]; const oneBased=[1,2,3,4];'],
+  ['both index conventions','const zeroBased=[0,1,2,3]; const oneBased=[1,2,3,4];']
+ ];
+ for(const [name,source] of pending)assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_array_pending/,name);
+ const allowed=[
   ['unlabelled number','const count=37; const title="第 37 題";'],
   ['array elements as HTML text','<p>7</p><span>19</span>']
  ];
@@ -193,9 +200,223 @@ test('public dimensions and index arrays keep their exceptions until answer evid
  for(const source of ['const answer=37;','const solution="37";','const correct=`37`;']){
   assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_numeric_answer/);
  }
- // Evidence belongs to one source; earlier scans must not taint later scans.
- assert.doesNotThrow(()=>scanPrivateAnswers('const width=[7,19];',answers));
- assert.doesNotThrow(()=>scanPrivateAnswers('const height=[11,23];',answers));
+ // Each matching source blocks independently; unrelated dimensions stay allowed.
+ assert.throws(()=>scanPrivateAnswers('const width=[7,19];',answers),/release_private_answer_array_pending/);
+ assert.throws(()=>scanPrivateAnswers('const height=[11,23];',answers),/release_private_answer_array_pending/);
+ assert.doesNotThrow(()=>scanPrivateAnswers('const width=[7,23];',answers));
+});
+// Same invented answer and partial escape as scanner-reject-encoded-answer*.sh.
+// The quote characters inside this public regex used to desynchronize later strings.
+const syntheticDrillAnswer='SYNTHETIC_PRIVATE_7f98_pr6-batch1.mjs';
+const syntheticRegexPrefix=String.raw`const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));`;
+test('synthetic drill escaped answer is rejected after a regex containing both quote delimiters',()=>{
+ const injection=String.raw`const syntheticAnswer="SYNTHETIC_PRIVATE_7f98_pr6-\u0062atch1.mjs";`;
+ for(const prefix of [syntheticRegexPrefix,'// public "quote\n','/* public " and \' quotes */']){
+  for(const separator of ['','\n'])assert.throws(()=>scanPrivateAnswers(prefix+separator+injection,[syntheticDrillAnswer]),/release_private_text_answer/);
+ }
+});
+for(const [name,encode,html] of [
+ ['JS unicode escape',c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0'),false],
+ ['JS code point escape',c=>'\\u{'+c.codePointAt(0).toString(16)+'}',false],
+ ['JS hexadecimal escape',c=>'\\x'+c.charCodeAt(0).toString(16).padStart(2,'0'),false],
+ ['HTML decimal entity',c=>'&#'+c.codePointAt(0)+';',true],
+ ['HTML hexadecimal entity',c=>'&#x'+c.codePointAt(0).toString(16)+';',true]
+]){
+ test(`synthetic artifact rejects a complete answer encoded with ${name}`,()=>{
+  const encoded=[...syntheticDrillAnswer].map(encode).join('');
+  const artifacts=html?[
+   '<script>'+syntheticRegexPrefix+'</script><p>'+encoded+'</p>',
+   '<input value="'+encoded+'">',"<input value='"+encoded+"'>",'<input value='+encoded+'>'
+  ]:['"',"'",'`'].map(quote=>syntheticRegexPrefix+'\nconst syntheticAnswer='+quote+encoded+quote+';');
+  for(const artifact of artifacts)assert.throws(()=>scanPrivateAnswers(artifact,[syntheticDrillAnswer]),/release_private_text_answer/);
+ });
+}
+for(const [name,decoded] of [['amp','&'],['lt','<'],['gt','>'],['quot','"'],['apos',"'"],['nbsp',' ']]){
+ test(`synthetic HTML values decode the supported named entity &${name}; once`,()=>{
+  const answer='SYNTH'+decoded+'ANSWER',value='SYNTH&'+name+';ANSWER';
+  for(const source of ['<p>'+value+'</p>','<input value="'+value+'">',"<input value='"+value+"'>",'<input value='+value+'>']){
+   assert.throws(()=>scanPrivateAnswers(source,[answer]),/release_private_text_answer/);
+  }
+  assert.doesNotThrow(()=>scanPrivateAnswers('<p>SYNTH&amp;'+name+';ANSWER</p>',[answer]));
+ });
+}
+test('synthetic answers match original string and HTML values as well as decoded values',()=>{
+ const cases=[
+  [String.raw`const value="\u0053YNTH-ANSWER";`,String.raw`\u0053YNTH-ANSWER`],
+  [String.raw`const value='\x53YNTH-ANSWER';`,String.raw`\x53YNTH-ANSWER`],
+  ['const value=`\\u{53}YNTH-ANSWER`;',String.raw`\u{53}YNTH-ANSWER`],
+  ['<p>SYNTH&amp;ANSWER</p>','SYNTH&amp;ANSWER'],
+  ['<input value="SYNTH&amp;ANSWER">','SYNTH&amp;ANSWER']
+ ];
+ for(const [source,answer] of cases)assert.throws(()=>scanPrivateAnswers(source,[answer]),/release_private_text_answer/);
+});
+test('synthetic regex ranges remain allowed and cannot hide subsequent answer literals',()=>{
+ const answers=['SYNTH-ANSWER',[17,29,43,61]];
+ const ranges=[
+  String.raw`const range=/[\u0053-\u0059\u{41}-\u{5a}\x41-\x5a]/u;`,
+  String.raw`const range=/["']\u0053YNTH-ANSWER["']/;`,
+  'const range=/[17,29,43,61]/;',
+  'const range=/("SYNTH-ANSWER")/;',
+  'if (visible) /("SYNTH-ANSWER")/.test(input);',
+  'const range=/[\\/"\']/g;'
+ ];
+ for(const source of ranges){
+  assert.doesNotThrow(()=>scanPrivateAnswers(source,answers),source);
+  assert.throws(()=>scanPrivateAnswers(source+'const leaked="SYNTH-ANSWER";',answers),/release_private_text_answer/);
+ }
+ // Slashes used for division must not consume a real string operand as a regex.
+ for(const source of ['const ratio=total/"SYNTH-ANSWER"/scale;','const ratio=(total)/"SYNTH-ANSWER"/scale;',
+  'const ratio={}/"SYNTH-ANSWER"/scale;','const ratio=entry.return/"SYNTH-ANSWER"/scale;']){
+  assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_text_answer/);
+ }
+});
+const slashContextCases=[
+ // name, public synthetic source, expected old result, expected new result.
+ ['HTTPS in HTML text','<p>https://example.invalid</p><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTP in HTML text','<p>http://example.invalid</p><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTP in unquoted attribute','<a href=http://example.invalid>公開</a><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTPS in double-quoted attribute','<a href="https://example.invalid">公開</a><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTTP in single-quoted attribute',"<a href='http://example.invalid'>公開</a><script>const value=\"SYNTH-ANSWER\";</script>",'block','block'],
+ ['block-comment marker in HTML text','<p>/* 公開提示</p><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['URL in style content','<style>p{background:url(https://example.invalid/image)}</style><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['line comment ends at script boundary','<script>// public comment</script><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['script end tag with ignored attribute','<script>// public comment</script ignored><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['custom element is not a script','<script-label>https://example.invalid</script-label><script>const value="SYNTH-ANSWER";</script>','block','block'],
+ ['script comparison and tag-like string','<p>https://example.invalid</p><script>if(a<b) log("<p>");const value="SYNTH-ANSWER";</script>','block','block'],
+ ['HTML comment literal remains public','<!-- https://example.invalid "SYNTH-ANSWER" -->','block','block'],
+ ['property if call division','const value=obj.if(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property while call division','const value=obj.while(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property for call division','const value=obj.for(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property switch call division','const value=obj.switch(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property catch call division','const value=obj.catch(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property return call division','const value=obj.return(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['optional property if call division','const value=obj?.if(x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['commented property call division','const value=obj /* public */ . if /* public */ (x)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['nested property call division','const value=obj.if(check(x))/"SYNTH-ANSWER"/scale;','block','block'],
+ ['closing parenthesis division','const value=(total)/"SYNTH-ANSWER"/scale;','block','block'],
+ ['closing bracket division','const value=items[0]/"SYNTH-ANSWER"/scale;','block','block'],
+ ['identifier division','const value=total/"SYNTH-ANSWER"/scale;','block','block'],
+ ['property return division','const value=obj.return/"SYNTH-ANSWER"/scale;','block','block'],
+ ['plain string','const value="SYNTH-ANSWER";','block','block'],
+ ['Unicode escape',String.raw`const value="\u0053YNTH-ANSWER";`,'block','block'],
+ ['code point escape',String.raw`const value="\u{53}YNTH-ANSWER";`,'block','block'],
+ ['hexadecimal escape',String.raw`const value="\x53YNTH-ANSWER";`,'block','block'],
+ ['HTML decimal entity','<p>&#83;YNTH-ANSWER</p>','block','block'],
+ ['HTML hexadecimal entity','<input value="&#x53;YNTH-ANSWER">','block','block'],
+ ['similar HTML text','<p>https://example.invalid</p><script>const value="SYNTH-ANSWERS";</script>','allow','allow'],
+ ['similar division operand','const value=obj.if(x)/"SYNTH-ANSWERS"/scale;','allow','allow'],
+ ['control statement regex','if(visible) /SYNTH-ANSWER/.test(input);','allow','allow'],
+ ['control statement regex before leak','if(visible) /public/.test(input);const value="SYNTH-ANSWER";','block','block'],
+ ['regex character range','const range=/[SYNTH-ANSWER]/;','allow','allow'],
+ ['literal backslash',String.raw`const value="\\u0053YNTH-ANSWER";`,'allow','allow'],
+ ['double HTML encoding','<p>&amp;#83;YNTH-ANSWER</p>','allow','allow'],
+ ['partial concatenation','const value="SYNTH-"+"ANSWER";','allow','allow']
+];
+test('HTML URL cannot hide a complete answer in a later script on the same line',()=>{
+ assert.throws(()=>scanPrivateAnswers(slashContextCases[0][1],['SYNTH-ANSWER']),/release_private_text_answer/);
+});
+test('property if call division cannot hide its complete string operand',()=>{
+ assert.throws(()=>scanPrivateAnswers('const value=obj.if(x)/"SYNTH-ANSWER"/scale;',['SYNTH-ANSWER']),/release_private_text_answer/);
+});
+test('slash contexts meet every explicit new-scanner expectation',async t=>{
+ for(const [name,source,,expected] of slashContextCases)await t.test(`${name}: expected ${expected}`,()=>{
+  if(expected==='block')assert.throws(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']),/release_private_text_answer/);
+  else assert.doesNotThrow(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']));
+ });
+});
+test('fixed old scanner and new scanner compare the same synthetic slash contexts',async t=>{
+ const vendored=await readFile(new URL('../tools/scan-private-answers-legacy.mjs',import.meta.url));
+ assert.equal(createHash('sha256').update(vendored).digest('hex'),'cceee2f19e8d8cb1928c4c04297fba6d4f1901c4ad207da2e300adae1bc120db','fixed origin/main f5aaa39 scanner bytes');
+ if(process.env.YBS_OLD_ANSWER_SCANNER)assert.deepEqual(vendored,await readFile(process.env.YBS_OLD_ANSWER_SCANNER),'legacy bytes equal the read-only original');
+ assert.equal(slashContextCases.length,39,'retain every original expectation');
+ const outcome=(scan,source)=>{try{scan(source,['SYNTH-ANSWER']);return 'allow';}catch(error){assert.match(error.message,/^release_private_/);return 'block';}};
+ let regressions=0;
+ for(const [name,source,expectedOld,expectedNew] of slashContextCases)await t.test(`${name}: old=${expectedOld}, new=${expectedNew}`,()=>{
+  const old=outcome(scanLegacyPrivateAnswers,source),current=outcome(scanPrivateAnswers,source);
+  if(old==='block'&&current==='allow')regressions++;
+  assert.equal(old,expectedOld,'fixed old scanner');assert.equal(current,expectedNew,'new scanner');
+  const combined=()=>scanPrivateAnswerFiles([{path:'assets/synthetic.'+(/^\s*</.test(source)?'html':'mjs'),bytes:Buffer.from(source)}],['SYNTH-ANSWER'],emptyAcceptances());
+  if(expectedOld==='block'||expectedNew==='block')assert.throws(combined,/release_private_/,'either scanner blocks release');
+  else assert.doesNotThrow(combined,'both scanners allow release');
+ });
+ t.diagnostic(`cases=${slashContextCases.length}; old-block/new-miss=${regressions}`);
+ assert.equal(regressions,0);
+});
+test('HTML regions preserve complete container values and original UTF-8 script offsets',()=>{
+ const answers=[[17,29,43,61],{rate:173,levels:29}];
+ for(const source of [
+  '<input value="[17,29,43,61]">',
+  "<input value='{\"rate\":173,\"levels\":29}'>",
+  '<p>[17,29,43,61]</p>',
+  '<p>{rate:173,levels:29}</p>'
+ ])assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_(?:array|object)/);
+ assert.equal(privateAnswerHits('<p>[17,29,43,61]</p>',answers).length,1,'one source array is one hit');
+ const source='<p>合成 https://example.invalid</p><script>const value="SYNTH-ANSWER";</script>';
+ const at=source.indexOf('"SYNTH-ANSWER"');
+ assert.deepEqual(privateAnswerHits(source,['SYNTH-ANSWER']),[{type:'text_answer',at,byteOffset:Buffer.byteLength(source.slice(0,at))}]);
+});
+test('release HTML files use HTML context even when their first text node is a URL',()=>{
+ const list={schemaVersion:1,groups:[{id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},{id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}]};
+ const files=[{path:'assets/synthetic.html',bytes:Buffer.from('https://example.invalid<script>const value="SYNTH-ANSWER";</script>')}];
+ assert.throws(()=>scanPrivateAnswerFiles(files,['SYNTH-ANSWER'],Buffer.from(JSON.stringify(list))),/release_private_text_answer/);
+});
+test('comments and regex literals are recognized within each script context',()=>{
+ for(const source of [
+  '// "SYNTH-ANSWER"\nconst publicValue="next";',
+  '/* "SYNTH-ANSWER" */ const publicValue="next";',
+  '<p>https://example.invalid</p><script>// "SYNTH-ANSWER"\nconst publicValue="next";</script>',
+  '<input value="http://example.invalid"><script>if(visible) /("SYNTH-ANSWER")/.test(input);</script>',
+  'const markup="<script>";const publicValue="next";'
+ ])assert.doesNotThrow(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']));
+ for(const source of [
+  'const markup="<script>";const value="SYNTH-ANSWER";',
+  '<script>/* public "quote */ const value="SYNTH-ANSWER";</script>',
+  '<script>if(visible) /["\']/.test(input);const value="SYNTH-ANSWER";</script>'
+ ])assert.throws(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']),/release_private_text_answer/);
+});
+test('synthetic literal backslashes and double encodings are allowed without recursive decoding',()=>{
+ const cases=[
+  String.raw`const value="\\u0053YNTH-ANSWER";`,
+  String.raw`const value='\\x53YNTH-ANSWER';`,
+  'const value=`\\\\u{53}YNTH-ANSWER`;',
+  String.raw`const value="\u005cu0053YNTH-ANSWER";`,
+  '<p>&amp;#83;YNTH-ANSWER</p>',
+  '<p>&#38;#x53;YNTH-ANSWER</p>',
+  '<input value="&amp;#x53;YNTH-ANSWER">',
+  '<p>&unsupported;YNTH-ANSWER</p>',
+  'const value="SYNTH-"+"ANSWER";',
+  'const value="U1lOVEgtQU5TV0VS";',
+  'const value=`SYNTH-${suffix}`;'
+ ];
+ for(const source of cases)assert.doesNotThrow(()=>scanPrivateAnswers(source,['SYNTH-ANSWER']),source);
+});
+test('real public minified xlsx stays allowed with unrelated synthetic answers',async()=>{
+ const vendor=await readFile(new URL('../assets/vendor/xlsx-0.20.3.full.min.js',import.meta.url),'utf8');
+ const answers=['測甲',['SYNTH-A'],['SYNTH-A','SYNTH-B'],[701,907],[701,907,1103,1301]];
+ // Read the public fixture independently of private banks; never copy a matching
+ // private answer or a section chosen by its position into regression fixtures.
+ assert.doesNotThrow(()=>scanPrivateAnswers(vendor,answers),'public xlsx with synthetic answers');
+});
+test('real minified xlsx cannot exempt injected short answers or small answer arrays',async()=>{
+ const vendor=await readFile(new URL('../assets/vendor/xlsx-0.20.3.full.min.js',import.meta.url),'utf8');
+ const answers=['測甲',['SYNTH-A'],['SYNTH-A','SYNTH-B'],[701,907]];
+ for(const answer of answers)for(const name of ['answer','value']){
+  const injected=vendor+'\nconst '+name+'='+JSON.stringify(answer)+';';
+  assert.throws(()=>scanPrivateAnswers(injected,[answer]),/release_private/,'synthetic injection after public xlsx');
+ }
+ // An unlabelled complete match remains blocking even beside public code.
+ const vector=[701,907,1103,1301];
+ assert.throws(()=>scanPrivateAnswers(vendor+'\nconst value='+JSON.stringify(vector)+';',[vector]),/release_private_answer_array_pending@\d+$/);
+});
+test('optional computed access is not an array but cannot hide real short arrays',()=>{
+ const answers=[[701],[701,907]];
+ for(const source of ['const value=data?.[701];','const value=data?. [701,907];','const value=data?. /* public comment */ [701];']){
+  assert.doesNotThrow(()=>scanPrivateAnswers(source,answers));
+  assert.throws(()=>scanPrivateAnswers(source+'const leaked=[701];',answers),/release_private_answer_array_pending/);
+ }
+ for(const source of ['const value=data?.[[701]];','const value=visible?[701]:other;','const value=()=>[701,907];']){
+  assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_array_pending/);
+ }
 });
 test('all nine private string answer types are blocked in templates, HTML text and attributes',async t=>{
  if(workerCISkip){t.skip(workerCISkip);return;}
@@ -228,4 +449,178 @@ test('volunteer private mixed answer vectors are detected in literal, stringifie
   }count++;
  }
  assert.equal(count,32);t.diagnostic('volunteer private answer vectors: 32; injection forms: 128 detected');
+});
+
+const publicDigest=bytes=>createHash('sha256').update(bytes).digest('hex');
+function emptyAcceptances(){return Buffer.from(JSON.stringify({schemaVersion:1,groups:[
+ {id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},
+ {id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}
+]}));}
+function blockedReport(scan,pattern=/release_private_/){
+ let error;try{scan();}catch(caught){error=caught;}
+ assert.ok(error,'release must block');assert.match(error.message,pattern);assert.ok(error.scan,'both reports survive rejection');
+ return JSON.parse(JSON.stringify(error.scan));
+}
+test('synthetic data-answer regression and legacy-only hits still block release',()=>{
+ for(const source of ['<input data-answer="701">',"<input data-answer='701'>",'<input data-answer=701>']){
+  assert.throws(()=>scanLegacyPrivateAnswers(source,[701]),/release_private_numeric_answer/);
+  assert.doesNotThrow(()=>scanPrivateAnswers(source,[701]),'leave current extraction unchanged');
+  const result=blockedReport(()=>scanPrivateAnswerFiles([{path:'assets/synthetic.html',bytes:Buffer.from(source)}],[701],emptyAcceptances()));
+  assert.equal(result.scanners.legacy.hits,1);assert.equal(result.scanners.current.hits,0);assert.equal(result.hits,1);
+  assert.equal(result.scanners.legacy.completed,true);assert.equal(result.scanners.current.completed,true);
+ }
+});
+test('synthetic current-only hits block release and both results are serializable',()=>{
+ const source='const value=[701,907];',answers=[[701,907]];
+ assert.doesNotThrow(()=>scanLegacyPrivateAnswers(source,answers));
+ assert.throws(()=>scanPrivateAnswers(source,answers),/release_private_answer_array_pending/);
+ const result=blockedReport(()=>scanPrivateAnswerFiles([{path:'assets/synthetic.mjs',bytes:Buffer.from(source)}],answers,emptyAcceptances()));
+ assert.equal(result.scanners.legacy.hits,0);assert.equal(result.scanners.current.hits,1);assert.equal(result.hits,1);
+ for(const scan of Object.values(result.scanners)){assert.equal(scan.completed,true);assert.equal(scan.files,1);assert.equal(scan.knownAcceptedHits,0);}
+ assert.deepEqual(result.scanners.current.blockingHits,[{path:'assets/synthetic.mjs',type:'answer_array_pending',at:12,byteOffset:12}]);
+});
+test('synthetic current acceptance at the exact legacy hit cannot allow release',()=>{
+ const f=acceptedFixture({section:'function publicCase(){return [701,907,1103,1301];}',literal:'[701,907,1103,1301]',answers:[[701,907,1103,1301]]});
+ const result=blockedReport(f.scan);
+ assert.equal(result.scanners.legacy.hits,1);assert.equal(result.scanners.legacy.knownAcceptedHits,0);
+ assert.equal(result.scanners.legacy.blockingHits[0].at,f.files[0].bytes.toString('utf8').indexOf('[701'));
+ assert.equal(result.scanners.current.hits,0);assert.equal(result.scanners.current.knownAcceptedHits,1);
+ assert.equal(result.knownAcceptedHits,1);assert.equal(result.scanners.current.completed,true);
+});
+test('synthetic scanner exceptions and incomplete runs fail closed while the other scanner finishes',()=>{
+ for(const failed of ['legacy','current']){
+  const bytes=Buffer.from('const publicValue=1;');let reads=0;
+  bytes.toString=function(...args){
+   if(++reads===(failed==='legacy'?1:2))throw Error('synthetic-private-error-must-not-escape');
+   return Buffer.prototype.toString.apply(this,args);
+  };
+  const files=[{path:'assets/first.mjs',bytes:Buffer.from('const first=1;')},{path:'assets/synthetic.mjs',bytes}];
+  const result=blockedReport(()=>scanPrivateAnswerFiles(files,[],emptyAcceptances()),new RegExp('release_answer_scanner_'+failed+'_failed'));
+  assert.equal(reads,2,'each scanner receives the full input independently');
+  assert.equal(result.scanners[failed].completed,false);assert.equal(result.scanners[failed].files,1,'partial work cannot count as completed');
+  const other=result.scanners[failed==='legacy'?'current':'legacy'];
+  assert.equal(other.completed,true);assert.equal(other.files,2);
+  assert.doesNotMatch(JSON.stringify(result),/synthetic-private-error-must-not-escape/);
+ }
+});
+test('synthetic both scans cover every complete file, even after the first blocker',()=>{
+ const files=[
+  {path:'assets/first.html',bytes:Buffer.from('<input data-answer="701">')},
+  {path:'assets/second.mjs',bytes:Buffer.from('const value=[701,907];')},
+  {path:'assets/last.mjs',bytes:Buffer.from('const value="SYNTH-ANSWER";')}
+ ];
+ const result=blockedReport(()=>scanPrivateAnswerFiles(files,[701,[701,907],'SYNTH-ANSWER'],emptyAcceptances()));
+ assert.equal(result.scanners.legacy.files,3);assert.equal(result.scanners.current.files,3);
+ assert.deepEqual(result.scanners.legacy.blockingHits.map(hit=>hit.path),['assets/first.html','assets/last.mjs']);
+ assert.deepEqual(result.scanners.current.blockingHits.map(hit=>hit.path),['assets/second.mjs','assets/last.mjs']);
+ assert.equal(result.scanners.legacy.hits,2);assert.equal(result.scanners.current.hits,2);assert.equal(result.hits,4);
+ assert.equal(result.scanners.legacy.completed,true);assert.equal(result.scanners.current.completed,true);
+});
+function acceptedFixture({section='function publicCase(){\r\n return [701,907];\r\n}',literal='[701,907]',answers=[[701,907]]}={}){
+ const prefix='// 合成公開來源\n',path='assets/synthetic.mjs',bytes=Buffer.from(prefix+section+'\n');
+ const entry={path,type:'answer_array_pending',section:{startByte:Buffer.byteLength(prefix),endByte:Buffer.byteLength(prefix+section),sha256:publicDigest(Buffer.from(section))},hitByteOffset:Buffer.byteLength(prefix+section.slice(0,section.indexOf(literal))),expectedHits:1,reports:[{path:'tasks/batch-20261127-eve/scanhits.md',line:3,hit:1},{path:'tasks/batch-20261127-eve/scanhits2.md',line:3,hit:1}]};
+ const list={schemaVersion:1,groups:[{id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[entry]},{id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}]};
+ const files=[{path,bytes}],serialize=()=>Buffer.from(JSON.stringify(list));
+ return {files,entry,list,answers,serialize,scan:()=>scanPrivateAnswerFiles(files,answers,serialize())};
+}
+test('synthetic accepted pending hit is bound to UTF-8 location and complete raw public section',()=>{
+ const f=acceptedFixture(),result=f.scan();
+ assert.equal(result.knownAcceptedHits,1);assert.equal(result.knownAcceptedStatus,'已知放行');
+ assert.equal(result.hits,0);
+ assert.equal(result.scanners.legacy.hits,0);assert.equal(result.scanners.legacy.knownAcceptedHits,0);
+ assert.equal(result.scanners.current.hits,0);assert.equal(result.scanners.current.detectedHits,1);assert.equal(result.scanners.current.knownAcceptedHits,1);
+ for(const scan of Object.values(result.scanners)){assert.equal(scan.completed,true);assert.equal(scan.files,f.files.length);}
+ assert.equal(result.acceptedHitsSha256,publicDigest(f.serialize()));
+ assert.deepEqual(result.knownAcceptedGroups.map(g=>[g.id,g.hits]),[['risk-accepted',1],['public-baseline-a',0]]);
+ assert.equal(privateAnswerHits(f.files[0].bytes.toString('utf8'),f.answers)[0].byteOffset,f.entry.hitByteOffset);
+ // A different list serialization is a different audited input, even if JSON is equivalent.
+ const changed=Buffer.from(JSON.stringify(f.list,null,2)+'\n');
+ const rescanned=scanPrivateAnswerFiles(f.files,f.answers,changed);
+ assert.equal(rescanned.knownAcceptedHits,1);assert.notEqual(rescanned.acceptedHitsSha256,result.acceptedHitsSha256);
+ // Unchanged accepted code does not exempt the remainder of the file.
+ f.files[0].bytes=Buffer.concat([f.files[0].bytes,Buffer.from('// unrelated public comment\n')]);
+ assert.equal(f.scan().knownAcceptedHits,1);
+});
+test('synthetic one-character, newline and normalization-equivalent section changes block',()=>{
+ for(const change of [s=>s.replace('publicCase','publicXase'),s=>s.replace('\r\n','\n'),s=>s.replace('701','７０１')]){
+  const f=acceptedFixture();f.files[0].bytes=Buffer.from(change(f.files[0].bytes.toString('utf8')));
+  assert.throws(f.scan,/release_accepted_hits_section_changed|release_accepted_hits_section_missing/);
+ }
+});
+test('synthetic new hit inside an accepted section blocks even with a refreshed section digest',()=>{
+ const section='function publicCase(){const first=[701,907];const second=[701,907];return first;}',f=acceptedFixture({section});
+ // Only the original location is approved; a reviewed region is never a blanket exemption.
+ assert.throws(f.scan,/release_private_answer_array_pending/);
+ const original=acceptedFixture();original.files[0].bytes=Buffer.from(original.files[0].bytes.toString('utf8').replace('return [701,907];','const second=[701,907];return [701,907];'));
+ assert.throws(original.scan,/release_accepted_hits_section_changed/);
+});
+test('synthetic unlisted hits in the same file, another file or a moved location block',()=>{
+ for(const otherFile of [false,true]){
+  const f=acceptedFixture(),extra=Buffer.from('\nconst value=[701,907];');
+  if(otherFile)f.files.push({path:'assets/other.mjs',bytes:extra});else f.files[0].bytes=Buffer.concat([f.files[0].bytes,extra]);
+  assert.throws(f.scan,/release_private_answer_array_pending/);
+ }
+ const f=acceptedFixture();f.files[0].path='assets/renamed.mjs';
+ assert.throws(f.scan,/release_accepted_hits_section_missing/);
+ const moved=acceptedFixture();moved.files[0].bytes=Buffer.concat([Buffer.from(' '),moved.files[0].bytes]);
+ assert.throws(moved.scan,/release_accepted_hits_section_changed/);
+});
+test('synthetic duplicate list locations, source regions, files and actual hits all block',()=>{
+ const duplicate=acceptedFixture();duplicate.list.groups[0].entries.push(structuredClone(duplicate.entry));
+ assert.throws(duplicate.scan,/release_accepted_hits_duplicate_location/);
+ const crossGroup=acceptedFixture(),entry=structuredClone(crossGroup.entry);entry.reports=[{path:'tasks/batch-20261127-eve/scanhits.md',line:7,hit:5}];crossGroup.list.groups[1].entries.push(entry);
+ assert.throws(crossGroup.scan,/release_accepted_hits_duplicate_location/);
+ const region=acceptedFixture();region.files[0].bytes=Buffer.concat([region.files[0].bytes,region.files[0].bytes.subarray(region.entry.section.startByte,region.entry.section.endByte)]);
+ assert.throws(region.scan,/release_accepted_hits_ambiguous_section/);
+ const file=acceptedFixture();file.files.push(file.files[0]);assert.throws(file.scan,/release_accepted_hits_duplicate_file/);
+ const hits=acceptedFixture({section:'const value="[[701,907],[701,907]]";',literal:'"'});
+ assert.equal(privateAnswerHits(hits.files[0].bytes.toString('utf8'),hits.answers).length,2);
+ assert.throws(hits.scan,/release_accepted_hits_duplicate_hit/);
+});
+test('synthetic other hit types cannot use a pending-hit acceptance at the same location',()=>{
+ for(const [section,literal,answers,type] of [
+  ['const answer=[701,907];','[701,907]',[[701,907]],'answer_array'],
+  ['const value="SYNTH-ANSWER";','"SYNTH-ANSWER"',['SYNTH-ANSWER'],'text_answer'],
+  ['const value={size:701};','{size:701}',[{size:701}],'answer_object'],
+  ['const answer=701;','701',[701],'numeric_answer']
+ ]){
+  const f=acceptedFixture({section,literal,answers});
+  assert.throws(f.scan,new RegExp('release_private_'+type));
+ }
+});
+test('synthetic missing expected matches and incorrect counts block',()=>{
+ const f=acceptedFixture();assert.throws(()=>scanPrivateAnswerFiles(f.files,[],f.serialize()),/release_accepted_hits_count_mismatch/);
+ const badCount=acceptedFixture();badCount.entry.expectedHits=2;assert.throws(badCount.scan,/release_accepted_hits_format/);
+ const missing=acceptedFixture();missing.files.length=0;assert.throws(missing.scan,/release_accepted_hits_section_missing/);
+});
+test('synthetic malformed lists, unsafe paths and altered section hashes block',()=>{
+ for(const bytes of [Buffer.from('{'),Buffer.from('null'),Buffer.from('{}'),Buffer.from('[]')]){
+  assert.throws(()=>parseAcceptedHits(bytes),/release_accepted_hits_format/);
+ }
+ for(const change of [
+  f=>f.list.schemaVersion=2,f=>f.list.groups.pop(),f=>f.list.groups[1]=structuredClone(f.list.groups[0]),
+  f=>f.list.groups[0].label='unreviewed',f=>f.list.groups[0].id=['risk-accepted'],
+  f=>f.entry.path='../outside.mjs',f=>f.entry.path='assets/../outside.mjs',f=>f.entry.path='/assets/synthetic.mjs',
+  f=>f.entry.type='answer_array',f=>f.entry.expectedHits=0,f=>f.entry.hitByteOffset+=0.5,
+  f=>f.entry.section.startByte=-1,f=>f.entry.section.endByte=f.entry.section.startByte,
+  f=>f.entry.hitByteOffset=f.entry.section.endByte,f=>f.entry.section.sha256='not-a-digest',
+  f=>f.entry.extra='disallowed',f=>f.entry.reports=[],f=>f.entry.reports[0].line=0,
+  f=>f.entry.reports[0].hit=5,f=>f.list.groups[1].entries.push({...structuredClone(f.entry),reports:[{path:'tasks/batch-20261127-eve/scanhits2.md',line:7,hit:5}]})
+ ]){const f=acceptedFixture();change(f);assert.throws(f.scan,/release_accepted_hits_format/);}
+ const hash=acceptedFixture();hash.entry.section.sha256='0'.repeat(64);assert.throws(hash.scan,/release_accepted_hits_section_changed/);
+});
+test('synthetic missing, malformed, nonregular and unreadable list inputs fail closed',async()=>{
+ const dir=await mkdtemp('/tmp/ybs-accepted-read-'),file=dir+'/list.json';
+ await assert.rejects(readAcceptedHits(file),/release_accepted_hits_unreadable/);
+ await assert.rejects(readAcceptedHits(dir),/release_accepted_hits_unreadable/);
+ await assert.rejects(readAcceptedHits(file+'\0'),/release_accepted_hits_unreadable/);
+ await writeFile(file,'{');await assert.rejects(readAcceptedHits(file),/release_accepted_hits_format/);
+ const f=acceptedFixture();await writeFile(file,f.serialize());assert.deepEqual(await readAcceptedHits(file),f.serialize());
+ await symlink(file,dir+'/link.json');await assert.rejects(readAcceptedHits(dir+'/link.json'),/release_accepted_hits_unreadable/);
+});
+test('checked-in list keeps four risk acceptances separate from five public-baseline A entries',async()=>{
+ const bytes=await readAcceptedHits(),list=parseAcceptedHits(bytes);
+ assert.deepEqual(list.groups.map(g=>[g.id,g.entries.length]),[['risk-accepted',4],['public-baseline-a',5]]);
+ for(const entry of list.groups[0].entries){assert.ok(!entry.path.includes('/vendor/'));assert.equal(entry.reports.length,2);}
+ for(const entry of list.groups[1].entries){assert.equal(entry.path,'assets/vendor/xlsx-0.20.3.full.min.js');assert.equal(entry.reports.length,1);}
 });

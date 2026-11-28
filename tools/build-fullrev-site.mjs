@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {activitiesJSON} from './activities-json.mjs';
 import {buildBatches,PUBLIC_ACTIVITY_ASSETS} from './build-fullrev-batch1.mjs';
 import {MANAGED_ACTIVITIES,BATCH8} from '../assets/fullrev-activities.mjs';
-import {scanPrivateAnswers} from './scan-private-answers.mjs';
+import {readAcceptedHits,scanPrivateAnswerFiles} from './scan-private-answers.mjs';
 import {publicAnswerRemainder} from './public-answer-allowlist.mjs';
 import {checkConfig} from '../assets/fullrev-client.mjs';
 import {fullrevCsp,assertFullrevCsp} from './fullrev-csp.mjs';
@@ -58,8 +58,10 @@ function releaseConfig(config){
   ||config.firebase.messagingSenderId!==undefined&&typeof config.firebase.messagingSenderId!=='string'
   ||config.readModelModule!=='/assets/fullrev-read-model.mjs')throw Error('release_read_model_or_public_config_invalid');
 }
-export async function scanRelease({output,workerSource}){
+// Only direct module tests may supply list bytes; the CLI always reads the pinned list.
+export async function scanRelease({output,workerSource},testAcceptedHits){
  if(!workerSource)throw Error('worker_source_required_for_release_scan');
+ const acceptedHits=testAcceptedHits===undefined?await readAcceptedHits():testAcceptedHits;
  const found=[],text=[];output=resolve(output);
  async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true})){
   const p=join(dir,e.name),s=await lstat(p);if(s.isSymbolicLink()||!s.isFile()&&!s.isDirectory())throw Error('release_nonregular_file');
@@ -118,12 +120,14 @@ export async function scanRelease({output,workerSource}){
   scan(materials);
  }
  if(!cases)throw Error('release_cases_missing');
- for(const f of scanned){try{scanPrivateAnswers(f.bytes.toString('utf8'),answers);}catch(e){throw Error(e.message+':'+f.path);}}
+ let answerScan;
+ try{answerScan=scanPrivateAnswerFiles(scanned,answers,acceptedHits);}
+ catch(error){if(error.scan)error.scan={files:found.length,privateCases:cases,releaseId,...error.scan};throw error;}
  const sha256=createHash('sha256');for(const f of text.sort((a,b)=>a.path.localeCompare(b.path))){sha256.update(f.path+'\0');sha256.update(f.bytes);}
  const resources=releaseResources(text,{releaseId,readModelModule:config.readModelModule,pinned});
- return {files:found.length,privateCases:cases,hits:0,sha256:sha256.digest('hex'),releaseId,resources};
+ return {files:found.length,privateCases:cases,...answerScan,sha256:sha256.digest('hex'),releaseId,resources};
 }
-export async function buildSite({output,config,workerSource,source=root}){
+export async function buildSite({output,config,workerSource,source=root},testAcceptedHits){
  releaseConfig(config);
  // Validate mandatory private-source dependency before writing anything.
  if(!workerSource)throw Error('worker_source_required_for_release_scan');
@@ -160,7 +164,7 @@ export async function buildSite({output,config,workerSource,source=root}){
  }
  const releaseId=releaseHash.digest('hex');
  for(const path of releasePaths().filter(p=>/\.(?:html|m?js|css)$/.test(p)))await write(path,versionResources(path,await readFile(join(output,path),'utf8'),releaseId,pinned));
- return {...result,releaseId,scan:await scanRelease({output,workerSource})};
+ return {...result,releaseId,scan:await scanRelease({output,workerSource},testAcceptedHits)};
  async function write(file,value){await mkdir(dirname(join(output,file)),{recursive:true});await writeFile(join(output,file),value);}
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
@@ -170,5 +174,10 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  for(let i=0;i<args.length;i+=2){if(!['--out','--worker-source','--config','--source'].includes(args[i])||parsed[args[i]]||!args[i+1])throw Error('invalid_arguments');parsed[args[i]]=args[i+1];}
  if(!parsed['--out'])throw Error('output_required');
  const options={output:parsed['--out'],workerSource:parsed['--worker-source'],source:parsed['--source']||root};
- console.log(JSON.stringify(mode==='scan'?await scanRelease(options):await buildSite({...options,config:JSON.parse(await readFile(parsed['--config'],'utf8'))}),null,2));
+ try{console.log(JSON.stringify(mode==='scan'?await scanRelease(options):await buildSite({...options,config:JSON.parse(await readFile(parsed['--config'],'utf8'))}),null,2));}
+ catch(error){
+  // Keep both scanner reports in redirected scan.json even when release fails.
+  if(!error.scan)throw error;
+  console.log(JSON.stringify(error.scan,null,2));process.exitCode=1;
+ }
 }

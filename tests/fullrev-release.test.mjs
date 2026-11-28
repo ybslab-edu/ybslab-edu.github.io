@@ -5,10 +5,15 @@ import {mkdtemp,readFile,writeFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import vm from 'node:vm';
+import {writeSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {activitiesJSON} from '../tools/activities-json.mjs';
 import {buildSite,scanRelease,releasePaths} from '../tools/build-fullrev-site.mjs';
 import {config as fixtureConfig} from './fixtures/fullrev.mjs';
 import {createReadModel} from '../assets/fullrev-read-model.mjs';
+import {readAcceptedHits} from '../tools/scan-private-answers.mjs';
+import {runGate,verifyEvidence,workerPaths} from '../tools/release-offline-gate.mjs';
 const config={...fixtureConfig,answerTickets:true,courses:['115-g9'],readModelModule:'/assets/fullrev-read-model.mjs'};
 test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups remain unchanged',async t=>{
  if(workerCISkip){t.skip(workerCISkip);return;}
@@ -20,13 +25,19 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
  await assert.rejects(buildSite({output,config:{...config,answerTickets:'true'},workerSource}),/release_answer_tickets_config_invalid/);
  await assert.rejects(buildSite({output,config:{...config,firebase:{...config.firebase,apiKey:'REPLACE_WITH_PUBLIC_KEY'}},workerSource}),/placeholders_forbidden/);
  const built=await buildSite({output,config,workerSource});assert.equal(built.rounds,121);assert.equal(built.activities,30);assert.equal(built.scan.hits,0);assert.equal(built.scan.files,releasePaths().length);assert.ok(built.scan.privateCases>1800);
+ assert.equal(built.scan.knownAcceptedHits,9);
+ for(const scanner of Object.values(built.scan.scanners)){assert.equal(scanner.completed,true);assert.equal(scanner.files,built.scan.files);assert.equal(scanner.hits,0);}
+ assert.equal(built.scan.scanners.legacy.knownAcceptedHits,0);
+ assert.equal(built.scan.scanners.current.knownAcceptedHits,9);assert.equal(built.scan.scanners.current.detectedHits,9);
+ assert.deepEqual(built.scan.knownAcceptedGroups.map(g=>[g.id,g.hits]),[['risk-accepted',4],['public-baseline-a',5]]);
+ assert.equal(built.scan.acceptedHitsSha256,createHash('sha256').update(await readAcceptedHits()).digest('hex'));
  const catalogPath=join(output,'assets/activities.json'),catalog=await readFile(catalogPath,'utf8');
  assert.equal(catalog,activitiesJSON(await readFile(new URL('../assets/activities.js',import.meta.url),'utf8')));
  assert.deepEqual(JSON.parse(catalog),JSON.parse(await readFile(new URL('../assets/activities.json',import.meta.url),'utf8')));
  await rm(catalogPath);await assert.rejects(scanRelease({output,workerSource}),/release_allowlist_mismatch/);await writeFile(catalogPath,catalog);
  await writeFile(catalogPath,catalog+'\n'+JSON.stringify({answer:'synthetic',qThreeExpected:[]}));
  await assert.rejects(scanRelease({output,workerSource}),/release_forbidden_content/);await writeFile(catalogPath,catalog);
- t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}`);
+ t.diagnostic(`release scan: files=${built.scan.files}; privateCases=${built.scan.privateCases}; hits=${built.scan.hits}; knownAcceptedHits=${built.scan.knownAcceptedHits}`);
  // Every new release page, including all w01–w30 redirects, shares popup CSP.
  // The three pinned legacy DF pages retain their separate, byte-checked policy.
  for(const p of releasePaths().filter(p=>p.endsWith('.html')&&!p.startsWith('115-df/'))){
@@ -100,6 +111,88 @@ test('PR8 mandatory full-tree release gate: 121 g9 rounds; DF and public warmups
   assert.equal(c.api.fullrev,true);assert.equal(c.api.submit(),false);assert.equal(c.api.flushGuest(),false);await assert.rejects(c.api.firebaseSession(),/configuration-pending/);
  }
 });
+test('synthetic module list injection preserves both scanners and cannot override release CLI defaults',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'ybs-dual-scan-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const builderURL=new URL('../tools/build-fullrev-site.mjs',import.meta.url).href;
+ const officialListSha256=createHash('sha256').update(await readAcceptedHits()).digest('hex');
+ // The CLI uses the real checked-in list, while direct calls explicitly supply
+ // the schema-valid empty list required by this synthetic Worker.
+ const script=`
+ import assert from 'node:assert/strict';
+ import {mkdir,readFile,writeFile} from 'node:fs/promises';
+ import {join} from 'node:path';
+ import {fileURLToPath} from 'node:url';
+ import {spawnSync} from 'node:child_process';
+ const [dir,configJSON]=process.argv.slice(1),worker=join(dir,'worker'),output=join(dir,'site');
+ const list={schemaVersion:1,groups:[
+  {id:'risk-accepted',label:'使用者 11/28 接受風險',entries:[]},
+  {id:'public-baseline-a',label:'已判 A、與公開基準逐位元組相同',entries:[]}
+ ]};
+ const acceptedHits=Buffer.from(JSON.stringify(list));
+ const {buildSite,scanRelease}=await import(${JSON.stringify(builderURL)});
+ const bankDir=join(worker,'src/formal/banks');await mkdir(bankDir,{recursive:true});
+ const cases=[{answer:987654321701},{answer:[987654321701,987654321907]}];
+ const banks={'synthetic:release-test':{rounds:{first:{cases}}}};
+ for(const name of [...Array.from({length:8},(_,i)=>'pr6-batch'+(i+1)+'.mjs'),'u206-sheet-v2.mjs'])await writeFile(join(bankDir,name),'export default '+JSON.stringify(banks));
+ for(const name of ['pr6-batch5-materials.mjs','pr6-batch7-materials.mjs'])await writeFile(join(bankDir,name),'export default {}');
+ const options={output,workerSource:worker,config:JSON.parse(configJSON)};
+ const clean=await buildSite(options,acceptedHits);
+ assert.deepEqual(await scanRelease(options,acceptedHits),clean.scan);
+ // A synthetic Worker cannot satisfy the official nine entries. Neither the
+ // main options object nor public config may replace the separate test argument.
+ await assert.rejects(scanRelease({...options,acceptedHits}),error=>{
+  assert.equal(error.message,'release_accepted_hits_count_mismatch');
+  assert.equal(error.scan.hits,0);assert.equal(error.scan.knownAcceptedHits,0);
+  assert.equal(error.scan.acceptedHitsSha256,${JSON.stringify(officialListSha256)});return true;
+ });
+ await assert.rejects(buildSite({...options,output:join(dir,'default-site'),acceptedHits}),error=>{
+  assert.equal(error.message,'release_accepted_hits_count_mismatch');
+  assert.equal(error.scan.releaseId,clean.releaseId);return true;
+ });
+ await assert.rejects(buildSite({...options,config:{...options.config,acceptedHits:list}},acceptedHits),/public_config_invalid/);
+ for(const invalid of [Buffer.from('[]'),null])await assert.rejects(scanRelease(options,invalid),/release_accepted_hits_format/);
+ const configPath=join(dir,'config.json'),listPath=join(dir,'empty-list.json');
+ await writeFile(configPath,configJSON);await writeFile(listPath,acceptedHits);
+ const cliArgs=mode=>[fileURLToPath(${JSON.stringify(builderURL)}),mode,'--out',output,'--worker-source',worker,...(mode==='scan'?[]:['--config',configPath])];
+ for(const mode of ['build','dry-run','scan']){
+  const attempt=spawnSync(process.execPath,[...cliArgs(mode),'--accepted-hits',listPath],{encoding:'utf8',timeout:10000});
+  assert.equal(attempt.error,undefined);assert.equal(attempt.status,1);assert.match(attempt.stderr,/invalid_arguments/);assert.equal(attempt.stdout,'');
+ }
+ const cliDefault=spawnSync(process.execPath,cliArgs('scan'),{encoding:'utf8',timeout:30000});
+ assert.equal(cliDefault.error,undefined);assert.equal(cliDefault.status,1,cliDefault.stderr);
+ const defaultReport=JSON.parse(cliDefault.stdout);
+ assert.equal(defaultReport.hits,0);assert.equal(defaultReport.knownAcceptedHits,0);
+ assert.equal(defaultReport.scanners.current.error,'release_accepted_hits_count_mismatch');
+ assert.equal(defaultReport.acceptedHitsSha256,${JSON.stringify(officialListSha256)});
+ assert.notEqual(defaultReport.acceptedHitsSha256,clean.scan.acceptedHitsSha256);
+ const reportPath=join(dir,'scan.json');await writeFile(reportPath,JSON.stringify(clean.scan));
+ const recorded=JSON.parse(await readFile(reportPath,'utf8'));
+ for(const scanner of Object.values(recorded.scanners)){assert.equal(scanner.completed,true);assert.equal(scanner.files,recorded.files);assert.equal(scanner.hits,0);assert.equal(scanner.knownAcceptedHits,0);}
+ const victim=join(output,'index.html'),original=await readFile(victim);
+ for(const [payload,oldHits,newHits] of [
+  ['<input data-answer="987654321701">',1,0],
+  ['<script>const value=[987654321701,987654321907];</script>',0,1]
+ ]){
+  await writeFile(victim,Buffer.concat([original,Buffer.from(payload)]));
+  let blocked;try{await scanRelease({output,workerSource:worker},acceptedHits);}catch(error){blocked=error;}
+  assert.ok(blocked?.scan);await writeFile(reportPath,JSON.stringify(blocked.scan));
+  const record=JSON.parse(await readFile(reportPath,'utf8'));
+  assert.equal(record.scanners.legacy.hits,oldHits);assert.equal(record.scanners.current.hits,newHits);
+  assert.equal(record.files,clean.scan.files);assert.equal(record.privateCases,18);assert.equal(record.releaseId,clean.releaseId);
+  for(const scanner of Object.values(record.scanners))assert.equal(scanner.completed,true);
+ }
+ // Exercise the actual CLI error path: JSON must still be emitted with exit 1.
+ process.argv=[process.execPath,fileURLToPath(${JSON.stringify(builderURL)}),'scan','--out',output,'--worker-source',worker];
+ await import(${JSON.stringify(builderURL+'?synthetic-cli')});
+ `;
+ const child=spawnSync(process.execPath,['--input-type=module','-e',script,dir,JSON.stringify(config)],{encoding:'utf8',timeout:180000});
+ assert.equal(child.status,1,child.stderr);assert.equal(child.error,undefined);
+ await writeFile(join(dir,'cli-scan.json'),child.stdout);
+ const report=JSON.parse(await readFile(join(dir,'cli-scan.json'),'utf8'));
+ assert.equal(report.hits,1);assert.equal(report.scanners.legacy.hits,0);assert.equal(report.scanners.current.hits,1);
+ assert.equal(report.scanners.legacy.knownAcceptedHits,0);assert.equal(report.scanners.current.knownAcceptedHits,0);
+ assert.equal(report.scanners.legacy.completed,true);assert.equal(report.scanners.current.completed,true);
+});
 test('PR8 read adapter authenticates fresh identity, never lists Firestore or falls back on 503',async()=>{
  let user={getIdToken:async()=> 'synthetic'},requests=[];
  const auth={get currentUser(){return user;}},session=async()=>({app:{options:{projectId:config.firebase.projectId}},auth});
@@ -120,4 +213,27 @@ test('DF 60-second cooldown preserves changed draft, identical receipt is idempo
  await api.submitReport(1,encoded);await api.submitReport(1,encoded);assert.equal(writes,1);
  const changed={...encoded,payload:'{"synthetic":true}'};await assert.rejects(api.submitReport(1,changed),{code:'report/rate-limited'});assert.equal(writes,1);
  clock+=60000;await api.submitReport(1,changed);assert.equal(writes,2);assert.equal(docs.values().next().value.payload,changed.payload);
+});
+
+test('synthetic changed acceptance list invalidates prior offline evidence through existing source binding',async()=>{
+ const dir=await mkdtemp('/tmp/ybs-list-evidence-'),front=join(dir,'front'),worker=join(dir,'worker');
+ const put=async(base,path,bytes='synthetic')=>{const file=join(base,path);await mkdir(join(file,'..'),{recursive:true});await writeFile(file,bytes);};
+ for(const path of ['assets','115-g9','115-df','map','about','tests','tools','scripts'])await put(front,path+'/fixture.mjs');
+ for(const path of ['index.html','404.html'])await put(front,path);
+ for(const name of ['fullrev-answer-scan.test.mjs','fullrev-release.test.mjs','fullrev-csp.browser.test.mjs','fullrev-df-teacher.browser.test.mjs'])await put(front,'tests/'+name);
+ for(const path of workerPaths)await put(worker,path==='package.json'?path:path+'/fixture.mjs');
+ await put(worker,'tests/fixture.test.mjs');
+ const listPath='tools/scan-accepted-hits.json',original=await readAcceptedHits();await put(front,listPath,original);
+ const options={front,worker,frontCommit:'a'.repeat(40),workerCommit:'b'.repeat(40),out:join(dir,'evidence')};
+ // Synthetic runner tests evidence validation only; it does not claim full-gate acceptance.
+ const evidence=runGate(options,(_command,args,opts)=>{
+  if(!opts.stdio)return {status:0,stdout:'',stderr:''};
+  writeSync(opts.stdio[1],args.includes('python3')?'OK   synthetic mock\nSKIP teacher unlock（沒有設定 YBS_TEACHER_CODE）\n':'# tests 1\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n');
+  return {status:0};
+ });
+ assert.equal(verifyEvidence({...options,evidence}).status,'passed');
+ // Even a whitespace-only replacement must invalidate old evidence: raw list bytes matter.
+ await put(front,listPath,Buffer.concat([original,Buffer.from('\n')]));
+ assert.notDeepEqual(await readAcceptedHits(join(front,listPath)),original);
+ assert.throws(()=>verifyEvidence({...options,evidence}),/gate_source_version_mismatch/);
 });

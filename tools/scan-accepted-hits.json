@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "id": "risk-accepted",
+      "label": "使用者 11/28 接受風險",
+      "entries": [
+        {
+          "path": "assets/fullrev-activities.mjs",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 7574,
+            "endByte": 7851,
+            "sha256": "0a47bcbd8bd73de1a8de6de744d836d0ead7d47e750fd7f7fe0dace34675eb4b"
+          },
+          "hitByteOffset": 7660,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 3,
+              "hit": 1
+            },
+            {
+              "path": "tasks/batch-20261127-eve/scanhits2.md",
+              "line": 13,
+              "hit": 1
+            }
+          ]
+        },
+        {
+          "path": "assets/fullrev-photos.mjs",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 346,
+            "endByte": 634,
+            "sha256": "8fb6f1eeaff8f9f2dbe4fc6f94906d58725febf41aef6a120c1dabbdb3f63e57"
+          },
+          "hitByteOffset": 470,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 4,
+              "hit": 2
+            },
+            {
+              "path": "tasks/batch-20261127-eve/scanhits2.md",
+              "line": 25,
+              "hit": 2
+            }
+          ]
+        },
+        {
+          "path": "assets/fullrev-recording.mjs",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 2885,
+            "endByte": 3669,
+            "sha256": "2dd4422c954c9f5e833cac9bfb6d25f1d7389cf6fd60b15c8523b8353d6c6f52"
+          },
+          "hitByteOffset": 3069,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 5,
+              "hit": 3
+            },
+            {
+              "path": "tasks/batch-20261127-eve/scanhits2.md",
+              "line": 37,
+              "hit": 3
+            }
+          ]
+        },
+        {
+          "path": "assets/fullrev-volunteer-sheet.mjs",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 10226,
+            "endByte": 11386,
+            "sha256": "2a26891d1e1bdfbe253801c8ba66a420ed226fe8b10de251a63e24844740fb89"
+          },
+          "hitByteOffset": 10945,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 6,
+              "hit": 4
+            },
+            {
+              "path": "tasks/batch-20261127-eve/scanhits2.md",
+              "line": 49,
+              "hit": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "public-baseline-a",
+      "label": "已判 A、與公開基準逐位元組相同",
+      "entries": [
+        {
+          "path": "assets/vendor/xlsx-0.20.3.full.min.js",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 900853,
+            "endByte": 901210,
+            "sha256": "8d9b01a12e79b4636f55af822e601bababac49ff2343ec74e8d0361fa8445601"
+          },
+          "hitByteOffset": 901156,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 7,
+              "hit": 5
+            }
+          ]
+        },
+        {
+          "path": "assets/vendor/xlsx-0.20.3.full.min.js",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 904007,
+            "endByte": 904323,
+            "sha256": "165edfe45524c60aac1d2f386d0d113af77171b6794bfac42e4afdaad4e1128f"
+          },
+          "hitByteOffset": 904102,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 8,
+              "hit": 6
+            }
+          ]
+        },
+        {
+          "path": "assets/vendor/xlsx-0.20.3.full.min.js",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 905659,
+            "endByte": 905813,
+            "sha256": "fc95620a8bcd29eab17a6666aa819aa51806ebd5cf5d1b781ccfdd97ff0a674a"
+          },
+          "hitByteOffset": 905688,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 9,
+              "hit": 7
+            }
+          ]
+        },
+        {
+          "path": "assets/vendor/xlsx-0.20.3.full.min.js",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 912588,
+            "endByte": 914112,
+            "sha256": "4305bea3efcdd34b5056b22f645e43ae853de4efbdc4aab0eb650943a4329567"
+          },
+          "hitByteOffset": 912656,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 10,
+              "hit": 8
+            }
+          ]
+        },
+        {
+          "path": "assets/vendor/xlsx-0.20.3.full.min.js",
+          "type": "answer_array_pending",
+          "section": {
+            "startByte": 912588,
+            "endByte": 914112,
+            "sha256": "4305bea3efcdd34b5056b22f645e43ae853de4efbdc4aab0eb650943a4329567"
+          },
+          "hitByteOffset": 912726,
+          "expectedHits": 1,
+          "reports": [
+            {
+              "path": "tasks/batch-20261127-eve/scanhits.md",
+              "line": 11,
+              "hit": 9
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

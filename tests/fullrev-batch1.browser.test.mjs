@@ -41,7 +41,8 @@ before(async()=>{
             requestId:()=>crypto.randomUUID(),fetcher:(url,init)=>fetch('/worker'+new URL(url).pathname,init)});
           app.state.uid='fake-uid-a';app.state.owner=false;app.state.hints={'115-g9':'synthetic-class'};
           if(restoredProvider)app.auth.currentUser.uid='fake-uid-a';
-          let clock=Date.now();const advance=app.advance;app.advance=(ms=60001)=>{advance(ms);clock+=ms;};
+          // 頁面日曆仍固定在全部活動開放後；作答期限與模擬 Worker 使用同一時鐘。
+          let clock=${current.clock};const advance=app.advance;app.advance=(ms=60001)=>{advance(ms);clock+=ms;};
           const session=async()=>app.session,fetcher=(url,init)=>fetch('/worker'+new URL(url).pathname,init);
           const model=createReadModel({session,project:config.firebase.projectId,course:'115-g9',workerOrigin:config.workerOrigin,fetcher});
           app.client=createClient({config,session,now:()=>clock,readModel:model,shared:localStorage,storage:sessionStorage,events:window,requestId:()=>crypto.randomUUID(),fetcher});
